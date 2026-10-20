@@ -315,75 +315,12 @@
     // volgende tak (liefst rechtdoor) en keert aan een dood eind om de kop van de weg.
     let VG = { nodes: [], edges: new Map(), totalLen: 0, ver: 0 };
     const VLANE = { weg: [2.25], brd: [1.6, 4.85] };   // afstand van de rijstrook tot het midden van de weg
-    const segX = (a, b, c, d) => {   // snijpunt van segmenten ab en cd als [t, u], of null
-      const rx = b[0] - a[0], rz = b[1] - a[1], sx = d[0] - c[0], sz = d[1] - c[1], den = rx * sz - rz * sx;
-      if (Math.abs(den) < 1e-9) return null;
-      const t = ((c[0] - a[0]) * sz - (c[1] - a[1]) * sx) / den, u = ((c[0] - a[0]) * rz - (c[1] - a[1]) * rx) / den;
-      return t > -1e-6 && t < 1 + 1e-6 && u > -1e-6 && u < 1 + 1e-6 ? [t, u] : null;
-    };
-    const plen = pts => { let l = 0; for (let i = 1; i < pts.length; i++) l += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); return l; };
-    const dirAt = (pts, i) => { const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)]; let dx = b[0] - a[0], dz = b[1] - a[1]; const l = Math.hypot(dx, dz) || 1; return [dx / l, dz / l]; };
-    function buildVecGraph() {
-      const P = (cells.paths || []).filter(p => (p.t === 'weg' || p.t === 'brd') && p.p && p.p.length > 1);
-      const lines = P.map(p => ({ t: p.t, pts: smoothPts(p.p), cuts: new Set() }));
-      const cutAt = (L, i, f) => { if (f < 0.02) { if (i > 0) L.cuts.add(i); } else if (f > 0.98) { if (i + 1 < L.pts.length - 1) L.cuts.add(i + 1); } else L.cuts.add(i + f); };
-      // kruisende lijnen: allebei knippen op het snijpunt
-      for (let a = 0; a < lines.length; a++) for (let b = a + 1; b < lines.length; b++) {
-        const A = lines[a], B = lines[b];
-        for (let i = 0; i < A.pts.length - 1; i++) for (let j = 0; j < B.pts.length - 1; j++) { const x = segX(A.pts[i], A.pts[i + 1], B.pts[j], B.pts[j + 1]); if (x) { cutAt(A, i, x[0]); cutAt(B, j, x[1]); } }
-      }
-      // een uiteinde dat op een andere lijn uitkomt (T-aansluiting): die lijn daar knippen
-      for (const A of lines) for (const e of [A.pts[0], A.pts[A.pts.length - 1]]) for (const B of lines) {
-        if (B === A) continue;
-        let bi = -1, bf = 0, bd = 1e9;
-        for (let j = 0; j < B.pts.length - 1; j++) {
-          const p = B.pts[j], q = B.pts[j + 1], dx = q[0] - p[0], dz = q[1] - p[1], l2 = dx * dx + dz * dz || 1;
-          const f = Math.max(0, Math.min(1, ((e[0] - p[0]) * dx + (e[1] - p[1]) * dz) / l2)), d = Math.hypot(e[0] - p[0] - dx * f, e[1] - p[1] - dz * f);
-          if (d < bd) { bd = d; bi = j; bf = f; }
-        }
-        if (bi >= 0 && bd < PATH_DEF[B.t].hw + 1.5 && !(bi === 0 && bf < 0.02) && !(bi === B.pts.length - 2 && bf > 0.98)) cutAt(B, bi, bf);
-      }
-      const pieces = [];
-      for (const L of lines) {
-        const cuts = [...L.cuts].sort((x, y) => x - y); let cur = [L.pts[0]], ci = 0;
-        for (let i = 0; i < L.pts.length - 1; i++) {
-          while (ci < cuts.length && cuts[ci] < i + 1) {
-            const f = cuts[ci] - i, p = f <= 0 ? L.pts[i] : [L.pts[i][0] + (L.pts[i + 1][0] - L.pts[i][0]) * f, L.pts[i][1] + (L.pts[i + 1][1] - L.pts[i][1]) * f];
-            if (f > 0) cur.push(p);
-            if (cur.length > 1) pieces.push({ t: L.t, pts: cur });
-            cur = [p]; ci++;
-          }
-          cur.push(L.pts[i + 1]);
-        }
-        if (cur.length > 1) pieces.push({ t: L.t, pts: cur });
-      }
-      // knopen: uiteinden die bij elkaar liggen zijn één knoop; het eerste uiteinde bepaalt de plek
-      const nodes = [], nodeOf = p => { for (let i = 0; i < nodes.length; i++) if (Math.hypot(nodes[i].x - p[0], nodes[i].z - p[1]) < 3) return i; nodes.push({ x: p[0], z: p[1], edges: [] }); return nodes.length - 1; };
-      const edges = new Map(); let totalLen = 0;
-      const rk = p => Math.round(p[0] * 2) / 2 + ',' + Math.round(p[1] * 2) / 2;
-      for (const pc of pieces) {
-        const a = nodeOf(pc.pts[0]), b = nodeOf(pc.pts[pc.pts.length - 1]), len = plen(pc.pts);
-        if (a === b || len < 4) continue;
-        let id = pc.t + ':' + rk(pc.pts[0]) + '>' + rk(pc.pts[pc.pts.length - 1]); while (edges.has(id)) id += "'";
-        edges.set(id, { id, t: pc.t, pts: pc.pts, a, b, len }); nodes[a].edges.push(id); nodes[b].edges.push(id); totalLen += len;
-      }
-      VG = { nodes, edges, totalLen, ver: VG.ver + 1 };
-    }
+    function vecGraph() { if (vecDirty) { vecDirty = false; VG = vecGraphOf(cells.paths, VG.ver + 1); } return VG; }
     const nodeTrim = n => {   // hoe ver de rijstrook voor een kruising ophoudt (daar komt de bocht)
       const N = VG.nodes[n]; if (!N || N.edges.length < 3) return 0;
       let hw = 0; for (const id of N.edges) hw = Math.max(hw, PATH_DEF[VG.edges.get(id).t].hw); return hw + 1.0;
     };
-    function lanePts(e, dir, off) {   // de lijn opzij geschoven, in rijrichting (rechts houden)
-      const src = dir ? e.pts.slice().reverse() : e.pts, out = [];
-      for (let i = 0; i < src.length; i++) { const [dx, dz] = dirAt(src, i); out.push([src[i][0] - dz * off, src[i][1] + dx * off]); }
-      return out;
-    }
-    function trimPts(pts, t0, t1) {
-      const seg = [0]; for (let i = 1; i < pts.length; i++) seg.push(seg[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
-      const len = seg[seg.length - 1]; if (t0 + t1 > len - 1.5) { const k = Math.max(0, len - 1.5) / (t0 + t1); t0 *= k; t1 *= k; }
-      const at = s => { let i = 1; while (i < seg.length - 1 && seg[i] < s) i++; const f = (s - seg[i - 1]) / Math.max(1e-6, seg[i] - seg[i - 1]); return [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * f, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * f]; };
-      const out = [at(t0)]; for (let i = 0; i < pts.length; i++) if (seg[i] > t0 + 0.05 && seg[i] < len - t1 - 0.05) out.push(pts[i]); out.push(at(len - t1)); return out;
-    }
+    const lanePts = (e, dir, off) => offsetPts(dir ? e.pts.slice().reverse() : e.pts, off);   // rijstrook: rechts van het midden
     const laneOff = (e, lane) => VLANE[e.t][Math.min(lane, VLANE[e.t].length - 1)];
     function vecLeg(e, dir, lane, from) {   // from: einde van de vorige rijstrook {pt, d}; daarvandaan een bocht naar deze
       const nA = dir ? e.b : e.a, nB = dir ? e.a : e.b;
@@ -468,7 +405,7 @@
         if ((baseOf(st[0]) === 'weg' || (baseOf(st[0]) === 'water' && baseOf(st[1]) === 'weg')) && maskAt(q, r)) { roadTiles.push([q, r]); roadSet.add(k); }
       }
       laanTiles = roadLinks.laan ? [...roadLinks.laan.values()].map(I => [I.q, I.r]) : [];
-      buildVecGraph();
+      vecGraph();
       // hoe meer huizen en kantoren, hoe meer verkeer; nooit voller dan de wegen aankunnen
       const pop = cityCounts(), nRoad = roadTiles.length + laanTiles.length * 1.5 + VG.totalLen / 15.6;
       const want = Math.round(nRoad / 14 + pop.homes * 0.3 + pop.offices * 0.2);
@@ -654,6 +591,9 @@
       return Math.abs(al) < 2.35 + mx && Math.abs(lat) < 0.96 + mz;
     }
     return {
+      vecGraph,
+      // stoep langs een tak: de lijn opzij geschoven en bij kruisingen ingekort tot aan de stoeprand van de zijstraat
+      vecWalk: (e, dir, off) => vecWalkPts(VG, e, dir, off),
       vecDbg: () => ({ nodes: VG.nodes.map(n => [+n.x.toFixed(1), +n.z.toFixed(1), n.edges.length]), edges: [...VG.edges.values()].map(e => [e.id, e.a, e.b, Math.round(e.len)]), cars: list.map(c => [+c.x.toFixed(1), +c.z.toFixed(1), c.eid || null, c.kind, +c.v.toFixed(1), c.why]) }),
       list,
       get on() { return on; },

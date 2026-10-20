@@ -68,7 +68,7 @@
     if (col.lights.length) lightReg.set(k, (lightReg.get(k) || []).concat(col.lights));
     if (col.parked.length) { parkedReg.set(k, col.parked); parkedVersion++; }
   }
-  let peopleDirty = true, peopleLocalEdit = false, carsDirty = true;
+  let peopleDirty = true, peopleLocalEdit = false, carsDirty = true, vecDirty = true;
   function rebuildAround(q, r) {
     const todo = updateRoadLinks();
     for (const k of refreshPathLinks()) todo.add(k);

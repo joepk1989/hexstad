@@ -55,6 +55,15 @@
       }
       if (n.kind.level === 'low') link(n, nodes.get(lk(n.q, n.r, n.y + 3)), -1, true);   // trap of helling op
     }
+    // Getekende wegen: knopen op kruisingen en uiteinden, stoepen ertussen (nog los van het hexnetwerk)
+    const G = cars.vecGraph();
+    const vn = G.nodes.map((N, i) => { const r = N.z / (1.5 * R); return { key: 'v' + i, q: N.x / (R * SQ3) - r / 2, r, y: PW_H, x: N.x, z: N.z, kind: { b: 'vec' }, edges: new Map() }; });
+    for (const e of G.edges.values()) {
+      const A = vn[e.a], B = vn[e.b];
+      A.edges.set(B.key, { to: B, side: -1, climb: false, vec: e, dir: 0 });
+      B.edges.set(A.key, { to: A, side: -1, climb: false, vec: e, dir: 1 });
+    }
+    for (const n of vn) if (n.edges.size) nodes.set(n.key, n);
     for (const [k, n] of nodes) if (!n.edges.size) nodes.delete(k);
     return nodes;
   }
@@ -203,9 +212,22 @@
       return [c.x + G.f[0] * tt + G.n[0] * p, c.z + G.f[1] * tt + G.n[1] * p];
     }
     const roadK = n => n.kind.b === 'weg' || n.kind.b === 'laan';
+    const vecOff = (e, a) => a.walkSide * (PATH_DEF[e.t].hw + PATH_DEF[e.t].walk / 2 + a.lane * 0.5);
+    let curA = null;   // de voetganger die nu aan de beurt is (voor de vloerhoogte op getekende stoepen)
+    function vecFloor(x, z) {   // vloer op een getekende weg: stoep, rijbaan of niets; alleen de takken rond de voetganger
+      const E = curA && curA.vedges; if (!E) return 0;
+      let best = 0;
+      for (const e of E) {
+        let d = 1e9; for (let i = 0; i < e.pts.length - 1; i++) d = Math.min(d, distSeg(x, z, e.pts[i], e.pts[i + 1]));
+        const D = PATH_DEF[e.t], h = d < D.hw + 0.3 ? ASPH_H : d < D.hw + D.walk + 0.3 ? PW_H : 0; if (h > best) best = h;
+      }
+      return best;
+    }
+    const vecEdgesAround = (...ns) => { const out = []; for (const n of ns) if (n) for (const e of n.edges.values()) if (e.vec && !out.includes(e.vec)) out.push(e.vec); return out; };
     function centerOf(n, f, a) {
       const c = cellC(n), K = n.kind;
       if (K.b === 'laan') return laanWalk(n, 0, a);
+      if (K.b === 'vec') { const e = [...n.edges.values()][0]; if (e && e.vec) { a.vedges = vecEdgesAround(n); return cars.vecWalk(e.vec, e.dir, vecOff(e.vec, a))[0]; } return [n.x, n.z]; }
       const [rx, rz] = f ? right(f) : [0, 0];
       if (K.b === 'weg') return onSidewalk(n, c.x + rx * a.walkSide * 3.4, c.z + rz * a.walkSide * 3.4);
       if (K.b === 'hof') return [c.x + rx * a.walkSide * 2.9, c.z + rz * a.walkSide * 2.9];
@@ -231,6 +253,7 @@
         const t = surfTop(s2, x, z);
         if (t !== null && t <= feet + 0.45 && (best === null || t > best)) best = t;
       }
+      if (best === null || best < 0.5) best = Math.max(best || 0, vecFloor(x, z));
       return best === null ? (feet < 0.5 ? 0 : feet) : best;
     }
     function place(a, n, fromDoor) {
@@ -438,6 +461,8 @@
     function go(a, e) {
       const from = a.node, to = e.to;
       a.prev = from; a.node = to; a.wps = [];
+      if (e.vec) { a.precise = false; a.vedges = vecEdgesAround(from, to); a.wps = cars.vecWalk(e.vec, e.dir, vecOff(e.vec, a)); return; }
+      a.vedges = null;
       a.precise = e.climb || to.kind.b === 'door' || from.kind.b === 'door' || !!to.kind.level || !!from.kind.level;   // deuren en trappen: precies volgen
       if (e.corner) {
         // haaks pad naar de straat: over het pad naar de hoek, dan de stoep op (of andersom)
@@ -478,8 +503,9 @@
       doorList = nodeList.filter(n => n.kind.b === 'door');
       // bewoners en werkers: hoe meer huizen en kantoren, hoe drukker op straat (plus een paar wandelaars)
       const pop = cityCounts();
-      const want = Math.min(8, nodeList.length * 0.05) + pop.homes * 1.6 + pop.offices * 1.2;
-      const target = on ? Math.min(MAX, Math.round(Math.min(want, nodeList.length * 0.8))) : 0;
+      const vLen = cars.vecGraph().totalLen;   // getekende wegen tellen mee per lengte
+      const want = Math.min(8, nodeList.length * 0.05 + vLen / 40) + pop.homes * 1.6 + pop.offices * 1.2;
+      const target = on ? Math.min(MAX, Math.round(Math.min(want, nodeList.length * 0.8 + vLen / 20))) : 0;
       for (const a of agents) {   // wie op een verdwenen plek stond (of: een hele nieuwe stad), begint ergens anders opnieuw
         const n = a.node && graph.get(a.node.key);
         if (!n || wholeNew) { if (nodeList.length) place(a, pick(nodeList), false); continue; }
@@ -841,6 +867,7 @@
         for (const a of agents) if (a.state === 'walk' || a.state === 'pause') { a.moving = a.spd > 0.2; addG(a); }
         if (mode === 'walk') addG({ x: player.x, z: player.z, y: player.y, heading: player.yaw + Math.PI, spd: pSpeed, moving: pSpeed > 0.3 });
         for (const a of agents) {
+          curA = a;
           a.t += dt; a.lookPhase += dt;
           if (a.fade < 1) a.fade = Math.min(1, a.fade + dt * 1.5);
           if (a.state === 'inside') { a.timer -= dt; if (a.timer <= 0 && nodeList.length) { const n = doorList.length ? pick(doorList) : pick(nodeList); place(a, n, true); } continue; }
