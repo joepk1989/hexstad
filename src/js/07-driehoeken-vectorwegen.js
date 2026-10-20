@@ -108,7 +108,7 @@
   }
   function buildPathNet() {
     if (pathGroup) { pathGroup.traverse(m => { if (m.isMesh && m.userData.own) m.geometry.dispose(); }); scene.remove(pathGroup); }
-    pathGroup = pathBuild(cells.paths); scene.add(pathGroup);
+    pathGroup = pathBuild(cells.paths); scene.add(pathGroup); carsDirty = true;
   }
   function pathBuild(P) {   // lint-meshes voor een lijst vrije wegen; ook gebruikt door de 3D-weergave in de schets
     const pathGroup = new THREE.Group();

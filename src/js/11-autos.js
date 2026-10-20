@@ -180,6 +180,7 @@
     }
     // Waar gaat de auto na dit vak heen? Vooraf bepaald, zodat de auto alvast kan insturen
     function planNext(c) {
+      if (c.vec) return vecNext(c);
       if (c.laan) return laanNext(c);
       const nq = c.q + NEIGH[c.outS][0], nr = c.r + NEIGH[c.outS][1], nin = (c.outS + 3) % 6;
       if (laanCell(nq, nr) >= 0) {   // een zijstraat die op een laan uitkomt
@@ -191,6 +192,7 @@
     }
     function useLeg(c, L) {
       c.q = L.q; c.r = L.r; c.inS = L.inS; c.outS = L.outS; c.path = L.path; c.cx = L.cx; c.cz = L.cz;
+      c.vec = !!L.vec; c.u = !!L.u; c.eid = L.eid; c.dir = L.dir; c.lane = L.lane; c.nodeEnd = L.nodeEnd; c.exitPt = L.exitPt; c.exitD = L.exitD;
       c.laan = !!L.laan; c.d = L.d; c.port = L.port; c.exit = L.exit; c.kind = L.kind; c.gapChk = L.gapChk || null;
       c.pri = L.laan && L.kind === 'lane' ? 2 : 1;
       c.next = planNext(c);
@@ -198,6 +200,7 @@
     // Klopt een (gepland) stuk rijlijn nog na een verbouwing?
     function validLeg(L) {
       if (!L || !L.path) return false;
+      if (L.vec) return VG.edges.has(L.eid);
       if (L.laan) { const I = laanAt(L.q, L.r); return !!I && I.d === L.d && (L.port !== 'side' || ((I.arms >> L.inS) & 1) === 1); }
       return roadSet.has(key(L.q, L.r)) && ((maskAt(L.q, L.r) >> L.inS) & 1) === 1;
     }
@@ -306,9 +309,116 @@
       if (e && e.weg) { const [a, b] = e.weg; if (roadSet.has(key(a, b)) && ((maskAt(a, b) >> e.inS) & 1)) return leg(a, b, e.inS); }
       return null;
     }
+    // ---------- Vectorwegen: auto's over vrij getekende wegen ----------
+    // De getekende lijnen (cells.paths, typen weg en brd) worden een graaf: knopen op uiteinden, kruisingen en
+    // T-aansluitingen, takken ertussen. Een auto rijdt op de rechter rijstrook van een tak, kiest op een knoop een
+    // volgende tak (liefst rechtdoor) en keert aan een dood eind om de kop van de weg.
+    let VG = { nodes: [], edges: new Map(), totalLen: 0, ver: 0 };
+    const VLANE = { weg: [2.25], brd: [1.6, 4.85] };   // afstand van de rijstrook tot het midden van de weg
+    const segX = (a, b, c, d) => {   // snijpunt van segmenten ab en cd als [t, u], of null
+      const rx = b[0] - a[0], rz = b[1] - a[1], sx = d[0] - c[0], sz = d[1] - c[1], den = rx * sz - rz * sx;
+      if (Math.abs(den) < 1e-9) return null;
+      const t = ((c[0] - a[0]) * sz - (c[1] - a[1]) * sx) / den, u = ((c[0] - a[0]) * rz - (c[1] - a[1]) * rx) / den;
+      return t > -1e-6 && t < 1 + 1e-6 && u > -1e-6 && u < 1 + 1e-6 ? [t, u] : null;
+    };
+    const plen = pts => { let l = 0; for (let i = 1; i < pts.length; i++) l += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); return l; };
+    const dirAt = (pts, i) => { const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)]; let dx = b[0] - a[0], dz = b[1] - a[1]; const l = Math.hypot(dx, dz) || 1; return [dx / l, dz / l]; };
+    function buildVecGraph() {
+      const P = (cells.paths || []).filter(p => (p.t === 'weg' || p.t === 'brd') && p.p && p.p.length > 1);
+      const lines = P.map(p => ({ t: p.t, pts: smoothPts(p.p), cuts: new Set() }));
+      const cutAt = (L, i, f) => { if (f < 0.02) { if (i > 0) L.cuts.add(i); } else if (f > 0.98) { if (i + 1 < L.pts.length - 1) L.cuts.add(i + 1); } else L.cuts.add(i + f); };
+      // kruisende lijnen: allebei knippen op het snijpunt
+      for (let a = 0; a < lines.length; a++) for (let b = a + 1; b < lines.length; b++) {
+        const A = lines[a], B = lines[b];
+        for (let i = 0; i < A.pts.length - 1; i++) for (let j = 0; j < B.pts.length - 1; j++) { const x = segX(A.pts[i], A.pts[i + 1], B.pts[j], B.pts[j + 1]); if (x) { cutAt(A, i, x[0]); cutAt(B, j, x[1]); } }
+      }
+      // een uiteinde dat op een andere lijn uitkomt (T-aansluiting): die lijn daar knippen
+      for (const A of lines) for (const e of [A.pts[0], A.pts[A.pts.length - 1]]) for (const B of lines) {
+        if (B === A) continue;
+        let bi = -1, bf = 0, bd = 1e9;
+        for (let j = 0; j < B.pts.length - 1; j++) {
+          const p = B.pts[j], q = B.pts[j + 1], dx = q[0] - p[0], dz = q[1] - p[1], l2 = dx * dx + dz * dz || 1;
+          const f = Math.max(0, Math.min(1, ((e[0] - p[0]) * dx + (e[1] - p[1]) * dz) / l2)), d = Math.hypot(e[0] - p[0] - dx * f, e[1] - p[1] - dz * f);
+          if (d < bd) { bd = d; bi = j; bf = f; }
+        }
+        if (bi >= 0 && bd < PATH_DEF[B.t].hw + 1.5 && !(bi === 0 && bf < 0.02) && !(bi === B.pts.length - 2 && bf > 0.98)) cutAt(B, bi, bf);
+      }
+      const pieces = [];
+      for (const L of lines) {
+        const cuts = [...L.cuts].sort((x, y) => x - y); let cur = [L.pts[0]], ci = 0;
+        for (let i = 0; i < L.pts.length - 1; i++) {
+          while (ci < cuts.length && cuts[ci] < i + 1) {
+            const f = cuts[ci] - i, p = f <= 0 ? L.pts[i] : [L.pts[i][0] + (L.pts[i + 1][0] - L.pts[i][0]) * f, L.pts[i][1] + (L.pts[i + 1][1] - L.pts[i][1]) * f];
+            if (f > 0) cur.push(p);
+            if (cur.length > 1) pieces.push({ t: L.t, pts: cur });
+            cur = [p]; ci++;
+          }
+          cur.push(L.pts[i + 1]);
+        }
+        if (cur.length > 1) pieces.push({ t: L.t, pts: cur });
+      }
+      // knopen: uiteinden die bij elkaar liggen zijn één knoop; het eerste uiteinde bepaalt de plek
+      const nodes = [], nodeOf = p => { for (let i = 0; i < nodes.length; i++) if (Math.hypot(nodes[i].x - p[0], nodes[i].z - p[1]) < 3) return i; nodes.push({ x: p[0], z: p[1], edges: [] }); return nodes.length - 1; };
+      const edges = new Map(); let totalLen = 0;
+      const rk = p => Math.round(p[0] * 2) / 2 + ',' + Math.round(p[1] * 2) / 2;
+      for (const pc of pieces) {
+        const a = nodeOf(pc.pts[0]), b = nodeOf(pc.pts[pc.pts.length - 1]), len = plen(pc.pts);
+        if (a === b || len < 4) continue;
+        let id = pc.t + ':' + rk(pc.pts[0]) + '>' + rk(pc.pts[pc.pts.length - 1]); while (edges.has(id)) id += "'";
+        edges.set(id, { id, t: pc.t, pts: pc.pts, a, b, len }); nodes[a].edges.push(id); nodes[b].edges.push(id); totalLen += len;
+      }
+      VG = { nodes, edges, totalLen, ver: VG.ver + 1 };
+    }
+    const nodeTrim = n => {   // hoe ver de rijstrook voor een kruising ophoudt (daar komt de bocht)
+      const N = VG.nodes[n]; if (!N || N.edges.length < 3) return 0;
+      let hw = 0; for (const id of N.edges) hw = Math.max(hw, PATH_DEF[VG.edges.get(id).t].hw); return hw + 1.0;
+    };
+    function lanePts(e, dir, off) {   // de lijn opzij geschoven, in rijrichting (rechts houden)
+      const src = dir ? e.pts.slice().reverse() : e.pts, out = [];
+      for (let i = 0; i < src.length; i++) { const [dx, dz] = dirAt(src, i); out.push([src[i][0] - dz * off, src[i][1] + dx * off]); }
+      return out;
+    }
+    function trimPts(pts, t0, t1) {
+      const seg = [0]; for (let i = 1; i < pts.length; i++) seg.push(seg[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+      const len = seg[seg.length - 1]; if (t0 + t1 > len - 1.5) { const k = Math.max(0, len - 1.5) / (t0 + t1); t0 *= k; t1 *= k; }
+      const at = s => { let i = 1; while (i < seg.length - 1 && seg[i] < s) i++; const f = (s - seg[i - 1]) / Math.max(1e-6, seg[i] - seg[i - 1]); return [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * f, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * f]; };
+      const out = [at(t0)]; for (let i = 0; i < pts.length; i++) if (seg[i] > t0 + 0.05 && seg[i] < len - t1 - 0.05) out.push(pts[i]); out.push(at(len - t1)); return out;
+    }
+    const laneOff = (e, lane) => VLANE[e.t][Math.min(lane, VLANE[e.t].length - 1)];
+    function vecLeg(e, dir, lane, from) {   // from: einde van de vorige rijstrook {pt, d}; daarvandaan een bocht naar deze
+      const nA = dir ? e.b : e.a, nB = dir ? e.a : e.b;
+      let pts = trimPts(lanePts(e, dir, laneOff(e, lane)), nodeTrim(nA), nodeTrim(nB)), turn = false;
+      if (from) {
+        const s = pts[0], d0 = dirAt(pts, 0);
+        if (Math.hypot(s[0] - from.pt[0], s[1] - from.pt[1]) > 0.3) { pts = bez(from.pt, from.d, s, d0, 0.42, 16).concat(pts.slice(1)); turn = Math.abs(Math.atan2(from.d[0] * d0[1] - from.d[1] * d0[0], from.d[0] * d0[0] + from.d[1] * d0[1])) > 0.35; }
+      }
+      return { vec: true, eid: e.id, dir, lane, nodeEnd: nB, q: 100000 + nB, r: 0, inS: 0, outS: 3, kind: turn ? 'turn' : 'lane', path: mkPath(pts), cx: 0, cz: 0, exitPt: pts[pts.length - 1], exitD: dirAt(pts, pts.length - 1) };
+    }
+    function vecULeg(e, dir, lane, from) {   // keren om de kop van een doodlopende weg
+      const nB = dir ? e.a : e.b, N = VG.nodes[nB], off = laneOff(e, lane), d = from.d, r = [-d[1], d[0]], pts = [];
+      for (let i = 0; i <= 16; i++) { const th = Math.PI * i / 16; pts.push([N.x + d[0] * Math.sin(th) * off + r[0] * Math.cos(th) * off, N.z + d[1] * Math.sin(th) * off + r[1] * Math.cos(th) * off]); }
+      return { vec: true, u: true, eid: e.id, dir, lane, nodeEnd: nB, q: 100000 + nB, r: 0, inS: 0, outS: 0, kind: 'u', path: mkPath(pts), cx: 0, cz: 0, exitPt: pts[pts.length - 1], exitD: [-d[0], -d[1]] };
+    }
+    const laneFor = (e, lane) => VLANE[e.t].length > 1 ? (lane < VLANE[e.t].length ? lane : Math.floor(Math.random() * VLANE[e.t].length)) : 0;
+    function vecNext(c) {
+      const e = VG.edges.get(c.eid); if (!e) return null;
+      const from = { pt: c.exitPt, d: c.exitD };
+      if (c.u) return vecLeg(e, c.dir ? 0 : 1, c.lane, from);
+      const N = VG.nodes[c.nodeEnd], opts = N.edges.filter(id => id !== c.eid).map(id => VG.edges.get(id));
+      if (!opts.length) return vecULeg(e, c.dir, c.lane, from);
+      const sc = opts.map(o => { const od = o.a === c.nodeEnd ? 0 : 1; let d0 = dirAt(o.pts, od ? o.pts.length - 1 : 0); if (od) d0 = [-d0[0], -d0[1]]; return { o, od, cos: d0[0] * from.d[0] + d0[1] * from.d[1] }; });
+      const straight = sc.filter(x => x.cos > 0.8), ch = straight.length && Math.random() < 0.55 ? pick(straight) : pick(sc);
+      return vecLeg(ch.o, ch.od, laneFor(ch.o, c.lane), from);
+    }
+    function spawnVec(c) {
+      let x = Math.random() * VG.totalLen, e = null;
+      for (const E of VG.edges.values()) { e = E; x -= E.len; if (x <= 0) break; }
+      if (!e) return false;
+      c.prev = null; useLeg(c, vecLeg(e, Math.random() < 0.5 ? 0 : 1, laneFor(e, 99), null)); return true;
+    }
     // Licht bij het binnenrijden van een stuk rijlijn
     function entryLight(L, t) {
-      if (!L) return null;
+      if (!L || L.vec) return null;
       if (L.laan && L.port === 'mid') return null;
       return lightState(L.q, L.r, L.inS, t);
     }
@@ -327,10 +437,11 @@
       return [c.cx + a[0] + (b[0] - a[0]) * t, c.cz + a[1] + (b[1] - a[1]) * t, Math.atan2(b[1] - a[1], b[0] - a[0])];
     }
     function spawn(c, tryN = 0) {
-      const nL = laanTiles.length * 1.5, nW = roadTiles.length;
+      const nL = laanTiles.length * 1.5, nW = roadTiles.length, nV = VG.totalLen / 15.6;
       let ok = false;
       for (let tries = 0; tries < 8 && !ok; tries++) {
-        if (nL && Math.random() < nL / (nL + nW)) {
+        if (nV && Math.random() < nV / (nV + nL + nW)) ok = spawnVec(c);
+        else if (nL && Math.random() < nL / (nL + nW)) {
           const [q, r] = pick(laanTiles), L = laanLeg(q, r, { t0: -INNER });
           if (L) { c.prev = null; useLeg(c, L); ok = true; }
         } else if (nW) {
@@ -357,12 +468,14 @@
         if ((baseOf(st[0]) === 'weg' || (baseOf(st[0]) === 'water' && baseOf(st[1]) === 'weg')) && maskAt(q, r)) { roadTiles.push([q, r]); roadSet.add(k); }
       }
       laanTiles = roadLinks.laan ? [...roadLinks.laan.values()].map(I => [I.q, I.r]) : [];
+      buildVecGraph();
       // hoe meer huizen en kantoren, hoe meer verkeer; nooit voller dan de wegen aankunnen
-      const pop = cityCounts(), nRoad = roadTiles.length + laanTiles.length * 1.5;
+      const pop = cityCounts(), nRoad = roadTiles.length + laanTiles.length * 1.5 + VG.totalLen / 15.6;
       const want = Math.round(nRoad / 14 + pop.homes * 0.3 + pop.offices * 0.2);
       const target = on && nRoad >= 3 ? Math.min(MAX, Math.max(1, Math.min(want, Math.floor(nRoad / 2.5)))) : 0;
       while (list.length > target) list.pop();
       for (const c of list) {
+        if (c.vec) { if (!validLeg(c)) spawn(c); else c.next = planNext(c); continue; }
         if (c.laan || laanCell(c.q, c.r) >= 0) { if (!validLeg(c)) spawn(c); else c.next = planNext(c); continue; }
         const m = maskAt(c.q, c.r); if (!roadSet.has(key(c.q, c.r)) || !((m >> c.inS) & 1)) spawn(c); else if (c.outS !== c.inS && !((m >> c.outS) & 1)) { c.outS = chooseOut(c.q, c.r, c.inS); c.path = lanePath(c.inS, c.outS, m); } c.next = planNext(c);
       }
@@ -390,7 +503,7 @@
     const wheelWorld = (c, wx, wz) => { const ch = Math.cos(c.h), sh = Math.sin(c.h); return [c.x + wx * ch - wz * sh, c.z + wx * sh + wz * ch]; };
     function suspend(c, dt) {
       if (dt <= 0) return;
-      const g = WHEELS.map(([wx, wz]) => groundPt(...wheelWorld(c, wx, wz)));
+      const g = WHEELS.map(([wx, wz]) => Math.max(c.vec ? ASPH_H : 0, groundPt(...wheelWorld(c, wx, wz))));
       // een wiel dat een stoeprand op of af gaat: tikje in de vering en een doffe bons
       let jolt = 0;
       g.forEach((v, j) => { jolt = Math.max(jolt, Math.abs(v - (c.g[j] ?? v))); });
@@ -541,6 +654,7 @@
       return Math.abs(al) < 2.35 + mx && Math.abs(lat) < 0.96 + mz;
     }
     return {
+      vecDbg: () => ({ nodes: VG.nodes.map(n => [+n.x.toFixed(1), +n.z.toFixed(1), n.edges.length]), edges: [...VG.edges.values()].map(e => [e.id, e.a, e.b, Math.round(e.len)]), cars: list.map(c => [+c.x.toFixed(1), +c.z.toFixed(1), c.eid || null, c.kind, +c.v.toFixed(1), c.why]) }),
       list,
       get on() { return on; },
       get reckless() { return reckless; },
