@@ -27,7 +27,9 @@
     }
   } catch (e) {}
   save();
+  if (modsReset && cells.inst && cells.inst.length) { for (const I of cells.inst) removeInst(I); cells.inst = []; }   // eenmalig: oude modules uit de stad
   rebuildAll(); updateStats();
+  if (modsReset) changed();
   selectTool('woning');
   applyOrbit();
   setTimeout(() => toast(cleaned

@@ -5,44 +5,10 @@
   const uid = () => Math.random().toString(36).slice(2, 10);
   const ensureIds = () => modules.forEach(m => { if (!m.id) m.id = uid(); });
   ensureIds();
-  // Startmodules: wegen uit echte wegvakken, dus met dezelfde gladde bochten, markering en verkeer als de rest van het spel
-  try {
-    if (!localStorage.getItem('hexstad-seed-wegen2')) {
-      const NB = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]], at = (k, d = 1) => [NB[k][0] * d, NB[k][1] * d];
-      const mk = (name, list) => ({ name, n: 2, k: 1, edges: [], cells: [...new Set(list.map(c => c.join(',')))], paths: [], tris: [] });
-      const arm = (k, len) => Array.from({ length: len }, (_, i) => at(k, i + 1));
-      const mods = [
-        mk('Weg recht', [[0, 0], ...arm(0, 1), ...arm(3, 1)]),
-        mk('Bocht', [[0, 0], ...arm(0, 1), ...arm(1, 1)]),
-        mk('T-splitsing', [[0, 0], ...arm(0, 1), ...arm(3, 1), ...arm(1, 1)]),
-        mk('Y-splitsing', [[0, 0], ...arm(0, 1), ...arm(2, 1), ...arm(4, 1)]),
-        mk('Kruispunt', [[0, 0], ...arm(0, 1), ...arm(3, 1), ...arm(1, 1), ...arm(4, 1)]),
-        mk('Rotonde', [0, 1, 2, 3, 4, 5].flatMap(k => [at(k), at(k, 2)])),
-        mk('Lange weg', [[0, 0], ...arm(0, 3), ...arm(3, 3)]),
-      ];
-      const old = new Set(mods.map(m => m.name));
-      modules = modules.filter(m => !(old.has(m.name) && m.n === 8 && !(m.cells || []).length));
-      mods.forEach(m => { if (!modules.some(x => x.name === m.name)) modules.push(m); });
-      ensureIds(); localStorage.setItem(MODS_KEY, JSON.stringify(modules)); localStorage.setItem('hexstad-seed-wegen2', '1');
-    }
-    if (!localStorage.getItem('hexstad-seed-tegel2')) {   // schuine wegtegel: asfalt met stoep aan beide kanten, langs de rasterlijnen
-      { const oi = modules.findIndex(x => x.name === 'Weg schuin'); if (oi >= 0) modules.splice(oi, 1); }
-      {
-        const n = 4, t = R / n, SQ = Math.sqrt(3) / 2, tris = [], ux = Math.cos(Math.PI / 6), uz = Math.sin(Math.PI / 6), pv = (i, j) => [i * t * SQ, i * t / 2 + j * t];
-        for (let i = -12; i <= 12; i++) for (let j = -20; j <= 20; j++) for (const t01 of [0, 1]) {
-          const A = pv(i, j), B = pv(i + 1, j), C = pv(i, j + 1), D = pv(i + 1, j + 1), V = t01 ? [B, D, C] : [A, B, C], x = (V[0][0] + V[1][0] + V[2][0]) / 3, z = (V[0][1] + V[1][1] + V[2][1]) / 3;
-          if (!(Math.abs(x) <= R * Math.sqrt(3) / 2)) continue;   // strook tussen twee verticale rasterlijnen: sluit naadloos aan op de volgende tegel
-          const d = Math.abs(-x * uz + z * ux); if (d < 3.9) tris.push([i, j, t01, 'weg']); else if (d < 5.85) tris.push([i, j, t01, 'vloer']);
-        }
-        modules.push({ name: 'Weg schuin', n, k: 0, edges: [], cells: [], paths: [], tris });
-      }
-      ensureIds(); localStorage.setItem(MODS_KEY, JSON.stringify(modules)); localStorage.setItem('hexstad-seed-tegel2', '1');
-    }
-    if (!localStorage.getItem('hexstad-seed-lijn2')) {   // lijnmodules: sleep ze van vak naar vak
-      [['Weg breed', 'brd', 0], ['Weg', 'weg', 0], ['Pad', 'pad', 0], ['Weg breed + groen', 'brd', 4], ['Weg + groen', 'weg', 4]].forEach(([nm, t, g]) => { if (!modules.some(x => x.name === nm)) modules.push({ name: nm, n: 2, k: 1, edges: [], cells: [], tris: [], paths: [{ t, l: 0, r: g, p: [[-7.8, 0], [7.8, 0]] }] }); });
-      ensureIds(); localStorage.setItem(MODS_KEY, JSON.stringify(modules)); localStorage.setItem('hexstad-seed-lijn2', '1');
-    }
-  } catch (e) { /* geen opslag */ }
+  // Geen startmodules meer: de lijst begint leeg en vult zich met je eigen schetsen.
+  // Eenmalig (reset 1) worden eerder meegeleverde modules en alles wat ermee in de stad staat weggehaald.
+  let modsReset = false;
+  try { if (!localStorage.getItem('hexstad-mods-reset1')) { modules = []; localStorage.setItem(MODS_KEY, '[]'); localStorage.setItem('hexstad-mods-reset1', '1'); modsReset = true; } } catch (e) { /* geen opslag */ }
   const saveMods = () => { ensureIds(); try { localStorage.setItem(MODS_KEY, JSON.stringify(modules)); } catch (e) { /* geen opslag */ } };
   let moduleSel = null, moduleRot = 0;
   function rotKey(id, n) {   // draai een rand of doorgang n x 60° (tegen de klok in) rond vak 0,0
