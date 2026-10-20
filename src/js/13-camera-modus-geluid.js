@@ -1,0 +1,317 @@
+  // ---------- Camera: bouwen (orbit) ----------
+  const orbit = { target: new THREE.Vector3(0, 0, 0), theta: 0.75, phi: 0.92, dist: 190 };
+  function applyOrbit() {
+    const { target, theta, phi, dist } = orbit;
+    camera.position.set(target.x + dist * Math.sin(phi) * Math.sin(theta), target.y + dist * Math.cos(phi), target.z + dist * Math.sin(phi) * Math.cos(theta));
+    camera.lookAt(target);
+  }
+  function pan(dx, dy) {
+    const k = orbit.dist * 0.0019;
+    const s = Math.sin(orbit.theta), c = Math.cos(orbit.theta);
+    orbit.target.x += -c * dx * k - s * dy * k;
+    orbit.target.z += s * dx * k - c * dy * k;
+  }
+  const zoom = f => { orbit.dist = Math.min(2200, Math.max(14, orbit.dist * f)); };
+
+  // ---------- Camera: lopen ----------
+  const player = { x: 0, y: 0, z: 0, vy: 0, yaw: 0, pitch: 0, grounded: true };
+  const keys = Object.create(null);
+  const joyVec = { x: 0, y: 0 };
+  function spawnPlayer() {
+    const [cq, cr] = worldToCell(orbit.target.x, orbit.target.z);
+    let found = [cq, cr];
+    outer: for (let ring = 0; ring <= 22; ring++) {
+      for (let dq = -ring; dq <= ring; dq++) for (let dr = -ring; dr <= ring; dr++) {
+        if (hexDist(dq, dr) !== ring) continue;
+        if (columnTop(cq + dq, cr + dr) <= 0.3 && baseOf(stackOf(cq + dq, cr + dr)[0]) !== 'water') { found = [cq + dq, cr + dr]; break outer; }
+      }
+    }
+    const { x, z } = cellToWorld(found[0], found[1]);
+    Object.assign(player, { x, z, y: columnTop(found[0], found[1]), vy: 0, yaw: orbit.theta, pitch: -0.05 });
+  }
+  function jump() { if (player.grounded) { player.vy = 3.2; player.grounded = false; } }  // ca. 0,5 m
+  function updateWalk(dt) {
+    let mx = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + joyVec.x;
+    let mz = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0) - joyVec.y;
+    const len = Math.hypot(mx, mz); if (len > 1) { mx /= len; mz /= len; }
+    const speed = (keys.ShiftLeft || keys.ShiftRight || Math.hypot(joyVec.x, joyVec.y) > 0.95) ? 5.5 : 2.4;  // m/s: stevig wandelen / hardlopen
+    const sy = Math.sin(player.yaw), cy = Math.cos(player.yaw);
+    const vx = (cy * mx - sy * mz) * speed, vz = (-sy * mx - cy * mz) * speed;
+    const stuck = blockedAt(player.x, player.z, player.y);   // vastgebouwd? dan mag je eruit lopen
+    const running = speed > 3, pb = (x, z) => (!running && !people.blocks(player.x, player.z, player.y) && people.blocks(x, z, player.y)) || (!cars.blocks(player.x, player.z, player.y) && cars.blocks(x, z, player.y));
+    const nx = player.x + vx * dt; if (stuck || !(blockedAt(nx, player.z, player.y) || pb(nx, player.z))) player.x = nx;
+    const nz = player.z + vz * dt; if (stuck || !(blockedAt(player.x, nz, player.y) || pb(player.x, nz))) player.z = nz;
+    const d = Math.hypot(player.x, player.z); if (d > 210) { player.x *= 210 / d; player.z *= 210 / d; }
+    const floor = floorAt(player.x, player.z, player.y);
+    player.vy -= 9.81 * dt; player.y += player.vy * dt;
+    if (player.y <= floor) { player.y = floor; player.vy = 0; player.grounded = true; } else player.grounded = false;
+    if (player.grounded) sound.walked(Math.hypot(vx, vz) * dt, floor < 0.02, speed > 3);
+    camera.position.set(player.x, player.y + EYE, player.z);
+    camera.rotation.set(player.pitch, player.yaw, 0);
+  }
+
+  // ---------- Modus ----------
+  let mode = 'build';
+  const coarse = window.matchMedia('(pointer: coarse)').matches;
+  if (coarse) document.body.classList.add('coarse');
+  const walkUI = document.getElementById('walkUI');
+  const paletteEl = document.getElementById('palette');
+  const menuBtn = document.getElementById('menuBtn');
+  const modeLbl = document.getElementById('modeLbl');
+  document.getElementById('walkHint').textContent = coarse
+    ? 'Linkerduim lopen · rechterduim kijken · richt het puntje en tik op Bouw'
+    : 'Klik om de muis te vangen · WASD lopen · klik bouwt · rechtsklik haalt weg · scrollwiel wisselt van blok';
+
+  function setMode(m) {
+    mode = m;
+    const walking = m === 'walk';
+    document.body.classList.toggle('walk', walking);
+    walkUI.hidden = !walking; menuBtn.hidden = walking;
+    modeLbl.textContent = walking ? 'Bouwen' : 'Lopen';
+    gridLines.visible = !walking && gridOn; ghost.visible = false; ghostArrow.visible = false; ghostEdges.visible = false;
+    toastEl.classList.add('fade');
+    camera.fov = walking ? 72 : 45; camera.near = walking ? 0.1 : 1.0; camera.updateProjectionMatrix();
+    if (walking) {
+      spawnPlayer(); camera.rotation.order = 'YXZ';
+      const hint = document.getElementById('walkHint');
+      hint.hidden = false; clearTimeout(setMode.hintT); setMode.hintT = setTimeout(() => { hint.hidden = true; }, 7000);
+    }
+    else {
+      if (document.pointerLockElement) document.exitPointerLock();
+      applyOrbit();
+    }
+    resetPointers();
+  }
+  document.getElementById('modeBtn').addEventListener('click', () => setMode(mode === 'build' ? 'walk' : 'build'));
+
+  // ---------- Geluid: atmosfeer, live gemaakt met Web Audio ----------
+  // Wind (sterker op hoogte), vogels bij groen, klotsend water bij grachten, stadsruis bij straten, voetstappen.
+  function indoorsAt(x, z, y) {   // sta je in een woning of kantoor?
+    const [q, r] = worldToCell(x, z);
+    let h = 0;
+    for (const t of stackOf(q, r)) { const top = h + TY(t).h; if (y >= h - 0.1 && y < top - 0.5) return isBuilding(t); h = top; }
+    return false;
+  }
+  const sound = (() => {
+    let ctx = null, master = null, on = false;
+    let birdBus, stepBus, noiseBuf, brownBuf, birdBed = null, indoorF, out;
+    let nextMix = 0, stepDist = 0, klapBuf = null, lastKlap = 0, gruntBuf = null, lastGrunt = 0;
+    // stukken in grunts.mp3 (iemand die kreunt als hij geraakt wordt): [begin, duur] in seconden
+    const GRUNT = [[0.47, 0.35], [1.51, 0.31], [3.28, 0.3], [4.55, 0.32], [5.59, 0.35], [6.87, 0.42], [8.06, 0.51], [9.41, 0.36], [11.03, 0.34], [12.13, 0.37], [13.32, 0.39], [14.49, 0.39], [15.79, 0.43], [17.09, 0.31], [18.12, 0.32], [19.14, 0.33], [20.31, 0.35], [21.45, 0.37], [22.54, 0.36], [23.62, 0.31], [24.79, 0.5], [25.87, 0.39], [27.16, 0.37], [28.23, 0.37], [30.14, 0.39], [31.12, 0.68], [32.4, 0.59], [33.82, 0.69], [35.29, 0.36], [36.48, 0.69], [37.87, 0.46], [39.05, 0.45], [40.31, 0.46]];
+    // stukken in klap.mp3: [begin, duur] in seconden
+    const KLAP = { hard: [[0, 1.0], [1.08, 0.89], [2.05, 2.29], [4.42, 1.89], [6.39, 0.85], [7.32, 0.79], [8.19, 0.79], [9.06, 0.72]],
+      light: [[9.86, 0.63], [10.57, 0.69], [11.34, 0.66], [12.08, 0.57], [12.73, 0.67], [13.48, 0.65]] };
+    const btn = document.getElementById('soundBtn'), waves = document.getElementById('soundWaves');
+    const loopSrc = buf => { const s2 = ctx.createBufferSource(); s2.buffer = buf; s2.loop = true; s2.start(); return s2; };
+    function init() {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      master = ctx.createGain(); master.gain.value = 0;
+      // alles loopt door één filter: binnen in een gebouw klinkt de buitenwereld gedempt
+      indoorF = ctx.createBiquadFilter(); indoorF.type = 'lowpass'; indoorF.frequency.value = 18000; indoorF.Q.value = 0.5;
+      out = ctx.createGain(); out.gain.value = 1;
+      master.connect(indoorF); indoorF.connect(out); out.connect(ctx.destination);
+      // vogelopname (ochtendkoor) als naadloze lus; wordt luider bij groen
+      fetch('vogels.mp3').then(r => r.ok ? r.arrayBuffer() : Promise.reject())
+        .then(ab => new Promise((res, rej) => ctx.decodeAudioData(ab, res, rej)))
+        .then(buf => {
+          const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+          src.loopStart = 0.03; src.loopEnd = buf.duration - 0.03;   // mp3-opvulling aan begin en eind overslaan
+          birdBed = ctx.createGain(); birdBed.gain.value = 0;
+          src.connect(birdBed); birdBed.connect(master);
+          src.start(0, Math.random() * (buf.duration - 1));   // elke keer ergens anders in de opname beginnen
+        }).catch(() => {});
+      // aanrijdingen: opnames van iemand die op een motorkap klapt (harde en zachtere varianten)
+      fetch('klap.mp3').then(r => r.ok ? r.arrayBuffer() : Promise.reject())
+        .then(ab => new Promise((res, rej) => ctx.decodeAudioData(ab, res, rej)))
+        .then(buf => { klapBuf = buf; }).catch(() => {});
+      fetch('grunts.mp3').then(r => r.ok ? r.arrayBuffer() : Promise.reject())
+        .then(ab => new Promise((res, rej) => ctx.decodeAudioData(ab, res, rej)))
+        .then(buf => { gruntBuf = buf; }).catch(() => {});
+      const len = ctx.sampleRate * 3;
+      noiseBuf = ctx.createBuffer(1, len, ctx.sampleRate);
+      brownBuf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const w = noiseBuf.getChannelData(0), br = brownBuf.getChannelData(0);
+      let last = 0;
+      for (let i = 0; i < len; i++) { w[i] = Math.random() * 2 - 1; last = (last + 0.02 * w[i]) / 1.02; br[i] = last * 3.5; }
+      birdBus = ctx.createGain(); birdBus.gain.value = 0.5; birdBus.connect(master);
+      stepBus = ctx.createGain(); stepBus.gain.value = 0.5; stepBus.connect(master);
+    }
+    // ---------- Autogeluid ----------
+    // Een elektrische auto zoemt: twee zachte tonen die met de snelheid omhoog gaan (zoals het verplichte
+    // waarschuwingsgeluid van stille auto's), plus bandengeruis. De 4 auto's het dichtst bij krijgen een stem;
+    // die komt uit de goede richting en wordt zachter met de afstand. Naderen klinkt iets hoger (doppler).
+    const voices = [];
+    function makeVoice() {
+      const v = { car: null, lastD: null };
+      v.panner = ctx.createPanner();
+      Object.assign(v.panner, { panningModel: 'equalpower', distanceModel: 'inverse', refDistance: 4, rolloffFactor: 1.3, maxDistance: 400 });
+      v.gain = ctx.createGain(); v.gain.gain.value = 0;
+      v.gain.connect(v.panner); v.panner.connect(master);
+      // zoem: zachte zaagtand door een laagdoorlaatfilter, met een zuivere toon een kwint hoger
+      v.o1 = ctx.createOscillator(); v.o1.type = 'sawtooth'; v.o1.frequency.value = 120;
+      v.o2 = ctx.createOscillator(); v.o2.type = 'sine'; v.o2.frequency.value = 180;
+      v.lp = ctx.createBiquadFilter(); v.lp.type = 'lowpass'; v.lp.frequency.value = 700; v.lp.Q.value = 3;
+      v.g1 = ctx.createGain(); v.g1.gain.value = 0.05; v.g2 = ctx.createGain(); v.g2.gain.value = 0.07;
+      v.o1.connect(v.lp); v.lp.connect(v.g1); v.g1.connect(v.gain); v.o2.connect(v.g2); v.g2.connect(v.gain);
+      // bandengeruis over het asfalt
+      v.noise = ctx.createBufferSource(); v.noise.buffer = brownBuf; v.noise.loop = true;
+      v.nf = ctx.createBiquadFilter(); v.nf.type = 'bandpass'; v.nf.frequency.value = 450; v.nf.Q.value = 0.5;
+      v.ng = ctx.createGain(); v.ng.gain.value = 0;
+      v.noise.connect(v.nf); v.nf.connect(v.ng); v.ng.connect(v.gain);
+      v.o1.start(); v.o2.start(); v.noise.start(0, Math.random() * 2);
+      return v;
+    }
+    function placeAt(node, x, y, z) {
+      if (node.positionX) { node.positionX.value = x; node.positionY.value = y; node.positionZ.value = z; } else node.setPosition(x, y, z);
+    }
+    const camDir = new THREE.Vector3();
+    function updateCars(dt) {
+      if (!voices.length) for (let i = 0; i < 4; i++) voices.push(makeVoice());
+      const L = ctx.listener, cp = camera.position;
+      camera.getWorldDirection(camDir);
+      if (L.positionX) { L.positionX.value = cp.x; L.positionY.value = cp.y; L.positionZ.value = cp.z; L.forwardX.value = camDir.x; L.forwardY.value = camDir.y; L.forwardZ.value = camDir.z; L.upX.value = 0; L.upY.value = 1; L.upZ.value = 0; }
+      else { L.setPosition(cp.x, cp.y, cp.z); L.setOrientation(camDir.x, camDir.y, camDir.z, 0, 1, 0); }
+      const near = cars.list.map(c => [c, Math.hypot(c.x - cp.x, 0.6 - cp.y, c.z - cp.z)]).filter(([, d]) => d < 90).sort((a, b) => a[1] - b[1]).slice(0, voices.length).map(([c]) => c);
+      for (const v of voices) if (v.car && !near.includes(v.car)) { v.car = null; v.lastD = null; }
+      for (const c of near) if (!voices.some(v => v.car === c)) { const free = voices.find(v => !v.car); if (free) { free.car = c; free.lastD = null; } }
+      const tc = ctx.currentTime;
+      for (const v of voices) {
+        if (!v.car) { v.gain.gain.setTargetAtTime(0, tc, 0.3); continue; }
+        const c = v.car, d = Math.hypot(c.x - cp.x, 0.6 - cp.y, c.z - cp.z);
+        const radial = v.lastD === null ? 0 : (d - v.lastD) / Math.max(dt, 1e-3);   // < 0: komt dichterbij
+        v.lastD = d;
+        const dop = 343 / (343 + Math.max(-40, Math.min(40, radial)));
+        placeAt(v.panner, c.x, 0.6, c.z);
+        const sp = c.v, base = (95 + sp * 22) * dop;
+        v.o1.frequency.setTargetAtTime(base, tc, 0.08);
+        v.o2.frequency.setTargetAtTime(base * 1.5, tc, 0.08);
+        v.lp.frequency.setTargetAtTime(500 + sp * 120, tc, 0.1);
+        // zoem is het duidelijkst bij lage snelheid; bandengeruis neemt het over als de auto harder rijdt
+        v.g1.gain.setTargetAtTime(0.035 + 0.02 * Math.min(1, sp / 8), tc, 0.15);
+        v.g2.gain.setTargetAtTime(sp < 0.3 ? 0.02 : 0.06 * (1 - 0.4 * Math.min(1, sp / 8)), tc, 0.15);
+        v.ng.gain.setTargetAtTime(Math.min(1, sp / 8) * 0.55, tc, 0.15);
+        v.gain.gain.setTargetAtTime(sp < 0.05 ? 0.25 : 0.6, tc, 0.2);
+      }
+    }
+    // Twee korte, heldere toontjes: "pas op" (als een auto op jou staat te wachten)
+    function chime(x, z) {
+      const t0 = ctx.currentTime, p = ctx.createPanner();
+      Object.assign(p, { panningModel: 'equalpower', distanceModel: 'inverse', refDistance: 4, rolloffFactor: 1.3 });
+      placeAt(p, x, 0.8, z); p.connect(master);
+      [[880, 0], [1318.5, 0.16]].forEach(([f, dtt]) => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = 'sine'; o.frequency.value = f;
+        g.gain.setValueAtTime(0.0001, t0 + dtt); g.gain.exponentialRampToValueAtTime(0.18, t0 + dtt + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dtt + 0.28);
+        o.connect(g); g.connect(p); o.start(t0 + dtt); o.stop(t0 + dtt + 0.3);
+      });
+    }
+    function step(grass) {   // voetstap: kort ruisje, dof op gras, harder op klinkers
+      const t0 = ctx.currentTime, src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+      src.buffer = noiseBuf; f.type = 'bandpass'; f.frequency.value = grass ? 380 : 1100 + Math.random() * 300; f.Q.value = grass ? 0.8 : 1.4;
+      g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(grass ? 0.25 : 0.35, t0 + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t0 + (grass ? 0.11 : 0.07));
+      src.connect(f); f.connect(g); g.connect(stepBus);
+      src.start(t0, Math.random() * 2, 0.15);
+    }
+    function setOn(v) {
+      on = v;
+      btn.setAttribute('aria-pressed', String(on)); waves.setAttribute('opacity', on ? '1' : '0.35');
+      try { localStorage.setItem('hexstad-geluid', on ? '1' : '0'); } catch (e) {}
+      if (on) {
+        if (!ctx) init();
+        ctx.resume();
+        master.gain.setTargetAtTime(0.9, ctx.currentTime, 0.4);
+      } else if (ctx) {
+        master.gain.setTargetAtTime(0, ctx.currentTime, 0.15);
+      }
+    }
+    btn.addEventListener('click', () => setOn(!on));
+    // Stond het geluid de vorige keer aan? Dan gaat het aan bij de eerste tik (browsers eisen een tik)
+    let wanted = false; try { wanted = localStorage.getItem('hexstad-geluid') === '1'; } catch (e) {}
+    if (wanted) window.addEventListener('pointerdown', function first(e) { window.removeEventListener('pointerdown', first); if (!on && e.target !== btn) setOn(true); });
+    document.addEventListener('visibilitychange', () => { if (ctx) document.hidden ? ctx.suspend() : (on && ctx.resume()); });
+    return {
+      // elke ~0,4 s: wat ligt er rond de luisteraar?
+      update(dt) {
+        if (!on || !ctx) return;
+        updateCars(dt);
+        const now = performance.now();
+        if (now > nextMix) {
+          nextMix = now + 400;
+          const lx = mode === 'walk' ? player.x : orbit.target.x, lz = mode === 'walk' ? player.z : orbit.target.z;
+          const height = mode === 'walk' ? player.y : Math.min(60, orbit.dist * 0.25);
+          const [cq, cr] = worldToCell(lx, lz);
+          let green = 0, water = 0, road = 0;
+          for (let dq = -2; dq <= 2; dq++) for (let dr = -2; dr <= 2; dr++) {
+            if (hexDist(dq, dr) > 2) continue;
+            for (const t of stackOf(cq + dq, cr + dr)) {
+              const b = baseOf(t);
+              if (b === 'park' || b === 'hof' || b === 'hofhelling') green++;
+              else if (b === 'water') water++;
+              else if (b === 'weg' || b === 'laan') road++;
+            }
+          }
+          const far = mode === 'walk' ? 1 : Math.max(0.35, 1 - orbit.dist / 500);
+          const tc = ctx.currentTime;
+          // vogelkoor: altijd zacht aanwezig, voller bij parken en hofjes, iets minder hoog in de lucht
+          if (birdBed) birdBed.gain.setTargetAtTime((0.25 + Math.min(1, green / 5) * 0.75) * far * (height > 25 ? 0.6 : 1) * (1 - 0.92 * nightK), tc, 1.5);
+          // binnen? dan klinkt alles van buiten dof en zachter
+          const inside = mode === 'walk' && indoorsAt(player.x, player.z, player.y);
+          indoorF.frequency.setTargetAtTime(inside ? 650 : 18000, tc, 0.25);
+          out.gain.setTargetAtTime(inside ? 0.55 : 1, tc, 0.25);
+        }
+      },
+      // Plof bij een val; plons in het water. Zachter naarmate het verder weg is.
+      impact(strength, x, y, z, wet) {
+        if (!on || !ctx) return;
+        const dist = Math.hypot(camera.position.x - x, camera.position.y - y, camera.position.z - z);
+        const vol = strength * 0.5 / (1 + dist / 12);
+        if (vol < 0.01) return;
+        const t0 = ctx.currentTime, src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+        src.buffer = wet ? noiseBuf : brownBuf; f.type = wet ? 'bandpass' : 'lowpass'; f.frequency.value = wet ? 900 : 260; f.Q.value = wet ? 0.7 : 0.8;
+        const len = wet ? 0.6 : 0.16;
+        g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t0 + len);
+        src.connect(f); f.connect(g); g.connect(master); src.start(t0, Math.random() * 2, len + 0.05);
+      },
+      chime(x, z) { if (on && ctx) chime(x, z); },
+      // Aanrijding: een opname van een klap op de motorkap, uit de goede richting, harder bij meer snelheid.
+      // Twee auto's die op elkaar klappen: dezelfde opname, lager afgespeeld.
+      carHit(strength, x, y, z, cars2) {
+        if (!on || !ctx || !klapBuf) return;
+        const now = ctx.currentTime;
+        if (now - lastKlap < 0.12) return;   // niet tien keer tegelijk
+        lastKlap = now;
+        const list = strength > 0.45 ? KLAP.hard : KLAP.light, [off, dur] = list[Math.floor(Math.random() * list.length)];
+        const src = ctx.createBufferSource(), g = ctx.createGain(), pn = ctx.createPanner();
+        Object.assign(pn, { panningModel: 'equalpower', distanceModel: 'inverse', refDistance: 5, rolloffFactor: 1.2, maxDistance: 300 });
+        placeAt(pn, x, y, z);
+        src.buffer = klapBuf;
+        src.playbackRate.value = (cars2 ? 0.72 : 1) * (0.92 + Math.random() * 0.16);
+        g.gain.value = (cars2 ? 0.9 : 0.75) * (0.35 + 0.65 * Math.min(1, strength));
+        src.connect(g); g.connect(pn); pn.connect(master);
+        src.start(now, off, dur);
+      },
+      // Een kreun van iemand die geraakt wordt (door een auto of door een speler die tegen hem aan loopt), vlak na de klap.
+      grunt(x, y, z, strength) {
+        if (!on || !ctx || !gruntBuf) return;
+        const now = ctx.currentTime;
+        if (now - lastGrunt < 0.25) return;   // niet alle omgevallen mensen tegelijk
+        lastGrunt = now;
+        const [off, dur] = GRUNT[Math.floor(Math.random() * GRUNT.length)];
+        const src = ctx.createBufferSource(), g = ctx.createGain(), pn = ctx.createPanner();
+        Object.assign(pn, { panningModel: 'equalpower', distanceModel: 'inverse', refDistance: 4, rolloffFactor: 1.3, maxDistance: 250 });
+        placeAt(pn, x, y, z);
+        src.buffer = gruntBuf;
+        src.playbackRate.value = 0.88 + Math.random() * 0.28;   // elke persoon een iets andere stem
+        g.gain.value = 0.55 + 0.45 * Math.min(1, strength || 0.5);
+        src.connect(g); g.connect(pn); pn.connect(master);
+        src.start(now + 0.07, off, dur);
+      },
+      walked(dist, grass, running) {
+        if (!on || !ctx || dist <= 0) return;
+        stepDist += dist;
+        const stride = running ? 1.3 : 0.75;
+        if (stepDist >= stride) { stepDist = 0; step(grass); }
+      },
+    };
+  })();
+

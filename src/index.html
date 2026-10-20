@@ -1,0 +1,245 @@
+<title>Hexstad</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/*__CSS__*/
+</style>
+
+<canvas id="scene" aria-label="3D-bouwplaats van Hexstad"></canvas>
+
+<header class="hud-top">
+  <div class="brand">
+    <span class="logo-hex" aria-hidden="true"></span>
+    <div style="min-width:0">
+      <h1>Hexstad</h1>
+      <p id="stats">0 blokken</p>
+    </div>
+    <button class="score" id="scoreBtn" type="button" title="Schoonheid van je stad" aria-label="Schoonheid van je stad"><b id="scoreVal">–</b><small>schoonheid</small></button>
+  </div>
+  <div class="actions">
+    <button class="btn icon" id="soundBtn" type="button" aria-pressed="false" aria-label="Geluid aan of uit" title="Geluid">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path id="soundWaves" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" opacity="0.35"/></svg>
+    </button>
+    <button class="btn tod" id="todBtn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-label="Tijd van de dag" title="Tijd van de dag"><span id="todIcon" aria-hidden="true">☀</span><span id="todLbl">14:00</span></button>
+    <button class="btn" id="menuBtn" type="button">Menu</button>
+    <button class="btn primary" id="modeBtn" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13" cy="4" r="2"/><path d="M10 21l2-6 3 3v3M9 12l2-4 4 1 2 3M11 8l-2 4-3 1"/></svg>
+      <span id="modeLbl">Lopen</span>
+    </button>
+  </div>
+</header>
+
+<div class="todpanel" id="todPanel" role="dialog" aria-label="Tijd van de dag" hidden>
+  <div class="tod-head"><b id="todTime">14:00</b><span id="todName">Middag</span></div>
+  <input type="range" id="todRange" min="0" max="24" step="0.05" value="14" aria-label="Uur van de dag">
+  <div class="grid2 quad">
+    <button class="btn" type="button" data-tod="8">Ochtend</button>
+    <button class="btn" type="button" data-tod="13.5">Middag</button>
+    <button class="btn" type="button" data-tod="19.8">Avond</button>
+    <button class="btn" type="button" data-tod="0.5">Nacht</button>
+  </div>
+  <button class="btn" type="button" id="todAutoBtn" aria-pressed="true">Tijd loopt: aan</button>
+</div>
+
+<button class="btn reckless" id="recklessBtn" type="button" aria-pressed="false">Roekeloos rijgedrag</button>
+
+<div class="optbar" id="optbar" role="toolbar" aria-label="Opties">
+  <div class="og" id="ogTool" hidden>
+    <span class="og-t" id="ogToolName">Blok</span>
+    <button class="chip" type="button" id="optRot">↻ Draai</button>
+    <button class="chip" type="button" id="optAutoDir" aria-pressed="false" title="Richting volgt je kijkrichting; tik om vast te zetten of weer los te laten">Richting: auto</button>
+  </div>
+  <div class="og">
+    <span class="og-t">Weergave</span>
+    <button class="chip" type="button" id="optGrid" aria-pressed="true">Raster</button>
+  </div>
+  <div class="og">
+    <span class="og-t">Tijd <b id="optClock">14:00</b></span>
+    <div class="seg" id="optSpeed" role="group" aria-label="Tijdsnelheid">
+      <button type="button" data-sp="0" aria-label="Pauze" title="Pauze">⏸</button>
+      <button type="button" data-sp="1" aria-label="Normaal" title="Normaal: een etmaal in 5 minuten">1×</button>
+      <button type="button" data-sp="4" aria-label="Sneller" title="4× sneller">4×</button>
+      <button type="button" data-sp="12" aria-label="Snelst" title="12× sneller">12×</button>
+    </div>
+  </div>
+  <div class="og">
+    <span class="og-t">Stad</span>
+    <button class="chip" type="button" id="optPeople" aria-pressed="true">Mensen</button>
+    <button class="chip" type="button" id="optCars" aria-pressed="true">Auto's</button>
+  </div>
+</div>
+
+<nav class="palette" id="palette" aria-label="Bouwblokken"></nav>
+
+<div id="walkUI" hidden>
+  <p class="walk-hint" id="walkHint"></p>
+  <div class="joy" id="joy"><div class="knob" id="knob"></div></div>
+  <button class="jump" id="jumpBtn" type="button">Spring</button>
+  <button class="place" id="placeBtn" type="button">Bouw</button>
+  <div class="crosshair"></div>
+</div>
+
+<div class="toast fade" id="toast" role="status" aria-live="polite"></div>
+<button class="undo" id="undoBtn" type="button" hidden>Ongedaan maken</button>
+
+<div id="modStrip" hidden aria-label="Modules"></div>
+
+<div id="schetsApp" hidden>
+<div id="s_stage">
+  <canvas id="s_cv3" aria-hidden="true"></canvas>
+  <canvas id="s_cv" aria-label="Tekenvlak met driehoekraster"></canvas>
+  <div id="s_readout"></div>
+</div>
+<aside>
+  <button id="s_bClose" type="button" class="s-close">← Terug naar de stad</button>
+  <h1>Schets en modules<small id="s_sub"></small></h1>
+
+  <section>
+    <h2>Kleur</h2>
+    <div class="kinds" id="s_kinds"></div>
+  </section>
+
+  <section>
+    <h2>Wegen tekenen</h2>
+    <p class="hint" style="margin-bottom:6px">Klik punten voor een gladde weg. Ze klikken vast op het raster. Dubbelklik of Enter: klaar. Esc of rechtermuisknop: stop.</p>
+    <div class="row" id="s_lineRow"></div>
+    <p class="hint" style="margin:8px 0 4px">Groenstrook rechts van de rijrichting</p>
+    <div class="row" id="s_grRow"></div>
+    <p class="hint" style="margin:8px 0 4px">Groenstrook links</p>
+    <div class="row" id="s_glRow"></div>
+    <div class="row" style="margin-top:6px"><button id="s_bLineDone" type="button">Klaar</button></div>
+  </section>
+
+  <section>
+    <h2>Weergave</h2>
+    <div class="row"><button id="s_vm2" type="button">Boven</button><button id="s_vmI" type="button">Isometrisch</button><button id="s_vm3" type="button">3D</button></div>
+    <div class="row" id="s_viewRow" style="margin-top:6px"><button id="s_bRotL" type="button" aria-label="Draai links">⟲ 60°</button><button id="s_bOrb" type="button" aria-pressed="false">Draaien</button><button id="s_bRotR" type="button" aria-label="Draai rechts">60° ⟳</button></div>
+  </section>
+
+  <section>
+    <h2>Lagen</h2>
+    <p class="hint" style="margin-bottom:6px">Elke laag is 3 m. Muur, dak en glas zijn minstens 1 laag. Bij gras, plein, weg en pad is 0 plat.</p>
+    <div class="row"><button id="s_bLayDn" type="button" aria-label="Minder lagen">−</button><button id="s_layNum" type="button" disabled style="flex:2;text-align:center;opacity:1"></button><button id="s_bLayUp" type="button" aria-label="Meer lagen">+</button></div>
+  </section>
+
+  <section>
+    <h2>Raster</h2>
+    <p class="hint" style="margin-bottom:6px">Gebied in hexagonen</p>
+    <div class="row" id="s_areaRow"></div>
+    <p class="hint" style="margin:8px 0 6px">Zijde van een driehoek</p>
+    <div class="row" id="s_fineRow"></div>
+  </section>
+
+  <section>
+    <h2>Gereedschap</h2>
+    <p class="hint" style="margin-bottom:6px">Shift: trek een rechte lijn vanaf je laatste punt. Rechtermuisknop wist. Schuiven: middelste knop of spatie.</p>
+    <div class="row">
+      <button id="s_bGum" type="button" aria-pressed="false">Gum</button>
+      <button id="s_bHand" type="button" aria-pressed="false">Schuiven</button>
+      <button id="s_bBrush" type="button">Penseel: zeshoek</button>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <button id="s_bUndo" type="button">Terug</button>
+      <button id="s_bRedo" type="button">Opnieuw</button>
+      <button id="s_bZoomIn" type="button" aria-label="Inzoomen">+</button>
+      <button id="s_bZoomOut" type="button" aria-label="Uitzoomen">−</button>
+      <button id="s_bClear" type="button">Leeg</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Module</h2>
+    <input id="s_name" type="text" placeholder="Naam, bijvoorbeeld Binnenhof" maxlength="30">
+    <p class="hint" style="margin:8px 0 4px">Plaatsing in de stad</p>
+    <div class="row" id="s_fineRow2"></div>
+    <div class="row" style="margin-top:6px">
+      <button id="s_bSave" class="primary" type="button">Bewaar</button>
+      <button id="s_bNew" type="button">Nieuw</button>
+    </div>
+    <div id="s_lib" style="margin-top:8px"></div>
+  </section>
+
+  <section>
+    <h2>Delen</h2>
+    <p class="hint">Bewaarde modules staan meteen in het tabblad Modules. Met code deel je ze met een ander apparaat.</p>
+    <div class="row" style="margin:6px 0">
+      <button id="s_bCopyOne" type="button">Kopieer module</button>
+      <button id="s_bCopyAll" type="button">Kopieer alles</button>
+    </div>
+    <textarea id="s_code" spellcheck="false" placeholder="Plak hier een modulecode"></textarea>
+    <div class="row" style="margin-top:6px"><button id="s_bImport" type="button">Laad uit code</button></div>
+    <div id="s_msg" role="status"></div>
+  </section>
+</aside>
+</div>
+
+
+<div id="sketch" hidden>
+  <div id="skBar" style="flex-direction:column;align-items:stretch">
+    <strong style="color:#fff;font-size:17px">Modules</strong>
+    <span style="color:#cfd3c2;font-size:14px">Teken modules in <a href="https://claude.ai/artifact/KdkjcFyKSB3ZXbq4xNLaGa" target="_blank" rel="noopener" style="color:#f2b233">Hexstad Schets</a>, kopieer de code en plak hem hier.</span>
+    <textarea id="skCode" spellcheck="false" placeholder="Plak hier de modulecode" style="height:84px;border-radius:8px;border:0;padding:8px;font:12px monospace"></textarea>
+    <div style="display:flex;gap:6px">
+      <button class="btn primary" type="button" data-sk="import">Laad uit code</button>
+      <button class="btn" type="button" data-sk="close">Sluiten</button>
+    </div>
+  </div>
+  <canvas id="skCv" hidden></canvas>
+  <div id="skList"></div>
+</div>
+
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet-card" role="dialog" aria-labelledby="sheetTitle">
+    <h2 id="sheetTitle">Menu</h2>
+    <p>Alles is op ware grootte: een vak is 15,6 m breed, een verdieping 3 m hoog, een straat 9 m en je ooghoogte 1,65 m.</p>
+    <div class="mine-box">
+      <button class="btn mine" type="button" data-act="mine" id="mineBtn"><span>Mijn stad</span><small id="mineInfo"></small></button>
+      <button class="btn" type="button" data-act="adopt" id="adoptBtn" hidden>Deze stad bewaren als mijn stad</button>
+      <p class="mine-note" id="mineNote">Je eigen stad wordt automatisch bewaard. Een andere stad openen verandert er niets aan.</p>
+    </div>
+    <p class="sheet-sub">Andere steden om in te kijken of te rommelen</p>
+    <div class="grid2">
+      <button class="btn" type="button" data-act="random">Willekeurige stad</button>
+      <button class="btn" type="button" data-act="blocks">Blokkenstad</button>
+      <button class="btn" type="button" data-act="layers">Gelaagde stad</button>
+      <button class="btn" type="button" data-act="ring">Ringstad (2 km)</button>
+      <button class="btn" type="button" data-act="sketch">Schets en modules</button>
+      <button class="btn" type="button" data-act="dorp1">Dorp: dorpsstraat</button>
+      <button class="btn" type="button" data-act="dorp2">Dorp: kruising</button>
+      <button class="btn" type="button" data-act="dorp3">Dorp: rotonde</button>
+      <button class="btn" type="button" data-act="dorp4">Dorp: brede hoofdweg</button>
+      <button class="btn" type="button" data-act="sample">Kleine voorbeeldstad</button>
+      <button class="btn" type="button" data-act="empty">Lege bouwgrond</button>
+      <button class="btn" type="button" data-act="home">Naar het midden</button>
+    </div>
+    <p class="sheet-sub">Leven in de stad</p>
+    <div class="grid2">
+      <button class="btn" type="button" data-act="people" id="peopleBtn">Mensen: aan</button>
+      <button class="btn" type="button" data-act="cars" id="carsBtn">Auto's: aan</button>
+      <a class="btn" href="https://claude.ai/artifact/8eXMwz3T3bTYqZaVYgA6J2" target="_blank" rel="noopener" style="text-decoration:none;text-align:center;grid-column:1/-1">Werkplaats: wat komt er nog ↗</a>
+    </div>
+    <button class="btn" type="button" data-act="cancel">Sluiten</button>
+  </div>
+</div>
+
+<div class="sheet" id="scoreSheet" hidden>
+  <div class="sheet-card" role="dialog" aria-labelledby="scoreTitle">
+    <h2 id="scoreTitle">Schoonheid</h2>
+    <div class="score-head">
+      <span class="score-big" id="scoreBig">–</span>
+      <div><strong id="scoreLabel"></strong><p id="scorePop"></p></div>
+    </div>
+    <div class="score-rows" id="scoreRows"></div>
+    <p class="score-tip" id="scoreTip"></p>
+    <button class="btn" type="button" id="scoreClose">Sluiten</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+/*__JS__*/
+})();
+</script>
