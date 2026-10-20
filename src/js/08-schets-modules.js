@@ -378,7 +378,7 @@
   const KINDS = [['muur', 'Muur'], ['dak', 'Dak'], ['glas', 'Glas'], ['weg', 'Weg'], ['pad', 'Pad'], ['vloer', 'Plein'], ['gras', 'Gras'], ['water', 'Water']];
   const AREAS = [[0, '1'], [1, '7'], [2, '19'], [3, '37']], FINES = [[1, '9 m'], [2, '4,5 m'], [4, '2,25 m'], [8, '1,1 m']];
   const appEl = document.getElementById('schetsApp'), css = n => getComputedStyle(appEl).getPropertyValue(n).trim();
-  const S = { fine: 1, gl: 0, gr: 0, paths: [], pcur: null, tool: 'paint', ltype: 'weg', lay: 1, kind: 'muur', gum: false, hand: false, brush: 'hex', n: 4, k: 0, tris: new Map(), undo: [], redo: [], view: { x: 0, z: 0, s: 8 }, hover: null, editing: -1, last: null, shift: false, space: false };
+  const S = window.__SS = { fine: 1, gl: 0, gr: 0, paths: [], pcur: null, tool: 'paint', ltype: 'weg', lay: 1, kind: 'muur', gum: false, hand: false, brush: 'hex', n: 4, k: 0, tris: new Map(), undo: [], redo: [], view: { x: 0, z: 0, s: 8 }, hover: null, editing: -1, last: null, shift: false, space: false };
   const persist = () => { saveMods(); skList(); };
 
   // rooster: zijde van een driehoek is R / n; een vak bestaat uit 6 n² driehoeken
@@ -495,6 +495,8 @@
   }
   function drawCur() {
     if (S.tool !== 'line') return;
+    if (S.vm === '2d' && S.view.s > 3) { ctx.fillStyle = 'rgba(0,0,0,.18)'; for (const a of hexAnchors()) { const q = toS(a[0], a[1]); ctx.beginPath(); ctx.arc(q[0], q[1], 2, 0, 7); ctx.fill(); } }
+    for (const a of S.paths) for (const q0 of a.p) { const q = toS(q0[0], q0[1]); ctx.fillStyle = '#fff'; ctx.strokeStyle = css('--signal'); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(q[0], q[1], 3.5, 0, 7); ctx.fill(); ctx.stroke(); }
     const h = S.hover && !S.hand ? snapPt(toW(S.hover[0], S.hover[1])) : null, c = S.pcur ? S.pcur.slice() : [];
     if (h) { const pts = c.concat([h]); if (pts.length > 1) strokePath(smoothPts(pts), PATH_DEF[S.ltype].hw * 2, 'rgba(242,178,51,.45)'); }
     for (const a of c.concat(h ? [h] : [])) { const q = toS(a[0], a[1]); ctx.fillStyle = css('--signal'); ctx.beginPath(); ctx.arc(q[0], q[1], 4, 0, 7); ctx.fill(); }
@@ -553,8 +555,22 @@
   const setCells = list => { for (const c of list) { const id = c.join(','); (S.gum || rightDown) ? S.tris.delete(id) : S.tris.set(id, enc(S.kind, S.lay)); } };
   let mode = null, last = null, rightDown = false, lineStart = null;
   const pos = e => { const b = cv.getBoundingClientRect(); return [e.clientX - b.left, e.clientY - b.top]; };
-  // wegen tekenen: gladde lijnen die op roosterpunten vastklikken
-  const snapPt = w => { const [I, J] = vertexAt(w[0], w[1]), q = triP(I, J); return inArea(q[0] * 0.999, q[1] * 0.999) ? q : null; };
+  // wegen tekenen: gladde lijnen die vastklikken op het zeshoekraster (midden van een vak, midden van een rand,
+  // hoekpunt), zodat een weg uit een module precies aansluit op de wegen ernaast
+  function hexAnchors() {
+    if (S._anch && S._anch.k === S.k) return S._anch.list;
+    const list = [], seen = new Set(), add = (x, z) => { const k = Math.round(x * 20) + ',' + Math.round(z * 20); if (!seen.has(k)) { seen.add(k); list.push([Math.round(x * 100) / 100, Math.round(z * 100) / 100]); } };
+    for (let q = -S.k; q <= S.k; q++) for (let r = -S.k; r <= S.k; r++) {
+      if (hexDist(q, r) > S.k) continue;
+      const [cx, cz] = cellXZ(q, r); add(cx, cz);
+      for (let n = 0; n < 6; n++) { const a = Math.PI / 6 + n * Math.PI / 3, b = a + Math.PI / 3, vx = cx + Math.cos(a) * R, vz = cz + Math.sin(a) * R; add(vx, vz); add((vx + cx + Math.cos(b) * R) / 2, (vz + cz + Math.sin(b) * R) / 2); }
+    }
+    S._anch = { k: S.k, list }; return list;
+  }
+  const snapPt = w => { let best = null, bd = 1e9; for (const p of hexAnchors()) { const d = Math.hypot(p[0] - w[0], p[1] - w[1]); if (d < bd) { bd = d; best = p; } } return best && bd < R * 0.6 ? best.slice() : null; };
+  // een punt van een bestaande weg onder de muis (om te verslepen)
+  function pathPtAt(w) { const tol = Math.max(0.8, 10 / S.view.s); for (let i = S.paths.length - 1; i >= 0; i--) for (let j = 0; j < S.paths[i].p.length; j++) { const q = S.paths[i].p[j]; if (Math.hypot(q[0] - w[0], q[1] - w[1]) < tol) return { i, j }; } return null; }
+  let dragPt = null, drawMoved = false;
   function lineFinish() {
     if (S.pcur && S.pcur.length > 1) { snap(); S.paths.push({ t: S.ltype, l: S.gl, r: S.gr, p: S.pcur.map(a => [Math.round(a[0] * 100) / 100, Math.round(a[1] * 100) / 100]) }); counts(); }
     S.pcur = null; sync(); draw();
@@ -565,11 +581,12 @@
       let best = -1, bd = 1e9; S.paths.forEach((a, i) => { const d = distPoly(w[0], w[1], smoothPts(a.p)) - PATH_DEF[a.t].hw; if (d < 2 && d < bd) { bd = d; best = i; } });
       if (best >= 0) { snap(); S.paths.splice(best, 1); counts(); } draw(); return;
     }
+    if (!S.pcur) { const hit = pathPtAt(w); if (hit) { snap(); dragPt = hit; mode = 'dragpt'; draw(); return; } }   // punt verslepen
     const q = snapPt(w); if (!q) return;
     if (!S.pcur) S.pcur = [];
     const l = S.pcur[S.pcur.length - 1];
     if (l && Math.hypot(l[0] - q[0], l[1] - q[1]) < 0.01) { lineFinish(); return; }
-    S.pcur.push(q); sync(); draw();
+    S.pcur.push(q); mode = 'drawline'; drawMoved = false; sync(); draw();
   }
   $('bLineDone').onclick = lineFinish;
   cv.addEventListener('pointerdown', e => {
@@ -585,12 +602,19 @@
     const p = pos(e); S.hover = p; S.shift = e.shiftKey;
     if (mode === 'pan') { const a0 = toW(last[0], last[1]), b0 = toW(p[0], p[1]); S.view.x += a0[0] - b0[0]; S.view.z += a0[1] - b0[1]; last = p; }
     else if (mode === 'orbit') { S.th -= (p[0] - last[0]) * 0.008; if (S.vm === '3d') S.ph = Math.max(0.15, Math.min(1.45, S.ph - (p[1] - last[1]) * 0.006)); last = p; }
+    else if (mode === 'drawline') {   // slepen: elk nieuw rasterpunt onder de muis wordt een punt van de weg
+      const w = toW(p[0], p[1]), q = snapPt(w), l = S.pcur && S.pcur[S.pcur.length - 1];
+      if (q && l && Math.hypot(l[0] - q[0], l[1] - q[1]) > 0.01) { S.pcur.push(q); drawMoved = true; sync(); }
+    }
+    else if (mode === 'dragpt' && dragPt) { const w = toW(p[0], p[1]), q = snapPt(w) || [Math.round(w[0] * 100) / 100, Math.round(w[1] * 100) / 100]; S.paths[dragPt.i].p[dragPt.j] = q; }
     else if (mode === 'paint') { const n = Math.max(1, Math.ceil(Math.hypot(p[0] - last[0], p[1] - last[1]) / 4)); for (let i = 1; i <= n; i++) { const w = toW(last[0] + (p[0] - last[0]) * i / n, last[1] + (p[1] - last[1]) * i / n); setCells(brushList(w[0], w[1])); S.last = w; } last = p; counts(); }
     const [x, z] = toW(p[0], p[1]); $('readout').textContent = 'x ' + x.toFixed(2) + ' m   z ' + z.toFixed(2) + ' m';
     draw();
   });
   const up = e => {
     if (mode === 'line' && S.hover) { const b = toW(S.hover[0], S.hover[1]); setCells(lineCells(lineStart, b)); S.last = b; counts(); }
+    if (mode === 'drawline') { mode = null; if (drawMoved && S.pcur && S.pcur.length > 1) { lineFinish(); return; } }
+    if (mode === 'dragpt') { dragPt = null; counts(); }
     mode = null; rightDown = false; draw();
   };
   cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
