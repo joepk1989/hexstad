@@ -130,12 +130,12 @@
       if (cur.length > 1) pieces.push({ t: L.t, pts: cur });
     }
     // knopen: uiteinden die bij elkaar liggen zijn één knoop; het eerste uiteinde bepaalt de plek
-    const nodes = [], nodeOf = p => { for (let i = 0; i < nodes.length; i++) if (Math.hypot(nodes[i].x - p[0], nodes[i].z - p[1]) < 4.5) return i; nodes.push({ x: p[0], z: p[1], edges: [] }); return nodes.length - 1; };
+    const nodes = [], nodeOf = p => { for (let i = 0; i < nodes.length; i++) if (Math.hypot(nodes[i].x - p[0], nodes[i].z - p[1]) < 7) return i; nodes.push({ x: p[0], z: p[1], edges: [] }); return nodes.length - 1; };
     const edges = new Map(); let totalLen = 0;
     const rk = p => Math.round(p[0] * 2) / 2 + ',' + Math.round(p[1] * 2) / 2;
     for (const pc of pieces) {
       const a = nodeOf(pc.pts[0]), b = nodeOf(pc.pts[pc.pts.length - 1]), len = plen(pc.pts);
-      if (a === b || len < 4.5) continue;   // korter dan de samenvoegstraal van knopen: dan zijn a en b al één knoop
+      if (a === b || len < 7) continue;   // korter dan de samenvoegstraal van knopen: dan zijn a en b al één knoop
       let id = pc.t + ':' + rk(pc.pts[0]) + '>' + rk(pc.pts[pc.pts.length - 1]); while (edges.has(id)) id += "'";
       edges.set(id, { id, t: pc.t, pts: pc.pts, a, b, len }); nodes[a].edges.push(id); nodes[b].edges.push(id); totalLen += len;
     }
@@ -208,6 +208,11 @@
     for (let i = 0; i < 24; i++) { const a = i * Math.PI / 12, x = p[0] + Math.cos(a) * r, z = p[1] + Math.sin(a) * r; L.pos.push(x, y0, z, x, y1, z); }
     for (let i = 0; i < 24; i++) { const a = base + i * 2, b = base + ((i + 1) % 24) * 2; L.idx.push(a, a + 1, b, a + 1, b + 1, b); }
   }
+  function polyInto(L, pts, y) {   // platte veelhoek (waaier vanuit het eerste punt)
+    const base = L.pos.length / 3; for (const p of pts) L.pos.push(p[0], y, p[1]);
+    for (let i = 1; i < pts.length - 1; i++) L.idx.push(base, base + i, base + i + 1);
+  }
+  function wallSeg(L, a, b, y0, y1) { const base = L.pos.length / 3; L.pos.push(a[0], y0, a[1], a[0], y1, a[1], b[0], y0, b[1], b[0], y1, b[1]); L.idx.push(base, base + 1, base + 2, base + 1, base + 3, base + 2); }
   function discInto(L, p, r, y) {
     const base = L.pos.length / 3; L.pos.push(p[0], y, p[1]);
     for (let i = 0; i < 16; i++) { const a = i * Math.PI / 8; L.pos.push(p[0] + Math.cos(a) * r, y, p[1] + Math.sin(a) * r); }
@@ -281,6 +286,20 @@
       if (e.t === 'weg') dashesInto(dash, mp, 0.07, Y + 0.03, 3, 3.5);
       else if (e.t === 'laan') { for (const sg of [1, -1]) { ribbonInto(dash, mp, 0.06, Y + 0.03, sg * 4.75); ribbonInto(pave, mp, 1.0, Y + 0.025, sg * 7.75); ribbonInto(dash, mp, 0.05, Y + 0.03, sg * 6.75); } }
       else { dashesInto(dash, mp, 0.06, Y + 0.03, 3, 3.5, 3.2); dashesInto(dash, mp, 0.06, Y + 0.03, 3, 3.5, -3.2); ribbonInto(dash, mp, 0.05, Y + 0.03, 0.12); ribbonInto(dash, mp, 0.05, Y + 0.03, -0.12); }
+    }
+    // Stoephoeken op kruisingen: tussen twee opeenvolgende takken loopt de stoep door (afgesneden hoek), met stoeprand
+    for (let n = 0; n < GR.nodes.length; n++) {
+      const N = GR.nodes[n]; if (N.edges.length < 3) continue;
+      const arms = N.edges.map(id => { const e = GR.edges.get(id), dir = e.a === n ? 0 : 1, p = dir ? e.pts.slice().reverse() : e.pts, a = p[0], b = p[Math.min(p.length - 1, 2)]; const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return { e, dir, d: [(b[0] - a[0]) / l, (b[1] - a[1]) / l], th: Math.atan2(b[1] - a[1], b[0] - a[0]) }; }).sort((x, y) => x.th - y.th);
+      for (let i = 0; i < arms.length; i++) {
+        const A = arms[i], B = arms[(i + 1) % arms.length];
+        const sideTo = (X, Y) => { const r = [-X.d[1], X.d[0]]; return r[0] * Y.d[0] + r[1] * Y.d[1] > 0 ? 1 : -1; };
+        const sA = sideTo(A, B), sB = sideTo(B, A), dA = PATH_DEF[A.e.t], dB = PATH_DEF[B.e.t];
+        const KA = vecWalkPts(GR, A.e, A.dir, sA * (dA.hw + 0.3))[0], OA = vecWalkPts(GR, A.e, A.dir, sA * (dA.hw + dA.walk))[0];
+        const KB = vecWalkPts(GR, B.e, B.dir, sB * (dB.hw + 0.3))[0], OB = vecWalkPts(GR, B.e, B.dir, sB * (dB.hw + dB.walk))[0];
+        polyInto(walk, [KA, KB, OB, OA], PW_H); polyInto(kerb, [KA, KB, [KB[0] + (OB[0] - KB[0]) * 0.08, KB[1] + (OB[1] - KB[1]) * 0.08], [KA[0] + (OA[0] - KA[0]) * 0.08, KA[1] + (OA[1] - KA[1]) * 0.08]], PW_H + 0.005);
+        wallSeg(kerb, KA, KB, Y, PW_H); wallSeg(walk, OA, OB, 0, PW_H);
+      }
     }
     // Verkeerslichten: per tak een paal rechts van de rijbaan, op de hoek van de stoep, met de kop naar het verkeer
     for (let n = 0; n < GR.nodes.length; n++) {
