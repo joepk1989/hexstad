@@ -101,7 +101,7 @@
     LOD.on = cells.size > 1800;
     if (LOD.on) { LOD.fx = mode === 'walk' ? player.x : orbit.target.x; LOD.fz = mode === 'walk' ? player.z : orbit.target.z; }
     for (const k of cells.keys()) { const [q, r] = k.split(',').map(Number); buildColumn(q, r); }
-    lodProxy(); buildEdgeNet(); buildPathNet(); buildTriNet(); peopleDirty = true; carsDirty = true;
+    lodProxy(); buildEdgeNet(); buildPathNet(); buildTriNet(); buildModNet(); peopleDirty = true; carsDirty = true;
   }
 
   // ---------- Botsing tijdens lopen ----------
@@ -148,7 +148,8 @@
     const [q, r] = worldToCell(x, z), out = [];
     const c = colMap.get(key(q, r)); if (c) out.push(c);
     const e0 = edgeColMap.get(key(q, r)); if (e0) out.push(e0);
-    for (const [dq, dr] of NEIGH) { const c2 = colMap.get(key(q + dq, r + dr)); if (c2) out.push(c2); const e2 = edgeColMap.get(key(q + dq, r + dr)); if (e2) out.push(e2); }
+    const m0 = modCols.get(key(q, r)); if (m0) out.push(...m0);
+    for (const [dq, dr] of NEIGH) { const kk = key(q + dq, r + dr), c2 = colMap.get(kk); if (c2) out.push(c2); const e2 = edgeColMap.get(kk); if (e2) out.push(e2); const m2 = modCols.get(kk); if (m2) for (const x of m2) if (!out.includes(x)) out.push(x); }
     return out;
   }
   function segDist(x, z, w) {

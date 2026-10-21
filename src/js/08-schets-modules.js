@@ -23,6 +23,7 @@
   }
   function moduleItems(mod, rot, q0, r0) { return mod.edges.map(([id, type]) => { const [q, r, k] = rotKey(id, rot); return [q + q0, r + r0, k, type]; }); }
   function placeCore(mod, rot, q0, r0) {   // zet de onderdelen van een module neer; geeft aantal en overgeslagen stukken
+    if (mod.v === 2) { const why = mv2CanPlace(mod, rot, q0, r0); if (why) { toast(why, 1400); return { n: 0, skip: 1 }; } return { n: 1, skip: 0 }; }
     const E = edgesOf(); let n = 0, skip = 0;
     for (const [q, r, k, type] of moduleItems(mod, rot, q0, r0)) {
       if (edgeBlocked(q, r, k)) { skip++; continue; }
@@ -57,7 +58,7 @@
     { const i = instIdxAt(lastPickRes); if (i >= 0 && cells.inst[i].q === q0 && cells.inst[i].r === r0 && swapInst(i)) return true; }   // op een geplaatste module: wisselen
     const { n, skip } = placeCore(mod, moduleRot, q0, r0);
     if (n) (cells.inst || (cells.inst = [])).push({ mid: mod.id, m: JSON.parse(JSON.stringify(mod)), q: q0, r: r0, rot: moduleRot });
-    buildTriNet(); buildPathNet(); buildEdgeNet(); changed();
+    buildTriNet(); buildPathNet(); buildEdgeNet(); buildModNet(); changed();
     toast(n ? '"' + mod.name + '" geplaatst' + (skip ? ' · ' + skip + ' stukken overgeslagen (water of bebouwing)' : '') : 'Hier past de module niet', 2200);
     return n > 0;
   }
@@ -65,7 +66,7 @@
   // Afgeleid uit de tekening: een weg die op het midden van een rand uitkomt → 'weg' (of 'brd', 'laan', 'pad'); anders de
   // driehoeken vlak bij de rand: weg, pad, groen (gras), stoep (vloer/plein), muur (muur/dak/glas), water; niets → 'leeg'.
   const CODE_OF_KIND = { weg: 'weg', pad: 'pad', gras: 'groen', vloer: 'stoep', plein: 'stoep', muur: 'muur', dak: 'muur', glas: 'muur', water: 'water' };
-  const CODE_COL = { weg: '#3c4045', brd: '#1f2326', laan: '#5f9a48', pad: '#9b5a45', groen: '#6aa84a', stoep: '#cbc8bd', muur: '#8a8a8a', water: '#4a8fd1', leeg: 'rgba(0,0,0,0)' };
+  const CODE_COL = { deur: '#e9c46a', weg: '#3c4045', brd: '#1f2326', laan: '#5f9a48', pad: '#9b5a45', groen: '#6aa84a', stoep: '#cbc8bd', muur: '#8a8a8a', water: '#4a8fd1', leeg: 'rgba(0,0,0,0)' };
   const hexDistQR = (q, r) => Math.max(Math.abs(q), Math.abs(r), Math.abs(-q - r));
   function moduleBoundary(k) {   // alle buitenranden van een gebied met straal k, als [q, r, zijde]
     const out = [];
@@ -73,6 +74,7 @@
     return out;
   }
   function moduleCodes(m) {
+    if (m.v === 2) return modV2Codes(m);
     const codes = {}, kk = m.k || 0, ts = R / ([1, 2, 4, 8].includes(m.n) ? m.n : 2);
     const tris = (m.tris || []).map(([i, j, t, kind]) => { const v = triVerts(i, j, t, ts); return { x: (v[0][0] + v[1][0] + v[2][0]) / 3, z: (v[0][1] + v[1][1] + v[2][1]) / 3, kind }; });
     for (const [q, r, s] of moduleBoundary(kk)) {
@@ -126,7 +128,7 @@
   function matchingModules(I) {
     const req = neighbourCodes(I), out = [];
     for (let mi = 0; mi < modules.length; mi++) {
-      const m = modules[mi]; if ((m.k || 0) !== (I.m.k || 0) || !fineOK(m) && !(m.tris || []).length) continue;
+      const m = modules[mi]; if ((m.k || 0) !== (I.m.k || 0) || m.v !== 2 && !fineOK(m) && !(m.tris || []).length) continue;
       for (let rot = 0; rot < 6; rot++) {
         const J = { m, q: I.q, r: I.r, rot }; let bad = 0, used = 0;
         for (const e of req) { if (e.code === 'leeg') continue; used++; if (codeAtWorld(J, e.q, e.r, e.s) !== e.code) bad++; }
@@ -155,7 +157,7 @@
     cells.inst.splice(i, 1); removeInst(I);
     const { n } = placeCore(m, next.rot, I.q, I.r);
     if (n) cells.inst.push({ mid: m.id, m: JSON.parse(JSON.stringify(m)), q: I.q, r: I.r, rot: next.rot });
-    buildTriNet(); buildPathNet(); buildEdgeNet(); changed();
+    buildTriNet(); buildPathNet(); buildEdgeNet(); buildModNet(); changed();
     toast('"' + m.name + '"' + (next.rot ? ' · gedraaid' : '') + (next.bad ? ' · ' + next.bad + ' rand(en) sluiten niet aan' : ' · sluit aan') + ' (' + ((cur + 1) % list.length + 1) + '/' + list.length + ')', 2000);
     return true;
   }
@@ -164,16 +166,17 @@
   function syncModule(mod) {
     const L = instOf(mod); if (!L.length) return 0;
     for (const I of L.filter(x => !x.tw)) { removeInst(I); const r = placeCore(mod, I.rot, I.q, I.r); I.m = JSON.parse(JSON.stringify(mod)); I.mid = mod.id; if (!r.n) cells.inst.splice(cells.inst.indexOf(I), 1); }
-    buildTriNet(); buildPathNet(); buildEdgeNet(); changed(); return L.length;
+    buildTriNet(); buildPathNet(); buildEdgeNet(); buildModNet(); changed(); return L.length;
   }
   function dropModule(mod) {
     const L = instOf(mod); if (!L.length) return 0;
     for (const I of L) { removeInst(I); cells.inst.splice(cells.inst.indexOf(I), 1); }
-    buildTriNet(); buildPathNet(); buildEdgeNet(); changed(); return L.length;
+    buildTriNet(); buildPathNet(); buildEdgeNet(); buildModNet(); changed(); return L.length;
   }
   // Rechtermuisknop: haal een geplaatste module in zijn geheel weg
   function instPts(I) {
     const P = [], m = I.m;
+    if (m.v === 2) { for (const [q, r] of mv2Area(I)) { const w = cellToWorld(q, r); P.push([w.x, w.z]); } return P; }
     if (I.tw) { for (const t of I.tw) P.push(cenOf(t)); return P; }
     for (const [q, r, k] of moduleItems(m, I.rot, I.q, I.r)) { const [A, B] = edgeEnds(q, r, k); P.push([(A[0] + B[0]) / 2, (A[1] + B[1]) / 2]); }
     for (const [q, r] of moduleCells(m, I.rot, I.q, I.r)) { const w = cellToWorld(q, r); P.push([w.x, w.z]); }
@@ -182,6 +185,7 @@
     return P;
   }
   function removeInst(I) {
+    if (I.m && I.m.v === 2) return;   // een module v2 staat alleen in cells.inst; buildModNet ruimt op
     if (I.tw) { const sg = t => t.v.map(a => Math.round(a * 100)).join(','), ss = new Set(I.tw.map(sg)); if (cells.tris) cells.tris = cells.tris.filter(t => !ss.has(sg(t))); return; }
     const m = I.m, E = edgesOf();
     for (const [q, r, k, type] of moduleItems(m, I.rot, I.q, I.r)) { const kk = q + ',' + r + ',' + k; if (E.get(kk) === type) E.delete(kk); }
@@ -198,15 +202,21 @@
     cells.inst.forEach((I, i) => { let d = 1e9; for (const a of instPts(I)) d = Math.min(d, Math.hypot(a[0] - x, a[1] - z)); if (d <= bd) { bd = d; best = i; } });
     if (best < 0) return false;
     const I = cells.inst.splice(best, 1)[0], m = I.m; removeInst(I);
-    buildTriNet(); buildPathNet(); buildEdgeNet(); changed(); toast('"' + m.name + '" weggehaald', 1200); return true;
+    buildTriNet(); buildPathNet(); buildEdgeNet(); buildModNet(); changed(); toast('"' + m.name + '" weggehaald', 1200); return true;
   }
   const moduleGhost = new THREE.Group(); scene.add(moduleGhost); let moduleGhostKey = '';
   function showModuleGhost(q0, r0) {
     const mod = modules[moduleSel], kk = mod ? moduleSel + ':' + moduleRot + ':' + q0 + ',' + r0 + ':' + mod.edges.length + ':' + (mod.cells || []).length + ':' + (mod.paths || []).length + ':' + (mod.tris || []).length : '';
     if (kk === moduleGhostKey) { moduleGhost.visible = !!mod; return; }
     moduleGhostKey = kk;
-    while (moduleGhost.children.length) { const c = moduleGhost.children.pop(); c.geometry.dispose(); if (c.material && c.material.dispose) c.material.dispose(); }
+    while (moduleGhost.children.length) { const c = moduleGhost.children.pop(); c.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material.dispose) o.material.dispose(); }); }
     if (!mod) { moduleGhost.visible = false; return; }
+    if (mod.v === 2) {
+      const bad = !!mv2CanPlace(mod, moduleRot, q0, r0);
+      for (const [q, r] of mv2Area({ m: mod, rot: moduleRot, q: q0, r: r0 })) { const w = cellToWorld(q, r), g = new THREE.Mesh(new THREE.CylinderGeometry(R - 0.3, R - 0.3, 0.3, 6), new THREE.MeshBasicMaterial({ color: bad ? '#e0573e' : '#f2b233', transparent: true, opacity: 0.4, depthWrite: false })); g.position.set(w.x, 0.3, w.z); moduleGhost.add(g); }
+      const b = mv2Build(mod, mv2Tf(moduleRot, q0, r0)); b.group.traverse(o => { if (o.isMesh) { o.material = new THREE.MeshBasicMaterial({ color: bad ? '#e0573e' : '#f2b233', transparent: true, opacity: 0.35, depthWrite: false }); o.castShadow = false; } }); moduleGhost.add(b.group);
+      moduleGhost.visible = true; return;
+    }
     for (const [q, r, k, type] of moduleItems(mod, moduleRot, q0, r0)) {
       const [A, B] = edgeEnds(q, r, k), bad = !!edgeBlocked(q, r, k);
       const m = new THREE.Mesh(new THREE.BoxGeometry(Math.hypot(B[0] - A[0], B[1] - A[1]), 0.3, type === 'brd' ? 13 : type === 'pad' ? 3 : 9), new THREE.MeshBasicMaterial({ color: bad ? '#e0573e' : '#f2b233', transparent: true, opacity: 0.5, depthWrite: false }));
@@ -233,6 +243,7 @@
 
   const MOD_COL = { dak: '#8f3f33', glas: '#9fc7de', muur: '#8a8a8a', weg: '#3c4045', pad: '#9b5a45', vloer: '#cfc6b0', gras: '#6fa356', water: '#3a7ca5' };
   function modThumb(mod, rot, px) {
+    if (mod.v === 2) return mv2Thumb(mod, rot, px);
     const c = document.createElement('canvas'); c.width = c.height = px * 2; const g = c.getContext('2d');
     g.fillStyle = '#c8dca4'; g.fillRect(0, 0, c.width, c.height);
     const tris = triWorld(mod, rot, 0, 0), th = -rot * Math.PI / 3, co = Math.cos(th), si = Math.sin(th), rt = p => [p[0] * co - p[1] * si, p[0] * si + p[1] * co];

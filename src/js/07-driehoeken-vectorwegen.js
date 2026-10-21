@@ -75,7 +75,7 @@
   }
   // Vakken waar een weg niet doorheen mag: gebouwen en alles wat hoger is dan de grond, en water
   // (water en een uitgraving mogen: daar wordt de weg een brug)
-  const vecObstacle = (q, r) => { const st = stackOf(q, r); if (!st.length) return false; const b = baseOf(st[0]); if (b === 'water' || b === 'kuil') return st.length > 1; return b === 'heuvel' || columnTop(q, r) > 0.5; };
+  const vecObstacle = (q, r) => { if (modCellOccupied(q, r)) return true; const st = stackOf(q, r); if (!st.length) return false; const b = baseOf(st[0]); if (b === 'water' || b === 'kuil') return st.length > 1; return b === 'heuvel' || columnTop(q, r) > 0.5; };
   const SAND = std({ color: '#d6c69a', polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
   const HEX_FLAT = (() => { const s = new THREE.Shape(); for (let i = 0; i < 6; i++) { const a = Math.PI / 6 + i * Math.PI / 3; i ? s.lineTo(Math.cos(a) * R, Math.sin(a) * R) : s.moveTo(Math.cos(a) * R, Math.sin(a) * R); } s.closePath(); return new THREE.ShapeGeometry(s).rotateX(-Math.PI / 2); })();
   function smoothPts(p) {   // hoeken afronden (straal tot 8 m, nooit verder dan de helft van een stuk), ongeveer elke 2 m een punt
