@@ -203,8 +203,8 @@
   // bij een knik houden rijstroken en markering zo ver voor de knoop op dat ze niet in de andere tak steken
   const vecBendTrim = (G, n, w) => { const B = vecBend(G, n); return B ? Math.min(8, w * Math.tan(Math.min(B.turn, 2.6) / 2)) : 0; };
   // Ronde kop van een doodlopende weg: een halve cirkel (bij een smalle weg wat breder dan de weg zelf, zodat een
-  // auto kan keren) met stoep en rand eromheen. Het middelpunt C ligt cN voor het eindpunt, zo ver dat het
-  // eindpunt midden op de ronde stoep valt. trimW: tot hier lopen de rechte stoepen; trimLane: tot hier lopen de
+  // auto kan keren) met stoep en rand eromheen. Het middelpunt C ligt op het eindpunt zelf: het midden van het
+  // laatste zeshoekvak (cN = afstand van eindpunt tot middelpunt, nu 0). trimW: tot hier lopen de rechte stoepen; trimLane: tot hier lopen de
   // rijstroken, waarna de auto in een boog naar de keerbaan zwenkt.
   const HEAD_EXT = { weg: 2.1 }, HEAD_RHO = { weg: 3.0, brd: 3.4, laan: 3.125 };
   function vecHead(G, n) {
@@ -213,8 +213,8 @@
     const pts = e.a === n ? e.pts : e.pts.slice().reverse();   // vanaf het eindpunt de weg in
     let q = pts[1] || pts[0]; for (let i = 1; i < pts.length; i++) { q = pts[i]; if (Math.hypot(q[0] - N.x, q[1] - N.z) > 1.5) break; }
     let dx = N.x - q[0], dz = N.z - q[1]; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
-    const R = def.hw + (HEAD_EXT[e.t] || 0), cN = R + def.walk / 2, J = Math.sqrt(Math.max(0, R * R - def.hw * def.hw));
-    return { N, e, def, d: [dx, dz], r: [-dz, dx], R, cN, rho: HEAD_RHO[e.t] || 3, C: [N.x - dx * cN, N.z - dz * cN], trimW: cN + J, trimLane: cN + (e.t === 'laan' ? 0 : 3.2) };
+    const R = def.hw + (HEAD_EXT[e.t] || 0), cN = 0, J = Math.sqrt(Math.max(0, R * R - def.hw * def.hw));
+    return { N, e, def, d: [dx, dz], r: [-dz, dx], R, cN, rho: HEAD_RHO[e.t] || 3, C: [N.x, N.z], trimW: cN + J, trimLane: cN + (e.t === 'laan' ? 0 : 3.2) };
   }
   const vecTrimW = (G, n) => { const H = vecHead(G, n); if (H) return H.trimW; const t = vecJunctionTrim(G, n); if (t) return t + 0.3; const B = vecBend(G, n); return B ? vecBendTrim(G, n, B.hw + B.walk + 0.3) : 0; };   // stoep: net voorbij de stopstreep
   function offsetPts(src, off) {   // de lijn opzij geschoven (rechts van de looprichting bij off > 0)
