@@ -209,11 +209,18 @@
       else { let best = 0, bd = -1; for (let a = 0; a < 3; a++) { const u = LAAN_G[a].u, dd = Math.abs(vx * u[0] + vz * u[1]); if (dd > bd) { bd = dd; best = a; } } D.la = best; }
       D.ls = laanSideFor(D.la, D.lstart[0], D.lstart[1]); D.lk = new Set();
     }
-    const u = LAAN_G[D.la].u, k = Math.round((vx * u[0] + vz * u[1]) / LAAN_PITCH), step = NEIGH[D.la], list = [];
-    for (let j = Math.min(0, k); j <= Math.max(0, k); j++) if (!D.lk.has(j)) { D.lk.add(j); list.push([D.lstart[0] + step[0] * j, D.lstart[1] + step[1] * j]); }
+    const u = LAAN_G[D.la].u, k = Math.round((vx * u[0] + vz * u[1]) / LAAN_PITCH), step = NEIGH[D.la], list = [], lo = Math.min(0, k), hi = Math.max(0, k);
+    // terug naar het beginpunt toe: de stukken buiten de lijn weer weghalen
+    if (!D.lprior) D.lprior = new Map();
+    const gone = [];
+    for (const [j, cellsJ] of D.lprior) if (j < lo || j > hi) { for (const [x, y] of cellsJ) { cells.delete(key(x, y)); gone.push([x, y]); } D.lprior.delete(j); D.lk.delete(j); }
+    if (gone.length) { rebuildMany(gone); changed(); }
+    for (let j = lo; j <= hi; j++) if (!D.lk.has(j)) { D.lk.add(j); list.push([D.lstart[0] + step[0] * j, D.lstart[1] + step[1] * j, j]); }
     if (!list.length) return;
-    const res = placeLaan(list, D.la, D.ls);
-    D.count += list.length - res.skipped; D.skip += res.skipped;
+    const before = new Set([...cells.keys()]);
+    const res = placeLaan(list.map(([q, r]) => [q, r]), D.la, D.ls);
+    for (const [q, r, j] of list) { const mine = laanFootprint(q, r, D.la + 3 * D.ls).map(([x, y]) => [x, y]).filter(([x, y]) => !before.has(key(x, y)) && cells.has(key(x, y))); if (mine.length) D.lprior.set(j, mine); }
+    D.count = [...D.lprior.values()].length; D.skip += res.skipped;
   }
   // Lijnmodule (een module met precies één weg of pad): sleep van vak naar vak en de weg vormt zich
   const isLineMod = m => !!m && (m.paths || []).length === 1 && !(m.edges || []).length && !(m.cells || []).length && !(m.tris || []).length;
@@ -322,28 +329,36 @@
     if (VEC_TOOLS.has(roadDrag.tool)) return vecPaintTo(cell);
     if (roadDrag.tool === 'module') return linePaintTo(cell);
     if (roadDrag.tool === 'laan') return laanPaintTo(cell);
-    const L = roadDrag.last;
+    // Vakken: indrukken is het beginpunt, loslaten het eindpunt; daartussen een rechte rij vakken die meebeweegt
+    const D = roadDrag, L = D.last;
     if (L && L[0] === cell[0] && L[1] === cell[1]) return;
-    const todo = L ? hexLine(L, cell) : [cell];
-    roadDrag.last = cell;
+    if (!D.vstart) { D.vstart = cell; D.prior = new Map(); }
+    D.last = cell;
+    const T = D.tool, want = [D.vstart, ...hexLine(D.vstart, cell)], wantK = new Set(want.map(([q, r]) => key(q, r))), touched = [];
+    for (const [k, prev] of D.prior) {   // weer weg van de lijn af: terugzetten wat er stond
+      if (wantK.has(k)) continue;
+      if (prev) cells.set(k, prev); else cells.delete(k);
+      D.prior.delete(k); touched.push(k.split(',').map(Number));
+    }
     const placed = [];
-    for (const [q, r] of todo) {
+    for (const [q, r] of want) {
+      const k = key(q, r); if (D.prior.has(k)) continue;
       const st = stackOf(q, r), top = st[st.length - 1];
-      const T = roadDrag.tool;
       if (top && baseOf(top) === toolBase(T)) continue;
       if (canPlace(q, r, T)) continue;
       const y0 = columnTop(q, r);
-      cells.set(key(q, r), st.concat(itemsFor(q, r, T, 0)));
-      placed.push([q, r, y0]);
+      D.prior.set(k, st.length ? st.slice() : null);
+      cells.set(k, st.concat(itemsFor(q, r, T, 0)));
+      placed.push([q, r, y0]); touched.push([q, r]);
     }
-    if (!placed.length) return;
-    for (const [q, r] of placed) rebuildAround(q, r);
+    if (!touched.length) return;
+    if (touched.length > 3) rebuildMany(touched); else for (const [q, r] of touched) rebuildAround(q, r);
     for (const [q, r, y0] of placed) people.onPlaced(q, r, y0, columnTop(q, r));
-    roadDrag.count += placed.length;
+    D.count = D.prior.size;
     changed();
-    if (roadDrag.tool === 'weg') laanArmHint(placed);
+    if (T === 'weg' && placed.length) laanArmHint(placed);
   }
-  function roadDragStart(cell) { roadDrag.on = true; roadDrag.last = null; roadDrag.count = 0; roadDrag.skip = 0; roadDrag.lstart = null; roadDrag.lp = null; roadDrag.sp = null; roadDrag.vp = null; roadDrag.tool = tool; ghost.visible = false; ghostArrow.visible = false; previewGroup.visible = false; roadPaintTo(cell); }
+  function roadDragStart(cell) { roadDrag.on = true; roadDrag.last = null; roadDrag.count = 0; roadDrag.skip = 0; roadDrag.lstart = null; roadDrag.lp = null; roadDrag.sp = null; roadDrag.vp = null; roadDrag.vstart = null; roadDrag.prior = null; roadDrag.lprior = null; roadDrag.tool = tool; ghost.visible = false; ghostArrow.visible = false; previewGroup.visible = false; roadPaintTo(cell); }
   function roadDragEnd() {
     if (!roadDrag.on) return;
     roadDrag.on = false; roadDrag.last = null;
