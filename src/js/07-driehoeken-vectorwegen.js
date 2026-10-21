@@ -145,28 +145,41 @@
     const nodes = [], nodeOf = p => { for (let i = 0; i < nodes.length; i++) if (Math.hypot(nodes[i].x - p[0], nodes[i].z - p[1]) < 7) return i; nodes.push({ x: p[0], z: p[1], edges: [] }); return nodes.length - 1; };
     const edges = new Map(); let totalLen = 0;
     const rk = p => Math.round(p[0] * 2) / 2 + ',' + Math.round(p[1] * 2) / 2;
-    for (const pc of pieces) {
-      const a = nodeOf(pc.pts[0]), b = nodeOf(pc.pts[pc.pts.length - 1]), len = plen(pc.pts);
-      if (a === b || len < 7) continue;   // korter dan de samenvoegstraal van knopen: dan zijn a en b al één knoop
-      let id = pc.t + ':' + rk(pc.pts[0]) + '>' + rk(pc.pts[pc.pts.length - 1]); while (edges.has(id)) id += "'";
-      edges.set(id, { id, t: pc.t, pts: pc.pts, a, b, len }); nodes[a].edges.push(id); nodes[b].edges.push(id); totalLen += len;
-    }
+    // eerst alle uiteinden aan knopen toewijzen; een knoop komt op het zwaartepunt van zijn uiteinden te liggen, en de
+    // uiteinden van de stukken worden daarop vastgezet, zodat rijstroken, stoepen en hoeken één middelpunt delen
+    const ends = pieces.map(pc => [nodeOf(pc.pts[0]), nodeOf(pc.pts[pc.pts.length - 1])]);
+    const acc = nodes.map(() => [0, 0, 0]);
+    pieces.forEach((pc, i) => { const [a, b] = ends[i]; acc[a][0] += pc.pts[0][0]; acc[a][1] += pc.pts[0][1]; acc[a][2]++; const q = pc.pts[pc.pts.length - 1]; acc[b][0] += q[0]; acc[b][1] += q[1]; acc[b][2]++; });
+    nodes.forEach((N, i) => { if (acc[i][2]) { N.x = acc[i][0] / acc[i][2]; N.z = acc[i][1] / acc[i][2]; } });
+    const snap = (pts, n, atStart) => {   // uiteinde op de knoop; tussenpunten binnen 1,5 m van de knoop vervallen
+      const N = nodes[n], P = atStart ? pts : pts.slice().reverse(), out = [[N.x, N.z]];
+      for (let i = 1; i < P.length; i++) if (Math.hypot(P[i][0] - N.x, P[i][1] - N.z) > 1.5 || i === P.length - 1) out.push(P[i]);
+      return atStart ? out : out.reverse();
+    };
+    pieces.forEach((pc, i) => {
+      const [a, b] = ends[i]; if (a === b) return;
+      let pts = snap(pc.pts, a, true); pts = snap(pts, b, false); if (pts.length < 2) return;
+      const len = plen(pts); if (len < 7) return;   // korter dan de samenvoegstraal van knopen: dan zijn a en b al één knoop
+      let id = pc.t + ':' + rk(pts[0]) + '>' + rk(pts[pts.length - 1]); while (edges.has(id)) id += "'";
+      edges.set(id, { id, t: pc.t, pts, a, b, len }); nodes[a].edges.push(id); nodes[b].edges.push(id); totalLen += len;
+    });
     // Verkeerslichten: elke knoop met drie of meer takken. De takken worden in twee groepen verdeeld (de as van de
     // eerste tak en de rest); de groepen krijgen om de beurt groen. Elke kruising heeft een eigen beginmoment.
     for (let n = 0; n < nodes.length; n++) {
       const N = nodes[n]; if (N.edges.length < 3) continue;
       const dirIn = id => { const e = edges.get(id); const into = e.b === n; const p = into ? e.pts : e.pts.slice().reverse(); const a = p[p.length - 2], b = p[p.length - 1]; const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return [(b[0] - a[0]) / l, (b[1] - a[1]) / l]; };
-      const d0 = dirIn(N.edges[0]), grp = new Map();
-      for (const id of N.edges) { const d = dirIn(id); grp.set(id, Math.abs(d[0] * d0[0] + d[1] * d0[1]) > 0.7071 ? 0 : 1); }
-      if (![...grp.values()].includes(1)) continue;
-      N.light = { grp, off: ((Math.round(N.x * 7) * 31 + Math.round(N.z * 7) * 17) & 1023) / 1024 * 28 };
+      // takken op (bijna) dezelfde lijn vormen één groep; elke groep krijgt om de beurt groen (meestal 2, bij zes takken 3)
+      const reps = [], grp = new Map();
+      for (const id of N.edges) { const d = dirIn(id); let g = reps.findIndex(r => Math.abs(d[0] * r[0] + d[1] * r[1]) > 0.9); if (g < 0) { g = reps.length; reps.push(d); } grp.set(id, g); }
+      if (reps.length < 2) continue;
+      N.light = { grp, n: reps.length, off: ((Math.round(N.x * 7) * 31 + Math.round(N.z * 7) * 17) & 1023) / 1024 * 28 };
     }
     return { nodes, edges, totalLen, ver: ver || 0 };
   }
   const VTL = { G: 10, A: 2.5, AR: 1.5 };   // per groep: groen, oranje, alles rood
   function vecLightState(G, n, eid, t) {   // 'g' | 'a' | 'r', of null als er geen licht staat
     const N = G.nodes[n]; if (!N || !N.light || !N.light.grp.has(eid)) return null;
-    const per = VTL.G + VTL.A + VTL.AR, cyc = per * 2, tt = ((t + N.light.off) % cyc + cyc) % cyc, i = Math.floor(tt / per), w = tt - i * per;
+    const per = VTL.G + VTL.A + VTL.AR, cyc = per * (N.light.n || 2), tt = ((t + N.light.off) % cyc + cyc) % cyc, i = Math.floor(tt / per), w = tt - i * per;
     if (N.light.grp.get(eid) !== i) return 'r';
     return w < VTL.G ? 'g' : w < VTL.G + VTL.A ? 'a' : 'r';
   }
@@ -282,11 +295,6 @@
     }
     for (let i = 0; i < pts.length - 1; i++) { const a = base + i * 2; L.idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
   }
-  function ringInto(L, p, r0, r1, y) {   // platte ring (stoep om de kop van een weg)
-    const base = L.pos.length / 3;
-    for (let i = 0; i < 24; i++) { const a = i * Math.PI / 12; L.pos.push(p[0] + Math.cos(a) * r0, y, p[1] + Math.sin(a) * r0, p[0] + Math.cos(a) * r1, y, p[1] + Math.sin(a) * r1); }
-    for (let i = 0; i < 24; i++) { const a = base + i * 2, b = base + ((i + 1) % 24) * 2; L.idx.push(a, a + 1, b, a + 1, b + 1, b); }
-  }
   function ringWallInto(L, p, r, y0, y1) {
     const base = L.pos.length / 3;
     for (let i = 0; i < 24; i++) { const a = i * Math.PI / 12, x = p[0] + Math.cos(a) * r, z = p[1] + Math.sin(a) * r; L.pos.push(x, y0, z, x, y1, z); }
@@ -371,8 +379,6 @@
       else if (e.t === 'laan') { for (const sg of [1, -1]) { ribbonInto(dash, mp, 0.06, Y + 0.03, sg * 4.75); ribbonInto(pave, mp, 1.0, Y + 0.025, sg * 7.75); ribbonInto(dash, mp, 0.05, Y + 0.03, sg * 6.75); } }
       else { dashesInto(dash, mp, 0.06, Y + 0.03, 3, 3.5, 2.25); dashesInto(dash, mp, 0.06, Y + 0.03, 3, 3.5, -2.25); ribbonInto(dash, mp, 0.05, Y + 0.03, 0.12); ribbonInto(dash, mp, 0.05, Y + 0.03, -0.12); }
     }
-    // Kop van een doodlopende weg: rond asfalt
-    for (let n = 0; n < GR.nodes.length; n++) { const N = GR.nodes[n]; if (N.edges.length !== 1) continue; const e = GR.edges.get(N.edges[0]), p = e.a === n ? e.pts[0] : e.pts[e.pts.length - 1]; discInto(asph, p, PATH_DEF[e.t].hw + 0.3, Y + 0.02); }
     // Stoephoeken op kruisingen: tussen twee opeenvolgende takken loopt de stoep door (afgesneden hoek), met stoeprand
     for (let n = 0; n < GR.nodes.length; n++) {
       const N = GR.nodes[n]; if (N.edges.length < 3) continue;
@@ -409,7 +415,15 @@
         const sp = vecWalkPts(GR, e, 0, sg * (def.hw + def.walk / 2)), kp = vecWalkPts(GR, e, 0, sg * (def.hw + 0.3)), ep = vecWalkPts(GR, e, 0, sg * hw);
         ribbonInto(walk, sp, def.walk / 2, PW_H); wallInto(kerb, kp, 0, Y, PW_H); ribbonInto(kerb, vecWalkPts(GR, e, 0, sg * (def.hw + 0.15)), 0.15, PW_H + 0.005); wallInto(walk, ep, 0, 0, PW_H);
       }
-      for (const n of [e.a, e.b]) if (GR.nodes[n].edges.length === 1) { const p = [GR.nodes[n].x, GR.nodes[n].z]; ringInto(walk, p, def.hw + 0.3, hw, PW_H); ringWallInto(kerb, p, def.hw + 0.3, Y, PW_H); ringInto(kerb, p, def.hw, def.hw + 0.3, PW_H + 0.005); ringWallInto(walk, p, hw, 0, PW_H); }
+      // doodlopend eind: recht afgesloten, met de stoep er als kap omheen
+      for (const n of [e.a, e.b]) if (GR.nodes[n].edges.length === 1) {
+        const p = [GR.nodes[n].x, GR.nodes[n].z], q = e.a === n ? e.pts[1] : e.pts[e.pts.length - 2]; let dx = p[0] - q[0], dz = p[1] - q[1]; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+        const rx = -dz, rz = dx, P = (al, lat) => [p[0] + dx * al + rx * lat, p[1] + dz * al + rz * lat];
+        polyInto(walk, [P(0, -hw), P(0, hw), P(def.walk, hw), P(def.walk, -hw)], PW_H);
+        polyInto(kerb, [P(-0.3, -(def.hw + 0.3)), P(-0.3, def.hw + 0.3), P(0.15, def.hw + 0.3), P(0.15, -(def.hw + 0.3))], PW_H + 0.005);
+        wallSeg(kerb, P(-0.3, -(def.hw + 0.3)), P(-0.3, def.hw + 0.3), Y, PW_H); wallSeg(walk, P(def.walk, -hw), P(def.walk, hw), 0, PW_H);
+        wallSeg(walk, P(0, hw), P(def.walk, hw), 0, PW_H); wallSeg(walk, P(0, -hw), P(def.walk, -hw), 0, PW_H);
+      }
     }
     [[grass, VM.grass], [walk, VM.walk], [kerb, VM.kerb], [asph, VM.asph], [pave, VM.pave], [dash, VM.dash]].forEach(([L, mat]) => { const m = layerMesh(L, mat); if (m) pathGroup.add(m); });
     return pathGroup;
