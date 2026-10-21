@@ -149,7 +149,7 @@
     let VG = { nodes: [], edges: new Map(), totalLen: 0, ver: 0 };
     const VLANE = { weg: [1.25], brd: [1.1, 3.4], laan: [3.125] };   // afstand van de rijstrook tot het midden van de weg
     function vecGraph() { if (vecDirty) { vecDirty = false; VG = vecGraphOf(cells.paths, VG.ver + 1); } return VG; }
-    const nodeTrim = n => { const N = VG.nodes[n]; return N && N.edges.length === 1 ? 1.8 : (vecJunctionTrim(VG, n) || vecBendTrim(VG, n, 2.0)); };   // voor een kruising: het kruisingsvak; op een doodlopend eind: ruimte om te keren
+    const nodeTrim = n => { const H = vecHead(VG, n); return H ? H.trimLane : (vecJunctionTrim(VG, n) || vecBendTrim(VG, n, 2.0)); };   // voor een kruising: het kruisingsvak; op een doodlopend eind: de ronde keerkop
     const lanePts = (e, dir, off) => offsetPts(dir ? e.pts.slice().reverse() : e.pts, off);   // rijstrook: rechts van het midden
     const laneOff = (e, lane) => VLANE[e.t][Math.min(lane, VLANE[e.t].length - 1)];
     function vecLeg(e, dir, lane, from) {   // from: einde van de vorige rijstrook {pt, d}; daarvandaan een bocht naar deze
@@ -161,9 +161,14 @@
       }
       return { vec: true, eid: e.id, dir, lane, nodeEnd: nB, q: 100000 + nB, r: 1, inS: 0, outS: 3, kind: turn ? 'turn' : 'lane', path: mkPath(pts), cx: 0, cz: 0, exitPt: pts[pts.length - 1], exitD: dirAt(pts, pts.length - 1) };
     }
-    function vecULeg(e, dir, lane, from) {   // keren om de kop van een doodlopende weg
-      const nB = dir ? e.a : e.b, N = VG.nodes[nB], off = laneOff(e, lane), d = from.d, r = [-d[1], d[0]], pts = [], cx = N.x - d[0] * 1.8, cz = N.z - d[1] * 1.8;   // keren om een punt 1,8 m voor het eind, binnen het asfalt
-      for (let i = 0; i <= 16; i++) { const th = Math.PI * i / 16; pts.push([cx + d[0] * Math.sin(th) * off + r[0] * Math.cos(th) * off, cz + d[1] * Math.sin(th) * off + r[1] * Math.cos(th) * off]); }
+    function vecULeg(e, dir, lane, from) {   // keren in de ronde kop van een doodlopende weg: eerst naar de buitenrand zwenken, dan een halve cirkel
+      const nB = dir ? e.a : e.b, H = vecHead(VG, nB), off = laneOff(e, lane);
+      let d, r, C, rho;
+      if (H) { d = H.d; r = H.r; C = H.C; rho = Math.max(H.rho, off); }
+      else { const N = VG.nodes[nB]; d = from.d; r = [-d[1], d[0]]; C = [N.x - d[0] * 1.8, N.z - d[1] * 1.8]; rho = off; }
+      const Q0 = [C[0] + r[0] * rho, C[1] + r[1] * rho];
+      let pts = Math.hypot(Q0[0] - from.pt[0], Q0[1] - from.pt[1]) > 0.4 ? bez(from.pt, from.d, Q0, d, 0.42, 10) : [Q0];
+      for (let i = 1; i <= 18; i++) { const th = Math.PI * i / 18; pts.push([C[0] + d[0] * Math.sin(th) * rho + r[0] * Math.cos(th) * rho, C[1] + d[1] * Math.sin(th) * rho + r[1] * Math.cos(th) * rho]); }
       return { vec: true, u: true, eid: e.id, dir, lane, nodeEnd: nB, q: 100000 + nB, r: 0, inS: 0, outS: 0, kind: 'u', path: mkPath(pts), cx: 0, cz: 0, exitPt: pts[pts.length - 1], exitD: [-d[0], -d[1]] };
     }
     const laneFor = (e, lane) => VLANE[e.t].length > 1 ? (lane < VLANE[e.t].length ? lane : Math.floor(Math.random() * VLANE[e.t].length)) : 0;
