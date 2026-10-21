@@ -62,16 +62,18 @@
     for (const n of vn) if (n.edges.size) nodes.set(n.key, n);
     // Voordeuren aan een getekende weg: de deur koppelt aan de dichtstbijzijnde stoep (binnen 14 m), naar beide
     // uiteinden van die tak. De stoep is de zijde van de weg die naar de deur toe ligt.
+    const walkSides = [];
+    for (const e of G.edges.values()) {
+      const def = PATH_DEF[e.t], off = def.hw + def.walk / 2;
+      for (const sg of [1, -1]) { const pts = vecWalkPts(G, e, 0, sg * off); if (pts.length) walkSides.push({ e, sg, pts, reach: e.len }); }
+    }
     for (const n of nodes.values()) {
       if (n.kind.b !== 'door' || n.y > 0.41) continue;
       const c = cellToWorld(n.q, n.r), fd = FRAMES[n.kind.d], dx = c.x + fd.nx * (INNER - 1.5), dz = c.z + fd.nz * (INNER - 1.5);
       let best = null;
-      for (const e of G.edges.values()) {
-        const def = PATH_DEF[e.t], off = def.hw + def.walk / 2;
-        for (const sg of [1, -1]) {
-          const pts = vecWalkPts(G, e, 0, sg * off);
-          for (let i = 0; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - dx, pts[i][1] - dz); if (d < 14 && (!best || d < best.d)) best = { e, sg, d, pt: pts[i] }; }
-        }
+      for (const W of walkSides) {   // de stoeppunten per tak zijn één keer uitgerekend (niet per voordeur opnieuw)
+        if (Math.abs(W.pts[0][0] - dx) > W.reach + 14 || Math.abs(W.pts[0][1] - dz) > W.reach + 14) continue;
+        for (let i = 0; i < W.pts.length; i++) { const d = Math.hypot(W.pts[i][0] - dx, W.pts[i][1] - dz); if (d < 14 && (!best || d < best.d)) best = { e: W.e, sg: W.sg, d, pt: W.pts[i] }; }
       }
       if (!best) continue;
       for (const [vnode, dir] of [[vn[best.e.b], 0], [vn[best.e.a], 1]]) {   // dir: looprichting van de deur naar dat uiteinde

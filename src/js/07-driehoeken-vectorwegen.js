@@ -216,7 +216,8 @@
     const R = def.hw + (HEAD_EXT[e.t] || 0), cN = 0, J = Math.sqrt(Math.max(0, R * R - def.hw * def.hw));
     return { N, e, def, d: [dx, dz], r: [-dz, dx], R, cN, rho: HEAD_RHO[e.t] || 3, C: [N.x, N.z], trimW: cN + J, trimLane: cN + (e.t === 'laan' ? 0 : 3.2) };
   }
-  const vecTrimW = (G, n) => { const H = vecHead(G, n); if (H) return H.trimW; const t = vecJunctionTrim(G, n); if (t) return t + 0.3; const B = vecBend(G, n); return B ? vecBendTrim(G, n, B.hw + B.walk + 0.3) : 0; };   // stoep: net voorbij de stopstreep
+  const vecTrimW0 = (G, n) => { const H = vecHead(G, n); if (H) return H.trimW; const t = vecJunctionTrim(G, n); if (t) return t + 0.3; const B = vecBend(G, n); return B ? vecBendTrim(G, n, B.hw + B.walk + 0.3) : 0; };
+  const vecTrimW = (G, n) => { const c = G.trimW || (G.trimW = new Map()); let v = c.get(n); if (v === undefined) c.set(n, v = vecTrimW0(G, n)); return v; };   // per graaf onthouden (de graaf wordt bij elke wijziging nieuw gebouwd)   // stoep: net voorbij de stopstreep
   function offsetPts(src, off) {   // de lijn opzij geschoven (rechts van de looprichting bij off > 0)
     const out = [];
     for (let i = 0; i < src.length; i++) { const a = src[Math.max(0, i - 1)], b = src[Math.min(src.length - 1, i + 1)]; let dx = b[0] - a[0], dz = b[1] - a[1]; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l; out.push([src[i][0] - dz * off, src[i][1] + dx * off]); }
