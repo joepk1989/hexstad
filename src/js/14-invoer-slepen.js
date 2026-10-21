@@ -313,6 +313,10 @@
     if (!D.vp) { D.vp = { t: VEC_T[D.tool], l: 0, r: 0, p: [] }; D.vstart = cell; pathsOf().push(D.vp); }
     const L = D.last; if (L && L[0] === cell[0] && L[1] === cell[1]) return;
     D.last = cell;
+    // niet door gebouwen of water: de weg stopt bij het laatste vrije vak vóór het obstakel
+    const seg = (c0, c1) => { const a = cellToWorld(c0[0], c0[1]), b = cellToWorld(c1[0], c1[1]); return [{ t: D.vp.t, l: 0, r: 0, p: [[a.x, a.z], [b.x, b.z]] }]; };
+    const free = c1 => { for (const k of vecCoverOf(seg(D.vstart, c1), true)) { const [q, r] = k.split(',').map(Number); if (vecObstacle(q, r)) return false; } return true; };
+    if (!free(cell)) { const line = [D.vstart, ...hexLine(D.vstart, cell)]; let ok = D.vstart; for (const c of line) { if (!free(c)) break; ok = c; } cell = ok; }
     const a = cellToWorld(D.vstart[0], D.vstart[1]), b = cellToWorld(cell[0], cell[1]);
     const same = cell[0] === D.vstart[0] && cell[1] === D.vstart[1];
     D.vp.p = same ? [] : [[Math.round(a.x * 100) / 100, Math.round(a.z * 100) / 100], [Math.round(b.x * 100) / 100, Math.round(b.z * 100) / 100]];

@@ -43,6 +43,7 @@
       if (Math.abs(h - y) < 0.01 && ['weg', 'laan', 'pad', 'hof', 'looppad', 'tunnel'].includes(b)) return 2;
       h += TY(t).h;
     }
+    if (!st.length && y <= 0.41 && vecCover.has(key(q, r))) return 2;   // vak van een getekende weg: daar ligt de stoep
     if (y > 0.41 && st.length && Math.abs(h - y) < 0.3 && ['blok', 'looppad', 'tunnel', 'park'].includes(baseOf(st[st.length - 1]))) return 1;
     return 0;
   }

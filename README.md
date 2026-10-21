@@ -24,6 +24,6 @@ Steden en modules staan in `localStorage` van de browser. Modules naar bestanden
 ## Plan
 
 1. ✅ Code in losse bestanden (zonder gedragswijziging)
-2. Eén wegsysteem (vectorlijnen) met verkeer; oude wegtools en tegelsleep weg — bezig: auto's en mensen rijden/lopen op getekende wegen; Weg, Brede weg en Laan zijn nu sleeptools in het palet
+2. Eén wegsysteem (vectorlijnen) met verkeer — gedaan: Weg, Brede weg en Laan als sleeptools (recht van beginpunt naar eindpunt), auto's en mensen erop, voordeuren sluiten erop aan, zandkleurige wegvakken die niet bebouwbaar zijn, wegen stoppen voor gebouwen; de vakwegen zijn uit het palet. Nog te doen: verkeerslichten op getekende kruisingen, de oude vakwegen uit de code
 3. Modules als JSON-bestanden, exporteren en importeren
 4. Randcodes op modules zodat ze automatisch op elkaar aansluiten; klikken op een weg wisselt de variant

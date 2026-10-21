@@ -44,8 +44,8 @@
   };
   // Het palet is in groepen verdeeld; het scrollwiel loopt ze allemaal door
   const CATS = [
-    { name: 'Wegen', tools: ['vweg', 'vbrd', 'vlaan', 'weg', 'laan', 'fietspad', 'randweg', 'randbreed'], todo: ['Rotonde', 'Spoor', 'Parkeren'] },
-    { name: 'Paden', tools: ['pad', 'looppad', 'randpad', 'trap', 'trappad'], todo: ['Brugpad', 'Plein'] },
+    { name: 'Wegen', tools: ['vweg', 'vbrd', 'vlaan'], todo: ['Rotonde', 'Spoor', 'Parkeren'] },   // getekende wegen; de oude vakwegen zijn uit het palet (bestaande steden tonen ze nog)
+    { name: 'Paden', tools: ['pad', 'fietspad', 'looppad', 'randpad', 'trap', 'trappad'], todo: ['Brugpad', 'Plein'] },
     { name: 'Gebouwen', tools: ['woning', 'kantoor', 'dak'], todo: ['Winkel', 'School', 'Fabriek'] },
     { name: 'Groen en water', tools: ['park', 'water'], todo: ['Bomen', 'Hagen', 'Vijver', 'Fontein'] },
     { name: 'Terrein', tools: ['kuil', 'heuvel', 'helling', 'hofhelling'], todo: ['Klif', 'Strand'] },
@@ -54,7 +54,7 @@
   ];
   const TOOLS = [...CATS.flatMap(c => c.tools), 'gum'];
   const VEC_TOOLS = new Set(['vweg', 'vbrd', 'vlaan']), VEC_T = { vweg: 'weg', vbrd: 'brd', vlaan: 'laan' };   // getekende wegen: lijnen, geen vakken
-  const TOOL_LABEL = { weg: 'Weg (vak)', laan: 'Laan (vak)' };   // de oude vakwegen heten zo in het palet, naast de getekende
+  const TOOL_LABEL = {};
   const DIRECTIONAL = new Set(['trap', 'helling', 'muur', 'trappad', 'tribune', 'hofhelling']);   // met een richting, bewaard als trap0…5 enz.
   const dirOf = t => +t.replace(/\D/g, '');
   // Een trap bewaart zijn looprichting in de naam: trap0 … trap5

@@ -58,6 +58,24 @@
   const vmat = (color, n) => std({ color, polygonOffset: true, polygonOffsetFactor: -n, polygonOffsetUnits: -n, side: THREE.DoubleSide });
   const VM = { grass: vmat('#6aa84a', 1), walk: vmat('#cbc8bd', 1), kerb: vmat('#9b988e', 2), asph: vmat('#3c4045', 3), dash: vmat('#f1efe6', 4), pave: vmat('#9b5a45', 3) };
   let pathGroup = null;
+  // Welke vakken beslaat een getekende weg? Een vak hoort erbij als zijn midden dicht genoeg bij de lijn ligt
+  // (breedte van de weg plus een half vak). Die vakken krijgen een zandkleurige vloer en zijn niet meer bebouwbaar.
+  let vecCover = new Set();
+  function vecCoverOf(P, strict) {   // strict: alleen vakken waarvan het midden binnen de verharding ligt (voor obstakels)
+    const out = new Set();
+    for (const path of P || []) {
+      const def = PATH_DEF[path.t]; if (!def || !path.p || path.p.length < 2) continue;
+      const pts = smoothPts(path.p), reach = def.hw + def.walk + (strict ? 0 : R * 0.5), cand = new Set(), samp = [];
+      for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / (R / 2))); for (let j = 0; j <= n; j++) samp.push([a[0] + (b[0] - a[0]) * j / n, a[1] + (b[1] - a[1]) * j / n]); }
+      for (const p of samp) { const [q, r] = worldToCell(p[0], p[1]); for (let dq = -2; dq <= 2; dq++) for (let dr = -2; dr <= 2; dr++) cand.add((q + dq) + ',' + (r + dr)); }
+      for (const k of cand) { const [q, r] = k.split(',').map(Number), c = cellToWorld(q, r); if (distPoly(c.x, c.z, pts) < reach) out.add(k); }
+    }
+    return out;
+  }
+  // Vakken waar een weg niet doorheen mag: gebouwen en alles wat hoger is dan de grond, en water
+  const vecObstacle = (q, r) => { const st = stackOf(q, r); if (!st.length) return false; const b = baseOf(st[0]); return b === 'water' || b === 'kuil' || b === 'heuvel' || columnTop(q, r) > 0.5; };
+  const SAND = std({ color: '#d6c69a', polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+  const HEX_FLAT = (() => { const s = new THREE.Shape(); for (let i = 0; i < 6; i++) { const a = Math.PI / 6 + i * Math.PI / 3; i ? s.lineTo(Math.cos(a) * R, Math.sin(a) * R) : s.moveTo(Math.cos(a) * R, Math.sin(a) * R); } s.closePath(); return new THREE.ShapeGeometry(s).rotateX(-Math.PI / 2); })();
   function smoothPts(p) {   // Catmull-Rom, ongeveer elke 2 m een punt
     if (p.length < 3) return p.map(a => a.slice());
     const out = [], P = [p[0], ...p, p[p.length - 1]];
@@ -197,6 +215,8 @@
   function buildPathNet() {
     if (pathGroup) { pathGroup.traverse(m => { if (m.isMesh && m.userData.own) m.geometry.dispose(); }); scene.remove(pathGroup); }
     pathGroup = pathBuild(cells.paths); scene.add(pathGroup); carsDirty = true; vecDirty = true; peopleDirty = true;
+    vecCover = vecCoverOf(cells.paths);
+    for (const k of vecCover) { const [q, r] = k.split(',').map(Number); if (stackOf(q, r).length) continue; const c = cellToWorld(q, r), m = new THREE.Mesh(HEX_FLAT, SAND); m.position.set(c.x, 0.03, c.z); m.receiveShadow = true; pathGroup.add(m); }
   }
   function pathBuild(P) {   // lint-meshes voor een lijst vrije wegen; ook gebruikt door de 3D-weergave in de schets
     const pathGroup = new THREE.Group();

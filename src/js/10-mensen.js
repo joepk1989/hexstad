@@ -64,6 +64,26 @@
       B.edges.set(A.key, { to: A, side: -1, climb: false, vec: e, dir: 1 });
     }
     for (const n of vn) if (n.edges.size) nodes.set(n.key, n);
+    // Voordeuren aan een getekende weg: de deur koppelt aan de dichtstbijzijnde stoep (binnen 14 m), naar beide
+    // uiteinden van die tak. De stoep is de zijde van de weg die naar de deur toe ligt.
+    for (const n of nodes.values()) {
+      if (n.kind.b !== 'door' || n.y > 0.41) continue;
+      const c = cellToWorld(n.q, n.r), fd = FRAMES[n.kind.d], dx = c.x + fd.nx * (INNER - 1.5), dz = c.z + fd.nz * (INNER - 1.5);
+      let best = null;
+      for (const e of G.edges.values()) {
+        const def = PATH_DEF[e.t], off = def.hw + def.walk / 2;
+        for (const sg of [1, -1]) {
+          const pts = vecWalkPts(G, e, 0, sg * off);
+          for (let i = 0; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - dx, pts[i][1] - dz); if (d < 14 && (!best || d < best.d)) best = { e, sg, d, pt: pts[i] }; }
+        }
+      }
+      if (!best) continue;
+      for (const [vnode, dir] of [[vn[best.e.b], 0], [vn[best.e.a], 1]]) {   // dir: looprichting van de deur naar dat uiteinde
+        const link = { e: best.e, sg: best.sg, pt: best.pt, door: [dx, dz] };
+        n.edges.set(vnode.key, { to: vnode, side: -1, climb: false, vecDoor: link, dir });
+        vnode.edges.set(n.key, { to: n, side: -1, climb: false, vecDoor: link, dir: dir ? 0 : 1 });
+      }
+    }
     for (const [k, n] of nodes) if (!n.edges.size) nodes.delete(k);
     return nodes;
   }
@@ -463,6 +483,14 @@
       const from = a.node, to = e.to;
       a.prev = from; a.node = to; a.wps = [];
       if (e.vec) { a.precise = false; a.vedges = vecEdgesAround(from, to); a.wps = cars.vecWalk(e.vec, e.dir, vecOff(e.vec, a)); return; }
+      if (e.vecDoor) {   // van een voordeur de getekende stoep op, of andersom
+        const L = e.vecDoor, def = PATH_DEF[L.e.t], off = (e.dir ? -L.sg : L.sg) * (def.hw + def.walk / 2 + a.lane * 0.5);
+        const pts = cars.vecWalk(L.e, e.dir, off); let bi = 0, bd = 1e9; pts.forEach((p, i) => { const d = Math.hypot(p[0] - L.pt[0], p[1] - L.pt[1]); if (d < bd) { bd = d; bi = i; } });
+        a.precise = false; a.vedges = [L.e, ...vecEdgesAround(from.kind.b === 'door' ? to : from)];
+        if (from.kind.b === 'door') a.wps = [L.door, ...pts.slice(bi)];
+        else { a.wps = [...pts.slice(0, bi + 1), L.door, centerOf(to, null, a)]; a.goingIn = true; }
+        return;
+      }
       a.vedges = null;
       a.precise = e.climb || to.kind.b === 'door' || from.kind.b === 'door' || !!to.kind.level || !!from.kind.level;   // deuren en trappen: precies volgen
       if (e.corner) {

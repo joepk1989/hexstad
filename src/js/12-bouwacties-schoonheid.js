@@ -136,6 +136,7 @@
     const st = stackOf(q, r);
     const top = st[st.length - 1];
     t = toolBase(t);
+    if (vecCover.has(key(q, r)) && !st.length && t !== 'pad') return 'Hier ligt een weg';
     if (!allowedOn(t, top, st[st.length - 2])) return whyNot(t, top);
     if (columnTop(q, r) + TY(t).h > MAX_H + 0.01) return 'Maximaal 60 meter hoog';
     if (mode === 'walk') {   // niet bouwen op de plek waar je zelf staat
