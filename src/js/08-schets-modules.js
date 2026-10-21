@@ -615,7 +615,14 @@
     catch (e) { $('code').select(); say('Selecteer en kopieer de code hierboven.'); }
   }
   $('bCopyOne').onclick = () => { if (!S.tris.size && !S.paths.length) { say('Teken eerst iets'); return; } copy(JSON.stringify(cur())); };
-  const download = (name, text) => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
+  // Bestand aanbieden: in de artifact-weergave via claude.use('downloads') (de kijker bevestigt), anders een gewone download
+  async function download(name, text) {
+    try {
+      const dl = window.claude && typeof window.claude.use === 'function' ? await window.claude.use('downloads') : null;
+      if (dl) { try { await dl.save({ filename: name, data: text }); say('Bestand bewaard'); } catch (e) { say(e && e.code === 'declined' ? 'Niet bewaard' : 'Bewaren lukt hier niet; gebruik Kopieer'); } return; }
+    } catch (e) { /* geen artifact-omgeving */ }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
   $('bSaveOne').onclick = () => { if (!S.tris.size && !S.paths.length) { say('Teken eerst iets'); return; } const m = cur(); download(m.name.replace(/[^\w\-]+/g, '_') + '.json', JSON.stringify(m)); };
   $('bSaveAll').onclick = () => { if (!modules.length) { say('Bewaar eerst een module'); return; } download('hexstad-modules.json', JSON.stringify(modules)); };
   $('bFile').onchange = e => { const f = e.target.files && e.target.files[0]; if (!f) return; f.text().then(t => { $('code').value = t; $('bImport').click(); e.target.value = ''; }); };
