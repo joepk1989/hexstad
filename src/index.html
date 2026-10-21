@@ -228,6 +228,54 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<div id="mmApp" hidden>
+  <header id="mm_top">
+    <button id="mm_bClose" type="button" class="mm-close">← Stad</button>
+    <div class="mm-tools" id="mm_tools" role="toolbar" aria-label="Gereedschap"></div>
+    <div class="mm-tools" id="mm_edit"></div>
+    <div class="mm-tools" id="mm_view"></div>
+  </header>
+  <div id="mm_stage">
+    <canvas id="mm_cv3" aria-hidden="true"></canvas>
+    <canvas id="mm_cv" aria-label="Tekenvlak van de module maker"></canvas>
+    <div id="mm_levels"><button id="mm_lvUp" type="button" title="Verdieping omhoog (Page Up)">▲</button><div id="mm_lvName">Begane grond</div><button id="mm_lvDn" type="button" title="Verdieping omlaag (Page Down)">▼</button></div>
+    <div id="mm_readout"></div>
+    <div id="mm_msg" role="status"></div>
+  </div>
+  <aside id="mm_side">
+    <section id="mm_ctx"><h2 id="mm_ctxTitle">Materiaal</h2><div class="mm-swatches" id="mm_sw"></div><p class="hint" id="mm_ctxHint"></p></section>
+    <section>
+      <h2>Module</h2>
+      <input id="mm_name" type="text" placeholder="Naam" maxlength="40">
+      <div class="row" style="margin-top:6px">
+        <select id="mm_cat" aria-label="Categorie"></select>
+        <select id="mm_area" aria-label="Grootte"><option value="0">1 vak</option><option value="1">7 vakken</option><option value="2">19 vakken</option><option value="3">37 vakken</option></select>
+        <select id="mm_grid" aria-label="Raster"><option value="2">raster 4,5 m</option><option value="4">raster 2,25 m</option></select>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button id="mm_bSave" class="primary" type="button">Bewaar</button>
+        <button id="mm_bNew" type="button">Nieuw</button>
+        <button id="mm_bDup" type="button" title="Bewaar als kopie onder een nieuwe naam">Kopie</button>
+      </div>
+    </section>
+    <section>
+      <h2>Bibliotheek <small id="mm_libN"></small></h2>
+      <input id="mm_filter" type="text" placeholder="Zoek of filter op categorie" maxlength="30">
+      <div id="mm_lib"></div>
+    </section>
+    <section>
+      <h2>Delen</h2>
+      <div class="row">
+        <button id="mm_bExport" type="button">Bestand (.json)</button>
+        <button id="mm_bExportAll" type="button">Alles</button>
+        <label class="btn-like"><input id="mm_bFile" type="file" accept=".json,application/json" hidden>Laden</label>
+        <button id="mm_bOld" type="button" title="De oude schets, voor tekeningen van vóór de module maker">Oude schets</button>
+      </div>
+    </section>
+  </aside>
+</div>
+
 <script>
 (() => {
 /*__JS__*/

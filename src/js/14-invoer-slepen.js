@@ -152,7 +152,9 @@
     player.yaw -= e.movementX * 0.0022;
     player.pitch = Math.max(-1.45, Math.min(1.45, player.pitch - e.movementY * 0.0022));
   });
+  const mmApp = document.getElementById('mmApp');
   window.addEventListener('keydown', e => {
+    if (mmApp && !mmApp.hidden) return;   // de module maker heeft zijn eigen toetsen
     if (e.target.closest && e.target.closest('button') && (e.code === 'Space' || e.code === 'Enter')) return;
     keys[e.code] = true;
     if (mode === 'walk' && e.code === 'Space') { e.preventDefault(); jump(); }

@@ -262,8 +262,9 @@
   }
   function renderStrip() { if (typeof renderModCards === 'function') { try { renderModCards(); } catch (e) { /* palet bestaat nog niet */ } } }
 
-  let openSchetsFn = null;
-  const openSchets = () => { if (openSchetsFn) openSchetsFn(); };
+  let openSchetsFn = null, openMakerFn = null;
+  const openSchets = (m) => { if (openMakerFn) openMakerFn(m); else if (openSchetsFn) openSchetsFn(); };
+  const openSchetsOld = () => { if (openSchetsFn) openSchetsFn(); };
   (() => {
 (() => {
   const R = 9, SQ3 = Math.sqrt(3), PITCH = R * SQ3;
@@ -600,6 +601,7 @@
   function renderLib() {
     const el = $('lib'); el.innerHTML = modules.length ? '' : '<p class="hint">Nog geen modules. Teken iets en bewaar het.</p>';
     modules.forEach((m, idx) => {
+      if (m.v === 2) return;   // modules van de module maker horen daar thuis
       const d = document.createElement('div'); d.className = 'mod';
       d.innerHTML = '<span></span><small></small><button type="button" data-a="load">Open</button><button type="button" data-a="del" aria-label="Verwijder">×</button>';
       d.children[0].textContent = m.name; d.children[1].textContent = (m.tris || []).length;
