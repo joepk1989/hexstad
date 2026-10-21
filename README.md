@@ -27,4 +27,4 @@ Steden en modules staan in `localStorage` van de browser. Modules naar bestanden
 2. Eén wegsysteem (vectorlijnen) met verkeer — gedaan: Weg, Brede weg en Laan als sleeptools (recht van beginpunt naar eindpunt), auto's en mensen erop, voordeuren sluiten erop aan, zandkleurige wegvakken die niet bebouwbaar zijn, wegen stoppen voor gebouwen; de vakwegen zijn uit het palet. Nog te doen: verkeerslichten op getekende kruisingen, de oude vakwegen uit de code
 3. ✅ Modules als JSON-bestand exporteren en importeren (schets → Delen)
 4. ✅ Randcodes op modules (automatisch afgeleid uit de tekening, zichtbaar in de schets); in de stad wisselt een klik op een geplaatste module naar de variant die op de buren past
-5. Oude vakweg-, laan- en randwegcode verwijderen zodra bestaande steden automatisch omgezet kunnen worden
+5. Oude vakweg-, laan- en randwegcode verwijderen — stap a ✅: vakwegen en vak-lanen worden bij het laden automatisch getekende wegen (`convertCellRoads`, ook voor Ringstad en de voorbeeldstad); stap b: bruggen/tunnels, dan de oude code eruit

@@ -107,16 +107,17 @@
   const dirAt = (pts, i) => { const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)]; let dx = b[0] - a[0], dz = b[1] - a[1]; const l = Math.hypot(dx, dz) || 1; return [dx / l, dz / l]; };
   function vecGraphOf(paths, ver) {
     const P = (paths || []).filter(p => (p.t === 'weg' || p.t === 'brd' || p.t === 'laan') && p.p && p.p.length > 1);
-    const lines = P.map(p => ({ t: p.t, pts: smoothPts(p.p), cuts: new Set() }));
+    const lines = P.map(p => { const pts = smoothPts(p.p); let x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9; for (const q of pts) { x0 = Math.min(x0, q[0]); z0 = Math.min(z0, q[1]); x1 = Math.max(x1, q[0]); z1 = Math.max(z1, q[1]); } return { t: p.t, pts, cuts: new Set(), bb: [x0 - 9, z0 - 9, x1 + 9, z1 + 9] }; });
+    const bbHit = (A, B) => A.bb[0] <= B.bb[2] && B.bb[0] <= A.bb[2] && A.bb[1] <= B.bb[3] && B.bb[1] <= A.bb[3];
     const cutAt = (L, i, f) => { if (f < 0.02) { if (i > 0) L.cuts.add(i); } else if (f > 0.98) { if (i + 1 < L.pts.length - 1) L.cuts.add(i + 1); } else L.cuts.add(i + f); };
     // kruisende lijnen: allebei knippen op het snijpunt
     for (let a = 0; a < lines.length; a++) for (let b = a + 1; b < lines.length; b++) {
-      const A = lines[a], B = lines[b];
+      const A = lines[a], B = lines[b]; if (!bbHit(A, B)) continue;
       for (let i = 0; i < A.pts.length - 1; i++) for (let j = 0; j < B.pts.length - 1; j++) { const x = segX(A.pts[i], A.pts[i + 1], B.pts[j], B.pts[j + 1]); if (x) { cutAt(A, i, x[0]); cutAt(B, j, x[1]); } }
     }
     // een uiteinde dat op een andere lijn uitkomt (T-aansluiting): die lijn daar knippen
     for (const A of lines) for (const e of [A.pts[0], A.pts[A.pts.length - 1]]) for (const B of lines) {
-      if (B === A) continue;
+      if (B === A || e[0] < B.bb[0] || e[0] > B.bb[2] || e[1] < B.bb[1] || e[1] > B.bb[3]) continue;
       let bi = -1, bf = 0, bd = 1e9;
       for (let j = 0; j < B.pts.length - 1; j++) {
         const p = B.pts[j], q = B.pts[j + 1], dx = q[0] - p[0], dz = q[1] - p[1], l2 = dx * dx + dz * dz || 1;
@@ -185,6 +186,64 @@
     const out = [at(t0)]; for (let i = 0; i < pts.length; i++) if (seg[i] > t0 + 0.05 && seg[i] < len - t1 - 0.05) out.push(pts[i]); out.push(at(len - t1)); return out;
   }
   const vecWalkPts = (G, e, dir, off) => trimPts(offsetPts(dir ? e.pts.slice().reverse() : e.pts, off), vecTrimW(G, dir ? e.b : e.a), vecTrimW(G, dir ? e.a : e.b));
+  // ---------- Omzetting van oude vakwegen naar getekende wegen ----------
+  // Rechte reeksen wegvakken (langs een van de drie assen) worden één getekende weg door de vakmiddens; een bocht of
+  // kruising ontstaat waar reeksen elkaar raken. Twee rijen laanvakken worden één getekende laan over hun middenlijn.
+  // Vakken met iets erbovenop (tunnel, looppad) of een brug over water blijven zoals ze zijn.
+  function convertCellRoads() {
+    const plain = new Set(), laanC = [];
+    for (const [k, st] of cells) {
+      if (!Array.isArray(st) || st.length !== 1) continue;
+      const b = baseOf(st[0]);
+      if (b === 'weg') plain.add(k); else if (laanD(st[0]) >= 0) laanC.push({ k, d: laanD(st[0]) });
+    }
+    if (!plain.size && !laanC.length) return false;
+    const P = pathsOf(), rnd = v => Math.round(v * 100) / 100, cw = k => { const [q, r] = k.split(',').map(Number); return cellToWorld(q, r); };
+    // lanen: groeperen per as en middenlijn
+    const groups = new Map();
+    for (const { k, d } of laanC) {
+      const G = LAAN_G[d], c = cw(k), mx = c.x + G.n[0] * 6.75, mz = c.z + G.n[1] * 6.75, v = [-G.u[1], G.u[0]], perp = Math.round((mx * v[0] + mz * v[1]) * 2) / 2, gk = G.a + ':' + perp;
+      if (!groups.has(gk)) groups.set(gk, { a: G.a, u: G.u, v, perp, s: [] });
+      groups.get(gk).s.push(mx * G.u[0] + mz * G.u[1]);
+    }
+    for (const g of groups.values()) {
+      g.s.sort((x, y) => x - y);
+      // aaneengesloten stukken (gat > 1,5 vak = aparte laan)
+      let start = g.s[0], prev = g.s[0];
+      const emit = (s0, s1) => { const a = s0 - LAAN_PITCH / 2, b = s1 + LAAN_PITCH / 2; P.push({ t: 'laan', l: 0, r: 0, p: [[rnd(a * g.u[0] + g.perp * g.v[0]), rnd(a * g.u[1] + g.perp * g.v[1])], [rnd(b * g.u[0] + g.perp * g.v[0]), rnd(b * g.u[1] + g.perp * g.v[1])]] }); };
+      for (let i = 1; i < g.s.length; i++) { if (g.s[i] - prev > LAAN_PITCH * 1.5) { emit(start, prev); start = g.s[i]; } prev = g.s[i]; }
+      emit(start, prev);
+    }
+    const laanMid = k => { const st = cells.get(k); const d = st && st.length === 1 ? laanD(st[0]) : -1; if (d < 0) return null; const G = LAAN_G[d], c = cw(k); return [rnd(c.x + G.n[0] * 6.75), rnd(c.z + G.n[1] * 6.75)]; };
+    // gewone wegen: per as de maximale rechte reeksen
+    const used = new Set();
+    for (let ax = 0; ax < 3; ax++) {
+      const [dq, dr] = NEIGH[ax];
+      for (const k of plain) {
+        const [q, r] = k.split(',').map(Number);
+        if (plain.has((q - dq) + ',' + (r - dr))) continue;   // niet het begin van een reeks
+        const run = [[q, r]]; let [a, b] = [q + dq, r + dr];
+        while (plain.has(a + ',' + b)) { run.push([a, b]); a += dq; b += dr; }
+        if (run.length < 2) continue;
+        run.forEach(c => used.add(c.join(',')));
+        const A = cellToWorld(run[0][0], run[0][1]), B = cellToWorld(run[run.length - 1][0], run[run.length - 1][1]);
+        let p0 = [rnd(A.x), rnd(A.z)], p1 = [rnd(B.x), rnd(B.z)];
+        const before = laanMid((q - dq) + ',' + (r - dr)), after = laanMid(a + ',' + b);   // sluit aan op een laan ernaast
+        if (before) p0 = before; if (after) p1 = after;
+        P.push({ t: 'weg', l: 0, r: 0, p: [p0, p1] });
+      }
+    }
+    // losse wegvakken die in geen enkele reeks zitten maar wel aan een reeks grenzen: kort stukje naar het buurvak
+    for (const k of plain) {
+      if (used.has(k)) continue;
+      const [q, r] = k.split(',').map(Number), c = cellToWorld(q, r);
+      for (let s = 0; s < 6; s++) { const nk = (q + NEIGH[s][0]) + ',' + (r + NEIGH[s][1]); if (used.has(nk)) { const n = cw(nk); P.push({ t: 'weg', l: 0, r: 0, p: [[rnd(c.x), rnd(c.z)], [rnd(n.x), rnd(n.z)]] }); used.add(k); break; } }
+    }
+    for (const k of used) cells.delete(k);
+    for (const { k } of laanC) cells.delete(k);
+    for (const k of plain) if (!used.has(k)) cells.delete(k);   // een eenzaam wegvak zonder buren: weg
+    return true;
+  }
   const newLayer = () => ({ pos: [], idx: [] });
   function ribbonInto(L, pts, hw, y, off = 0) {   // een lint rond een lijn; off schuift het opzij
     if (pts.length < 2) return;

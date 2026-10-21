@@ -97,6 +97,7 @@
     peopleDirty = true; peopleLocalEdit = true; carsDirty = true;
   }
   function rebuildAll() {
+    convertCellRoads();   // oude vakwegen worden getekende wegen
     for (const g of groups.values()) { disposeGroup(g); blocks.remove(g); }
     groups.clear(); colMap.clear(); lightReg.clear(); parkedReg.clear(); parkedVersion++;
     roadLinks = computeRoadLinks(); { const res = computePathLinks(); pathLinks = res.masks; pathIfs = res.ifs; pathCorners = res.corners; cornerVia = res.via; }
