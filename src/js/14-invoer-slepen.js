@@ -92,6 +92,7 @@
         if (!roadDrag.on) { roadDrag.pt = groundPointAt(downInfo.x, downInfo.y); roadDragStart(groundCellAt(downInfo.x, downInfo.y)); }
         roadDrag.pt = groundPointAt(e.clientX, e.clientY);
         roadPaintTo(groundCellAt(e.clientX, e.clientY));
+        if (!roadDrag.vmoveP || Math.hypot(e.clientX - roadDrag.vmoveP[0], e.clientY - roadDrag.vmoveP[1]) > 4) { roadDrag.vmoveP = [e.clientX, e.clientY]; roadDrag.vmoveT = performance.now(); }   // ná het tekenen: stilstaan telt pas vanaf dan
         return;
       }
       if (downInfo.panMode && !downInfo.rotate) pan(dx, dy);
@@ -310,21 +311,34 @@
   // touchscreen makkelijk). Een bocht maak je door een tweede weg vanaf het eindpunt te trekken; die sluit vanzelf aan.
   function vecPaintTo(cell) {
     const D = roadDrag;
-    if (!D.vp) { D.vp = { t: VEC_T[D.tool], l: 0, r: 0, p: [] }; D.vstart = cell; pathsOf().push(D.vp); }
+    if (!D.vp) { D.vp = { t: VEC_T[D.tool], l: 0, r: 0, p: [] }; D.vstart = cell; D.vcorners = []; pathsOf().push(D.vp); }
     const L = D.last; if (L && L[0] === cell[0] && L[1] === cell[1]) return;
     D.last = cell;
+    // Even stilhouden tijdens het slepen zet een hoekpunt: daarna gaat de weg vanaf dat punt verder (een bocht in één sleep)
+    clearTimeout(D.vtimer);
+    const arm = ms => { D.vtimer = setTimeout(() => {
+      const still = performance.now() - (D.vmoveT || 0);
+      if (still < 600) { arm(600 - still); return; }   // de muis bewoog nog (bijvoorbeeld een trage weergave): nog even wachten
+      if (D.on && D.vp && D.vend && !(D.vend[0] === D.vfrom()[0] && D.vend[1] === D.vfrom()[1])) { D.vcorners.push(D.vend); D.last = null; vecPaintTo(D.vend); toast('Hoekpunt · sleep verder voor de bocht', 1200); }
+    }, ms); };
+    arm(650);
+    D.vfrom = () => D.vcorners.length ? D.vcorners[D.vcorners.length - 1] : D.vstart;
+    const from = D.vfrom();
     // niet door gebouwen of water: de weg stopt bij het laatste vrije vak vóór het obstakel
     const seg = (c0, c1) => { const a = cellToWorld(c0[0], c0[1]), b = cellToWorld(c1[0], c1[1]); return [{ t: D.vp.t, l: 0, r: 0, p: [[a.x, a.z], [b.x, b.z]] }]; };
-    const free = c1 => { for (const k of vecCoverOf(seg(D.vstart, c1), true)) { const [q, r] = k.split(',').map(Number); if (vecObstacle(q, r)) return false; } return true; };
-    if (!free(cell)) { const line = [D.vstart, ...hexLine(D.vstart, cell)]; let ok = D.vstart; for (const c of line) { if (!free(c)) break; ok = c; } cell = ok; }
-    const a = cellToWorld(D.vstart[0], D.vstart[1]), b = cellToWorld(cell[0], cell[1]);
-    const same = cell[0] === D.vstart[0] && cell[1] === D.vstart[1];
-    D.vp.p = same ? [] : [[Math.round(a.x * 100) / 100, Math.round(a.z * 100) / 100], [Math.round(b.x * 100) / 100, Math.round(b.z * 100) / 100]];
-    D.count = same ? 0 : hexDist(cell[0] - D.vstart[0], cell[1] - D.vstart[1]) + 1;
+    const free = c1 => { for (const k of vecCoverOf(seg(from, c1), true)) { const [q, r] = k.split(',').map(Number); if (vecObstacle(q, r)) return false; } return true; };
+    if (!free(cell)) { const line = [from, ...hexLine(from, cell)]; let ok = from; for (const c of line) { if (!free(c)) break; ok = c; } cell = ok; }
+    D.vend = cell;
+    const W = c => { const w = cellToWorld(c[0], c[1]); return [Math.round(w.x * 100) / 100, Math.round(w.z * 100) / 100]; };
+    const same = cell[0] === from[0] && cell[1] === from[1];
+    D.vp.p = [D.vstart, ...D.vcorners, ...(same ? [] : [cell])].map(W);
+    if (D.vp.p.length < 2) D.vp.p = [];
+    D.count = 0; for (let i = 1; i < D.vp.p.length; i++) D.count += 1;
+    { const pts = [D.vstart, ...D.vcorners, ...(same ? [] : [cell])]; D.count = pts.length < 2 ? 0 : 1 + pts.slice(1).reduce((n, c, i) => n + hexDist(c[0] - pts[i][0], c[1] - pts[i][1]), 0); }
     buildPathNet();
   }
   function vecDragEnd() {
-    const D = roadDrag, vp = D.vp; D.vp = null; if (!vp) return;
+    const D = roadDrag, vp = D.vp; D.vp = null; clearTimeout(D.vtimer); if (!vp) return;
     if (vp.p.length < 2) { const i = cells.paths.indexOf(vp); if (i >= 0) cells.paths.splice(i, 1); buildPathNet(); toast('Sleep van vak naar vak om een ' + TYPES[D.tool].name.toLowerCase() + ' te trekken', 1600); return; }
     changed(); toast(TYPES[D.tool].name + ' aangelegd, ' + D.count + ' vakken lang', 1400);
   }

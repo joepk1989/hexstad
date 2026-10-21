@@ -76,14 +76,24 @@
   const vecObstacle = (q, r) => { const st = stackOf(q, r); if (!st.length) return false; const b = baseOf(st[0]); return b === 'water' || b === 'kuil' || b === 'heuvel' || columnTop(q, r) > 0.5; };
   const SAND = std({ color: '#d6c69a', polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
   const HEX_FLAT = (() => { const s = new THREE.Shape(); for (let i = 0; i < 6; i++) { const a = Math.PI / 6 + i * Math.PI / 3; i ? s.lineTo(Math.cos(a) * R, Math.sin(a) * R) : s.moveTo(Math.cos(a) * R, Math.sin(a) * R); } s.closePath(); return new THREE.ShapeGeometry(s).rotateX(-Math.PI / 2); })();
-  function smoothPts(p) {   // Catmull-Rom, ongeveer elke 2 m een punt
+  function smoothPts(p) {   // hoeken afronden (straal tot 8 m, nooit verder dan de helft van een stuk), ongeveer elke 2 m een punt
     if (p.length < 3) return p.map(a => a.slice());
-    const out = [], P = [p[0], ...p, p[p.length - 1]];
-    for (let i = 1; i < P.length - 2; i++) {
-      const [p0, p1, p2, p3] = [P[i - 1], P[i], P[i + 1], P[i + 2]], n = Math.max(2, Math.ceil(Math.hypot(p2[0] - p1[0], p2[1] - p1[1]) / 2));
-      for (let j = 0; j < n; j++) { const t = j / n, t2 = t * t, t3 = t2 * t; out.push([0, 1].map(c => 0.5 * (2 * p1[c] + (-p0[c] + p2[c]) * t + (2 * p0[c] - 5 * p1[c] + 4 * p2[c] - p3[c]) * t2 + (-p0[c] + 3 * p1[c] - 3 * p2[c] + p3[c]) * t3))); }
+    const out = [p[0].slice()];
+    const push = q => { const l = out[out.length - 1]; if (Math.hypot(q[0] - l[0], q[1] - l[1]) > 0.05) out.push(q); };
+    const lineTo = (a, b) => { const n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 2)); for (let i = 1; i <= n; i++) push([a[0] + (b[0] - a[0]) * i / n, a[1] + (b[1] - a[1]) * i / n]); };
+    let cur = p[0];
+    for (let i = 1; i < p.length - 1; i++) {
+      const A = cur, P = p[i], B = p[i + 1], la = Math.hypot(P[0] - A[0], P[1] - A[1]), lb = Math.hypot(B[0] - P[0], B[1] - P[1]);
+      const d = Math.min(8, la * 0.45, lb * 0.45);
+      if (d < 0.3) { lineTo(cur, P); cur = P; continue; }
+      const P1 = [P[0] + (A[0] - P[0]) / la * d, P[1] + (A[1] - P[1]) / la * d], P2 = [P[0] + (B[0] - P[0]) / lb * d, P[1] + (B[1] - P[1]) / lb * d];
+      lineTo(cur, P1);
+      const n = Math.max(3, Math.ceil(d / 1.2));
+      for (let k = 1; k <= n; k++) { const t = k / n, u = 1 - t; push([u * u * P1[0] + 2 * u * t * P[0] + t * t * P2[0], u * u * P1[1] + 2 * u * t * P[1] + t * t * P2[1]]); }
+      cur = P2;
     }
-    out.push(p[p.length - 1].slice()); return out;
+    lineTo(cur, p[p.length - 1]);
+    return out;
   }
   // ---------- Vectorwegen als graaf: knopen op uiteinden, kruisingen en T-aansluitingen, takken ertussen ----------
   // Gebruikt door de auto's en de mensen (rijstroken en stoepen) en door de tekenlaag (stoepen die bij kruisingen ophouden).
