@@ -132,97 +132,6 @@
     moduleGhost.visible = true;
   }
 
-  const skEl = document.getElementById('sketch'), skCv = document.getElementById('skCv'), skCtx = skCv.getContext('2d');
-  const SK = { type: 't:muur', brush: 'hex', tris: new Map(), edges: new Map(), cells: new Set(), paths: [], undo: [], cur: null, editing: -1, W: 0, H: 0, scale: 1 };
-  const SK_COL = { weg: '#3d4146', brd: '#1f2326', pad: '#b8663f' }, SK_W = { weg: 7, brd: 11, pad: 3 };
-  const skToScr = (x, z) => [SK.W / 2 + x * SK.scale, SK.H / 2 + z * SK.scale];
-  const skToWorld = (sx, sy) => [(sx - SK.W / 2) / SK.scale, (sy - SK.H / 2) / SK.scale];
-  function skDraw() {
-    const c = skCtx; c.clearRect(0, 0, SK.W, SK.H);
-    const hx = (q, r) => Math.max(Math.abs(q), Math.abs(r), Math.abs(-q - r));
-    c.lineWidth = 1; c.strokeStyle = '#a9b99a'; c.fillStyle = '#e6edda';
-    for (let q = -9; q <= 9; q++) for (let r = -9; r <= 9; r++) {
-      if (hx(q, r) > 9) continue;
-      const w = cellToWorld(q, r); c.beginPath();
-      for (let i = 0; i < 6; i++) { const a = Math.PI / 6 + i * Math.PI / 3, [sx, sy] = skToScr(w.x + Math.cos(a) * R, w.z + Math.sin(a) * R); i ? c.lineTo(sx, sy) : c.moveTo(sx, sy); }
-      c.closePath(); if (q === 0 && r === 0) { c.fillStyle = '#d6e2c4'; c.fill(); c.fillStyle = '#e6edda'; } c.stroke();
-    }
-    const TC = { muur: '#5a5a5a', weg: '#3c4045', pad: '#9b5a45', vloer: '#cfc6b0', gras: '#8fc06b', water: '#4a8fc0' };
-    for (const [id, k] of SK.tris) { const [i, j, t] = id.split(',').map(Number); c.fillStyle = TC[k] || '#888'; c.beginPath(); triVerts(i, j, t).forEach((p, n) => { const q = skToScr(p[0], p[1]); n ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]); }); c.closePath(); c.fill(); }
-    c.strokeStyle = 'rgba(60,70,50,0.35)'; c.lineWidth = 1;
-    { const ext = Math.ceil(Math.max(SK.W, SK.H) / SK.scale / TS) + 4; c.beginPath();
-      for (let i = -ext; i <= ext; i++) for (let j = -ext * 2; j <= ext; j++) for (const t of [0, 1]) { const v = triVerts(i, j, t), p = skToScr(v[0][0], v[0][1]); if (p[0] < -40 || p[0] > SK.W + 40 || p[1] < -40 || p[1] > SK.H + 40) continue; v.forEach((pp, n) => { const q = skToScr(pp[0], pp[1]); n ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]); }); c.closePath(); }
-      c.stroke(); }
-    c.strokeStyle = 'rgba(40,60,30,0.35)'; c.lineWidth = 1.4;
-    for (let q = -4; q <= 4; q++) for (let r = -4; r <= 4; r++) { if (Math.max(Math.abs(q), Math.abs(r), Math.abs(-q - r)) > 4) continue; const w = cellToWorld(q, r); c.beginPath(); for (let i = 0; i < 6; i++) { const a = Math.PI / 6 + i * Math.PI / 3, [sx, sy] = skToScr(w.x + Math.cos(a) * R, w.z + Math.sin(a) * R); i ? c.lineTo(sx, sy) : c.moveTo(sx, sy); } c.closePath(); c.stroke(); }
-    c.lineCap = 'round'; c.lineJoin = 'round';
-    for (const layer of [0, 1, 2, 3]) for (const path of SK.paths) {
-      const def = PATH_DEF[path.t], sm = smoothPts(path.p);
-      const [col, w] = layer === 0 ? [path.t === 'pad' ? '#9b988e' : '#cbc8bd', 2 * (def.hw + (path.t === 'pad' ? 0.3 : def.walk))] : layer === 1 ? ['#9b988e', 2 * def.hw + 0.6] : layer === 2 ? [path.t === 'pad' ? '#9b5a45' : '#3c4045', 2 * def.hw] : [path.t === 'pad' ? null : '#f1efe6', 0.25];
-      if (!col || (layer === 1 && path.t === 'pad') ) continue;
-      c.strokeStyle = col; c.lineWidth = w * SK.scale; if (layer === 3) c.setLineDash([3 * SK.scale, 3.5 * SK.scale]);
-      c.beginPath(); sm.forEach((p, i) => { const q = skToScr(p[0], p[1]); i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]); }); c.stroke(); c.setLineDash([]);
-    }
-    c.strokeStyle = '#4b5056'; c.lineWidth = 7 * SK.scale; c.fillStyle = '#4b5056';
-    for (const id of SK.cells) {
-      const [q, r] = id.split(',').map(Number), w = cellToWorld(q, r), p = skToScr(w.x, w.z);
-      c.beginPath(); c.arc(p[0], p[1], 3.5 * SK.scale, 0, 7); c.fill();
-      for (let k = 0; k < 3; k++) { if (!SK.cells.has(key(q + NEIGH[k][0], r + NEIGH[k][1]))) continue; const w2 = cellToWorld(q + NEIGH[k][0], r + NEIGH[k][1]), p2 = skToScr(w2.x, w2.z); c.beginPath(); c.moveTo(p[0], p[1]); c.lineTo(p2[0], p2[1]); c.stroke(); }
-    }
-    for (const t of ['pad', 'weg', 'brd']) {
-      c.strokeStyle = SK_COL[t]; c.lineWidth = SK_W[t] * SK.scale;
-      for (const [id, type] of SK.edges) {
-        if (type !== t) continue;
-        const [q, r, k] = id.split(',').map(Number), [A, B] = edgeEnds(q, r, k), p = skToScr(A[0], A[1]), p2 = skToScr(B[0], B[1]);
-        c.beginPath(); c.moveTo(p[0], p[1]); c.lineTo(p2[0], p2[1]); c.stroke();
-      }
-    }
-    if (SK.hover && (SK.type.startsWith('t:') || SK.type === 'gum')) {
-      const [x, z] = skToWorld(SK.hover[0], SK.hover[1]), list = SK.brush === 'hex' ? triAround(...triVertexAt(x, z)) : [triAt(x, z)];
-      const col = SK.type === 'gum' ? '#e0573e' : TC[SK.type.slice(2)];
-      for (const [i, j, t] of list) {
-        c.beginPath(); triVerts(i, j, t).forEach((p, n) => { const q = skToScr(p[0], p[1]); n ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]); }); c.closePath();
-        c.globalAlpha = 0.85; c.fillStyle = col; c.fill(); c.globalAlpha = 1; c.strokeStyle = '#f2b233'; c.lineWidth = 2.5; c.stroke();
-      }
-    }
-    if (SK.cur && SK.cur.length > 1) {
-      c.strokeStyle = SK.type === 'gum' ? '#e0573e' : '#f2b233'; c.lineWidth = 3; c.beginPath();
-      SK.cur.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke();
-    }
-  }
-  function skResize() {
-    const dpr = Math.min(2, devicePixelRatio || 1), b = skCv.getBoundingClientRect();
-    SK.W = b.width; SK.H = b.height; skCv.width = b.width * dpr; skCv.height = b.height * dpr; skCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    SK.scale = Math.min(SK.W, SK.H) / 150; skDraw();
-  }
-  function skCommit() {   // de vrije lijn vastklikken op randen en doorgangen
-    const pts = SK.cur.map(p => skToWorld(p[0], p[1])); SK.cur = null;
-    if (!pts.length) return;
-    SK.undo.push({ e: new Map(SK.edges), c: new Set(SK.cells), v: SK.paths.slice(), t: new Map(SK.tris) });
-    if (SK.type[0] === 'v') {
-      const w = rdp(pts, 1.2); if (w.length < 2 || Math.hypot(w[w.length - 1][0] - w[0][0], w[w.length - 1][1] - w[0][1]) < 3 && w.length < 3) { SK.undo.pop(); return; }
-      SK.paths.push({ t: SK.type.slice(1), p: w.map(a => [Math.round(a[0] * 10) / 10, Math.round(a[1] * 10) / 10]) }); return;
-    }
-    const keys = [], seen = new Set();
-    const addPt = p => {
-      if (SK.type === 'cel' || false) { const [q, r] = worldToCell(p[0], p[1]), id = key(q, r); if (!seen.has(id)) { seen.add(id); keys.push(id); } return; }
-      const ne = nearestEdge(p[0], p[1]); if (!seen.has(ne.key)) { seen.add(ne.key); keys.push(ne.key); }
-    };
-    addPt(pts[0]);
-    for (let i = 1; i < pts.length; i++) {
-      const a = pts[i - 1], b = pts[i], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 1.5));
-      for (let j = 1; j <= n; j++) addPt([a[0] + (b[0] - a[0]) * j / n, a[1] + (b[1] - a[1]) * j / n]);
-    }
-    if (SK.type === 'cel') keys.forEach(id => SK.cells.add(id));
-    else if (SK.type === 'gum') {
-      // gum haalt een tegel weg als je erop begint, anders de randen
-      const [q0, r0] = worldToCell(pts[0][0], pts[0][1]);
-      for (const p of pts) { const [q, r] = worldToCell(p[0], p[1]); SK.cells.delete(key(q, r)); }
-      for (const id of keys) SK.edges.delete(id);
-      SK.paths = SK.paths.filter(pa => { const sm = smoothPts(pa.p); return !pts.some(q => distPoly(q[0], q[1], sm) < PATH_DEF[pa.t].hw); });
-    } else for (const id of keys) SK.edges.set(id, SK.type);
-  }
-  // Voorbeeldkaartjes van alle modules: zichtbaar zolang het modulegereedschap actief is; het gekozen kaartje draait mee
   const MOD_COL = { dak: '#8f3f33', glas: '#9fc7de', muur: '#8a8a8a', weg: '#3c4045', pad: '#9b5a45', vloer: '#cfc6b0', gras: '#6fa356', water: '#3a7ca5' };
   function modThumb(mod, rot, px) {
     const c = document.createElement('canvas'); c.width = c.height = px * 2; const g = c.getContext('2d');
@@ -241,100 +150,7 @@
     for (const t of tris) { g.fillStyle = MOD_COL[t.k] || '#888'; g.beginPath(); g.moveTo(X(t.v[0]), Z(t.v[1])); g.lineTo(X(t.v[2]), Z(t.v[3])); g.lineTo(X(t.v[4]), Z(t.v[5])); g.closePath(); g.fill(); g.strokeStyle = MOD_COL[t.k] || '#888'; g.lineWidth = 0.6; g.stroke(); }
     return c;
   }
-  const modStrip = document.getElementById('modStrip');
-  function renderStrip() {
-    if (typeof renderModCards === 'function' && typeof catIdx !== 'undefined') { try { renderModCards(); } catch (e) { /* palet bestaat nog niet */ } }
-    return;
-    modStrip.innerHTML = '';
-    modules.forEach((m, i) => {
-      const d = document.createElement('div'); d.className = 'mc'; d.setAttribute('aria-pressed', String(i === moduleSel)); d.title = m.name;
-      d.appendChild(modThumb(m, i === moduleSel ? moduleRot : 0, 92)); const sp = document.createElement('span'); sp.textContent = m.name; d.appendChild(sp);
-      d.onclick = () => { moduleSel = i; moduleGhostKey = ''; renderStrip(); if (mode === 'build') updateGhost(); };
-      modStrip.appendChild(d);
-    });
-    if (!modules.length) { const d = document.createElement('div'); d.className = 'mc'; d.textContent = 'Nog geen modules. Open Menu → Modules.'; modStrip.appendChild(d); }
-  }
-  function skList() {
-    const el = document.getElementById('skList');
-    el.innerHTML = modules.length ? '' : '<span>Nog geen modules · teken iets en bewaar het</span>';
-    modules.forEach((m, i) => {
-      const d = document.createElement('div'); d.className = 'it'; d.innerHTML = '<span></span><button data-m="use">Plaats</button><button data-m="del">×</button>';
-      d.firstChild.textContent = m.name + ' (' + (m.edges.length + (m.cells || []).length + (m.paths || []).length + (m.tris || []).length) + ')';
-      d.onclick = e => {
-        const a = e.target.dataset.m; if (!a) return;
-        if (a === 'use') { moduleSel = i; moduleRot = 0; moduleGhostKey = ''; closeSketch(); selectTool('module'); renderStrip(); toast('Tik op de grond om "' + m.name + '" te plaatsen · R draait', 3200); }
-        if (a === 'edit') { SK.edges = new Map(m.edges); SK.cells = new Set(m.cells || []); SK.paths = (m.paths || []).map(p => ({ t: p.t, p: p.p })); SK.tris = new Map((m.tris || []).map(([i, j, t, k]) => [i + ',' + j + ',' + t, k])); SK.undo = []; SK.editing = i; document.getElementById('skName').value = m.name; skDraw(); }
-        if (a === 'del') { modules.splice(i, 1); if (moduleSel === i) moduleSel = null; else if (moduleSel > i) moduleSel--; saveMods(); skList(); }
-      };
-      el.appendChild(d);
-    });
-    renderStrip();
-  }
-  function openSketch() { skEl.hidden = false; skList(); requestAnimationFrame(skResize); }
-  function closeSketch() { skEl.hidden = true; }
-  addEventListener('resize', () => { if (!skEl.hidden) skResize(); });
-  let skPaint = false, skLast = null;
-  function skPaintAt(sx, sy) {
-    const [x, z] = skToWorld(sx, sy), erase = SK.type === 'gum';
-    const list = SK.brush === 'hex' ? triAround(...triVertexAt(x, z)) : [triAt(x, z)];
-    for (const [i, j, t] of list) { const id = i + ',' + j + ',' + t; erase ? SK.tris.delete(id) : SK.tris.set(id, SK.type.slice(2)); }
-  }
-  skCv.addEventListener('pointerdown', e => {
-    skCv.setPointerCapture(e.pointerId); const b = skCv.getBoundingClientRect(), p = [e.clientX - b.left, e.clientY - b.top];
-    if (SK.type.startsWith('t:') || SK.type === 'gum') {
-      skPaint = true; SK.undo.push({ e: new Map(SK.edges), c: new Set(SK.cells), v: SK.paths.slice(), t: new Map(SK.tris) });
-      if (SK.type === 'gum') { const [x, z] = skToWorld(p[0], p[1]); SK.paths = SK.paths.filter(pa => distPoly(x, z, smoothPts(pa.p)) > PATH_DEF[pa.t].hw); }
-      skPaintAt(p[0], p[1]); skLast = p; skDraw(); return;
-    }
-    SK.cur = [p]; skDraw();
-  });
-  skCv.addEventListener('pointermove', e => {
-    const b = skCv.getBoundingClientRect(), p = [e.clientX - b.left, e.clientY - b.top];
-    SK.hover = p;
-    if (skPaint) { const n = Math.max(1, Math.ceil(Math.hypot(p[0] - skLast[0], p[1] - skLast[1]) / 6)); for (let i = 1; i <= n; i++) skPaintAt(skLast[0] + (p[0] - skLast[0]) * i / n, skLast[1] + (p[1] - skLast[1]) * i / n); skLast = p; skDraw(); return; }
-    if (!SK.cur) { skDraw(); return; } SK.cur.push(p); skDraw();
-  });
-  skCv.addEventListener('pointerleave', () => { SK.hover = null; skDraw(); });
-  const skUp = () => { skPaint = false; if (SK.cur) { skCommit(); skDraw(); } };
-  skCv.addEventListener('pointerup', skUp); skCv.addEventListener('pointercancel', skUp);
-  function importCode() {
-    try {
-      const raw = JSON.parse(document.getElementById('skCode').value), list = Array.isArray(raw) ? raw : [raw]; let n = 0;
-      for (const m of list) if (m && Array.isArray(m.tris)) {
-        modules.push({ name: String(m.name || 'Module').slice(0, 30), fine: m.fine === undefined ? undefined : (m.fine ? 1 : 0), n: [1, 2, 4, 8].includes(m.n) ? m.n : 2, edges: Array.isArray(m.edges) ? m.edges : [], cells: Array.isArray(m.cells) ? m.cells : [], paths: Array.isArray(m.paths) ? m.paths : [],
-          tris: m.tris.filter(t => Array.isArray(t) && (t.length === 4 || t.length === 5) && t.slice(0, 3).every(Number.isFinite) && TRI_STY[t[3]]) }); n++;
-      }
-      if (!n) throw new Error('leeg');
-      saveMods(); skList(); document.getElementById('skCode').value = ''; toast(n + ' module(s) geladen', 1800);
-    } catch (err) { toast('Dit is geen geldige modulecode', 2200); }
-  }
-  document.getElementById('skCode').addEventListener('paste', () => setTimeout(importCode, 50));
-  document.getElementById('skBar').addEventListener('click', e => {
-    const a = e.target.closest('[data-sk]')?.dataset.sk; if (!a) return;
-    if (a === 'brush') { SK.brush = SK.brush === 'hex' ? 'tri' : 'hex'; e.target.textContent = 'Penseel: ' + (SK.brush === 'hex' ? 'zeshoek' : 'driehoek'); return; }
-    if (a.startsWith('t:') || a === 'vweg' || a === 'vbrd' || a === 'vpad' || a === 'cel' || a === 'weg' || a === 'brd' || a === 'pad' || a === 'gum') { SK.type = a; document.querySelectorAll('#skBar [aria-pressed]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.sk === a))); }
-    if (a === 'undo') { const rec = SK.undo.pop(); if (rec) { SK.edges = rec.e; SK.cells = rec.c; SK.paths = rec.v; if (rec.t) SK.tris = rec.t; } skDraw(); }
-    if (a === 'clear') { SK.edges = new Map(); SK.cells = new Set(); SK.paths = []; SK.tris = new Map(); SK.undo = []; SK.editing = -1; skDraw(); }
-    if (a === 'close') closeSketch();
-    if (a === 'import') { importCode(); }
-    if (false) {
-      try {
-        const raw = JSON.parse(document.getElementById('skCode').value), list = Array.isArray(raw) ? raw : [raw]; let n = 0;
-        for (const m of list) if (m && Array.isArray(m.tris)) {
-          modules.push({ name: String(m.name || 'Module').slice(0, 30), fine: m.fine === undefined ? undefined : (m.fine ? 1 : 0), n: [1, 2, 4, 8].includes(m.n) ? m.n : 2, edges: Array.isArray(m.edges) ? m.edges : [], cells: Array.isArray(m.cells) ? m.cells : [], paths: Array.isArray(m.paths) ? m.paths : [],
-            tris: m.tris.filter(t => Array.isArray(t) && (t.length === 4 || t.length === 5) && t.slice(0, 3).every(Number.isFinite) && TRI_STY[t[3]]) }); n++;
-        }
-        if (!n) throw new Error('leeg');
-        saveMods(); skList(); document.getElementById('skCode').value = ''; toast(n + ' module(s) geladen', 1800);
-      } catch (err) { toast('Dit is geen geldige modulecode', 2200); }
-    }
-    if (a === 'save') {
-      if (!SK.edges.size && !SK.cells.size && !SK.paths.length && !SK.tris.size) { toast('Teken eerst iets', 1400); return; }
-      const nameEl = document.getElementById('skName'), name = (nameEl.value || '').trim() || 'Module ' + (modules.length + 1), item = { name, edges: [...SK.edges], cells: [...SK.cells], paths: SK.paths.map(p => ({ t: p.t, p: p.p })), tris: [...SK.tris].map(([id, k]) => [...id.split(',').map(Number), k]) };
-      if (SK.editing >= 0 && modules[SK.editing]) modules[SK.editing] = item; else { modules.push(item); SK.editing = modules.length - 1; }
-      saveMods(); skList(); toast('Module "' + name + '" bewaard', 1800);
-    }
-  });
+  function renderStrip() { if (typeof renderModCards === 'function') { try { renderModCards(); } catch (e) { /* palet bestaat nog niet */ } } }
 
   let openSchetsFn = null;
   const openSchets = () => { if (openSchetsFn) openSchetsFn(); };
@@ -345,7 +161,7 @@
   const AREAS = [[0, '1'], [1, '7'], [2, '19'], [3, '37']], FINES = [[1, '9 m'], [2, '4,5 m'], [4, '2,25 m'], [8, '1,1 m']];
   const appEl = document.getElementById('schetsApp'), css = n => getComputedStyle(appEl).getPropertyValue(n).trim();
   const S = window.__SS = { fine: 1, gl: 0, gr: 0, paths: [], pcur: null, tool: 'paint', ltype: 'weg', lay: 1, kind: 'muur', gum: false, hand: false, brush: 'hex', n: 4, k: 0, tris: new Map(), undo: [], redo: [], view: { x: 0, z: 0, s: 8 }, hover: null, editing: -1, last: null, shift: false, space: false };
-  const persist = () => { saveMods(); skList(); };
+  const persist = () => { saveMods(); renderStrip(); };
 
   // rooster: zijde van een driehoek is R / n; een vak bestaat uit 6 n² driehoeken
   const TSn = n => R / n, ts = () => TSn(S.n);
@@ -482,7 +298,6 @@
     if (S.vm !== '2d' && render3()) { gridLines(); drawMarks(); return; }
     if (S.vm !== '2d') S.vm = '2d';
     ctx.fillStyle = css('--paper'); ctx.fillRect(0, 0, W, H);
-    const t = ts(), ext = (S.k + 1) * PITCH + R, iM = Math.ceil(ext / (t * SQ3 / 2)) + 1, jM = Math.ceil(ext / t) + iM;
     // tekengebied: de vakken binnen de straal
     ctx.fillStyle = css('--area');
     for (let q = -S.k; q <= S.k; q++) for (let r = -S.k; r <= S.k; r++) { if (hexDist(q, r) > S.k) continue; const [cx, cz] = cellXZ(q, r); ctx.beginPath(); path([0, 1, 2, 3, 4, 5].map(n => { const a = Math.PI / 6 + n * Math.PI / 3; return [cx + Math.cos(a) * R, cz + Math.sin(a) * R]; })); ctx.fill(); }
@@ -494,7 +309,7 @@
     }
     // diepte: een schaduw op de lagere buur langs elke rand waar het hoger is
     const hts = id => { const v = S.tris.get(id); return v && kindOf(v) !== 'water' ? layOf(v) : 0; };
-    for (const [id, vv] of S.tris) {
+    for (const id of S.tris.keys()) {
       const h = hts(id); if (h <= 0) continue;
       const [i, j, t01] = id.split(',').map(Number), v = triVerts(i, j, t01), c = centroid(v);
       const nb = t01 ? [[i + 1, j, 0], [i, j + 1, 0], [i, j, 0]] : [[i, j - 1, 1], [i, j, 1], [i - 1, j, 1]];

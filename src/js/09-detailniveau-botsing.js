@@ -18,7 +18,7 @@
       const rad = road ? R : R * 0.88;
       cc.setHex(LOD_COL[top] || 0x999999);
       if (st.length > 1 && top === 'woning') cc.offsetHSL(0, 0, ((st.length * 37) % 7) / 100 - 0.03);
-      const P = i => [x + cs[i % 6] * rad, h, z + sn[i % 6] * rad], B = i => [x + cs[i % 6] * rad, Math.min(0, h) - 1, z + sn[i % 6] * rad];
+      const P = i => [x + cs[i % 6] * rad, h, z + sn[i % 6] * rad];
       const ctr = [x, h, z];
       for (let i = 0; i < 6; i++) tri(ctr, P(i + 1), P(i), [0, 1, 0], cc);
       if (h > 0.5) {

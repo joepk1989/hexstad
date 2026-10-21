@@ -509,7 +509,6 @@
       const surf = new THREE.Mesh(hexPlane(R, false, true), M.water); surf.position.y = WATER_Y; surf.receiveShadow = true; o.add(surf);
       const st = stackOf(q, r), bridge = st.length > i + 1;
       const isWaterAt = (nq, nr) => baseOf(stackOf(nq, nr)[0]) === 'water';
-      const isBridgeAt = (nq, nr) => isWaterAt(nq, nr) && stackOf(nq, nr).length > 1;
       const wallSeg = (f, p, y0, y1) => {
         const [ax, az] = local(f, -R / 2, p), [bx, bz] = local(f, R / 2, p);
         col.walls.push({ ax: cx + ax, az: cz + az, bx: cx + bx, bz: cz + bz, y0: baseY + y0, y1: baseY + y1, half: 0.15, quay: true });
@@ -563,7 +562,6 @@
   const edgeColMap = new Map();
   let edgeGroup = null;
   function edgeCanon(q, r, k) { return k < 3 ? [q, r, k] : [q + NEIGH[k][0], r + NEIGH[k][1], k - 3]; }
-  const edgeKey = (q, r, k) => edgeCanon(q, r, k).join(',');
   function edgeEnds(q, r, k) {
     if (k >= 6) { const c0 = cellToWorld(q, r), a0 = local(FRAMES[k - 6], -R / 2, INNER); return [[c0.x + a0[0], c0.z + a0[1]], [c0.x - a0[0], c0.z - a0[1]]]; }   // 6..8: rechtdoor door het vak, van hoekpunt naar hoekpunt
     const c = cellToWorld(q, r), f = FRAMES[k], a = local(f, -R / 2, INNER), b = local(f, R / 2, INNER);
@@ -610,8 +608,5 @@
       if (columnTop(cq, cr) > 0.5) return 'Een randweg ligt op de grond';
     }
     return null;
-  }
-  function edgeRoadCols() {   // loopvlakken per vak, zodat je er in de loopmodus op kunt lopen
-    return edgeColMap;
   }
 

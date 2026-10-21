@@ -447,7 +447,6 @@
     const rnd = mulberry32(seed), pickInt = (a, b) => a + Math.floor(rnd() * (b - a + 1));
     const PITCH_ = R * SQ3, RING = 64, c = new Map(), road = new Map();
     const set = (q, r, arr) => c.set(key(q, r), arr);
-    const get = (q, r) => c.get(key(q, r));
     const cdist = (q, r) => { const w = cellToWorld(q, r); return Math.hypot(w.x, w.z) / PITCH_; };
     const isRoad = (q, r) => road.has(key(q, r));
     // rechte lijn van vakken tussen twee vakken (kubuscoördinaten afronden)
@@ -500,7 +499,7 @@
       thin(path, false).forEach(([q, r]) => { if (!isRoad(q, r)) road1(q, r, 'weg'); });
     }
     // 3. Een gracht buiten de ring met bruggen waar de hoofdwegen doorheen gaan, en een parkband tussen ring en gracht
-    const canal = new Set(), band = new Set();
+    const canal = new Set();
     circle(RING + 3.2).forEach(([q, r]) => canal.add(key(q, r)));
     // de gracht moet dicht zijn: vul vakken die tussen twee grachtvakken en buiten de ring liggen
     for (const k2 of [...canal]) { const [q, r] = k2.split(',').map(Number); for (const [a, b] of NEIGH) { const k3 = key(q + a, r + b); if (!canal.has(k3) && cdist(q + a, r + b) > RING + 3.2 && cdist(q + a, r + b) < RING + 3.9 && NEIGH.filter(([x, y]) => canal.has(key(q + a + x, r + b + y))).length >= 3) canal.add(k3); } }
@@ -608,7 +607,7 @@
   }
   // Elk huis krijgt standaard een dak: een kolom die met een woning eindigt krijgt er een dak op
   function roofHouses(map) {
-    for (const [k, st] of map) {
+    for (const st of map.values()) {
       if (!st.length || baseOf(st[st.length - 1]) !== 'woning') continue;
       const h = st.reduce((a, t) => a + TY(t).h, 0);
       if (h + TY('dak').h <= MAX_H + 0.01) st.push('dak');

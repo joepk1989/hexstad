@@ -2,13 +2,6 @@
   const TS = R / 2, TRI_H = { muur: 3, dak: 3, glas: 3 }, TRI_EXT = new Set(['muur', 'dak', 'glas']);
   const triP = (i, j, ts = TS) => [i * ts * SQ3 / 2, i * ts / 2 + j * ts];
   function triVerts(i, j, t, ts = TS) { const A = triP(i, j, ts), B = triP(i + 1, j, ts), C = triP(i, j + 1, ts), D = triP(i + 1, j + 1, ts); return t ? [B, D, C] : [A, B, C]; }
-  function triAt(x, z) { const fi = x / (TS * SQ3 / 2), fj = z / TS - fi / 2, i = Math.floor(fi), j = Math.floor(fj); return [i, j, (fi - i) + (fj - j) < 1 ? 0 : 1]; }
-  function triVertexAt(x, z) {   // dichtstbijzijnde roosterpunt
-    const fi = x / (TS * SQ3 / 2), fj = z / TS - fi / 2; let best = null;
-    for (let di = 0; di <= 1; di++) for (let dj = 0; dj <= 1; dj++) { const I = Math.floor(fi) + di, J = Math.floor(fj) + dj, p = triP(I, J), d = Math.hypot(p[0] - x, p[1] - z); if (!best || d < best.d) best = { I, J, d }; }
-    return [best.I, best.J];
-  }
-  const triAround = (I, J) => [[I, J, 0], [I - 1, J, 0], [I, J - 1, 0], [I - 1, J, 1], [I, J - 1, 1], [I - 1, J - 1, 1]];
   const TRI_STY = { muur: ['#9a5b45', '#c4c6c2'], dak: ['#9a5b45', '#8f3f33'], glas: ['#6f9bb8', '#9fc7de'], weg: ['#3c4045'], pad: ['#9b5a45'], vloer: ['#cfc6b0'], gras: ['#7bb356'], water: ['#3a7ca5'] };
   const TRI_Y = { weg: 0.12, pad: 0.15, vloer: 0.14, gras: 0.04, water: 0.06 };
   const trisOf = () => cells.tris || (cells.tris = []);   // {k, v: [ax, az, bx, bz, cx, cz], h}
@@ -243,13 +236,6 @@
     cells.paths.forEach((p, i) => { const d = distPoly(res.point.x, res.point.z, smoothPts(p.p)) - PATH_DEF[p.t].hw; if (d < 2 && d < bd) { bd = d; best = i; } });
     if (best < 0) return false;
     cells.paths.splice(best, 1); buildPathNet(); changed(); toast('Weg weggehaald', 900); return true;
-  }
-  function rdp(p, eps) {   // lijn vereenvoudigen
-    if (p.length < 3) return p;
-    let dm = 0, im = 0; const a = p[0], b = p[p.length - 1];
-    for (let i = 1; i < p.length - 1; i++) { const d = distSeg(p[i][0], p[i][1], a, b); if (d > dm) { dm = d; im = i; } }
-    if (dm <= eps) return [a, b];
-    return rdp(p.slice(0, im + 1), eps).slice(0, -1).concat(rdp(p.slice(im), eps));
   }
   const edgePieceCache = new Map();
   function buildEdgeNet() {

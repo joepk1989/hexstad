@@ -102,7 +102,6 @@
     const KLAP = { hard: [[0, 1.0], [1.08, 0.89], [2.05, 2.29], [4.42, 1.89], [6.39, 0.85], [7.32, 0.79], [8.19, 0.79], [9.06, 0.72]],
       light: [[9.86, 0.63], [10.57, 0.69], [11.34, 0.66], [12.08, 0.57], [12.73, 0.67], [13.48, 0.65]] };
     const btn = document.getElementById('soundBtn'), waves = document.getElementById('soundWaves');
-    const loopSrc = buf => { const s2 = ctx.createBufferSource(); s2.buffer = buf; s2.loop = true; s2.start(); return s2; };
     function init() {
       ctx = new (window.AudioContext || window.webkitAudioContext)();
       master = ctx.createGain(); master.gain.value = 0;
@@ -240,15 +239,10 @@
           const lx = mode === 'walk' ? player.x : orbit.target.x, lz = mode === 'walk' ? player.z : orbit.target.z;
           const height = mode === 'walk' ? player.y : Math.min(60, orbit.dist * 0.25);
           const [cq, cr] = worldToCell(lx, lz);
-          let green = 0, water = 0, road = 0;
+          let green = 0;   // parken en hofjes in de buurt: voller vogelkoor
           for (let dq = -2; dq <= 2; dq++) for (let dr = -2; dr <= 2; dr++) {
             if (hexDist(dq, dr) > 2) continue;
-            for (const t of stackOf(cq + dq, cr + dr)) {
-              const b = baseOf(t);
-              if (b === 'park' || b === 'hof' || b === 'hofhelling') green++;
-              else if (b === 'water') water++;
-              else if (b === 'weg' || b === 'laan') road++;
-            }
+            for (const t of stackOf(cq + dq, cr + dr)) { const b = baseOf(t); if (b === 'park' || b === 'hof' || b === 'hofhelling') green++; }
           }
           const far = mode === 'walk' ? 1 : Math.max(0.35, 1 - orbit.dist / 500);
           const tc = ctx.currentTime;

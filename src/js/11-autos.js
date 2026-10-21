@@ -6,7 +6,6 @@
     const MAX = 40, CAP = 280, LANE = 1.25, WB = 1.45, TRACK = 0.83, WR = 0.36;
     // wielen draaien op het scherm niet sneller dan dit (rad/s): sneller lijkt het door de beeldsnelheid achteruit te gaan
     const SPIN_MAX = 13;   // CAP: ook de geparkeerde auto's
-    const V2 = (x, y) => new THREE.Vector2(x, y);
     // Carrosserie als één gladde vorm: doorsneden (afgeronde rechthoeken) langs de lengte, met een
     // zijprofiel, een bovenaanzicht en wielkasten. Gedeelde hoekpunten geven zachte overgangen in plaats van facetten.
     const curve = pts => x => {   // vloeiende kromme door punten (monotone Hermite)
@@ -125,7 +124,6 @@
     const pick = a => a[Math.floor(Math.random() * a.length)];
     const right = (x, z) => [-z, x];
     const maskAt = (q, r) => roadLinks.get(lk(q, r, 0)) || 0;
-    const isRoadTile = (q, r) => stackOf(q, r).includes('weg') && baseOf(stackOf(q, r)[0]) !== 'weg' ? true : stackOf(q, r)[0] === 'weg';
     // Rijlijn door een vak, van zijde inS (waar je binnenkomt) naar zijde outS, in lokale coördinaten
     const pathCache = new Map();
     function lanePath(inS, outS, mask) {
