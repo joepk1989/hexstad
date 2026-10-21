@@ -21,7 +21,10 @@ Wat er in de bestanden zit:
 | `06` laan-terrein | uitgraving, verhoging, hellingen, brug |
 | `07` driehoeken-vectorwegen | **het wegsysteem**: de wegengraaf, kruisingen, bochten, ronde koppen, stoepen, markering, verkeerslichten, en `convertCellRoads` voor oude steden |
 | `08` schets-modules | schets-app, modules, randcodes, delen als bestand |
-| `08b` bouwdelen-modules | blok, muur, tunnel, tribune, zuilen en hof als schetsmodules (alleen uiterlijk), eenmalig aan de lijst toegevoegd |
+| `08b` bouwdelen-modules | de zes oude bouwdelen als schetsmodules (alleen uiterlijk), eenmalig aan de lijst toegevoegd |
+| `08c` modules-v2 | **modules v2**: het model (verdiepingen, vloeren, muren met openingen, trappen, daken, voorwerpen), de bouwer naar 3D met botsing, plaatsing in de stad, randcodes, 3D-miniaturen |
+| `08d` module-maker | **de module maker**: bovenaanzicht en 3D, verdiepingen, gereedschap met iconen, bibliotheek, delen |
+| `08e` modules-bibliotheek | de honderd standaardmodules, gemaakt met een kleine bouw-API op het v2-model |
 | `09` detailniveau-botsing | detailniveau voor grote steden, botsing |
 | `10` mensen | voetgangers op stoepen en paden, deuren aan getekende wegen |
 | `11` autos | auto's en hun rijgedrag op de wegengraaf |
@@ -51,9 +54,24 @@ node build.js
 
 Dat maakt `dist/hexstad.html` (één bestand, zelfde als de gepubliceerde versie) en kopieert de geluiden ernaast. `dist/` staat niet in git.
 
+## Modules en de module maker
+
+Een module v2 is een gebied van 1, 7, 19 of 37 vakken met verdiepingen van 3 m, getekend op het fijne driehoekraster (zijde 4,5 of 2,25 m):
+
+- **Vloeren** zijn driehoeken met een materiaal (klinkers, tegels, hout, kantoorvloer, beton, gras, water, asfalt, dakbedekking). Een vloer op een verdieping is ook het plafond eronder; een bovenste laag met alleen vloer is een plat dak.
+- **Muren** liggen op de ribben van het raster (baksteen, stucwerk, beton, glaswand, hout, natuursteen, haag, hek) en kunnen een **deur, raam, poort** of **open doorgang** hebben.
+- **Trappen en hellingen** lopen van een rasterpunt in een van zes richtingen 3 m omhoog naar de volgende verdieping.
+- **Daken** per vak: puntdak of plat. **Voorwerpen**: boom, struik, bankje, lantaarn, zuil, tafel, plantenbak, fontein, prullenbak, fietsenrek.
+
+In de stad wordt een module echt gebouwd (`mv2Build`): één mesh per materiaal, plus loopvlakken per verdieping en muren voor de botsing, zodat je erdoorheen en de trap op kunt lopen. Vakken onder een module zijn bezet voor andere blokken en wegen. Randcodes (muur, deur, groen, stoep, water, weg, leeg) worden uit de begane grond afgeleid; een klik op een geplaatste module wisselt naar de variant die het best op de buren past.
+
+De **module maker** (Modules → Nieuw, of dubbelklik op een module) werkt als een bouwtekening: gereedschap bovenaan met sneltoetsen (V kiezen, H schuiven, F vloer, G vullen, W muur, M kamer, D deur, R raam, P poort, O open, C dicht, T trap, L helling, K dak, B voorwerp, X gum), verdiepingen met ▲▼ of Page Up/Down, 3D-weergave met 3, ongedaan maken met Ctrl+Z. Bewaren zet de module in het palet; geplaatste exemplaren worden meteen bijgewerkt. Modules zijn als JSON-bestand te delen.
+
+De oude schets (driehoeken schilderen) blijft bereikbaar voor oude modules via "Oude schets".
+
 ## Opslag
 
-Steden en modules staan in `localStorage` van de browser. Modules kunnen als JSON-bestand worden geëxporteerd en geïmporteerd (schets → Delen).
+Steden en modules staan in `localStorage` van de browser. Modules kunnen als JSON-bestand worden geëxporteerd en geïmporteerd (module maker → Delen). De honderd standaardmodules worden één keer toegevoegd en zijn met "Standaard terugzetten" te herstellen.
 
 ## Plan
 
@@ -63,6 +81,9 @@ Steden en modules staan in `localStorage` van de browser. Modules kunnen als JSO
 4. ✅ Randcodes op modules; een klik op een geplaatste module wisselt naar de variant die op de buren past
 5. ✅ Oude vakweg-, laan- en randwegcode verwijderd (alleen de omzetting voor oude steden blijft)
 6. ✅ Ronde kop op doodlopende wegen
+7. ✅ Modules v2 met verdiepingen, openingen, trappen, daken en voorwerpen; begaanbaar in de stad
+8. ✅ Module maker met gereedschap en iconen, 3D-weergave, bibliotheek
+9. ✅ Honderd standaardmodules in families (wonen, werken, winkels, openbaar, groen, pleinen, trappen, bouwdelen)
 
 Nog te doen:
 
@@ -71,8 +92,9 @@ Nog te doen:
 - Parkeerstroken met geparkeerde auto's, keerlus aan het eind van een laan, zebrapaden
 - Voetpad als getekende lijn
 - Plaatsvervangers in het menu: Rotonde, Spoor, Parkeren, Winkel, School, Fabriek, Bomen, Hagen, Vijver, Fontein, Klif, Strand, Brug, Poort, Toren
-- Lopen over modules, miniaturen met groene stroken
+- Mensen die modules in lopen (deuren en trappen in het loopnetwerk); auto's die een parkeergarage in rijden
+- Module maker: muren met eigen hoogte, schuine daken over een vrije vorm, hellende vloeren, teksten en bordjes
 
 ## Testen
 
-Er is geen testpakket in de repo. Gecontroleerd is met ESLint op de samengevoegde code en met een simulatie in een headless browser (kruising, T, Y, bocht, laan, korte weg en een voorbeeldstad: botsingen, vastlopers, NaN-waarden, mensen die vallen).
+In `test/` staan de simulaties en controles (Playwright, headless Chromium): verkeer op losse wegvormen en in de voorbeeldstad, een stad met alle bouwonderdelen, de module maker, de standaardbibliotheek en lint. Zie `test/README.md`.

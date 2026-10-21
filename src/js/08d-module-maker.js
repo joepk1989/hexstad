@@ -118,7 +118,7 @@
     const isEmptyLevel = L => !Object.keys(L.f).length && !Object.keys(L.w).length && !L.s.length && !Object.keys(L.r).length && !L.o.length;
     function copyUp() { snap(); const L = lvl(); while (E.m.lv.length <= E.lv + 1) E.m.lv.push(mv2Level()); const U = E.m.lv[E.lv + 1]; U.f = Object.assign({}, L.f, U.f); U.w = Object.assign({}, JSON.parse(JSON.stringify(L.w)), U.w); E.lv++; changed(); say('Verdieping gekopieerd naar boven'); }
     // ---------- zijpaneel: materiaal of keuze bij het gereedschap ----------
-    const COL = { paver: '#8a5141', tile: '#cbc8bd', wood: '#a97c52', carpet: '#8b9397', concrete: '#c4c6c2', grass: '#6fa356', water: '#2d5a66', asphalt: '#3c4045',
+    const COL = { paver: '#8a5141', tile: '#cbc8bd', wood: '#a97c52', carpet: '#8b9397', concrete: '#c4c6c2', grass: '#6fa356', water: '#2d5a66', asphalt: '#3c4045', roof: '#5a5d59',
       brick: '#9a5b45', plaster: '#e8e2d6', glass: '#a8cbd8', stone: '#bdb5a5', hedge: '#5a9440', fence: '#3b4248' };
     const OBJ_GLYPH = { tree: '🌳', bush: '🌿', bench: '🪑', lamp: '💡', pillar: '🏛', table: '☕', planter: '🌷', fountain: '⛲', bin: '🗑', bike: '🚲' };
     function renderCtx() {
@@ -374,6 +374,7 @@
     $('bExportAll').onclick = () => download('hexstad-modules.json', JSON.stringify(modules));
     $('bFile').onchange = e => { const f = e.target.files && e.target.files[0]; if (!f) return; f.text().then(t => { try { const o = JSON.parse(t), list = Array.isArray(o) ? o : [o]; let n = 0; for (const m of list) { if (!m || typeof m !== 'object') continue; if (m.v === 2) mv2Fix(m); else if (!Array.isArray(m.edges)) continue; m.id = uid(); modules.push(m); n++; } saveMods(); renderStrip(); renderLib(); say(n + ' module(s) geladen'); } catch (err) { say('Geen geldig bestand'); } e.target.value = ''; }); };
     $('bOld').onclick = () => { app.hidden = true; openSchetsOld(); };
+    $('bStd').onclick = () => { if (!confirm('De standaardmodules terugzetten? Aangepaste standaardmodules worden overschreven; je eigen modules blijven staan.')) return; const n = libInstall(true); for (const m of modules) if (m.v === 2) syncModule(m); renderStrip(); renderLib(); say(n + ' standaardmodules teruggezet'); };
     $('bClose').onclick = () => { if (E.dirty && !confirm('Niet-bewaarde wijzigingen weggooien?')) return; app.hidden = true; renderStrip(); };
     // ---------- openen ----------
     openMakerFn = (m) => {

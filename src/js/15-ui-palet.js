@@ -24,15 +24,24 @@
       b.innerHTML = '<span class="sw sw-todo">?</span>' + nm; toolScroll.appendChild(b);
     }
     if (CATS[catIdx].name !== 'Modules') return;
+    // categoriekeuze vooraan, dan de kaartjes; miniaturen in 3D worden in kleine porties getekend (honderd modules)
+    const cats = ['Alles', ...MV2.cats.filter(c => modules.some(m => (m.cat || 'Overig') === c)), ...(modules.some(m => m.v !== 2) ? ['Oude schets'] : [])];
+    const selC = document.createElement('select'); selC.className = 'tool modcard modcat'; selC.setAttribute('aria-label', 'Categorie'); for (const c of cats) { const o = document.createElement('option'); o.value = c; o.textContent = c; selC.appendChild(o); } selC.value = cats.includes(modCat) ? modCat : 'Alles'; selC.addEventListener('change', () => { modCat = selC.value; try { localStorage.setItem('hexstad-modcat', modCat); } catch (e) { /* geen opslag */ } renderModCards(); }); toolScroll.appendChild(selC);
+    const add = document.createElement('button'); add.type = 'button'; add.className = 'tool modcard add'; add.innerHTML = '<span class="plus">+</span><span class="nm">Nieuw</span>'; add.addEventListener('click', () => openSchets()); toolScroll.appendChild(add);
+    const queue = [];
     modules.forEach((m, i) => {
-      const b = document.createElement('button'); b.type = 'button'; b.className = 'tool modcard'; b.title = m.name; b.setAttribute('aria-pressed', String(tool === 'module' && i === moduleSel));
-      const c = modThumb(m, i === moduleSel ? moduleRot : 0, 46); c.style.width = c.style.height = '46px'; b.appendChild(c);
+      if (modCat !== 'Alles' && (modCat === 'Oude schets' ? m.v === 2 : (m.cat || 'Overig') !== modCat || m.v !== 2)) return;
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'tool modcard'; b.title = m.name + (m.v === 2 ? ' · dubbelklik om te bewerken' : ''); b.setAttribute('aria-pressed', String(tool === 'module' && i === moduleSel));
+      const rot = i === moduleSel ? moduleRot : 0, c = document.createElement('canvas'); c.width = c.height = 92; c.style.width = c.style.height = '46px'; b.appendChild(c);
+      if (m.v === 2) queue.push(() => { const t = mv2Thumb(m, rot, 46); c.getContext('2d').drawImage(t, 0, 0, 92, 92); }); else { const t = modThumb(m, rot, 46); c.getContext('2d').drawImage(t, 0, 0, 92, 92); }
       const sp = document.createElement('span'); sp.className = 'nm'; sp.textContent = m.name; b.appendChild(sp);
       b.addEventListener('click', () => { moduleSel = i; moduleGhostKey = ''; selectTool('module'); renderModCards(); });
+      if (m.v === 2) b.addEventListener('dblclick', () => openSchets(m));
       toolScroll.appendChild(b);
     });
-    const add = document.createElement('button'); add.type = 'button'; add.className = 'tool modcard add'; add.innerHTML = '<span class="plus">+</span><span class="nm">Nieuw</span>'; add.addEventListener('click', openSchets); toolScroll.appendChild(add);
+    const tick = () => { const t0 = performance.now(); while (queue.length && performance.now() - t0 < 12) queue.shift()(); if (queue.length) setTimeout(tick, 0); }; tick();
   }
+  let modCat = 'Alles'; try { modCat = localStorage.getItem('hexstad-modcat') || 'Alles'; } catch (e) { /* geen opslag */ }
   TOOLS.forEach((t) => {
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'tool'; b.id = 'tool-' + t;
@@ -120,7 +129,7 @@
   todRange.addEventListener('input', () => { DN.set(+todRange.value); ui(); });
   todPanel.querySelectorAll('[data-tod]').forEach(b => b.addEventListener('click', () => { DN.set(+b.dataset.tod); ui(); }));
   todAutoBtn.addEventListener('click', () => { DN.st.auto = !DN.st.auto; DN.set(DN.st.tod); ui(); });
-  DN.apply(); ui(); window.__DN = DN; window.__mods = modules; window.__saveMods = () => { saveMods(); renderModCards(); }; window.__modDbg = () => { let walls = 0, surfaces = 0; for (const L of modCols.values()) for (const c of L) { walls += c.walls.length; surfaces += c.surfaces.length; } return { walls, surfaces, floorAt, blockedAt, mv2Build, mv2New }; }; window.__SC = () => ({ player, getCells: () => cells, cars, people, buildPathNet, openSchets, cover: () => [...vecCover], canPlace, place, scene, renderer, orbit, applyOrbit, camera, edgeMid: k => { const [q, r, kk] = k.split(',').map(Number), [a, b] = edgeEnds(q, r, kk), v = new THREE.Vector3((a[0] + b[0]) / 2, 0, (a[1] + b[1]) / 2).project(camera); return [(v.x + 1) / 2 * window.innerWidth, (1 - v.y) / 2 * window.innerHeight]; }, dbgPick: (x, y) => { const r = pick(x, y); return r && r.point ? { p: [r.point.x, r.point.z], ne: nearestExistingEdge(r.point.x, r.point.z, 4.5), n2: nearestEdge(r.point.x, r.point.z), tool } : r; }, setCells: o => { cells = new Map(Object.entries(o)); rebuildAll(); } });
+  DN.apply(); ui(); window.__DN = DN; window.__mods = modules; window.__saveMods = () => { saveMods(); renderModCards(); }; window.__libStandard = libStandard; window.__match = matchingModules; window.__libInstall = libInstall; window.__modDbg = () => { let walls = 0, surfaces = 0; for (const L of modCols.values()) for (const c of L) { walls += c.walls.length; surfaces += c.surfaces.length; } return { walls, surfaces, floorAt, blockedAt, mv2Build, mv2New }; }; window.__SC = () => ({ player, getCells: () => cells, cars, people, buildPathNet, openSchets, cover: () => [...vecCover], canPlace, place, scene, renderer, orbit, applyOrbit, camera, edgeMid: k => { const [q, r, kk] = k.split(',').map(Number), [a, b] = edgeEnds(q, r, kk), v = new THREE.Vector3((a[0] + b[0]) / 2, 0, (a[1] + b[1]) / 2).project(camera); return [(v.x + 1) / 2 * window.innerWidth, (1 - v.y) / 2 * window.innerHeight]; }, dbgPick: (x, y) => { const r = pick(x, y); return r && r.point ? { p: [r.point.x, r.point.z], ne: nearestExistingEdge(r.point.x, r.point.z, 4.5), n2: nearestEdge(r.point.x, r.point.z), tool } : r; }, setCells: o => { cells = new Map(Object.entries(o)); rebuildAll(); } });
 
   // ---------- Optiebalk onderaan: opties van het gekozen blok + spelinstellingen ----------
   const optTool = document.getElementById('ogTool'), optToolName = document.getElementById('ogToolName');

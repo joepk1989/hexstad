@@ -14,7 +14,7 @@
     LV_H: 3, WALL_T: 0.25, FLOOR_T: 0.2, MAX_LV: 8,
     DIR3: [[1, 0], [0, 1], [-1, 1]],
     DIR6: [[1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]],
-    floors: { paver: 'Klinkers', tile: 'Stoeptegels', wood: 'Houten vloer', carpet: 'Kantoorvloer', concrete: 'Beton', grass: 'Gras', water: 'Water', asphalt: 'Asfalt' },
+    floors: { paver: 'Klinkers', tile: 'Stoeptegels', wood: 'Houten vloer', carpet: 'Kantoorvloer', concrete: 'Beton', grass: 'Gras', water: 'Water', asphalt: 'Asfalt', roof: 'Dakbedekking' },
     walls: { brick: 'Baksteen', plaster: 'Stucwerk', concrete: 'Beton', glass: 'Glaswand', wood: 'Hout', stone: 'Natuursteen', hedge: 'Haag', fence: 'Hek' },
     openings: { '': 'Dicht', door: 'Deur', window: 'Raam', gate: 'Poort', open: 'Open' },
     objects: { tree: 'Boom', bush: 'Struik', bench: 'Bankje', lamp: 'Lantaarn', pillar: 'Zuil', table: 'Tafel', planter: 'Plantenbak', fountain: 'Fontein', bin: 'Prullenbak', bike: 'Fietsenrek' },
@@ -46,7 +46,7 @@
   let MV2M = null;
   function mv2Mats() {
     if (MV2M) return MV2M;
-    const fl = { paver: M.paver, tile: M.walkTop, wood: M.floorWood, carpet: M.floorOffice, concrete: M.concrete, grass: M.grass, water: M.water, asphalt: M.asphalt };
+    const fl = { paver: M.paver, tile: M.walkTop, wood: M.floorWood, carpet: M.floorOffice, concrete: M.concrete, grass: M.grass, water: M.water, asphalt: M.asphalt, roof: M.roofFlat };
     const wl = { brick: M.brick[0], plaster: M.plasterPlain, concrete: M.concrete, glass: M.pane, wood: M.stairWood, stone: M.stone, hedge: M.leaf[1], fence: M.rail };
     MV2M = { fl, wl, ceiling: M.ceiling, slab: M.concrete, frame: M.alu, trim: M.trim, roof: M.roofTile, step: M.stone, rampTop: M.paverPlain, trunk: M.trunk, leaf: M.leaf, bench: M.bench, lamp: M.lampOff, lampGlow: new THREE.MeshBasicMaterial({ color: '#ffe6a8' }), water: M.water, bin: M.tlBody, metal: M.alu };
     return MV2M;

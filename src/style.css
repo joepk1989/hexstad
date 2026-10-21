@@ -83,6 +83,7 @@ button:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
 .pal-tab[aria-pressed="true"] { background: var(--signal); color: var(--signal-ink); }
 .pal-row { display: flex; gap: 4px; min-width: 0; }
 .modcard { flex: none; min-width: 64px; max-width: 84px; }
+.modcard.modcat { font: 700 12px var(--font-ui, system-ui); color: var(--ink); background: var(--bg-2, #1f262c); border: 1px solid var(--line); border-radius: 8px; padding: 0 4px; max-width: 96px; min-width: 72px; }
 .modcard canvas { width: 46px; height: 46px; border-radius: 7px; display: block; background: #c8dca4; }
 .modcard span.nm { max-width: 76px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .modcard.add .plus { width: 46px; height: 46px; border-radius: 7px; border: 2px dashed var(--ink-dim); display: grid; place-items: center; font-size: 24px; color: var(--ink-dim); }
