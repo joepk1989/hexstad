@@ -191,7 +191,17 @@
     const N = G.nodes[n]; if (!N || N.edges.length < 3) return 0;
     let hw = 0; for (const id of N.edges) hw = Math.max(hw, PATH_DEF[G.edges.get(id).t].hw); return Math.max(hw + 2.5, 7.5);
   };
-  const vecTrimW = (G, n) => { const t = vecJunctionTrim(G, n); return t ? t + 0.3 : 0; };   // stoep: net voorbij de stopstreep
+  // Knik: twee takken die onder een hoek op elkaar aansluiten (een bocht uit twee losse wegen). Geeft de draaihoek
+  // (0 = rechtdoor) en de richtingen de knoop uit; null als het geen knik is.
+  function vecBend(G, n) {
+    const N = G.nodes[n]; if (!N || N.edges.length !== 2) return null;
+    const D = N.edges.map(id => { const e = G.edges.get(id), p = e.a === n ? e.pts : e.pts.slice().reverse(), q = p[Math.min(p.length - 1, 2)]; const l = Math.hypot(q[0] - p[0][0], q[1] - p[0][1]) || 1; return { e, d: [(q[0] - p[0][0]) / l, (q[1] - p[0][1]) / l] }; });
+    const cos = Math.max(-1, Math.min(1, D[0].d[0] * D[1].d[0] + D[0].d[1] * D[1].d[1])), turn = Math.PI - Math.acos(cos);
+    return turn > 0.17 ? { turn, A: D[0], B: D[1], hw: Math.max(PATH_DEF[D[0].e.t].hw, PATH_DEF[D[1].e.t].hw), walk: Math.max(PATH_DEF[D[0].e.t].walk, PATH_DEF[D[1].e.t].walk) } : null;
+  }
+  // bij een knik houden rijstroken en markering zo ver voor de knoop op dat ze niet in de andere tak steken
+  const vecBendTrim = (G, n, w) => { const B = vecBend(G, n); return B ? Math.min(8, w * Math.tan(Math.min(B.turn, 2.6) / 2)) : 0; };
+  const vecTrimW = (G, n) => { const t = vecJunctionTrim(G, n); if (t) return t + 0.3; const B = vecBend(G, n); return B ? vecBendTrim(G, n, B.hw + B.walk + 0.3) : 0; };   // stoep: net voorbij de stopstreep
   function offsetPts(src, off) {   // de lijn opzij geschoven (rechts van de looprichting bij off > 0)
     const out = [];
     for (let i = 0; i < src.length; i++) { const a = src[Math.max(0, i - 1)], b = src[Math.min(src.length - 1, i + 1)]; let dx = b[0] - a[0], dz = b[1] - a[1]; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l; out.push([src[i][0] - dz * off, src[i][1] + dx * off]); }
@@ -354,7 +364,7 @@
     const GR = vecGraphOf(P);
     // Middenberm van een laan: verhoogd gras met stoeprand en om de 10 m een boom; houdt op voor een kruising en
     // voor de kop van de laan (daar keren de auto's)
-    const medTrim = n => { const N = GR.nodes[n]; if (!N) return 0; if (N.edges.length < 3) return N.edges.length === 1 ? 7 : 0; return vecJunctionTrim(GR, n) + 1.5; };
+    const medTrim = n => { const N = GR.nodes[n]; if (!N) return 0; if (N.edges.length < 3) return N.edges.length === 1 ? 7 : vecBendTrim(GR, n, 9.75); return vecJunctionTrim(GR, n) + 1.5; };
     for (const e of GR.edges.values()) {
       if (e.t !== 'laan') continue;
       const med = PATH_DEF.laan.med, mp = trimPts(e.pts, medTrim(e.a), medTrim(e.b)); if (mp.length < 2 || plen(mp) < 2) continue;
@@ -371,13 +381,31 @@
       }
     }
     // Wegmarkering per tak, en niet over de kruising heen
-    const markTrim = n => vecJunctionTrim(GR, n);
+    const markTrim = n => vecJunctionTrim(GR, n) || vecBendTrim(GR, n, 1.0);
     for (const e of GR.edges.values()) {
       if (e.t === 'pad') continue;
       const mp = trimPts(e.pts, markTrim(e.a), markTrim(e.b)); if (mp.length < 2) continue;
       if (e.t === 'weg') dashesInto(dash, mp, 0.07, Y + 0.03, 3, 3.5);
       else if (e.t === 'laan') { for (const sg of [1, -1]) { ribbonInto(dash, mp, 0.06, Y + 0.03, sg * 4.75); ribbonInto(pave, mp, 1.0, Y + 0.025, sg * 7.75); ribbonInto(dash, mp, 0.05, Y + 0.03, sg * 6.75); } }
       else { dashesInto(dash, mp, 0.06, Y + 0.03, 3, 3.5, 2.25); dashesInto(dash, mp, 0.06, Y + 0.03, 3, 3.5, -2.25); ribbonInto(dash, mp, 0.05, Y + 0.03, 0.12); ribbonInto(dash, mp, 0.05, Y + 0.03, -0.12); }
+    }
+    // Knikken: asfalt rond dichtmaken en de stoep met een ronde buitenhoek om de knik heen leggen
+    for (let n = 0; n < GR.nodes.length; n++) {
+      const B = vecBend(GR, n); if (!B) continue;
+      const N = GR.nodes[n], hw = B.hw, ow = hw + B.walk, kw = hw + 0.3, tr = vecBendTrim(GR, n, ow + 0.3);
+      discInto(asph, [N.x, N.z], kw, Y + 0.02);
+      const bis = [B.A.d[0] + B.B.d[0], B.A.d[1] + B.B.d[1]], bl = Math.hypot(bis[0], bis[1]) || 1; bis[0] /= bl; bis[1] /= bl;
+      const outN = d => { let nx = -d[1], nz = d[0]; if (nx * bis[0] + nz * bis[1] > 0) { nx = -nx; nz = -nz; } return [nx, nz]; };   // normaal naar de buitenkant van de bocht
+      const nA = outN(B.A.d), nB = outN(B.B.d), a0 = Math.atan2(nA[1], nA[0]); let a1 = Math.atan2(nB[1], nB[0]);
+      // van nA naar nB via de buitenkant (langs -bis)
+      const mid = Math.atan2(-bis[1], -bis[0]); const norm = a => { while (a - a0 > Math.PI) a -= 2 * Math.PI; while (a - a0 < -Math.PI) a += 2 * Math.PI; return a; };
+      a1 = norm(a1); const m = norm(mid); if ((m - a0) * (a1 - a0) < 0 || Math.abs(m - a0) > Math.abs(a1 - a0)) a1 = a1 > a0 ? a1 - 2 * Math.PI : a1 + 2 * Math.PI;
+      const inner = [], outer = [], steps = 10;
+      const pt = (al, lat, d, nn) => [N.x + d[0] * al + nn[0] * lat, N.z + d[1] * al + nn[1] * lat];
+      inner.push(pt(tr, kw, B.A.d, nA)); outer.push(pt(tr, ow, B.A.d, nA));
+      for (let i = 0; i <= steps; i++) { const a = a0 + (a1 - a0) * i / steps; inner.push([N.x + Math.cos(a) * kw, N.z + Math.sin(a) * kw]); outer.push([N.x + Math.cos(a) * ow, N.z + Math.sin(a) * ow]); }
+      inner.push(pt(tr, kw, B.B.d, nB)); outer.push(pt(tr, ow, B.B.d, nB));
+      for (let i = 0; i < inner.length - 1; i++) { polyInto(walk, [inner[i], outer[i], outer[i + 1], inner[i + 1]], PW_H); polyInto(kerb, [inner[i], [inner[i][0] + (outer[i][0] - inner[i][0]) * 0.08, inner[i][1] + (outer[i][1] - inner[i][1]) * 0.08], [inner[i + 1][0] + (outer[i + 1][0] - inner[i + 1][0]) * 0.08, inner[i + 1][1] + (outer[i + 1][1] - inner[i + 1][1]) * 0.08], inner[i + 1]], PW_H + 0.005); wallSeg(kerb, inner[i], inner[i + 1], Y, PW_H); wallSeg(walk, outer[i], outer[i + 1], 0, PW_H); }
     }
     // Stoephoeken op kruisingen: tussen twee opeenvolgende takken loopt de stoep door (afgesneden hoek), met stoeprand
     for (let n = 0; n < GR.nodes.length; n++) {

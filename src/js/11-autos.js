@@ -314,7 +314,7 @@
     let VG = { nodes: [], edges: new Map(), totalLen: 0, ver: 0 };
     const VLANE = { weg: [1.25], brd: [1.1, 3.4], laan: [3.125] };   // afstand van de rijstrook tot het midden van de weg
     function vecGraph() { if (vecDirty) { vecDirty = false; VG = vecGraphOf(cells.paths, VG.ver + 1); } return VG; }
-    const nodeTrim = n => { const N = VG.nodes[n]; return N && N.edges.length === 1 ? 1.8 : vecJunctionTrim(VG, n); };   // voor een kruising: het kruisingsvak; op een doodlopend eind: ruimte om te keren
+    const nodeTrim = n => { const N = VG.nodes[n]; return N && N.edges.length === 1 ? 1.8 : (vecJunctionTrim(VG, n) || vecBendTrim(VG, n, 2.0)); };   // voor een kruising: het kruisingsvak; op een doodlopend eind: ruimte om te keren
     const lanePts = (e, dir, off) => offsetPts(dir ? e.pts.slice().reverse() : e.pts, off);   // rijstrook: rechts van het midden
     const laneOff = (e, lane) => VLANE[e.t][Math.min(lane, VLANE[e.t].length - 1)];
     function vecLeg(e, dir, lane, from) {   // from: einde van de vorige rijstrook {pt, d}; daarvandaan een bocht naar deze
