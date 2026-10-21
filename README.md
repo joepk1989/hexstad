@@ -21,6 +21,7 @@ Wat er in de bestanden zit:
 | `06` laan-terrein | uitgraving, verhoging, hellingen, brug |
 | `07` driehoeken-vectorwegen | **het wegsysteem**: de wegengraaf, kruisingen, bochten, ronde koppen, stoepen, markering, verkeerslichten, en `convertCellRoads` voor oude steden |
 | `08` schets-modules | schets-app, modules, randcodes, delen als bestand |
+| `08b` bouwdelen-modules | blok, muur, tunnel, tribune, zuilen en hof als schetsmodules (alleen uiterlijk), eenmalig aan de lijst toegevoegd |
 | `09` detailniveau-botsing | detailniveau voor grote steden, botsing |
 | `10` mensen | voetgangers op stoepen en paden, deuren aan getekende wegen |
 | `11` autos | auto's en hun rijgedrag op de wegengraaf |
