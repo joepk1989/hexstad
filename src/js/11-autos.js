@@ -3,7 +3,7 @@
   // wielen van 72 cm. Ze rijden rechts, 1,25 m naast de middenstreep, volgen de bochtbogen, keren in de keerlus,
   // remmen voor elkaar, voor overstekende mensen en voor jou.
   const cars = (() => {
-    const MAX = 40, CAP = 280, LANE = 1.25, WB = 1.45, TRACK = 0.83, WR = 0.36;
+    const MAX = 40, CAP = 280, WB = 1.45, TRACK = 0.83, WR = 0.36;
     // wielen draaien op het scherm niet sneller dan dit (rad/s): sneller lijkt het door de beeldsnelheid achteruit te gaan
     const SPIN_MAX = 13;   // CAP: ook de geparkeerde auto's
     // Carrosserie als één gladde vorm: doorsneden (afgeronde rechthoeken) langs de lengte, met een
@@ -120,192 +120,27 @@
     const label = () => { btn.textContent = "Auto's: " + (on ? 'aan' : 'uit'); };
     label();
     const list = [];
-    let roadTiles = [], laanTiles = [], roadSet = new Set(), reckless = false, carSeq = 0, forceN = 0; const crashLog = [];
+    let reckless = false, carSeq = 0, forceN = 0; const crashLog = [];
     const pick = a => a[Math.floor(Math.random() * a.length)];
-    const right = (x, z) => [-z, x];
-    const maskAt = (q, r) => roadLinks.get(lk(q, r, 0)) || 0;
-    // Rijlijn door een vak, van zijde inS (waar je binnenkomt) naar zijde outS, in lokale coördinaten
-    const pathCache = new Map();
-    function lanePath(inS, outS, mask) {
-      const key = inS + '_' + outS + '_' + (inS === outS ? mask : '');
-      if (pathCache.has(key)) return pathCache.get(key);
-      const ni = FRAMES[inS], no = FRAMES[outS];
-      const din = [-ni.nx, -ni.nz], [rix, riz] = right(din[0], din[1]), [rox, roz] = right(no.nx, no.nz);
-      const E = [ni.nx * INNER + rix * LANE, ni.nz * INNER + riz * LANE];
-      const X = [no.nx * INNER + rox * LANE, no.nz * INNER + roz * LANE];
-      let pts = [];
-      if (outS === (inS + 3) % 6) {
-        for (let i = 0; i <= 8; i++) pts.push([E[0] + (X[0] - E[0]) * i / 8, E[1] + (X[1] - E[1]) * i / 8]);
-      } else if (outS === inS) {
-        // keren in de keerlus: rechts uitzwaaien, om het midden heen, terug op de andere rijstrook
-        const loc = (sAl, lat) => [ni.nx * sAl + rix * lat, ni.nz * sAl + riz * lat];
-        const ctrl = [loc(INNER + 2, LANE), loc(INNER, LANE), loc(4.2, LANE), loc(2.0, 2.7), loc(-1.0, 3.3), loc(-3.3, 0.2), loc(-1.0, -3.2), loc(2.0, -2.6), loc(4.2, -LANE), loc(INNER, -LANE), loc(INNER + 2, -LANE)];
-        for (let i = 1; i < ctrl.length - 2; i++) {
-          const [p0, p1, p2, p3] = [ctrl[i - 1], ctrl[i], ctrl[i + 1], ctrl[i + 2]];
-          for (let j = 0; j < 6; j++) {
-            const t = j / 6, t2 = t * t, t3 = t2 * t;
-            pts.push([0, 1].map(c => 0.5 * ((2 * p1[c]) + (-p0[c] + p2[c]) * t + (2 * p0[c] - 5 * p1[c] + 4 * p2[c] - p3[c]) * t2 + (-p0[c] + 3 * p1[c] - 3 * p2[c] + p3[c]) * t3)));
-          }
-        }
-        pts.push(ctrl[ctrl.length - 2]);
-      } else {
-        // bocht of afslag: kubische boog die rechtuit binnenkomt en rechtuit vertrekt
-        const h = 0.42 * Math.hypot(X[0] - E[0], X[1] - E[1]);
-        const P1 = [E[0] + din[0] * h, E[1] + din[1] * h], P2 = [X[0] - no.nx * h, X[1] - no.nz * h];
-        for (let i = 0; i <= 24; i++) {
-          const t = i / 24, u = 1 - t;
-          pts.push([0, 1].map(c => u * u * u * E[c] + 3 * u * u * t * P1[c] + 3 * u * t * t * P2[c] + t * t * t * X[c]));
-        }
-      }
-      // lengtes per stuk, voor rijden met een vaste snelheid
-      const seg = [0];
-      for (let i = 1; i < pts.length; i++) seg.push(seg[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
-      const res = { pts, seg, len: seg[seg.length - 1] };
-      pathCache.set(key, res);
-      return res;
-    }
-    function chooseOut(q, r, inS) {
-      const m = maskAt(q, r), opts = [0, 1, 2, 3, 4, 5].filter(k => k !== inS && ((m >> k) & 1));
-      if (!opts.length) return inS;   // doodlopend: keren
-      const straight = (inS + 3) % 6;
-      if (opts.includes(straight) && Math.random() < 0.55) return straight;
-      return pick(opts);
-    }
-    // Een stuk rijlijn: vak, binnenkomst, uitgang en de lijn zelf
-    function leg(q, r, inS) {
-      const outS = chooseOut(q, r, inS), w = cellToWorld(q, r);
-      return { q, r, inS, outS, path: lanePath(inS, outS, maskAt(q, r)), cx: w.x, cz: w.z };
-    }
-    // Waar gaat de auto na dit vak heen? Vooraf bepaald, zodat de auto alvast kan insturen
-    function planNext(c) {
-      if (c.vec) return vecNext(c);
-      if (c.laan) return laanNext(c);
-      const nq = c.q + NEIGH[c.outS][0], nr = c.r + NEIGH[c.outS][1], nin = (c.outS + 3) % 6;
-      if (laanCell(nq, nr) >= 0) {   // een zijstraat die op een laan uitkomt
-        const I = laanAt(nq, nr);
-        if (I && ((I.arms >> nin) & 1)) { const L = laanLeg(nq, nr, { side: nin }); if (L) return L; }
-        return leg(c.q, c.r, c.outS);
-      }
-      return roadSet.has(key(nq, nr)) && ((maskAt(nq, nr) >> nin) & 1) ? leg(nq, nr, nin) : leg(c.q, c.r, c.outS);
-    }
+    // Een stuk rijlijn (leg): { path: {pts, seg, len}, cx, cz, … }; de auto rijdt langs path en plant alvast het volgende stuk
+    function planNext(c) { return c.vec ? vecNext(c) : null; }
     function useLeg(c, L) {
       c.q = L.q; c.r = L.r; c.inS = L.inS; c.outS = L.outS; c.path = L.path; c.cx = L.cx; c.cz = L.cz;
       c.vec = !!L.vec; c.u = !!L.u; c.eid = L.eid; c.dir = L.dir; c.lane = L.lane; c.nodeEnd = L.nodeEnd; c.exitPt = L.exitPt; c.exitD = L.exitD;
-      c.laan = !!L.laan; c.d = L.d; c.port = L.port; c.exit = L.exit; c.kind = L.kind; c.gapChk = L.gapChk || null;
-      c.pri = L.laan && L.kind === 'lane' ? 2 : 1;
+      c.kind = L.kind; c.pri = 1;
       c.next = planNext(c);
     }
     // Klopt een (gepland) stuk rijlijn nog na een verbouwing?
     function validLeg(L) {
-      if (!L || !L.path) return false;
-      if (L.vec) { const e = VG.edges.get(L.eid); return !!e && (L.dir ? e.a : e.b) === L.nodeEnd; }
-      if (L.laan) { const I = laanAt(L.q, L.r); return !!I && I.d === L.d && (L.port !== 'side' || ((I.arms >> L.inS) & 1) === 1); }
-      return roadSet.has(key(L.q, L.r)) && ((maskAt(L.q, L.r) >> L.inS) & 1) === 1;
+      if (!L || !L.path || !L.vec) return false;
+      const e = VG.edges.get(L.eid); return !!e && (L.dir ? e.a : e.b) === L.nodeEnd;
     }
-    // ---------- Laan ----------
-    // Rijlijnen over de laan: elke rij is eenrichtingsverkeer (rijstrook 8,1 m van de buitenrand). Je kunt rechtdoor,
-    // rechtsaf een zijstraat in, linksaf door de opening in de middenberm naar een zijstraat aan de overkant, of aan
-    // het eind keren. Vanuit een zijstraat: rechtsaf of linksaf de laan op, of rechtdoor de zijstraat aan de overkant in.
+
     const mkPath = pts => { const seg = [0]; for (let i = 1; i < pts.length; i++) seg.push(seg[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1])); return { pts, seg, len: seg[seg.length - 1] }; };
     function bez(A, dA, B, dB, k = 0.42, n = 24) {
       const h = k * Math.hypot(B[0] - A[0], B[1] - A[1]), P1 = [A[0] + dA[0] * h, A[1] + dA[1] * h], P2 = [B[0] - dB[0] * h, B[1] - dB[1] * h], out = [];
       for (let i = 0; i <= n; i++) { const t = i / n, u = 1 - t; out.push([0, 1].map(j => u * u * u * A[j] + 3 * u * u * t * P1[j] + 3 * u * t * t * P2[j] + t * t * t * B[j])); }
       return out;
-    }
-    function laanLeg(q, r, port) {
-      const I = laanAt(q, r); if (!I) return null;
-      const G = I.G, f = G.f, n = G.n, w = cellToWorld(q, r);
-      const L = (tt, p) => [f[0] * tt + n[0] * (p - 4.5), f[1] * tt + n[1] * (p - 4.5)];
-      const Tt = P => P[0] * f[0] + P[1] * f[1];
-      const rel = (q2, r2) => { const w2 = cellToWorld(q2, r2); return [w2.x - w.x, w2.z - w.z]; };
-      const armOut = (cq, cr, O) => { const c = rel(cq, cr), fo = FRAMES[O]; return [c[0] + fo.nx * INNER - fo.nz * LANE, c[1] + fo.nz * INNER + fo.nx * LANE]; };
-      const nbI = k => laanAt(q + NEIGH[k][0], r + NEIGH[k][1]), nbQR = k => [q + NEIGH[k][0], r + NEIGH[k][1]];
-      const opts = [];
-      // kan een auto op dit punt van de rijstrook van vak J terecht? (niet op het plein aan de kop)
-      // en kan hij daarna ergens heen?
-      const landOk = (J, t) => !!J && J.capF !== 'all' && !(typeof J.capB === 'number' && t < J.capB + 2.5) && !(typeof J.capF === 'number' && t > J.capF - 2.5)
-        && !!laanLeg(J.q, J.r, { t0: t });
-      if (port.side === undefined) {
-        const t0 = port.t0, S0 = L(t0, LAAN.laneC);
-        if (I.contF) {
-          const nx = nbI(G.F);
-          if (nx && (nx.pf || nx.arms || nx.contF)) opts.push({ w: 3, kind: 'lane', mk: () => ({ pts: [S0, L(INNER, LAAN.laneC)], exit: { laan: nbQR(G.F), t0: -INNER }, outS: G.F }) });
-        }
-        for (const O of [G.ob, G.of]) if ((I.arms >> O) & 1) {   // rechtsaf
-          const X = armOut(q, r, O), fo = FRAMES[O];
-          if (Tt(X) - t0 < 3) continue;
-          const ts = Math.max(t0, Tt(X) - 10);
-          opts.push({ w: 1, kind: 'turn', mk: () => ({ pts: (ts > t0 + 0.05 ? [S0] : []).concat(bez(L(ts, LAAN.laneC), f, X, [fo.nx, fo.nz])), exit: { weg: nbQR(O), inS: (O + 3) % 6 }, outS: -1 }) });
-        }
-        for (const pk of [G.pf, G.pb]) {   // linksaf, door de middenberm
-          const P = nbI(pk); if (!P || P.d !== G.partnerD) continue;
-          for (const O of [P.G.ob, P.G.of]) if ((P.arms >> O) & 1) {
-            const X = armOut(P.q, P.r, O), fo = FRAMES[O];
-            if (Tt(X) - t0 < 5) continue;
-            const ts = Math.max(t0, Tt(X) - 13);
-            opts.push({ w: 1, kind: 'turn', left: true, mk: () => ({ pts: (ts > t0 + 0.05 ? [S0] : []).concat(bez(L(ts, LAAN.laneC), f, X, [fo.nx, fo.nz])), exit: { weg: [P.q + NEIGH[O][0], P.r + NEIGH[O][1]], inS: (O + 3) % 6 }, outS: -1 }) });
-          }
-        }
-        if (I.U && t0 < 2.0) {   // keren aan het eind van de laan, om de neus van de middenberm heen
-          const P = nbI(G.pf);
-          if (P && P.d === G.partnerD && P.contF) opts.push({ w: 1.2, kind: 'u', mk: () => {
-            const pts = [S0, L(2, LAAN.laneC)], R2 = (LAAN.otherC - LAAN.laneC) / 2;
-            for (let i = 1; i <= 16; i++) { const th = Math.PI * i / 16; pts.push(L(2 + Math.sin(th) * R2, LAAN.midC - Math.cos(th) * R2)); }
-            return { pts, exit: { laan: [P.q, P.r], t0: LAAN_PITCH / 2 - 2 }, outS: G.Bk };
-          } });
-        }
-      } else {
-        const O = port.side, fo = FRAMES[O], dIn = [-fo.nx, -fo.nz];
-        const E = [fo.nx * INNER + fo.nz * LANE, fo.nz * INNER - fo.nx * LANE], te = Tt(E);
-        for (const dt of [7, 5.6]) {   // rechtsaf de laan op (iets krapper als je daarna meteen moet keren)
-          let tl = te + dt; if (!I.contF) tl = Math.min(tl, INNER - 0.6);
-          if (tl > te + 2 && (tl <= INNER ? landOk(I, tl) : landOk(nbI(G.F), tl - LAAN_PITCH))) {
-            const into = tl > INNER ? { laan: nbQR(G.F), t0: tl - LAAN_PITCH } : { laan: [q, r], t0: tl };
-            opts.push({ w: 1, kind: 'turn', mk: () => ({ pts: bez(E, dIn, L(tl, LAAN.laneC), f), exit: into, outS: -1 }) });
-            break;
-          }
-        }
-        {   // linksaf: door de middenberm naar de andere rij
-          const tl = te - 7.5, P = nbI(tl >= 0 ? G.pf : G.pb);
-          if (P && P.d === G.partnerD && landOk(P, Tt(rel(P.q, P.r)) - tl)) {
-            const tP = Tt(rel(P.q, P.r));
-            opts.push({ w: 1, kind: 'turn', mk: () => ({ pts: bez(E, dIn, L(tl, LAAN.otherC), [-f[0], -f[1]]), exit: { laan: [P.q, P.r], t0: tP - tl }, outS: -1 }) });
-          }
-        }
-        {   // rechtdoor naar de zijstraat aan de overkant
-          const O2 = (O + 3) % 6, P = nbI(O2);
-          if (P && P.d === G.partnerD && ((P.arms >> O2) & 1)) {
-            const X = armOut(P.q, P.r, O2);
-            opts.push({ w: 1.3, kind: 'cross', mk: () => ({ pts: [E, X], exit: { weg: [P.q + NEIGH[O2][0], P.r + NEIGH[O2][1]], inS: O }, outS: O2 }) });
-          }
-        }
-      }
-      if (!opts.length) return null;
-      let tot = 0; for (const o of opts) tot += o.w;
-      let x = Math.random() * tot, ch = opts[opts.length - 1];
-      for (const o of opts) { x -= o.w; if (x <= 0) { ch = o; break; } }
-      const m = ch.mk(), path = mkPath(m.pts);
-      const side = port.side !== undefined;
-      // Linksaf en keren: wachten in de opening van de middenberm tot de tegenliggers voorbij zijn
-      let gapChk = null;
-      if (ch.left || ch.kind === 'u') {
-        const pOf = P => P[0] * n[0] + P[1] * n[1] + 4.5;
-        let iS = -1, iC = -1;
-        for (let i = 0; i < m.pts.length; i++) {
-          const pv = pOf(m.pts[i]);
-          if (iS < 0 && pv >= (ch.kind === 'u' ? 10.5 : 11.0)) iS = i;
-          if (iC < 0 && pv >= LAAN.otherC - 0.2) { iC = i; break; }
-        }
-        if (iS >= 0 && iC >= 0) gapChk = { stopS: Math.max(0, path.seg[iS] - 1.0), cx: w.x + m.pts[iC][0], cz: w.z + m.pts[iC][1], d: G.partnerD };
-      }
-      return { laan: true, d: I.d, q, r, inS: side ? port.side : G.Bk, outS: m.outS, kind: ch.kind, gapChk,
-        port: side ? 'side' : (port.t0 <= -INNER + 0.01 ? 'lane' : 'mid'), path, cx: w.x, cz: w.z, exit: m.exit };
-    }
-    function laanNext(c) {
-      const e = c.exit;
-      if (e && e.laan) return laanLeg(e.laan[0], e.laan[1], { t0: e.t0 });
-      if (e && e.weg) { const [a, b] = e.weg; if (roadSet.has(key(a, b)) && ((maskAt(a, b) >> e.inS) & 1)) return leg(a, b, e.inS); }
-      return null;
     }
     // ---------- Vectorwegen: auto's over vrij getekende wegen ----------
     // De getekende lijnen (cells.paths, typen weg en brd) worden een graaf: knopen op uiteinden, kruisingen en
@@ -352,11 +187,8 @@
     // Licht bij het binnenrijden van een stuk rijlijn
     function entryLight(L, t) {
       if (!L) return null;
-      if (L.vec) return L.viaNode != null ? vecLightState(VG, L.viaNode, L.viaEid, t) : null;
-      if (L.laan && L.port === 'mid') return null;
-      return lightState(L.q, L.r, L.inS, t);
+      return L.vec && L.viaNode != null ? vecLightState(VG, L.viaNode, L.viaEid, t) : null;
     }
-    function enter(c, q, r, inS) { c.prev = null; useLeg(c, leg(q, r, inS)); c.s = 0; }
     // punt op de rijlijn, ook een stukje in het vorige of volgende vak (voor voor- en achteras)
     function posOn(c, s) {
       if (s > c.path.len && c.next) return posAt({ path: c.next.path, cx: c.next.cx, cz: c.next.cz }, s - c.path.len);
@@ -371,18 +203,8 @@
       return [c.cx + a[0] + (b[0] - a[0]) * t, c.cz + a[1] + (b[1] - a[1]) * t, Math.atan2(b[1] - a[1], b[0] - a[0])];
     }
     function spawn(c, tryN = 0) {
-      const nL = laanTiles.length * 1.5, nW = roadTiles.length, nV = VG.totalLen / 15.6;
       let ok = false;
-      for (let tries = 0; tries < 8 && !ok; tries++) {
-        if (nV && Math.random() < nV / (nV + nL + nW)) ok = spawnVec(c);
-        else if (nL && Math.random() < nL / (nL + nW)) {
-          const [q, r] = pick(laanTiles), L = laanLeg(q, r, { t0: -INNER });
-          if (L) { c.prev = null; useLeg(c, L); ok = true; }
-        } else if (nW) {
-          const [q, r] = pick(roadTiles), m = maskAt(q, r), arms = [0, 1, 2, 3, 4, 5].filter(k => (m >> k) & 1);
-          enter(c, q, r, pick(arms)); ok = true;
-        }
-      }
+      for (let tries = 0; tries < 8 && !ok; tries++) if (VG.totalLen > 0) ok = spawnVec(c);
       if (!ok) { c.path = null; return false; }
       c.s = Math.random() * c.path.len * 0.8;
       const [x, z, h] = posAt(c, c.s);
@@ -397,24 +219,14 @@
       return true;
     }
     function rebuild() {
-      roadTiles = []; roadSet = new Set();
-      for (const [k, st] of cells) {
-        const [q, r] = k.split(',').map(Number);
-        if ((baseOf(st[0]) === 'weg' || (baseOf(st[0]) === 'water' && baseOf(st[1]) === 'weg')) && maskAt(q, r)) { roadTiles.push([q, r]); roadSet.add(k); }
-      }
-      laanTiles = roadLinks.laan ? [...roadLinks.laan.values()].map(I => [I.q, I.r]) : [];
       vecGraph();
       // hoe meer huizen en kantoren, hoe meer verkeer; nooit voller dan de wegen aankunnen
-      const pop = cityCounts(), nRoad = roadTiles.length + laanTiles.length * 1.5 + VG.totalLen / 15.6;
+      const pop = cityCounts(), nRoad = VG.totalLen / 15.6;
       const want = Math.round(nRoad / 14 + pop.homes * 0.3 + pop.offices * 0.2);
       let target = on && nRoad >= 3 ? Math.min(MAX, Math.max(1, Math.min(want, Math.floor(nRoad / 2.5)))) : 0;
       if (forceN) target = Math.min(MAX, forceN);   // alleen voor de simulatietest
       while (list.length > target) list.pop();
-      for (const c of list) {
-        if (c.vec) { if (!validLeg(c)) spawn(c); else c.next = planNext(c); continue; }
-        if (c.laan || laanCell(c.q, c.r) >= 0) { if (!validLeg(c)) spawn(c); else c.next = planNext(c); continue; }
-        const m = maskAt(c.q, c.r); if (!roadSet.has(key(c.q, c.r)) || !((m >> c.inS) & 1)) spawn(c); else if (c.outS !== c.inS && !((m >> c.outS) & 1)) { c.outS = chooseOut(c.q, c.r, c.inS); c.path = lanePath(c.inS, c.outS, m); } c.next = planNext(c);
-      }
+      for (const c of list) { if (!validLeg(c)) spawn(c); else c.next = planNext(c); }
       while (list.length < target) {
         const c = { paint: pick(PAINT), accent: pick(ACCENT), id: carSeq++ };
         if (!spawn(c)) break;
@@ -462,16 +274,8 @@
       }
       dt = keepDt;
     }
-    let parked = [], parkedSeen = -1;
     function render() {
-      if (parkedSeen !== parkedVersion) {   // geparkeerde auto's: alleen opnieuw verzamelen als er iets veranderd is
-        parkedSeen = parkedVersion; parked = [];
-        for (const arr of parkedReg.values()) for (const p of arr) {
-          if (list.length + parked.length >= CAP) break;
-          parked.push({ x: p.x, z: p.z, h: p.h, paint: PAINT[p.paint % PAINT.length], accent: ACCENT[(p.paint >>> 4) % ACCENT.length], sy: ASPH_H, pitch: 0, roll: 0, steer: 0, spin: (p.paint % 7) * 0.4, still: true });
-        }
-      }
-      const all = parked.length ? list.concat(parked.slice(0, CAP - list.length)) : list;
+      const all = list;
       all.forEach((c, i) => {
         // model wijst langs +x; eerst kantelen (rollen, stampen), dan draaien, dan op de vering zetten
         M.makeRotationY(-c.h).multiply(Q.makeRotationZ(c.pitch || 0)).multiply(Q.makeRotationX(c.roll || 0)).setPosition(c.x, c.sy ?? ASPH_H, c.z);
@@ -569,7 +373,7 @@
       const nx = c.x + c.cvx * dt, nz = c.z + c.cvz * dt;
       // tegen een gebouw of blok: daar stopt het
       const [q, r] = worldToCell(nx, nz);
-      if (columnTop(q, r) > 1.0 && !roadTiles.some(([a, b]) => a === q && b === r)) { c.cvx *= -0.25; c.cvz *= -0.25; c.w *= 0.5; sound.impact(Math.min(1, sp / 10), c.x, 0.6, c.z, false); }
+      if (columnTop(q, r) > 1.0) { c.cvx *= -0.25; c.cvz *= -0.25; c.w *= 0.5; sound.impact(Math.min(1, sp / 10), c.x, 0.6, c.z, false); }
       else { c.x = nx; c.z = nz; }
       c.h += c.w * dt;
       sp = Math.hypot(c.cvx, c.cvz); c.v = sp;
@@ -650,7 +454,6 @@
           const ch = Math.cos(c.h), sh = Math.sin(c.h);
           // gewenste snelheid: 30 km/u, langzamer in bochten en bij het keren (roekeloos: 75 km/u en bochten op de rand)
           let want = reckless ? 21 : 8.3; c.why = ''; c.yieldTo = -1;
-          if (c.laan && c.kind === 'lane') want = reckless ? 25 : 13.9;   // laan: 50 km/u
           const [, , hAhead] = posOn(c, c.s + Math.max(7, c.v * 1.4));
           let dh = hAhead - c.h; dh = Math.abs(Math.atan2(Math.sin(dh), Math.cos(dh)));
           const straightNow = c.outS === (c.inS + 3) % 6 && dh < 0.15;   // rechtdoor, en er komt nog geen bocht
@@ -664,7 +467,7 @@
           };
           // verkeerslicht op de kruising waar je naartoe rijdt: stoppen bij rood, en bij oranje als het nog kan
           let held = false;
-          if ((c.outS !== c.inS || c.laan) && !reckless) {   // roekeloos: rood is voor watjes
+          if (c.outS !== c.inS && !reckless) {   // roekeloos: rood is voor watjes
             const ls = entryLight(c.next, tNow);
             if (ls && ls !== 'g') {
               const gap = c.path.len - c.s - 3.6;   // neus van de auto ruim een meter voor de rand van de kruising: afslaand verkeer kan erlangs
@@ -675,47 +478,11 @@
             }
           }
           // een keerlus is maar breed genoeg voor één auto tegelijk: wachten tot hij vrij is
-          if (!reckless && c.next && !c.next.laan && c.next.outS === c.next.inS && !(c.q === c.next.q && c.r === c.next.r)) {
+          if (!reckless && c.next && c.next.outS === c.next.inS && !(c.q === c.next.q && c.r === c.next.r)) {
             const T = c.next, myGap = c.path.len - c.s;
             const busy = list.some(o => o !== c && ((o.q === T.q && o.r === T.r) ||
               (o.next && o.next.q === T.q && o.next.r === T.r && o.next.outS === o.next.inS && (o.path.len - o.s < myGap - 0.01 || (Math.abs(o.path.len - o.s - myGap) < 0.01 && o.id < c.id)))));
             if (busy) { const gap = c.path.len - c.s - 2.75; if (gap > -0.6) { const w = gap < 0.3 ? 0 : brakeTo(gap); if (w < want) { want = w; held = true; } } }
-          }
-          // de laan op (vanuit een zijstraat) of keren: alleen als er plek is waar je uitkomt (kruising niet blokkeren)
-          if (!reckless && c.next && c.next.laan && (c.next.kind === 'u' || c.next.port === 'side') && !(c.ghost > 0)) {
-            const P = c.next.path.pts, a = P[P.length - 2], b = P[P.length - 1], wx = c.next.cx + b[0], wz = c.next.cz + b[1];
-            let ex = b[0] - a[0], ez = b[1] - a[1]; const el = Math.hypot(ex, ez) || 1; ex /= el; ez /= el;
-            let full = false;
-            for (const o of list) {
-              if (o === c || o.v > 2.5) continue;
-              const dx = o.x - wx, dz = o.z - wz, al = dx * ex + dz * ez, lat = -dx * ez + dz * ex;
-              if (al > -4.5 && al < 7 && Math.abs(lat) < 1.8) { full = true; break; }
-            }
-            if (full) { const gap = c.path.len - c.s - (c.next.port === 'side' ? 3.6 : 1.5); if (gap > -0.6) { const w = gap < 0.3 ? 0 : brakeTo(gap); if (w < want) { want = w; c.why = 'space'; held = true; } } }
-            // te lang geen plek: dan toch maar een andere kant op
-            c.spaceWait = full && c.v < 0.3 ? (c.spaceWait || 0) + dt : 0;
-            if (c.spaceWait > 7) { c.spaceWait = 0; c.next = planNext(c); }
-          }
-          // keren op de laan: één auto tegelijk door de keerlus
-          if (!reckless && c.next && c.next.laan && c.next.kind === 'u') {
-            const T = c.next, myGap = c.path.len - c.s;
-            const busy = list.some(o => o !== c && !o.crash && ((o.laan && o.kind === 'u' && o.q === T.q && o.r === T.r && o.s < o.path.len - 3) ||
-              (o.next && o.next.laan && o.next.kind === 'u' && o.next.q === T.q && o.next.r === T.r && (o.path.len - o.s < myGap - 0.01 || (Math.abs(o.path.len - o.s - myGap) < 0.01 && o.id < c.id)))));
-            if (busy) { const gap = c.path.len - c.s - 1.5; if (gap > -0.6) { const w = gap < 0.3 ? 0 : brakeTo(gap); if (w < want) { want = w; c.why = 'keer'; } } }
-          }
-          // linksaf of keren: in de middenberm wachten tot er geen tegenligger aankomt
-          if (!reckless && c.gapChk && c.s < c.gapChk.stopS + 0.3) {
-            const g = c.gapChk, patientG = (c.gw || 0) < 10;   // na 10 s wachten: tussen langzaam rijdende auto's door
-            let unsafe = false;
-            for (const o of list) {
-              if (o === c || !o.laan || o.d !== g.d || o.crash) continue;
-              const fo = LAAN_G[o.d].f, dx = g.cx - o.x, dz = g.cz - o.z, dd = dx * fo[0] + dz * fo[1], lat = -dx * fo[1] + dz * fo[0];
-              if (Math.abs(lat) > 2.6 || dd < -2.6 || Math.cos(o.h - Math.atan2(fo[1], fo[0])) < 0.75) continue;   // alleen wie over die rijstrook aankomt
-              // een rijdende tegenligger die er binnen ~4 s is, of een stilstaande die precies op het oversteekpunt staat
-              if (dd < 3.4 || (patientG ? o.v > 0.5 && dd < 6 + o.v * 4.5 : o.v > 3 && dd < 6 + o.v * 3)) { unsafe = true; break; }
-            }
-            if (unsafe) { const w = brakeTo(g.stopS - c.s); if (w < want) { want = w; c.why = 'gap'; } }
-            c.gw = unsafe && c.v < 0.5 ? (c.gw || 0) + dt : 0;
           }
           if (c.wait >= 4) c.creepT = 2.5;   // lang vastgestaan: even voorzichtig doorkruipen, wat er ook staat
           if (c.creepT > 0) c.creepT -= dt;
@@ -788,7 +555,7 @@
           // Vangnet: wie heel lang muurvast staat (niet voor een rood licht), schuift er stapvoets even doorheen
           // (wie in een gewone rij staat voor een licht, een vrije plek of een gat in het verkeer, wacht gewoon)
           let legit = c.why === 'light' || c.why === 'space' || held;
-          for (let o = c, n = 0; !legit && o && o.why === 'ahead' && n < 14; n++) { o = o.aheadOf; if (o && (o.why === 'light' || o.why === 'space' || o.why === 'gap' || o.held)) legit = true; }
+          for (let o = c, n = 0; !legit && o && o.why === 'ahead' && n < 14; n++) { o = o.aheadOf; if (o && (o.why === 'light' || o.why === 'space' || o.why === 'gap' || o.held || o.kind === 'u' || (o.next && o.next.kind === 'u'))) legit = true; }   // wachten op iemand die keert is ook gewoon wachten
           c.stuck = c.v < 0.2 && !legit ? (c.stuck || 0) + dt : 0;
           if (c.stuck > (c.why === 'gap' || c.why === 'keer' ? 40 : 25)) { c.ghost = 4; c.stuck = 0; }
           c.pwait = held ? 0 : c.v < 0.2 ? (c.pwait || 0) + dt : (c.v > 2 ? 0 : (c.pwait || 0));

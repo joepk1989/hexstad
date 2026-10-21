@@ -11,7 +11,7 @@
       if (Math.abs(h - y) < 0.01) {
         if (CLIMBS.has(b)) return { b, d: dirOf(t), level: 'low' };
         if (isBuilding(b) && (i === 0 || !isBuilding(st[i - 1]))) { const d = doorFace(q, r, h); return d >= 0 ? { b: 'door', d } : null; }
-        if (['weg', 'laan', 'pad', 'hof', 'looppad', 'tunnel'].includes(b)) return { b };
+        if (['pad', 'hof', 'looppad', 'tunnel'].includes(b)) return { b };
       }
       if (last && Math.abs(top - y) < 0.01) {
         if (CLIMBS.has(b)) return { b, d: dirOf(t), level: 'high' };
@@ -31,7 +31,7 @@
     const deckSides = n => {
       const st = stackOf(n.q, n.r);
       if (baseOf(st[0]) !== 'water') return 63;
-      return baseOf(st[1]) === 'weg' ? (roadLinks.get(n.key) || 0) : (pathLinks.get(n.key) || 0);
+      return pathLinks.get(n.key) || 0;
     };
     const link = (a, b, side, climb) => {
       if (!a || !b || a === b) return;
@@ -41,11 +41,7 @@
       b.edges.set(a.key, { to: a, side: bs, climb, corner: bs >= 0 ? cornerVia.get(b.key + '|' + bs) : undefined });
     };
     for (const n of nodes.values()) {
-      let mask = (pathLinks.get(n.key) || 0) | (roadLinks.get(n.key) || 0);
-      if (n.kind.b === 'laan') {   // laan: langs de stoep naar het volgende vak, en de stoepen van zijstraten op
-        const I = laanAt(n.q, n.r);
-        if (I) { mask |= I.arms; if (I.contF) mask |= 1 << I.G.F; if (I.contB) mask |= 1 << I.G.Bk; }
-      }
+      const mask = pathLinks.get(n.key) || 0;
       for (let k = 0; k < 6; k++) {
         const nb = nodes.get(lk(n.q + NEIGH[k][0], n.r + NEIGH[k][1], n.y));
         if (!nb) continue;
@@ -208,30 +204,6 @@
     const pick = a => a[Math.floor(Math.random() * a.length)];
     const right = f => [-f.nz, f.nx];
     function cellC(n) { return cellToWorld(n.q, n.r); }
-    // Waar in een vak loop je naartoe? Afhankelijk van het soort vak en de richting waarin je binnenkomt
-    // Punt op de stoep zo dicht mogelijk bij (x, z): in bochten en op kruisingen volgt de stoep de ronde vorm
-    function onSidewalk(n, x, z) {
-      const c = cellC(n), polys = roadGeo(roadLinks.get(n.key) || 0).walkPolys, lx = x - c.x, lz = z - c.z;
-      for (const pts of polys) if (inPoly(lx, lz, pts)) return [x, z];
-      let best = null, bd = 1e9;
-      for (const pts of polys) for (let i = 0; i < pts.length; i++) {
-        const [ax, az] = pts[i], [bx, bz] = pts[(i + 1) % pts.length], dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1e-9;
-        const t = Math.max(0, Math.min(1, ((lx - ax) * dx + (lz - az) * dz) / l2)), px = ax + dx * t, pz = az + dz * t, d = Math.hypot(px - lx, pz - lz);
-        if (d < bd) {
-          const l = Math.sqrt(l2), nx = -dz / l, nz = dx / l;   // een meter naar binnen: midden van de stoep
-          const p1 = [px + nx, pz + nz], p2 = [px - nx, pz - nz];
-          best = inPoly(p1[0], p1[1], pts) ? p1 : inPoly(p2[0], p2[1], pts) ? p2 : [px, pz]; bd = d;
-        }
-      }
-      return best ? [c.x + best[0], c.z + best[1]] : [x, z];
-    }
-    // stoep van de laan: 1,3 m van de buitenrand (de stoep is 2,5 m breed)
-    function laanWalk(n, tt, a) {
-      const c = cellC(n), G = LAAN_G[laanCell(n.q, n.r)], p = 1.3 + a.lane * 0.45 - 4.5;
-      if (!G) return [c.x, c.z];
-      return [c.x + G.f[0] * tt + G.n[0] * p, c.z + G.f[1] * tt + G.n[1] * p];
-    }
-    const roadK = n => n.kind.b === 'weg' || n.kind.b === 'laan';
     const vecOff = (e, a) => a.walkSide * (PATH_DEF[e.t].hw + PATH_DEF[e.t].walk / 2 + a.lane * 0.5);
     // Een kruising oversteken zoals een voetganger dat doet: langs de stoephoeken en haaks over de zijstraten, niet
     // dwars over het midden. De stoepbegin-punten van alle takken vormen een rondje; we lopen de korte kant op.
@@ -260,10 +232,8 @@
     const vecEdgesAround = (...ns) => { const out = []; for (const n of ns) if (n) for (const e of n.edges.values()) if (e.vec && !out.includes(e.vec)) out.push(e.vec); return out; };
     function centerOf(n, f, a) {
       const c = cellC(n), K = n.kind;
-      if (K.b === 'laan') return laanWalk(n, 0, a);
       if (K.b === 'vec') { const e = [...n.edges.values()][0]; if (e && e.vec) { a.vedges = vecEdgesAround(n); return cars.vecWalk(e.vec, e.dir, vecOff(e.vec, a))[0]; } return [n.x, n.z]; }
       const [rx, rz] = f ? right(f) : [0, 0];
-      if (K.b === 'weg') return onSidewalk(n, c.x + rx * a.walkSide * 3.4, c.z + rz * a.walkSide * 3.4);
       if (K.b === 'hof') return [c.x + rx * a.walkSide * 2.9, c.z + rz * a.walkSide * 2.9];
       if (K.b === 'door') { const fd = FRAMES[K.d]; return [c.x + fd.nx * (INNER - 3), c.z + fd.nz * (INNER - 3)]; }
       if (K.level) {
@@ -277,8 +247,6 @@
       const c = cellC(n), f = FRAMES[side], [rx, rz] = right(f);
       let off = a.lane;
       if (n.kind.b === 'door' || other.kind.b === 'door') off = 0;
-      else if (n.kind.b === 'laan' && other.kind.b === 'laan') { const G = LAAN_G[laanCell(n.q, n.r)]; if (G) return laanWalk(n, f.nx * G.f[0] + f.nz * G.f[1] > 0 ? INNER : -INNER, a); }
-      else if (roadK(n) && roadK(other)) off = a.walkSide * 3.4;
       return [c.x + f.nx * INNER + rx * off, c.z + f.nz * INNER + rz * off];
     }
     function floorFor(x, z, feet) {
@@ -510,23 +478,16 @@
       if (e.corner) {
         // haaks pad naar de straat: over het pad naar de hoek, dan de stoep op (of andersom)
         const C = e.corner, onPath = [C.x - C.dx * 1.6, C.z - C.dz * 1.6], onWalk = [C.x + C.dx * 0.9, C.z + C.dz * 0.9];
-        if (roadK(from)) a.wps.push(onWalk, onPath); else a.wps.push(onPath, onWalk);
+        a.wps.push(onPath, onWalk);
         a.wps.push(centerOf(to, FRAMES[e.side], a));
         if (to.kind.b === 'door') a.goingIn = true;
         return;
       }
       if (!e.climb) {
-        const fromRoad = roadK(from), toRoad = roadK(to);
-        const edge = off => { const c = cellC(from), f2 = FRAMES[e.side], [rx, rz] = right(f2); return [c.x + f2.nx * (INNER - 0.4) + rx * off, c.z + f2.nz * (INNER - 0.4) + rz * off]; };
-        const inner = (from.kind.b === 'door' || to.kind.b === 'door') ? 0 : a.lane;
-        if (fromRoad && !toRoad) { a.wps.push(edge(a.walkSide * 3.4)); a.wps.push(edge(inner)); }   // over de stoep naar de rand, dan pas oversteken
+        const inner = (from.kind.b === 'door' || to.kind.b === 'door') ? 0 : a.lane; void inner;
         a.wps.push(midOf(from, e.side, a, to));
       }
       const f = e.climb ? FRAMES[from.kind.d] : FRAMES[e.side];
-      if (!e.climb && !roadK(from) && roadK(to)) {   // van een pad de straat op: eerst naar de stoep
-        const c = cellC(to), fb = FRAMES[(e.side + 3) % 6], [rx, rz] = right(f);
-        a.wps.push([c.x + fb.nx * (INNER - 0.6) + rx * a.walkSide * 3.4, c.z + fb.nz * (INNER - 0.6) + rz * a.walkSide * 3.4]);
-      }
       a.wps.push(centerOf(to, f, a));
       if (to.kind.b === 'door') a.goingIn = true;
     }

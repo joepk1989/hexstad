@@ -626,12 +626,4 @@
     return { homes, offices };
   }
   const columnTop = (q, r) => stackOf(q, r).reduce((s, t) => s + TY(t).h, 0);
-  function roadAt(q, r, baseY) {
-    let y = 0;
-    for (const t of stackOf(q, r)) {
-      if (baseOf(t) === 'weg' && Math.abs(y - baseY) < 0.01) return true;
-      y += TY(t).h;
-    }
-    return false;
-  }
 

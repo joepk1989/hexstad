@@ -176,9 +176,9 @@
   // Elk vak waar je overheen sleept wordt weg (ook als je snel beweegt: de vakken ertussen worden ingevuld).
   // Waar geen weg mag komen wordt stil overgeslagen; bestaande wegen blijven gewoon liggen.
   // Alles wat een lijn vormt kun je trekken: wegen, paden, looppaden, tunnels en grachten
-  const DRAG_TOOLS = new Set(['weg', 'laan', 'pad', 'fietspad', 'kuil', 'heuvel', 'looppad', 'tunnel', 'water', 'vweg', 'vbrd', 'vlaan']);
+  const DRAG_TOOLS = new Set(['pad', 'fietspad', 'kuil', 'heuvel', 'looppad', 'tunnel', 'water', 'vweg', 'vbrd', 'vlaan']);
   const roadDrag = { on: false, last: null, count: 0, tool: 'weg' };
-  let roadHintShown = false, dakHintShown = false, padHintShown = false, laanHintShown = false;
+  let dakHintShown = false, padHintShown = false;
   function groundCellAt(cx, cy) {
     ndc.set(cx / window.innerWidth * 2 - 1, -(cy / window.innerHeight) * 2 + 1);
     raycaster.setFromCamera(ndc, camera);
@@ -198,30 +198,6 @@
       out.push(worldToCell(A.x + (B.x - A.x) * t + 1e-3, A.z + (B.z - A.z) * t + 1e-3));
     }
     return out;
-  }
-  // Laan trekken: langs één van de drie rechte richtingen vanaf waar je begon
-  function laanPaintTo(cell) {
-    const D = roadDrag;
-    if (!D.lstart) { D.lstart = cell; D.la = null; return; }
-    const A = cellToWorld(D.lstart[0], D.lstart[1]), B = cellToWorld(cell[0], cell[1]), vx = B.x - A.x, vz = B.z - A.z;
-    if (Math.hypot(vx, vz) < 1) return;
-    if (D.la === null) {
-      if (manualDir !== null) D.la = manualDir % 3;
-      else { let best = 0, bd = -1; for (let a = 0; a < 3; a++) { const u = LAAN_G[a].u, dd = Math.abs(vx * u[0] + vz * u[1]); if (dd > bd) { bd = dd; best = a; } } D.la = best; }
-      D.ls = laanSideFor(D.la, D.lstart[0], D.lstart[1]); D.lk = new Set();
-    }
-    const u = LAAN_G[D.la].u, k = Math.round((vx * u[0] + vz * u[1]) / LAAN_PITCH), step = NEIGH[D.la], list = [], lo = Math.min(0, k), hi = Math.max(0, k);
-    // terug naar het beginpunt toe: de stukken buiten de lijn weer weghalen
-    if (!D.lprior) D.lprior = new Map();
-    const gone = [];
-    for (const [j, cellsJ] of D.lprior) if (j < lo || j > hi) { for (const [x, y] of cellsJ) { cells.delete(key(x, y)); gone.push([x, y]); } D.lprior.delete(j); D.lk.delete(j); }
-    if (gone.length) { rebuildMany(gone); changed(); }
-    for (let j = lo; j <= hi; j++) if (!D.lk.has(j)) { D.lk.add(j); list.push([D.lstart[0] + step[0] * j, D.lstart[1] + step[1] * j, j]); }
-    if (!list.length) return;
-    const before = new Set([...cells.keys()]);
-    const res = placeLaan(list.map(([q, r]) => [q, r]), D.la, D.ls);
-    for (const [q, r, j] of list) { const mine = laanFootprint(q, r, D.la + 3 * D.ls).map(([x, y]) => [x, y]).filter(([x, y]) => !before.has(key(x, y)) && cells.has(key(x, y))); if (mine.length) D.lprior.set(j, mine); }
-    D.count = [...D.lprior.values()].length; D.skip += res.skipped;
   }
   // Lijnmodule (een module met precies één weg of pad): sleep van vak naar vak en de weg vormt zich
   const isLineMod = m => !!m && (m.paths || []).length === 1 && !(m.edges || []).length && !(m.cells || []).length && !(m.tris || []).length;
@@ -346,7 +322,6 @@
     if (!cell) return;
     if (VEC_TOOLS.has(roadDrag.tool)) return vecPaintTo(cell);
     if (roadDrag.tool === 'module') return linePaintTo(cell);
-    if (roadDrag.tool === 'laan') return laanPaintTo(cell);
     // Vakken: indrukken is het beginpunt, loslaten het eindpunt; daartussen een rechte rij vakken die meebeweegt
     const D = roadDrag, L = D.last;
     if (L && L[0] === cell[0] && L[1] === cell[1]) return;
@@ -374,22 +349,14 @@
     for (const [q, r, y0] of placed) people.onPlaced(q, r, y0, columnTop(q, r));
     D.count = D.prior.size;
     changed();
-    if (T === 'weg' && placed.length) laanArmHint(placed);
   }
-  function roadDragStart(cell) { roadDrag.on = true; roadDrag.last = null; roadDrag.count = 0; roadDrag.skip = 0; roadDrag.lstart = null; roadDrag.lp = null; roadDrag.sp = null; roadDrag.vp = null; roadDrag.vstart = null; roadDrag.prior = null; roadDrag.lprior = null; roadDrag.tool = tool; ghost.visible = false; ghostArrow.visible = false; previewGroup.visible = false; roadPaintTo(cell); }
+  function roadDragStart(cell) { roadDrag.on = true; roadDrag.last = null; roadDrag.count = 0; roadDrag.skip = 0; roadDrag.lp = null; roadDrag.sp = null; roadDrag.vp = null; roadDrag.vstart = null; roadDrag.prior = null; roadDrag.tool = tool; ghost.visible = false; ghostArrow.visible = false; previewGroup.visible = false; roadPaintTo(cell); }
   function roadDragEnd() {
     if (!roadDrag.on) return;
     roadDrag.on = false; roadDrag.last = null;
     if (VEC_TOOLS.has(roadDrag.tool)) return vecDragEnd();
     if (roadDrag.tool === 'module') return lineDragEnd();
-    if (roadDrag.tool === 'laan') {
-      const st0 = roadDrag.lstart;
-      if (!roadDrag.count && !roadDrag.skip && st0) { place(st0[0], st0[1]); return; }   // niet echt gesleept: één stukje laan
-      if (roadDrag.count > 0) toast(`Laan aangelegd, ${roadDrag.count} ${roadDrag.count === 1 ? 'vak' : 'vakken'} lang${roadDrag.skip ? ` · ${roadDrag.skip} overgeslagen waar al iets stond` : ''}`, 1800);
-      else if (roadDrag.skip) toast('Hier past geen laan: er staat al iets op de plek van een van de twee rijen');
-      return;
-    }
-    const what = { weg: 'weg', pad: 'pad', fietspad: 'fietspad', kuil: 'uitgraving', heuvel: 'verhoging', looppad: 'looppad', tunnel: 'tunnel', water: 'gracht' }[roadDrag.tool] || 'blokken';
+    const what = { pad: 'pad', fietspad: 'fietspad', kuil: 'uitgraving', heuvel: 'verhoging', looppad: 'looppad', tunnel: 'tunnel', water: 'gracht' }[roadDrag.tool] || 'blokken';
     if (roadDrag.count > 1) toast(`${roadDrag.count} vakken ${what} aangelegd`, 1400);
   }
   const placeBtn = document.getElementById('placeBtn');

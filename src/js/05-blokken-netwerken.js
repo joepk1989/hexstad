@@ -14,8 +14,6 @@
     st.forEach((t, i) => {
       const b = baseOf(t);
       if (b === 'pad' || b === 'hof') out.push({ y, sides: 63 });
-      else if (b === 'weg') out.push({ y, sides: 63, passive: true });
-      else if (b === 'laan') { const G = LAAN_G[laanD(t)]; out.push({ y, sides: (1 << G.ob) | (1 << G.of), passive: true }); }
       else if (b === 'zuilen' && i === st.length - 1) out.push({ y: y + 3, sides: 63 });
       else if (b === 'trap' || b === 'helling' || b === 'trappad' || b === 'tribune') { const d = dirOf(t); out.push({ y, sides: 1 << ((d + 3) % 6) }); out.push({ y: y + 3, sides: 1 << d }); }
       else if (b === 'looppad') { out.push({ y, sides: 63 }); if (i === st.length - 1) out.push({ y: y + 3, sides: 63, passive: true }); }
@@ -66,37 +64,7 @@
       masks.set(e.ka, (masks.get(e.ka) || 0) | (1 << e.k));
       masks.set(e.kb, (masks.get(e.kb) || 0) | (1 << ((e.k + 3) % 6)));
     }
-    // Pad naast twee wegvakken die op elkaar aansluiten: één verbinding, haaks via de gedeelde hoek
-    const corners = new Map(), via = new Map();
-    const roadCell = (q, r, y) => { const st = stackOf(q, r); return y < 0.01 && st.length && baseOf(st[0]) === 'weg'; };
-    for (const [ka, A] of ifs) {
-      if (A.y > 0.01) continue;
-      const st = stackOf(A.q, A.r);
-      if (!st.length || baseOf(st[0]) !== 'pad') continue;
-      let m = masks.get(ka) || 0, used = 0;
-      const list = [];
-      for (let k = 0; k < 6; k++) {
-        const k2 = (k + 1) % 6;
-        if (!((m >> k) & 1) || !((m >> k2) & 1) || ((used >> k) & 1) || ((used >> k2) & 1)) continue;
-        const bq = A.q + NEIGH[k][0], br = A.r + NEIGH[k][1], cq = A.q + NEIGH[k2][0], cr = A.r + NEIGH[k2][1];
-        if (!roadCell(bq, br, A.y) || !roadCell(cq, cr, A.y)) continue;
-        // de twee wegvakken liggen tegen elkaar: zijde vanaf B naar C
-        const kbc = NEIGH.findIndex(([dq, dr]) => bq + dq === cq && br + dr === cr);
-        if (kbc < 0 || !(((roadLinks.get(lk(bq, br, A.y)) || 0) >> kbc) & 1)) continue;
-        // gedeelde hoek van zijde k en k2
-        const f = FRAMES[k], f2 = FRAMES[k2];
-        const ends = [-R / 2, R / 2].map(u => local(f, u, INNER)), ends2 = [-R / 2, R / 2].map(u => local(f2, u, INNER));
-        let ex = 0, ez = 0;
-        for (const p1 of ends) for (const p2 of ends2) if (Math.hypot(p1[0] - p2[0], p1[1] - p2[1]) < 0.01) { ex = p1[0]; ez = p1[1]; }
-        // verbinding met C vervalt; die met B blijft als logische schakel, maar loopt via de hoek
-        m &= ~(1 << k2); used |= (1 << k) | (1 << k2);
-        const kc = lk(cq, cr, A.y); masks.set(kc, (masks.get(kc) || 0) & ~(1 << ((k2 + 3) % 6)));
-        list.push({ k, k2, ex, ez });
-        const w = cellToWorld(A.q, A.r), dl = Math.hypot(ex, ez), info = { x: w.x + ex, z: w.z + ez, dx: ex / dl, dz: ez / dl };
-        via.set(ka + '|' + k, info); via.set(lk(bq, br, A.y) + '|' + ((k + 3) % 6), info);
-      }
-      if (list.length) { masks.set(ka, m); corners.set(ka, list); }
-    }
+    const corners = new Map(), via = new Map();   // (haakse aansluitingen op vakwegen bestaan niet meer)
     return { masks, ifs, corners, via };
   }
   const pathMask = (q, r, y) => pathLinks.get(lk(q, r, y)) || 0;
@@ -594,37 +562,12 @@
   const padVar = t => { const m = /^pad(\d+)$/.exec(t || ''); const n = m ? +m[1] : 0; return { trees: n & 1, dir: (n >> 1) & 15, wide: (n >> 5) & 1 }; };
   const padName = (trees, dir, wide) => { const n = (trees ? 1 : 0) + 2 * dir + (wide ? 32 : 0); return n ? 'pad' + n : 'pad'; };
   // Recht stuk weg: precies twee armen die tegenover elkaar liggen; geeft de as-richting (0..2) of -1
-  function straightAxis(mask) {
-    for (let k = 0; k < 3; k++) if (mask === ((1 << k) | (1 << (k + 3)))) return k;
-    return -1;
-  }
   // ---------- Verkeerslichten ----------
-  // Elke kruising met drie of meer armen krijgt lichten. Per richting (as) een groenfase: 8 s groen,
-  // 2 s oranje en 1 s alles rood; dan de volgende as. Elke kruising heeft een eigen beginmoment.
-  const TL = { G: 8, A: 2, AR: 1 };
-  const lightReg = new Map();   // key(q, r) → [{ q, r, arm, lamps: { r, a, g } }]
-  function junctionInfo(q, r) {
-    const st = stackOf(q, r);
-    if (!st.length || baseOf(st[0]) !== 'weg') return null;
-    const m = roadLinks.get(lk(q, r, 0)) || 0, arms = [0, 1, 2, 3, 4, 5].filter(k => (m >> k) & 1);
-    if (arms.length < 3) return null;
-    return { m, axes: [...new Set(arms.map(k => k % 3))].sort(), off: (hash(q, r, 99) % 997) / 997 * 40 };
-  }
-  function lightState(q, r, arm, t) {
-    if (laanCell(q, r) >= 0) return laanLight(q, r, arm, t);
-    const J = junctionInfo(q, r);
-    if (!J || !((J.m >> arm) & 1)) return null;
-    const per = TL.G + TL.A + TL.AR, cyc = per * J.axes.length;
-    const tt = ((t + J.off) % cyc + cyc) % cyc, i = Math.floor(tt / per), w = tt - i * per;
-    if (J.axes[i] !== arm % 3) return 'r';
-    return w < TL.G ? 'g' : w < TL.G + TL.A ? 'a' : 'r';
-  }
+  // Alle lichten staan op de getekende kruisingen (zie 07); hier worden alleen de lampen bijgewerkt.
   function updateLights(t) {
-    if (vecLightReg.length) { const G = cars.vecGraph(); for (const L of vecLightReg) { const st = vecLightState(G, L.n, L.eid, t) || 'r'; for (const c of ['r', 'a', 'g']) { const want = c === st ? M.lampOn[c] : M.lampOff; if (L.lamps[c].material !== want) L.lamps[c].material = want; } } }
-    for (const list of lightReg.values()) for (const L of list) {
-      const st = lightState(L.q, L.r, L.arm, t) || 'r';
-      for (const c of ['r', 'a', 'g']) { const want = c === st ? M.lampOn[c] : M.lampOff; if (L.lamps[c].material !== want) L.lamps[c].material = want; }
-    }
+    if (!vecLightReg.length) return;
+    const G = cars.vecGraph();
+    for (const L of vecLightReg) { const st = vecLightState(G, L.n, L.eid, t) || 'r'; for (const c of ['r', 'a', 'g']) { const want = c === st ? M.lampOn[c] : M.lampOff; if (L.lamps[c].material !== want) L.lamps[c].material = want; } }
   }
   // ---------- Doorlopende daken ----------
   // Daken op dezelfde hoogte vormen samen één dak. De hoogte op elk punt is de helling maal de afstand tot de
@@ -731,13 +674,6 @@
     ng.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
     return ng;
   }
-  function roadMaskAt(q, r, y) { let m = 0; for (let k = 0; k < 6; k++) if (roadLinked(q, r, k, y)) m |= 1 << k; return m; }
-  function vergeType(q, r, sides) {
-    const kinds = sides.map(k => baseOf(stackOf(q + NEIGH[k][0], r + NEIGH[k][1])[0]));
-    const has = (...l) => kinds.some(x => l.includes(x));
-    return has('park') ? 'park' : has('kantoor', 'hof', 'hofhelling', 'looppad', 'tunnel', 'blok', 'tribune', 'trappad', 'helling') ? 'plaza' : has('woning') ? 'garden' : 'berm';
-  }
-  const vergeLevel = type => type === 'plaza' ? WALK_H - 0.015 : GREEN;   // bestrating net onder de stoeptegels
   // Wat ligt er over zijde k, op hoogte y? { lvl } t.o.v. y, of null bij een muur, water of iets hogers dat niet meegeeft
   function edgeInfo(q, r, k, y) {
     const nq = q + NEIGH[k][0], nr = r + NEIGH[k][1], kb = (k + 3) % 6;
@@ -749,19 +685,6 @@
     if (b === 'kuil' || b === 'brug' || b === 'brugp') return { lvl: 0 };   // de uitgraving loopt zelf omhoog tot straatniveau
     if (b === 'heuvel') return { lvl: HEUV_H };
     if (b === 'park') return { lvl: GREEN };
-    if (b === 'weg') {
-      if (baseOf(stackOf(nq, nr)[0]) === 'water') return null;
-      const m = roadMaskAt(nq, nr, y);
-      if (m & (1 << kb)) return { lvl: WALK_H };
-      const vg = roadGeo(m).verges.find(v => v.sides.includes(kb));
-      return { lvl: vg ? vergeLevel(vergeType(nq, nr, vg.sides)) : WALK_H };
-    }
-    if (b === 'laan') {
-      const I = laanAt(nq, nr);
-      if (!I || ((I.arms >> kb) & 1)) return { lvl: WALK_H };
-      if (kb === I.G.ob || kb === I.G.of) return { lvl: vergeLevel(vergeType(nq, nr, [I.G.ob, I.G.of])) };
-      return { lvl: WALK_H };   // kop of partnerzijde: stoep of plantvak
-    }
     if (b === 'pad') return padOnGrass(nq, nr, it.h) ? { lvl: GREEN } : { lvl: 0, notch: (pathMask(nq, nr, y) >> kb) & 1 };
     if (b === 'hof') return { lvl: 0.1 };
     if (isBuilding(b)) return { lvl: FLOOR_T, bld: true };   // vloerplaat tot aan de rand

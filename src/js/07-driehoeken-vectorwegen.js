@@ -74,7 +74,8 @@
     return out;
   }
   // Vakken waar een weg niet doorheen mag: gebouwen en alles wat hoger is dan de grond, en water
-  const vecObstacle = (q, r) => { const st = stackOf(q, r); if (!st.length) return false; const b = baseOf(st[0]); return b === 'water' || b === 'kuil' || b === 'heuvel' || columnTop(q, r) > 0.5; };
+  // (water en een uitgraving mogen: daar wordt de weg een brug)
+  const vecObstacle = (q, r) => { const st = stackOf(q, r); if (!st.length) return false; const b = baseOf(st[0]); if (b === 'water' || b === 'kuil') return st.length > 1; return b === 'heuvel' || columnTop(q, r) > 0.5; };
   const SAND = std({ color: '#d6c69a', polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
   const HEX_FLAT = (() => { const s = new THREE.Shape(); for (let i = 0; i < 6; i++) { const a = Math.PI / 6 + i * Math.PI / 3; i ? s.lineTo(Math.cos(a) * R, Math.sin(a) * R) : s.moveTo(Math.cos(a) * R, Math.sin(a) * R); } s.closePath(); return new THREE.ShapeGeometry(s).rotateX(-Math.PI / 2); })();
   function smoothPts(p) {   // hoeken afronden (straal tot 8 m, nooit verder dan de helft van een stuk), ongeveer elke 2 m een punt
@@ -218,12 +219,27 @@
   // Rechte reeksen wegvakken (langs een van de drie assen) worden één getekende weg door de vakmiddens; een bocht of
   // kruising ontstaat waar reeksen elkaar raken. Twee rijen laanvakken worden één getekende laan over hun middenlijn.
   // Vakken met iets erbovenop (tunnel, looppad) of een brug over water blijven zoals ze zijn.
+  // Maten van de oude vak-laan, alleen nog nodig om zo'n laan om te zetten: d = as (0..2) + 3 × kant; u = langs de as,
+  // n = dwars, naar de partnerrij toe
+  const LAAN_PITCH = R * SQ3, laanD = t => { const m = /^laan([0-5]?)$/.exec(t || ''); return m ? +(m[1] || 0) : -1; };
+  const LAAN_G = [0, 1, 2, 3, 4, 5].map(d => { const a = d % 3, s = d >= 3 ? 1 : 0, U = FRAMES[a], u = [U.nx, U.nz], n = s ? [u[1], -u[0]] : [-u[1], u[0]]; return { a, u, n }; });
   function convertCellRoads() {
+    // randwegen (weg of brede weg over de rand tussen twee vakken) worden getekende wegen over diezelfde lijn
+    if (cells.edges && cells.edges.size) {
+      const P0 = pathsOf(); let n = 0;
+      for (const [k, type] of [...cells.edges]) {
+        if (type !== 'weg' && type !== 'brd') continue;
+        const [q, r, kk] = k.split(',').map(Number), [A, B] = edgeEnds(q, r, kk);
+        P0.push({ t: type, l: 0, r: 0, p: [[Math.round(A[0] * 100) / 100, Math.round(A[1] * 100) / 100], [Math.round(B[0] * 100) / 100, Math.round(B[1] * 100) / 100]] });
+        cells.edges.delete(k); n++;
+      }
+      if (n) buildEdgeNet();
+    }
     const plain = new Set(), laanC = [];
     for (const [k, st] of cells) {
-      if (!Array.isArray(st) || st.length !== 1) continue;
-      const b = baseOf(st[0]);
-      if (b === 'weg') plain.add(k); else if (laanD(st[0]) >= 0) laanC.push({ k, d: laanD(st[0]) });
+      if (!Array.isArray(st) || !st.length) continue;
+      if (st.some(t => baseOf(t) === 'weg')) plain.add(k);   // ook een weg op water (brug) of onder een tunnel
+      else if (st.length === 1 && laanD(st[0]) >= 0) laanC.push({ k, d: laanD(st[0]) });
     }
     if (!plain.size && !laanC.length) return false;
     const P = pathsOf(), rnd = v => Math.round(v * 100) / 100, cw = k => { const [q, r] = k.split(',').map(Number); return cellToWorld(q, r); };
@@ -277,9 +293,10 @@
       const [q, r] = k.split(',').map(Number), c = cellToWorld(q, r);
       for (let s = 0; s < 6; s++) { const nk = (q + NEIGH[s][0]) + ',' + (r + NEIGH[s][1]); if (used.has(nk)) { const n = cw(nk); P.push({ t: 'weg', l: 0, r: 0, p: [[rnd(c.x), rnd(c.z)], [rnd(n.x), rnd(n.z)]] }); used.add(k); break; } }
     }
-    for (const k of used) cells.delete(k);
+    // het wegvak zelf verdwijnt; water, uitgraving of een tunnel erboven blijft (de brug of het dek komt uit de getekende weg)
+    const strip = k => { const st = (cells.get(k) || []).filter(t => { const b = baseOf(t); return b !== 'weg' && b !== 'brug' && b !== 'brugp'; }); if (st.length) cells.set(k, st); else cells.delete(k); };
+    for (const k of plain) strip(k);
     for (const { k } of laanC) cells.delete(k);
-    for (const k of plain) if (!used.has(k)) cells.delete(k);   // een eenzaam wegvak zonder buren: weg
     return true;
   }
   const newLayer = () => ({ pos: [], idx: [] });
@@ -437,6 +454,17 @@
         if (lightReg) lightReg.push({ n, eid: id, lamps });
       }
     }
+    // Brug: waar de weg over water of een uitgraving gaat, krijgt hij een dek met zijkanten tot op de bodem
+    for (const e of GR.edges.values()) {
+      const def = PATH_DEF[e.t], hw = def.hw + def.walk, samp = [];
+      for (let i = 0; i < e.pts.length - 1; i++) { const a = e.pts[i], b = e.pts[i + 1], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 2)); for (let j = 0; j < n; j++) samp.push([a[0] + (b[0] - a[0]) * j / n, a[1] + (b[1] - a[1]) * j / n]); }
+      samp.push(e.pts[e.pts.length - 1]);
+      const depth = p => { const [q, r] = worldToCell(p[0], p[1]), b = baseOf(stackOf(q, r)[0] || ''); return b === 'water' ? -1.5 : b === 'kuil' ? -3.2 : null; };
+      let run = [];
+      const flush = () => { if (run.length > 1) { const d = Math.min(...run.map(x => x[1])); const pts = run.map(x => x[0]); for (const sg of [1, -1]) wallInto(walk, pts, sg * hw, d, 0.01); ribbonInto(kerb, pts, hw, d); } run = []; };
+      for (const p of samp) { const d = depth(p); if (d === null) flush(); else run.push([p, d]); }
+      flush();
+    }
     for (const e of GR.edges.values()) {
       const def = PATH_DEF[e.t], hw = def.hw + def.walk;
       for (const sg of [1, -1]) {
@@ -474,41 +502,9 @@
       const id = vid(a); let v = V.get(id); if (!v) V.set(id, v = { x: a[0], z: a[1], arms: [] });
       v.arms.push({ th: Math.atan2(b[1] - a[1], b[0] - a[0]), type });
     };
-    const dash = partsBag(); const xPieces = {}; let edgeXSurf = null;
     for (const [k, type] of E) {
       const [q, r, kk] = k.split(',').map(Number), [A, B] = edgeEnds(q, r, kk);
       addArm(A, B, type); addArm(B, A, type);
-      if (type === 'weg' || type === 'brd') {   // kruising: ligt aan beide kanten een gewone weg, dan loopt die rechtdoor over de randweg (90°)
-        const [q2, r2] = kk < 6 ? [q + NEIGH[kk][0], r + NEIGH[kk][1]] : [q, r], isW = (a, b) => (cells.get(key(a, b)) || []).some(t => baseOf(t) === 'weg' || baseOf(t) === 'laan');
-        if (kk < 6 && isW(q, r) && isW(q2, r2)) {
-          const th0 = Math.atan2(B[1] - A[1], B[0] - A[0]), mx = (A[0] + B[0]) / 2, mz = (A[1] + B[1]) / 2, LIFT = 0.2;
-          const xPiece = xPieces[type] || (xPieces[type] = roadGeoW(type, [0, 1, 2, 3].map(i => ({ th: i * Math.PI / 2 })), EDGE_L));
-          const put = (g, mat, cast) => { const m = new THREE.Mesh(g, mat); m.position.set(mx, LIFT, mz); m.rotation.y = -th0; m.receiveShadow = true; m.castShadow = !!cast; edgeGroup.add(m); };
-          if (xPiece.asph) put(xPiece.asph, [M.asphalt, M.asphaltSide]);
-          xPiece.walk.forEach(g => put(g, [M.walkTop, M.kerb], true));
-          // zebrapaden op alle vier de armen
-          const cw = partsBag(), cs = Math.cos(th0), sn = Math.sin(th0);
-          for (let arm = 0; arm < 4; arm++) {
-            const ph = arm * Math.PI / 2;
-            for (let i = -(type === 'brd' ? 4 : 2); i <= (type === 'brd' ? 4 : 2); i++) {
-              const g = new THREE.BoxGeometry(0.5, 0.012, 0.9);
-              g.rotateY(-ph); g.translate(Math.cos(ph) * 3.3 + Math.cos(ph + Math.PI / 2) * i * 0.8, 0, Math.sin(ph) * 3.3 + Math.sin(ph + Math.PI / 2) * i * 0.8);
-              g.rotateY(-th0); g.translate(mx, LIFT + ASPH_H + 0.008, mz);
-              cw.put(M.dash, g);
-            }
-          }
-          cw.flush(edgeGroup);
-          if (xPiece.asphPoly) {
-            const pts = xPiece.asphPoly.map(p => [mx + p[0] * cs - p[1] * sn, mz + p[0] * sn + p[1] * cs]);
-            (edgeXSurf = edgeXSurf || []).push({ kind: 'poly', cx: mx, cz: mz, pts, top: LIFT + ASPH_H, bottom: 0 });
-          }
-        }
-      }
-      if ((type === 'weg' || type === 'brd') && kk < 6) {   // één streepje op de helft van elke zijde
-        const th = Math.atan2(B[1] - A[1], B[0] - A[0]), g = new THREE.BoxGeometry(1.5, 0.01, 0.12);
-        g.rotateY(-th); g.translate((A[0] + B[0]) / 2, EDGE_LIFT + ASPH_H + 0.006, (A[1] + B[1]) / 2);
-        dash.put(M.dash, g);
-      }
     }
     const reg = (v, surf) => {   // de drie vakken rond dit hoekpunt kennen het vlak
       const seen = new Set();
@@ -519,32 +515,23 @@
         c.surfaces.push(surf);
       }
     };
-    (edgeXSurf || []).forEach(sf => reg({ x: sf.cx, z: sf.cz }, sf));
     const emit = (v, type, arms) => {
         const pk = type + ':' + arms.map(a => Math.round(a.th * 180 / Math.PI)).join(',');
         let piece = edgePieceCache.get(pk);
         if (!piece) {
-          if (type !== 'pad') piece = roadGeoW(type, arms.map(a => ({ th: a.th })), EDGE_L);
-          else {
-            const poly = stripPolyArms(arms.map(a => ({ th: a.th, len: EDGE_L })), PATH_HALF, 1.7);
-            piece = { padPoly: poly, pad: extrudePoly(poly, PAD_H_EDGE) };
-          }
+          const poly = stripPolyArms(arms.map(a => ({ th: a.th, len: EDGE_L })), PATH_HALF, 1.7);
+          piece = { padPoly: poly, pad: extrudePoly(poly, PAD_H_EDGE) };
           edgePieceCache.set(pk, piece);
         }
         const place = m => { m.position.set(v.x, EDGE_LIFT, v.z); m.receiveShadow = true; edgeGroup.add(m); return m; };
-        if (type !== 'pad') {
-          if (piece.asph) { place(new THREE.Mesh(piece.asph, [M.asphalt, M.asphaltSide])); reg(v, { kind: 'poly', cx: v.x, cz: v.z, pts: piece.asphPoly, top: EDGE_LIFT + ASPH_H, bottom: EDGE_LIFT }); }
-          piece.walk.forEach((g, n) => { const m = place(new THREE.Mesh(g, [M.walkTop, M.kerb])); m.castShadow = true; reg(v, { kind: 'poly', cx: v.x, cz: v.z, pts: piece.walkPolys[n], top: EDGE_LIFT + WALK_H, bottom: EDGE_LIFT }); });
-        } else {
+        {
           const m = place(new THREE.Mesh(piece.pad, [M.paver, M.kerb])); m.castShadow = true;
           reg(v, { kind: 'poly', cx: v.x, cz: v.z, pts: piece.padPoly, top: EDGE_LIFT + PAD_H_EDGE, bottom: EDGE_LIFT });
         }
     };
     for (const v of V.values()) {
-      for (const type of ['weg', 'brd', 'pad']) {
-        const arms = v.arms.filter(a => a.type === type).sort((a, b) => a.th - b.th);
-        if (arms.length) emit(v, type, arms);
-      }
+      const arms = v.arms.filter(a => a.type === 'pad').sort((a, b) => a.th - b.th);
+      if (arms.length) emit(v, 'pad', arms);
     }
     // rechtdoor door een vak: het middenstuk tussen de twee hoekpunt-stukken
     for (const [k, type] of E) {
@@ -552,14 +539,13 @@
       const [A, B] = edgeEnds(q, r, kk), th0 = Math.atan2(B[1] - A[1], B[0] - A[0]), c = cellToWorld(q, r);
       emit({ x: c.x, z: c.z }, type, [{ th: th0 }, { th: th0 + Math.PI }].sort((a, b) => a.th - b.th));
     }
-    dash.flush(edgeGroup);
   }
   function placeEdgeAt(res, quiet) {
     if (!res || !res.point) return false;
-    const ne = nearestEdge(res.point.x, res.point.z), type = EDGE_TYPE[tool], E = edgesOf();
+    const ne = nearestEdge(res.point.x, res.point.z), type = 'pad', E = edgesOf();
     const why = edgeBlocked(ne.q, ne.r, ne.k);
     if (why) { if (!quiet) toast(why); return false; }
-    if (E.get(ne.key) === type) { if (!quiet) toast('Hier ligt al ' + (type === 'weg' ? 'een randweg' : type === 'brd' ? 'een brede weg' : 'een randpad') + ' · gum haalt hem weg', 1600); return false; }
+    if (E.get(ne.key) === type) { if (!quiet) toast('Hier ligt al een randpad · gum haalt hem weg', 1600); return false; }
     E.set(ne.key, type); buildEdgeNet(); changed();
     return true;
   }

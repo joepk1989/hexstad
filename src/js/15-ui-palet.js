@@ -55,13 +55,10 @@
   rotBtn.addEventListener('contextmenu', e => e.preventDefault());
   function rotateDir() {
     if (tool === 'module') { moduleRot = (moduleRot + 1) % 6; renderStrip(); toast('Module gedraaid', 900); if (mode === 'build') updateGhost(); return; }
-    if (!DIRECTIONAL.has(tool) && tool !== 'laan') return;
-    if (tool === 'laan') {   // laan: zes standen (drie richtingen, tweede rij links of rechts)
-      const cur = manualDir !== null ? manualDir : laanAxisNow() + 3 * (lastHover ? laanSideAt(lastHover) : 0);
-      manualDir = (cur + 1) % 6;
-    } else manualDir = ((manualDir !== null ? manualDir : viewDirIndex()) + 1) % 6;
+    if (!DIRECTIONAL.has(tool)) return;
+    manualDir = ((manualDir !== null ? manualDir : viewDirIndex()) + 1) % 6;
     document.getElementById('rotLbl').textContent = 'Vast';
-    toast(tool === 'laan' ? 'Laan gedraaid · richting en kant van de tweede rij staan nu vast' : 'Gedraaid · de richting staat nu vast', 1400);
+    toast('Gedraaid · de richting staat nu vast', 1400);
     if (mode === 'build' && (!coarse || pendingKey)) updateGhost();
   }
   function resetRotation() {
@@ -83,7 +80,7 @@
     if (t !== 'gum' && catOf(t) !== catIdx) setCat(catOf(t));
     for (const k in toolBtns) toolBtns[k].setAttribute('aria-pressed', String(k === t));
     placeBtn.textContent = t === 'gum' ? 'Weg' : 'Bouw';
-    rotBtn.hidden = !DIRECTIONAL.has(t) && t !== 'laan' && t !== 'module';
+    rotBtn.hidden = !DIRECTIONAL.has(t) && t !== 'module';
     if (t === 'module' && moduleSel === null) { if (modules.length) moduleSel = 0; else openSchets(); }
     if (t === 'module' && CATS[catIdx].name === 'Modules') renderModCards();
     try { refreshOpt(); } catch (e) { /* optiebalk bestaat nog niet tijdens het opstarten */ }
@@ -91,17 +88,6 @@
     if (mode === 'build') updateGhost();
     if (t === 'dak' && !dakHintShown) { dakHintShown = true; toast((coarse ? 'Tik' : 'Klik') + ' op een dak voor een dakkapel · nog eens voor voor en achter · nog eens voor zonder', 3600); }
     if (t === 'pad' && !padHintShown) { padHintShown = true; toast((coarse ? 'Pad: vasthouden en slepen trekt een pad · tik' : 'Pad: ingedrukt houden en slepen trekt een pad · klik') + ' op een pad voor bomen of een andere richting', 4200); }
-    if (t === 'laan' && !laanHintShown) {
-      laanHintShown = true;
-      toast(coarse ? 'Laan: vasthouden en slepen trekt een laan in een rechte lijn · de tweede rij komt aan de verre kant · Draai wisselt'
-        : 'Laan: ingedrukt houden en slepen trekt een rechte laan · de tweede rij komt aan de verre kant · R draait · woonstraten sluiten aan op de zijkant', 5200);
-    }
-    if (t === 'weg' && !roadHintShown) {
-      roadHintShown = true;
-      toast(coarse ? 'Weg: tik om te bouwen · vasthouden en slepen trekt een weg · tik op een recht stuk voor bomen'
-        : mode === 'walk' ? 'Weg: linkermuisknop ingedrukt houden trekt een weg waar je kijkt · klik op een recht stuk voor bomen'
-        : 'Weg: ingedrukt houden en slepen trekt een weg · klik op een recht stuk voor bomen · draaien met de middelste knop of Alt+slepen', 4200);
-    }
   }
 
   // ---------- Toast & menu ----------
@@ -142,7 +128,7 @@
   const optClock = document.getElementById('optClock'), optPeople = document.getElementById('optPeople'), optCars = document.getElementById('optCars');
   const optSpeed = document.getElementById('optSpeed');
   function refreshOpt() {
-    const rotatable = DIRECTIONAL.has(tool) || tool === 'laan';
+    const rotatable = DIRECTIONAL.has(tool);
     optTool.hidden = !rotatable;
     if (rotatable) {
       optToolName.textContent = TYPES[baseOf(tool)].name;

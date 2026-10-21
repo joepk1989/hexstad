@@ -11,7 +11,7 @@
     for (const [k, st] of cells) {
       if (groups.has(k)) continue;
       const [q, r] = k.split(',').map(Number), { x, z } = cellToWorld(q, r);
-      const top = baseOf(st[st.length - 1]), road = baseOf(st[0]) === 'weg' || baseOf(st[0]) === 'laan';
+      const top = baseOf(st[st.length - 1]), road = false;
       let h = 0; for (const t of st) h += TY(t)?.h || 0;
       if (top === 'park' && st.length === 1) h = 0.1;
       if (top === 'water' || (st.length === 2 && baseOf(st[0]) === 'water')) h = st.length === 2 ? 0.25 : -1.2;
@@ -45,7 +45,7 @@
     for (const k of cells.keys()) {
       const [q, r] = k.split(',').map(Number), { x, z } = cellToWorld(q, r), d = Math.hypot(x - fx, z - fz), g = groups.get(k);
       if (!g && d <= LOD.rad) buildColumn(q, r, true);
-      else if (g && d > LOD.rad + 3 * R * SQ3) { disposeGroup(g); blocks.remove(g); groups.delete(k); colMap.delete(k); lightReg.delete(k); if (parkedReg.delete(k)) parkedVersion++; }
+      else if (g && d > LOD.rad + 3 * R * SQ3) { disposeGroup(g); blocks.remove(g); groups.delete(k); colMap.delete(k); }
     }
     lodProxy();
   }
@@ -53,24 +53,21 @@
     const k = key(q, r);
     const old = groups.get(k);
     if (old) { disposeGroup(old); blocks.remove(old); groups.delete(k); }
-    colMap.delete(k); lightReg.delete(k);
-    if (parkedReg.delete(k)) parkedVersion++;
+    colMap.delete(k);
     const st = cells.get(k);
     if (!st || !st.length) return;
     const { x, z } = cellToWorld(q, r);
     if (!force && lodFar(x, z)) return;
-    const col = { surfaces: [], walls: [], parked: [], lights: [] };
+    const col = { surfaces: [], walls: [] };
     const g = new THREE.Group();
     let y = 0;
     st.forEach((t, i) => { g.add(makeBlock(t, q, r, i, y, x, z, col)); y += TY(t).h; });
     g.position.set(x, 0, z);
     blocks.add(g); groups.set(k, g); colMap.set(k, col);
-    if (col.lights.length) lightReg.set(k, (lightReg.get(k) || []).concat(col.lights));
-    if (col.parked.length) { parkedReg.set(k, col.parked); parkedVersion++; }
   }
   let peopleDirty = true, peopleLocalEdit = false, carsDirty = true, vecDirty = true;
   function rebuildAround(q, r) {
-    const todo = updateRoadLinks();
+    const todo = new Set();
     for (const k of refreshPathLinks()) todo.add(k);
     todo.add(key(q, r));
     for (const [dq, dr] of NEIGH) todo.add(key(q + dq, r + dr));
@@ -84,7 +81,7 @@
   }
   // Veel vakken tegelijk (een laan trekken): de netwerken één keer bijwerken
   function rebuildMany(list) {
-    const todo = updateRoadLinks();
+    const todo = new Set();
     for (const k of refreshPathLinks()) todo.add(k);
     for (const [q, r] of list) {
       todo.add(key(q, r));
@@ -99,8 +96,8 @@
   function rebuildAll() {
     convertCellRoads();   // oude vakwegen worden getekende wegen
     for (const g of groups.values()) { disposeGroup(g); blocks.remove(g); }
-    groups.clear(); colMap.clear(); lightReg.clear(); parkedReg.clear(); parkedVersion++;
-    roadLinks = computeRoadLinks(); { const res = computePathLinks(); pathLinks = res.masks; pathIfs = res.ifs; pathCorners = res.corners; cornerVia = res.via; }
+    groups.clear(); colMap.clear();
+    { const res = computePathLinks(); pathLinks = res.masks; pathIfs = res.ifs; pathCorners = res.corners; cornerVia = res.via; }
     LOD.on = cells.size > 1800;
     if (LOD.on) { LOD.fx = mode === 'walk' ? player.x : orbit.target.x; LOD.fz = mode === 'walk' ? player.z : orbit.target.z; }
     for (const k of cells.keys()) { const [q, r] = k.split(',').map(Number); buildColumn(q, r); }

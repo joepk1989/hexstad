@@ -33,18 +33,6 @@
         h += TY(t).h;
       });
       if (hasB) heights.add(Math.round(h / 3));
-      if (b0 === 'weg' || (b0 === 'water' && baseOf(st[1]) === 'weg')) {
-        roads++; if (b0 === 'water') bridges++;
-        const m = roadLinks.get(lk(q, r, 0)) || 0;
-        let n = 0; for (let j = 0; j < 6; j++) if ((m >> j) & 1) n++;
-        if (!n) isolated++; else if (n === 1) deadEnds++;
-        if (st.includes('weg1') && straightAxis(m) >= 0) laan++;
-      }
-      if (b0 === 'laan') {   // een laan telt als weg, en de bomen op de middenberm als groen
-        roads++; laan++;
-        const I = laanAt(q, r);
-        if (I && !I.pf && !I.pb) isolated++;
-      }
       if (b0 === 'park') parks++;
       if (b0 === 'water') water++;
       if (b0 === 'pad') padsGround++;
@@ -60,16 +48,18 @@
       }
       if (!nb) loose++;
     }
-    const green = parks + roofGreen + laan * 0.5 + padsGround * 0.3, roadShare = roads / N;
+    // wegen: het getekende net. Een laan telt als groen (bomen op de middenberm); doodlopend = knoop met één tak
+    { const G = cars.vecGraph(); roads = Math.round(G.totalLen / 15.6); for (const e of G.edges.values()) if (e.t === 'laan') laan += Math.round(e.len / 15.6); for (const n of G.nodes) if (n.edges.length === 1) deadEnds++; isolated = G.nodes.filter(n => n.edges.length === 1 && G.nodes[G.edges.get(n.edges[0]).a === G.nodes.indexOf(n) ? G.edges.get(n.edges[0]).b : G.edges.get(n.edges[0]).a].edges.length === 1).length / 2 | 0; }
+    const green = parks + roofGreen + laan * 0.5 + padsGround * 0.3, roadShare = roads / Math.max(N, roads + 1);
     const rows = [
       { name: 'Groen', w: 0.2, v: clamp01(green / (N * 0.22)),
         detail: `${parks} ${parks === 1 ? 'park' : 'parken'}${roofGreen ? `, ${roofGreen} daktuin${roofGreen === 1 ? '' : 'en'}` : ''}, ${laan} laanvak${laan === 1 ? '' : 'ken'} met bomen`,
-        tip: 'Leg een park aan, trek een laan met bomen op de middenberm, of klik met Weg op een recht stuk weg voor bomen.' },
+        tip: 'Leg een park aan of trek een laan: die heeft bomen op de middenberm.' },
       { name: 'Bereikbaar', w: 0.2, v: bld ? bldOK / bld : null,
         detail: bld ? `${bldOK} van de ${bld} gebouwen ${bldOK === 1 ? 'ligt' : 'liggen'} aan een straat of voetpad` : 'Nog geen gebouwen',
         tip: 'Zet gebouwen aan een weg of voetpad, zodat je er via de voordeur kunt komen.' },
       { name: 'Wegennet', w: 0.14, v: roads ? clamp01(1 - (deadEnds * 0.6 + isolated * 1.5) / roads) * (roadShare > 0.5 ? clamp01(1 - (roadShare - 0.5) * 2.5) : 1) : null,
-        detail: roads ? `${roads} wegvakken, ${deadEnds} doodlopend${isolated ? `, ${isolated} los` : ''}${roadShare > 0.5 ? ', erg veel asfalt' : ''}` : 'Nog geen wegen',
+        detail: roads ? `${roads} vakken weg, ${deadEnds} doodlopende ${deadEnds === 1 ? 'eind' : 'einden'}${isolated ? `, ${isolated} los stuk` : ''}${roadShare > 0.5 ? ', erg veel asfalt' : ''}` : 'Nog geen wegen',
         tip: 'Verbind doodlopende wegen tot rondjes, en laat niet de halve stad uit asfalt bestaan.' },
       { name: 'Afwisseling', w: 0.14, v: 0.6 * clamp01((types.size - 2) / 9) + 0.4 * (heights.size ? clamp01((heights.size - 1) / 5) : 0),
         detail: `${types.size} soorten blokken, ${heights.size} verschillende bouwhoogtes`,
@@ -191,22 +181,6 @@
       rebuildAround(q, r); changed(); toast(msg, 1600);
       return;
     }
-    // Weg op een weg: op een recht stuk zet of haalt dat de bomen aan weerszijden
-    if (T === 'weg' && top0 && baseOf(top0) === 'weg') {
-      const y = columnTop(q, r) - TY(top0).h;
-      if (baseOf(st0[0]) === 'water' || baseOf(st0[0]) === 'kuil') return toast('Op een brug is geen plek voor bomen');
-      if (straightAxis(roadMaskAt(q, r, y)) < 0) return toast('Bomen passen alleen langs een recht stuk weg');
-      st0[st0.length - 1] = top0 === 'weg1' ? 'weg' : 'weg1';
-      rebuildAround(q, r); changed();
-      toast(top0 === 'weg1' ? 'Bomen weggehaald' : 'Bomen geplant aan beide kanten', 1100);
-      return;
-    }
-    if (T === 'laan') {
-      if (top0 && baseOf(top0) === 'laan') return toast('Sleep met de laan om hem langer te maken · gum haalt een vak weg', 2000);
-      const a = laanAxisNow(), n = placeLaan([[q, r]], a, laanSideFor(a, q, r));
-      if (!n.placed) return toast(n.why || canPlace(q, r, 'laan') || 'Hier past geen laan');
-      return;
-    }
     const why = canPlace(q, r, tool);
     if (why) return toast(why);
     const k = key(q, r);
@@ -216,66 +190,6 @@
     if (T === 'woning' && columnTop(q, r) + TY('dak').h <= MAX_H + 0.01) st.push('dak');   // een huis krijgt standaard een dak
     rebuildAround(q, r); changed();
     people.onPlaced(q, r, y0, columnTop(q, r));
-    if (T === 'weg') laanArmHint([[q, r]]);
-  }
-  // ---------- Laan bouwen ----------
-  // Je legt de rij aan waar je klikt of sleept; de tweede rij komt ernaast, aan de kant van je af
-  // (met de draaiknop of R zet je hem vast aan de andere kant of in een andere richting).
-  function laanAxisNow() {
-    if (manualDir !== null) return manualDir % 3;
-    return viewDirIndex() % 3;
-  }
-  function laanSideFor(a, q, r) {
-    if (manualDir !== null) return manualDir >= 3 ? 1 : 0;
-    const n0 = LAAN_G[a].n, c = cellToWorld(q, r);
-    const ex = mode === 'walk' ? player.x : camera.position.x, ez = mode === 'walk' ? player.z : camera.position.z;
-    return (c.x - ex) * n0[0] + (c.z - ez) * n0[1] > 0 ? 0 : 1;
-  }
-  // Vakken die bij een laanvak horen: het vak zelf en de twee partnervakken
-  function laanFootprint(q, r, d) {
-    const G = LAAN_G[d];
-    return [[q, r, d], [q + NEIGH[G.pf][0], r + NEIGH[G.pf][1], G.partnerD], [q + NEIGH[G.pb][0], r + NEIGH[G.pb][1], G.partnerD]];
-  }
-  function laanFits(q, r, d) {
-    for (const [a, b, dd] of laanFootprint(q, r, d)) {
-      const st = stackOf(a, b);
-      if (!st.length) continue;
-      if (st.length === 1 && laanD(st[0]) === dd) continue;
-      return false;
-    }
-    if (mode === 'walk') for (const [a, b] of laanFootprint(q, r, d)) if (canPlace(a, b, 'laan') === 'Je staat zelf op dit vak; richt verder weg') return false;
-    return true;
-  }
-  // Een woonstraat tegen de kop of de verkeerde kant van een laan: even uitleggen waar hij wel kan aansluiten
-  let laanArmHintShown = false;
-  function laanArmHint(cellsList) {
-    if (laanArmHintShown) return;
-    for (const [q, r] of cellsList) {
-      if (baseOf(stackOf(q, r)[0]) !== 'weg') continue;
-      const m = roadLinks.get(lk(q, r, 0)) || 0;
-      for (let k = 0; k < 6; k++) if (laanCell(q + NEIGH[k][0], r + NEIGH[k][1]) >= 0 && !((m >> k) & 1)) {
-        laanArmHintShown = true;
-        toast('Een woonstraat sluit aan op de zijkant van een laan (schuin), niet op de kop', 3600);
-        return;
-      }
-    }
-  }
-  function placeLaan(list, a, s) {
-    const d = a + 3 * s, added = [];
-    let skipped = 0;
-    for (const [q, r] of list) {
-      if (!laanFits(q, r, d)) { skipped++; continue; }
-      for (const [x, y, dd] of laanFootprint(q, r, d)) {
-        if (stackOf(x, y).length) continue;
-        cells.set(key(x, y), ['laan' + dd]); added.push([x, y]);
-      }
-    }
-    if (added.length) {
-      rebuildMany(added);
-      for (const [x, y] of added) people.onPlaced(x, y, 0, columnTop(x, y));
-      changed();
-    }
-    return { placed: added.length, skipped, why: skipped && !added.length ? 'Hier past geen laan: er staat al iets op de plek van een van de twee rijen' : '' };
   }
   function removeTop(q, r) {
     const k = key(q, r); const st = cells.get(k);
@@ -378,8 +292,7 @@
   const prevBad = new THREE.MeshLambertMaterial({ color: '#ff3b2f', emissive: '#8a160c', transparent: true, opacity: 0.5, depthWrite: false });
   let previewActive = false, previewKey = '';
   function showPreview(q, r, valid) {
-    if (tool === 'laan') { if (!showLaanPreview(q, r, valid)) return; }
-    else {
+    {
     const items = itemsFor(q, r, tool, DIRECTIONAL.has(tool) ? viewDirIndex() : 0);
     const k = key(q, r), had = cells.has(k), st = had ? cells.get(k) : [];
     const pk = [k, items.join('+'), st.length, valid, mode].join('|');
@@ -389,9 +302,8 @@
     const baseY = st.reduce((sum, x) => sum + TY(x).h, 0);
     const n0 = st.length;
     st.push(...items); if (!had) cells.set(k, st);
-    const saved = [roadLinks, pathLinks, pathIfs, pathCorners, cornerVia];
-    try {   // even doen alsof het blok er al staat, zodat wegen en paden goed aansluiten
-      roadLinks = computeRoadLinks();
+    const saved = [pathLinks, pathIfs, pathCorners, cornerVia];
+    try {   // even doen alsof het blok er al staat, zodat paden goed aansluiten
       const pr = computePathLinks(); pathLinks = pr.masks; pathIfs = pr.ifs; pathCorners = pr.corners; cornerVia = pr.via;
       const { x, z } = cellToWorld(q, r);
       previewGroup.position.set(x, 0, z);
@@ -399,7 +311,7 @@
       items.forEach((it, j) => { previewGroup.add(makeBlock(it, q, r, n0 + j, yy, x, z, { surfaces: [], walls: [] })); yy += TY(it).h; });
     } finally {
       st.length = n0; if (!had) cells.delete(k);
-      [roadLinks, pathLinks, pathIfs, pathCorners, cornerVia] = saved;
+      [pathLinks, pathIfs, pathCorners, cornerVia] = saved;
     }
     }
     const mat = valid ? prevMat : prevBad;
@@ -410,33 +322,6 @@
       m.material = mat; m.castShadow = false; m.receiveShadow = false; m.renderOrder = 3;
     });
   }
-  // Voorbeeld van een laan: het vak waar je wijst plus de twee vakken van de tweede rij
-  function showLaanPreview(q, r, valid) {
-    const a = laanAxisNow(), d = a + 3 * laanSideFor(a, q, r);
-    const pk = ['laan', q, r, d, valid, mode, cells.size].join('|');
-    if (pk === previewKey) return false;
-    disposeGroup(previewGroup); previewGroup.clear();
-    const fp = laanFootprint(q, r, d).filter(([x, y]) => !stackOf(x, y).length);
-    previewKey = pk;
-    const saved = [roadLinks, pathLinks, pathIfs, pathCorners, cornerVia];
-    for (const [x, y, dd] of fp) cells.set(key(x, y), ['laan' + dd]);
-    try {
-      roadLinks = computeRoadLinks();
-      const pr = computePathLinks(); pathLinks = pr.masks; pathIfs = pr.ifs; pathCorners = pr.corners; cornerVia = pr.via;
-      const w0 = cellToWorld(q, r);
-      previewGroup.position.set(w0.x, 0, w0.z);
-      for (const [x, y, dd] of fp) {
-        const w = cellToWorld(x, y), g = makeBlock('laan' + dd, x, y, 0, 0, w.x, w.z, { surfaces: [], walls: [] });
-        g.position.set(w.x - w0.x, 0, w.z - w0.z); previewGroup.add(g);
-      }
-    } finally {
-      for (const [x, y] of fp) cells.delete(key(x, y));
-      [roadLinks, pathLinks, pathIfs, pathCorners, cornerVia] = saved;
-    }
-    return true;
-  }
-  function laanFitsAt(q, r) { const a = laanAxisNow(); return laanFits(q, r, a + 3 * laanSideFor(a, q, r)) && !canPlace(q, r, 'laan'); }
-  function laanSideAt(h) { const res = pick(h[0], h[1]); return res ? laanSideFor(laanAxisNow(), res.place[0], res.place[1]) : 0; }
   let lastHover = null;
   function updateGhost(cx, cy) {
     if (cx == null) { if (!lastHover) return; [cx, cy] = lastHover; }
@@ -466,7 +351,7 @@
       ghost.position.set(x, columnTop(q, r) - TY(t).h - 0.02, z); ghost.scale.setScalar(1.05);
     } else {
       const [q, r] = res.place; const { x, z } = cellToWorld(q, r);
-      const valid = tool === 'laan' ? laanFitsAt(q, r) : !canPlace(q, r, tool);
+      const valid = !canPlace(q, r, tool);
       showPreview(q, r, valid);
       previewActive = true;
       ghost.geometry = geoFor(baseOf(tool)); ghost.material = ghostNone;
