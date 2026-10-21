@@ -36,8 +36,8 @@
   TOOLS.forEach((t) => {
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'tool'; b.id = 'tool-' + t;
-    b.title = t === 'gum' ? 'Gum: haalt de bovenste laag weg' : TYPES[t].name;
-    b.innerHTML = `<span class="sw sw-${t}">${t === 'gum' ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>' : ''}</span>${t === 'gum' ? 'Gum' : TYPES[t].name}`;
+    b.title = t === 'gum' ? 'Gum: haalt de bovenste laag weg' : VEC_TOOLS.has(t) ? TYPES[t].name + ': sleep van vak naar vak; rechtermuisknop of gum haalt de hele weg weg' : TYPES[t].name;
+    b.innerHTML = `<span class="sw sw-${t}">${t === 'gum' ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>' : ''}</span>${t === 'gum' ? 'Gum' : (TOOL_LABEL[t] || TYPES[t].name)}`;
     b.addEventListener('click', () => selectTool(t));
     (t === 'gum' ? palRow : toolScroll).appendChild(b); toolBtns[t] = b;
   });

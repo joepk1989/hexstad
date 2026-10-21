@@ -272,6 +272,7 @@
       if (a.t === 'pad') { strokePath(pts, (def.hw + 0.3) * 2, '#7e4636'); strokePath(pts, def.hw * 2, '#b8663f'); continue; }
       strokePath(pts, (def.hw + def.walk) * 2, '#cbc8bd'); strokePath(pts, (def.hw + 0.3) * 2, '#9b988e'); strokePath(pts, def.hw * 2, '#3c4045');
       if (a.t === 'weg') strokePath(pts, 0.14, '#f1efe6', [3 * S.view.s, 3.5 * S.view.s]);
+      else if (a.t === 'laan') { for (const sg of [1, -1]) { strokePath(offPts(pts, sg * 7.75), 2, '#9b5a45'); strokePath(offPts(pts, sg * 4.75), 0.12, '#f1efe6'); } strokePath(pts, 3, '#6aa84a'); }
       else { strokePath(pts, 0.1, '#f1efe6', [3 * S.view.s, 3.5 * S.view.s]); }
     }
   }
@@ -438,7 +439,7 @@
     const b = document.createElement('button'); b.type = 'button'; b.dataset.k = k; b.innerHTML = '<span class="sw" style="background:var(--' + k + ')"></span>' + label;
     b.onclick = () => { S.tool = 'paint'; S.pcur = null; S.kind = k; S.lay = EXT.has(k) ? Math.max(1, S.lay) : (S.lay > 1 || k === 'water' ? 0 : S.lay); S.gum = false; S.hand = false; sync(); }; kindsEl.appendChild(b);
   });
-  [['weg', 'Weg'], ['brd', 'Brede weg'], ['pad', 'Pad']].forEach(([k, label]) => { const b = document.createElement('button'); b.type = 'button'; b.dataset.l = k; b.textContent = label; b.onclick = () => { S.tool = 'line'; S.ltype = k; S.gum = false; S.hand = false; S.orb = false; S.pcur = null; sync(); draw(); }; $('lineRow').appendChild(b); });
+  [['weg', 'Weg'], ['brd', 'Brede weg'], ['laan', 'Laan'], ['pad', 'Pad']].forEach(([k, label]) => { const b = document.createElement('button'); b.type = 'button'; b.dataset.l = k; b.textContent = label; b.onclick = () => { S.tool = 'line'; S.ltype = k; S.gum = false; S.hand = false; S.orb = false; S.pcur = null; sync(); draw(); }; $('lineRow').appendChild(b); });
   [['gl', 'glRow'], ['gr', 'grRow']].forEach(([key2, id]) => [[0, 'Geen'], [3, '3 m'], [6, '6 m']].forEach(([w, label]) => { const b = document.createElement('button'); b.type = 'button'; b.dataset.w = w; b.textContent = label; b.onclick = () => { S[key2] = w; sync(); draw(); }; $(id).appendChild(b); }));
   [[0, 'Op een vak'], [1, 'Ook tussen tegels']].forEach(([v, label]) => { const b = document.createElement('button'); b.type = 'button'; b.dataset.f = v; b.textContent = label; b.onclick = () => { S.fine = v; sync(); }; $('fineRow2').appendChild(b); });
   AREAS.forEach(([k, label]) => { const b = document.createElement('button'); b.type = 'button'; b.dataset.a = k; b.textContent = label; b.onclick = () => setK(k); $('areaRow').appendChild(b); });

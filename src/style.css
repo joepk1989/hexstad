@@ -363,3 +363,8 @@ body.night .btn.tod { color: #cdd8ff; }
   #schetsApp .kinds { grid-template-columns: repeat(3, 1fr); }
 }
 .tool.todo{opacity:.5;border-style:dashed;cursor:default}.sw-todo{display:grid;place-items:center;font:700 16px/1 var(--ui,sans-serif);color:#9aa38c;border:2px dashed #6b7560;background:transparent!important}
+.sw-vweg { background: linear-gradient(90deg, #cbc8bd 0 22%, #3c4045 22% 78%, #cbc8bd 78%); position: relative; }
+.sw-vweg::after { content: ''; position: absolute; left: 49%; top: 10%; width: 2px; height: 80%; background: repeating-linear-gradient(180deg, #f1efe6 0 6px, transparent 6px 12px); }
+.sw-vbrd { background: linear-gradient(90deg, #cbc8bd 0 14%, #3c4045 14% 86%, #cbc8bd 86%); position: relative; }
+.sw-vbrd::after { content: ''; position: absolute; left: 48%; top: 10%; width: 4px; height: 80%; border-left: 1px solid #f1efe6; border-right: 1px solid #f1efe6; }
+.sw-vlaan { background: linear-gradient(90deg, #cbc8bd 0 10%, #9b5a45 10% 18%, #3c4045 18% 42%, #6aa84a 42% 58%, #3c4045 58% 82%, #9b5a45 82% 90%, #cbc8bd 90%); }

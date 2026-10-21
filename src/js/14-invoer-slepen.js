@@ -168,14 +168,14 @@
     const cx = window.innerWidth / 2, cy = window.innerHeight / 2, res = pick(cx, cy);
     if (!res) return toast('Richt het puntje op de grond of een blok binnen 30 m');
     lastPickRes = res;
-    if (erase || tool === 'gum') { if (eraseModuleAt(res) || eraseEdgeAt(res)) return; if (res.erase) removeTop(res.erase[0], res.erase[1]); else toast('Hier valt niets weg te halen'); }
+    if (erase || tool === 'gum') { if (eraseModuleAt(res) || eraseEdgeAt(res) || erasePathAt(res) || eraseTriAt(res)) return; if (res.erase) removeTop(res.erase[0], res.erase[1]); else toast('Hier valt niets weg te halen'); }
     else place(res.place[0], res.place[1]);
   }
   // ---------- Weg trekken: linkermuisknop ingedrukt houden en slepen ----------
   // Elk vak waar je overheen sleept wordt weg (ook als je snel beweegt: de vakken ertussen worden ingevuld).
   // Waar geen weg mag komen wordt stil overgeslagen; bestaande wegen blijven gewoon liggen.
   // Alles wat een lijn vormt kun je trekken: wegen, paden, looppaden, tunnels en grachten
-  const DRAG_TOOLS = new Set(['weg', 'laan', 'pad', 'fietspad', 'kuil', 'heuvel', 'looppad', 'tunnel', 'water']);
+  const DRAG_TOOLS = new Set(['weg', 'laan', 'pad', 'fietspad', 'kuil', 'heuvel', 'looppad', 'tunnel', 'water', 'vweg', 'vbrd', 'vlaan']);
   const roadDrag = { on: false, last: null, count: 0, tool: 'weg' };
   let roadHintShown = false, dakHintShown = false, padHintShown = false, laanHintShown = false;
   function groundCellAt(cx, cy) {
@@ -298,8 +298,23 @@
     (cells.inst || (cells.inst = [])).push({ m: { name: lp.name + ' (gesleept)', n: 2, edges: [], cells: [], tris: [], paths: [{ t: lp.t, l: lp.path.l, r: lp.path.r, p: P.map(a => [Math.round((a[0] - o.x) * 100) / 100, Math.round((a[1] - o.z) * 100) / 100]) }] }, q: lp.start[0], r: lp.start[1], rot: 0 });
     changed(); toast(P.length + ' vakken aangelegd', 1400);
   }
+  // Getekende weg trekken (Weg, Brede weg, Laan): een vrije lijn door de vakmiddens; kruisingen ontstaan vanzelf
+  function vecPaintTo(cell) {
+    const D = roadDrag;
+    if (!D.vp) { D.vp = { t: VEC_T[D.tool], l: 0, r: 0, p: [] }; pathsOf().push(D.vp); }
+    const L = D.last; if (L && L[0] === cell[0] && L[1] === cell[1]) return;
+    const todo = L ? hexLine(L, cell) : [cell]; D.last = cell;
+    for (const [q, r] of todo) { const w = cellToWorld(q, r), pt = [Math.round(w.x * 100) / 100, Math.round(w.z * 100) / 100], P = D.vp.p, l = P[P.length - 1]; if (!l || Math.hypot(l[0] - pt[0], l[1] - pt[1]) > 0.5) P.push(pt); }
+    if (D.vp.p.length > 1) { buildPathNet(); D.count = D.vp.p.length; }
+  }
+  function vecDragEnd() {
+    const D = roadDrag, vp = D.vp; D.vp = null; if (!vp) return;
+    if (vp.p.length < 2) { const i = cells.paths.indexOf(vp); if (i >= 0) cells.paths.splice(i, 1); buildPathNet(); toast('Sleep van vak naar vak om een ' + TYPES[D.tool].name.toLowerCase() + ' te trekken', 1600); return; }
+    changed(); toast(TYPES[D.tool].name + ' aangelegd, ' + vp.p.length + ' vakken lang', 1400);
+  }
   function roadPaintTo(cell) {
     if (!cell) return;
+    if (VEC_TOOLS.has(roadDrag.tool)) return vecPaintTo(cell);
     if (roadDrag.tool === 'module') return linePaintTo(cell);
     if (roadDrag.tool === 'laan') return laanPaintTo(cell);
     const L = roadDrag.last;
@@ -323,10 +338,11 @@
     changed();
     if (roadDrag.tool === 'weg') laanArmHint(placed);
   }
-  function roadDragStart(cell) { roadDrag.on = true; roadDrag.last = null; roadDrag.count = 0; roadDrag.skip = 0; roadDrag.lstart = null; roadDrag.lp = null; roadDrag.sp = null; roadDrag.tool = tool; ghost.visible = false; ghostArrow.visible = false; previewGroup.visible = false; roadPaintTo(cell); }
+  function roadDragStart(cell) { roadDrag.on = true; roadDrag.last = null; roadDrag.count = 0; roadDrag.skip = 0; roadDrag.lstart = null; roadDrag.lp = null; roadDrag.sp = null; roadDrag.vp = null; roadDrag.tool = tool; ghost.visible = false; ghostArrow.visible = false; previewGroup.visible = false; roadPaintTo(cell); }
   function roadDragEnd() {
     if (!roadDrag.on) return;
     roadDrag.on = false; roadDrag.last = null;
+    if (VEC_TOOLS.has(roadDrag.tool)) return vecDragEnd();
     if (roadDrag.tool === 'module') return lineDragEnd();
     if (roadDrag.tool === 'laan') {
       const st0 = roadDrag.lstart;

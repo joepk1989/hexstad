@@ -53,7 +53,8 @@
   // ---------- Vrije vectorwegen: lijnen die niet aan het raster vastzitten (uit een schets of module) ----------
   const pathsOf = () => cells.paths || (cells.paths = []);
   const PW_H = 0.25;   // stoephoogte van een getekende weg
-  const PATH_DEF = { weg: { hw: 4.5, walk: 2.2 }, brd: { hw: 6.5, walk: 2.2 }, pad: { hw: 1.6, walk: 0.5 } };
+  // laan: per richting rijstrook 3,25 · parkeerstrook 2 · fietspad 2, met een middenberm van 3 m (med = halve berm)
+  const PATH_DEF = { weg: { hw: 4.5, walk: 2.2 }, brd: { hw: 6.5, walk: 2.2 }, laan: { hw: 8.75, walk: 2.5, med: 1.5 }, pad: { hw: 1.6, walk: 0.5 } };
   const vmat = (color, n) => std({ color, polygonOffset: true, polygonOffsetFactor: -n, polygonOffsetUnits: -n, side: THREE.DoubleSide });
   const VM = { grass: vmat('#6aa84a', 1), walk: vmat('#cbc8bd', 1), kerb: vmat('#9b988e', 2), asph: vmat('#3c4045', 3), dash: vmat('#f1efe6', 4), pave: vmat('#9b5a45', 3) };
   let pathGroup = null;
@@ -77,7 +78,7 @@
   const plen = pts => { let l = 0; for (let i = 1; i < pts.length; i++) l += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); return l; };
   const dirAt = (pts, i) => { const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)]; let dx = b[0] - a[0], dz = b[1] - a[1]; const l = Math.hypot(dx, dz) || 1; return [dx / l, dz / l]; };
   function vecGraphOf(paths, ver) {
-    const P = (paths || []).filter(p => (p.t === 'weg' || p.t === 'brd') && p.p && p.p.length > 1);
+    const P = (paths || []).filter(p => (p.t === 'weg' || p.t === 'brd' || p.t === 'laan') && p.p && p.p.length > 1);
     const lines = P.map(p => ({ t: p.t, pts: smoothPts(p.p), cuts: new Set() }));
     const cutAt = (L, i, f) => { if (f < 0.02) { if (i > 0) L.cuts.add(i); } else if (f > 0.98) { if (i + 1 < L.pts.length - 1) L.cuts.add(i + 1); } else L.cuts.add(i + f); };
     // kruisende lijnen: allebei knippen op het snijpunt
@@ -212,19 +213,44 @@
         continue;
       }
       ribbonInto(asph, pts, def.hw + 0.3, Y + 0.02); [pts[0], pts[pts.length - 1]].forEach(p => discInto(asph, p, def.hw + 0.3, Y + 0.02));
-      if (path.t === 'weg') dashesInto(dash, pts, 0.07, Y + 0.03, 3, 3.5);
-      else { dashesInto(dash, pts, 0.06, Y + 0.03, 3, 3.5, 3.2); dashesInto(dash, pts, 0.06, Y + 0.03, 3, 3.5, -3.2); ribbonInto(dash, pts, 0.05, Y + 0.03, 0.12); ribbonInto(dash, pts, 0.05, Y + 0.03, -0.12); }
     }
     // Stoepen per tak van de graaf: 25 cm hoog (als bij de gewone wegen) met een stoeprand; ze houden op bij
     // een kruising, zodat ze niet over de zijstraat heen lopen. Aan de kop van een doodlopende weg een ring.
-    const G = vecGraphOf(P);
-    for (const e of G.edges.values()) {
+    const GR = vecGraphOf(P);
+    // Middenberm van een laan: verhoogd gras met stoeprand en om de 10 m een boom; houdt op voor een kruising en
+    // voor de kop van de laan (daar keren de auto's)
+    const medTrim = n => { const N = GR.nodes[n]; if (!N) return 0; if (N.edges.length < 3) return N.edges.length === 1 ? 7 : 0; let hw = 0; for (const id of N.edges) hw = Math.max(hw, PATH_DEF[GR.edges.get(id).t].hw); return hw + 2.5; };
+    for (const e of GR.edges.values()) {
+      if (e.t !== 'laan') continue;
+      const med = PATH_DEF.laan.med, mp = trimPts(e.pts, medTrim(e.a), medTrim(e.b)); if (mp.length < 2 || plen(mp) < 2) continue;
+      ribbonInto(grass, mp, med, PW_H + 0.005); for (const sg of [1, -1]) wallInto(kerb, mp, sg * med, Y, PW_H); ribbonInto(kerb, mp, med, PW_H, 0);
+      [mp[0], mp[mp.length - 1]].forEach(p => { ringWallInto(kerb, p, med, Y, PW_H); discInto(grass, p, med, PW_H + 0.005); });
+      const L = plen(mp); let s = 5, i = 1, acc = 0;
+      while (s < L - 4) {
+        while (i < mp.length - 1 && acc + Math.hypot(mp[i][0] - mp[i - 1][0], mp[i][1] - mp[i - 1][1]) < s) { acc += Math.hypot(mp[i][0] - mp[i - 1][0], mp[i][1] - mp[i - 1][1]); i++; }
+        const a = mp[i - 1], b = mp[i], f = (s - acc) / Math.max(1e-6, Math.hypot(b[0] - a[0], b[1] - a[1])), x = a[0] + (b[0] - a[0]) * f, z = a[1] + (b[1] - a[1]) * f;
+        const hj = (Math.round(x * 3) * 31 + Math.round(z * 3) * 17) & 1023, sc = 0.85 + (hj % 4) * 0.07;
+        const tr = new THREE.Mesh(G.trunk, M.trunk); tr.scale.set(0.85, 1.25, 0.85); tr.position.set(x, PW_H - 0.02, z); tr.castShadow = true; pathGroup.add(tr);
+        const cr = new THREE.Mesh(G.crown, M.leaf[hj % 3]); cr.scale.set(sc, sc * 1.2, sc); cr.position.set(x, PW_H + 3.2 + 2.1 * sc, z); cr.rotation.y = (hj % 7) * 0.4; cr.castShadow = true; pathGroup.add(cr);
+        s += 10;
+      }
+    }
+    // Wegmarkering per tak, en niet over de kruising heen
+    const markTrim = n => { const N = GR.nodes[n]; if (!N || N.edges.length < 3) return 0; let hw = 0; for (const id of N.edges) hw = Math.max(hw, PATH_DEF[GR.edges.get(id).t].hw); return hw + 0.3; };
+    for (const e of GR.edges.values()) {
+      if (e.t === 'pad') continue;
+      const mp = trimPts(e.pts, markTrim(e.a), markTrim(e.b)); if (mp.length < 2) continue;
+      if (e.t === 'weg') dashesInto(dash, mp, 0.07, Y + 0.03, 3, 3.5);
+      else if (e.t === 'laan') { for (const sg of [1, -1]) { ribbonInto(dash, mp, 0.06, Y + 0.03, sg * 4.75); ribbonInto(pave, mp, 1.0, Y + 0.025, sg * 7.75); ribbonInto(dash, mp, 0.05, Y + 0.03, sg * 6.75); } }
+      else { dashesInto(dash, mp, 0.06, Y + 0.03, 3, 3.5, 3.2); dashesInto(dash, mp, 0.06, Y + 0.03, 3, 3.5, -3.2); ribbonInto(dash, mp, 0.05, Y + 0.03, 0.12); ribbonInto(dash, mp, 0.05, Y + 0.03, -0.12); }
+    }
+    for (const e of GR.edges.values()) {
       const def = PATH_DEF[e.t], hw = def.hw + def.walk;
       for (const sg of [1, -1]) {
-        const sp = vecWalkPts(G, e, 0, sg * (def.hw + def.walk / 2)), kp = vecWalkPts(G, e, 0, sg * (def.hw + 0.3)), ep = vecWalkPts(G, e, 0, sg * hw);
-        ribbonInto(walk, sp, def.walk / 2, PW_H); wallInto(kerb, kp, 0, Y, PW_H); ribbonInto(kerb, vecWalkPts(G, e, 0, sg * (def.hw + 0.15)), 0.15, PW_H + 0.005); wallInto(walk, ep, 0, 0, PW_H);
+        const sp = vecWalkPts(GR, e, 0, sg * (def.hw + def.walk / 2)), kp = vecWalkPts(GR, e, 0, sg * (def.hw + 0.3)), ep = vecWalkPts(GR, e, 0, sg * hw);
+        ribbonInto(walk, sp, def.walk / 2, PW_H); wallInto(kerb, kp, 0, Y, PW_H); ribbonInto(kerb, vecWalkPts(GR, e, 0, sg * (def.hw + 0.15)), 0.15, PW_H + 0.005); wallInto(walk, ep, 0, 0, PW_H);
       }
-      for (const n of [e.a, e.b]) if (G.nodes[n].edges.length === 1) { const p = [G.nodes[n].x, G.nodes[n].z]; ringInto(walk, p, def.hw + 0.3, hw, PW_H); ringWallInto(kerb, p, def.hw + 0.3, Y, PW_H); ringInto(kerb, p, def.hw, def.hw + 0.3, PW_H + 0.005); ringWallInto(walk, p, hw, 0, PW_H); }
+      for (const n of [e.a, e.b]) if (GR.nodes[n].edges.length === 1) { const p = [GR.nodes[n].x, GR.nodes[n].z]; ringInto(walk, p, def.hw + 0.3, hw, PW_H); ringWallInto(kerb, p, def.hw + 0.3, Y, PW_H); ringInto(kerb, p, def.hw, def.hw + 0.3, PW_H + 0.005); ringWallInto(walk, p, hw, 0, PW_H); }
     }
     [[grass, VM.grass], [walk, VM.walk], [kerb, VM.kerb], [asph, VM.asph], [pave, VM.pave], [dash, VM.dash]].forEach(([L, mat]) => { const m = layerMesh(L, mat); if (m) pathGroup.add(m); });
     return pathGroup;

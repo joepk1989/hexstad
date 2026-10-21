@@ -312,7 +312,7 @@
     // T-aansluitingen, takken ertussen. Een auto rijdt op de rechter rijstrook van een tak, kiest op een knoop een
     // volgende tak (liefst rechtdoor) en keert aan een dood eind om de kop van de weg.
     let VG = { nodes: [], edges: new Map(), totalLen: 0, ver: 0 };
-    const VLANE = { weg: [2.25], brd: [1.6, 4.85] };   // afstand van de rijstrook tot het midden van de weg
+    const VLANE = { weg: [2.25], brd: [1.6, 4.85], laan: [3.125] };   // afstand van de rijstrook tot het midden van de weg
     function vecGraph() { if (vecDirty) { vecDirty = false; VG = vecGraphOf(cells.paths, VG.ver + 1); } return VG; }
     const nodeTrim = n => {   // hoe ver de rijstrook voor een kruising ophoudt (daar komt de bocht)
       const N = VG.nodes[n]; if (!N || N.edges.length < 3) return 0;

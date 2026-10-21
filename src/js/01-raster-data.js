@@ -37,11 +37,14 @@
     randweg: { name: 'Randweg', h: 0 },   // alleen als gereedschap: een weg over de rand tussen twee vakken
     randbreed: { name: 'Brede weg', h: 0 },   // alleen als gereedschap: vierbaans weg over de rand (13 m)
     randpad: { name: 'Randpad', h: 0 },
+    vweg: { name: 'Weg', h: 0 },        // alleen als gereedschap: getekende weg (vrije lijn, sleep van vak naar vak)
+    vbrd: { name: 'Brede weg', h: 0 },  // idem, vier rijstroken
+    vlaan: { name: 'Laan', h: 0 },      // idem, met middenberm en bomen
     module: { name: 'Module', h: 0 },   // alleen als gereedschap: een bewaarde schets plaatsen   // alleen als gereedschap: bewaard als breed pad (pad32)
   };
   // Het palet is in groepen verdeeld; het scrollwiel loopt ze allemaal door
   const CATS = [
-    { name: 'Wegen', tools: ['weg', 'laan', 'fietspad', 'randweg', 'randbreed'], todo: ['Rotonde', 'Spoor', 'Parkeren'] },
+    { name: 'Wegen', tools: ['vweg', 'vbrd', 'vlaan', 'weg', 'laan', 'fietspad', 'randweg', 'randbreed'], todo: ['Rotonde', 'Spoor', 'Parkeren'] },
     { name: 'Paden', tools: ['pad', 'looppad', 'randpad', 'trap', 'trappad'], todo: ['Brugpad', 'Plein'] },
     { name: 'Gebouwen', tools: ['woning', 'kantoor', 'dak'], todo: ['Winkel', 'School', 'Fabriek'] },
     { name: 'Groen en water', tools: ['park', 'water'], todo: ['Bomen', 'Hagen', 'Vijver', 'Fontein'] },
@@ -50,6 +53,8 @@
     { name: 'Modules', tools: ['module'] },
   ];
   const TOOLS = [...CATS.flatMap(c => c.tools), 'gum'];
+  const VEC_TOOLS = new Set(['vweg', 'vbrd', 'vlaan']), VEC_T = { vweg: 'weg', vbrd: 'brd', vlaan: 'laan' };   // getekende wegen: lijnen, geen vakken
+  const TOOL_LABEL = { weg: 'Weg (vak)', laan: 'Laan (vak)' };   // de oude vakwegen heten zo in het palet, naast de getekende
   const DIRECTIONAL = new Set(['trap', 'helling', 'muur', 'trappad', 'tribune', 'hofhelling']);   // met een richting, bewaard als trap0…5 enz.
   const dirOf = t => +t.replace(/\D/g, '');
   // Een trap bewaart zijn looprichting in de naam: trap0 … trap5

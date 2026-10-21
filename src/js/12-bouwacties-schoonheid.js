@@ -145,6 +145,7 @@
     return null;
   }
   function place(q, r) {
+    if (VEC_TOOLS.has(tool)) { toast('Sleep van vak naar vak om een ' + TYPES[tool].name.toLowerCase() + ' te trekken', 1600); return; }
     if (tool === 'module') { const a = anchorOf(lastPickRes) || [q, r]; return placeModule(a[0], a[1]); }
     if (EDGE_TOOLS.has(tool)) return placeEdgeAt(lastPickRes);
     const T = toolBase(tool), wideTool = tool === 'fietspad';
@@ -322,6 +323,7 @@
     const res = pick(cx, cy);
     if (res && eraseModuleAt(res)) { updateGhost(cx, cy); return; }
     if (res && eraseEdgeAt(res)) { updateGhost(cx, cy); return; }
+    if (res && (erasePathAt(res) || eraseTriAt(res))) { updateGhost(cx, cy); return; }   // getekende weg: de hele lijn in één keer
     if (res && res.erase) removeTop(res.erase[0], res.erase[1]);
     updateGhost(cx, cy);
   }
@@ -442,6 +444,7 @@
     const res = pick(cx, cy); lastPickRes = res;
     edgeGhost.visible = false; moduleGhost.visible = false;
     if (!res) { ghost.visible = false; ghostEdges.visible = false; return; }
+    if (VEC_TOOLS.has(tool)) { previewActive = false; ghost.visible = false; ghostEdges.visible = false; return; }
     if (tool === 'module') { previewActive = false; ghost.visible = false; ghostEdges.visible = false; if (res.place) { const a = anchorOf(res); showModuleGhost(a[0], a[1]); } return; }
     if (EDGE_TOOLS.has(tool)) {
       previewActive = false; ghost.visible = false; ghostEdges.visible = false;
