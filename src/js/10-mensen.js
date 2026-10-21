@@ -57,7 +57,7 @@
     }
     // Getekende wegen: knopen op kruisingen en uiteinden, stoepen ertussen (nog los van het hexnetwerk)
     const G = cars.vecGraph();
-    const vn = G.nodes.map(N => { const r = N.z / (1.5 * R); return { key: 'v' + Math.round(N.x * 2) / 2 + ',' + Math.round(N.z * 2) / 2, q: N.x / (R * SQ3) - r / 2, r, y: PW_H, x: N.x, z: N.z, kind: { b: 'vec' }, edges: new Map() }; });
+    const vn = G.nodes.map((N, vi) => { const r = N.z / (1.5 * R); return { vi, key: 'v' + Math.round(N.x * 2) / 2 + ',' + Math.round(N.z * 2) / 2, q: N.x / (R * SQ3) - r / 2, r, y: PW_H, x: N.x, z: N.z, kind: { b: 'vec' }, edges: new Map() }; });
     for (const e of G.edges.values()) {
       const A = vn[e.a], B = vn[e.b];
       A.edges.set(B.key, { to: B, side: -1, climb: false, vec: e, dir: 0 });
@@ -233,6 +233,20 @@
     }
     const roadK = n => n.kind.b === 'weg' || n.kind.b === 'laan';
     const vecOff = (e, a) => a.walkSide * (PATH_DEF[e.t].hw + PATH_DEF[e.t].walk / 2 + a.lane * 0.5);
+    // Een kruising oversteken zoals een voetganger dat doet: langs de stoephoeken en haaks over de zijstraten, niet
+    // dwars over het midden. De stoepbegin-punten van alle takken vormen een rondje; we lopen de korte kant op.
+    function junctionRoute(node, a, target) {
+      const G = cars.vecGraph(), N = G.nodes[node.vi]; if (!N || N.edges.length < 3) return [];
+      const arms = N.edges.map(id => { const e = G.edges.get(id), dir = e.a === node.vi ? 0 : 1, p = dir ? e.pts.slice().reverse() : e.pts, q0 = p[0], q1 = p[Math.min(p.length - 1, 2)], l = Math.hypot(q1[0] - q0[0], q1[1] - q0[1]) || 1, def = PATH_DEF[e.t], off = def.hw + def.walk / 2 + a.lane * 0.5;
+        return { d: [(q1[0] - q0[0]) / l, (q1[1] - q0[1]) / l], th: Math.atan2(q1[1] - q0[1], q1[0] - q0[0]), S: [cars.vecWalk(e, dir, off)[0], cars.vecWalk(e, dir, -off)[0]] }; }).sort((x, y) => x.th - y.th);
+      const k = arms.length, cyc = [];   // rondje: per tak eerst de kant naar de vorige tak, dan de kant naar de volgende
+      for (let i = 0; i < k; i++) { const prev = arms[(i + k - 1) % k], next = arms[(i + 1) % k], A = arms[i]; const toPrev = A.S[0][0] * prev.d[0] + A.S[0][1] * prev.d[1] >= A.S[1][0] * prev.d[0] + A.S[1][1] * prev.d[1] ? 0 : 1; void next; cyc.push(A.S[toPrev], A.S[1 - toPrev]); }
+      const near = p => { let bi = 0, bd = 1e9; cyc.forEach((q, i) => { const d = Math.hypot(q[0] - p[0], q[1] - p[1]); if (d < bd) { bd = d; bi = i; } }); return bi; };
+      const i0 = near([a.x, a.z]), i1 = near(target), n = cyc.length; if (i0 === i1) return [];
+      const fwd = (i1 - i0 + n) % n, back = (i0 - i1 + n) % n, out = [];
+      if (fwd <= back) for (let i = 1; i < fwd; i++) out.push(cyc[(i0 + i) % n]); else for (let i = 1; i < back; i++) out.push(cyc[(i0 - i + n) % n]);
+      return out;
+    }
     let curA = null;   // de voetganger die nu aan de beurt is (voor de vloerhoogte op getekende stoepen)
     function vecFloor(x, z) {   // vloer op een getekende weg: stoep, rijbaan of niets; alleen de takken rond de voetganger
       const E = curA && curA.vedges; if (!E) return 0;
@@ -482,7 +496,7 @@
     function go(a, e) {
       const from = a.node, to = e.to;
       a.prev = from; a.node = to; a.wps = [];
-      if (e.vec) { a.precise = false; a.vedges = vecEdgesAround(from, to); a.wps = cars.vecWalk(e.vec, e.dir, vecOff(e.vec, a)); return; }
+      if (e.vec) { a.precise = false; a.vedges = vecEdgesAround(from, to); a.wps = cars.vecWalk(e.vec, e.dir, vecOff(e.vec, a)); if (from.kind.b === 'vec') a.wps = junctionRoute(from, a, a.wps[0]).concat(a.wps); return; }
       if (e.vecDoor) {   // van een voordeur de getekende stoep op, of andersom
         const L = e.vecDoor, def = PATH_DEF[L.e.t], off = (e.dir ? -L.sg : L.sg) * (def.hw + def.walk / 2 + a.lane * 0.5);
         const pts = cars.vecWalk(L.e, e.dir, off); let bi = 0, bd = 1e9; pts.forEach((p, i) => { const d = Math.hypot(p[0] - L.pt[0], p[1] - L.pt[1]); if (d < bd) { bd = d; bi = i; } });
@@ -522,7 +536,7 @@
       if (peopleLocalEdit) {
         for (const a of agents) {
           if (a.state !== 'walk' && a.state !== 'pause') continue;
-          if (a.y - groundAt(a.x, a.z, a.y) > 0.8) startRagdoll(a, 0, 0, 0);
+          if (a.y - groundAt(a.x, a.z, a.y) > 0.8) { a.ragWhy = 'rebuild'; startRagdoll(a, 0, 0, 0); }
         }
       } else for (const a of agents) if (a.state === 'rag' || a.state === 'getup') { a.rag = null; a.gu = null; a.node = null; a.state = 'walk'; }
       const wholeNew = !peopleLocalEdit;
@@ -855,9 +869,10 @@
     }
     let lastPX = 0, lastPZ = 0, lastMode = '';
     return {
+      vecStats: () => { let n = 0, nan = 0, fall = 0, idle = 0; for (const a of agents) { if (!a.vedges) continue; n++; if (!isFinite(a.x) || !isFinite(a.z)) nan++; if (a.state === 'rag') fall++; if (a.state === 'walk' && a.spd < 0.05 && (a.idleT = (a.idleT || 0) + 1) > 60) idle++; } return { n, nan, fall, idle }; },
       agents,
       // Door een auto geraakt
-      hit(a, vx, vz) { if (a.state === 'walk' || a.state === 'pause') startRagdoll(a, vx, 2.2 + Math.hypot(vx, vz) * 0.25, vz, 0.05); },
+      hit(a, vx, vz) { a.ragWhy = 'car'; if (a.state === 'walk' || a.state === 'pause') startRagdoll(a, vx, 2.2 + Math.hypot(vx, vz) * 0.25, vz, 0.05); },
       kick,
       // bekken van iemand die ligt of aan het opstaan is (voor auto's die moeten remmen)
       lying() { return agents.filter(a => (a.state === 'rag' || a.state === 'getup') && a.rag); },
@@ -934,7 +949,7 @@
           }
           if (a.state === 'pause') {
             a.timer -= dt; a.spd = Math.max(0, a.spd - dt * 3); a.walkAmt = Math.max(0, a.walkAmt - dt * 3);
-            { const fy = floorFor(a.x, a.z, a.y); if (a.y - fy > 0.8) { startRagdoll(a, 0, 0, 0); continue; } a.y += (fy - a.y) * Math.min(1, dt * 14); }
+            { const fy = floorFor(a.x, a.z, a.y); if (a.y - fy > 0.8) { a.ragWhy = 'pausefloor'; startRagdoll(a, 0, 0, 0); continue; } a.y += (fy - a.y) * Math.min(1, dt * 14); }
             stepFeet(a, dt);
             if (a.timer <= 0) a.state = 'walk';
             continue;
@@ -971,10 +986,12 @@
             if ((a.carWait || 0) < 4 && floorFor(nx, nz, a.y) < 0.2 && cars.approaching(nx, nz)) { a.carWait = (a.carWait || 0) + dt; a.spd = Math.max(0, a.spd - dt * 6); a.prog = null; stepFeet(a, dt); continue; }
             if (a.y >= 0.2 && floorFor(nx, nz, a.y) >= 0.2) a.carWait = 0;
           }
+          // niet tegen een auto aan lopen: staat er een vlak voor je (ook op de kruising), dan wacht je even
+          if (typeof cars !== 'undefined' && cars.list.length && a.y < 0.5 && cars.blocks(a.x + fx * 1.3, a.z + fz * 1.3, a.y)) { a.spd = Math.max(0, a.spd - dt * 8); a.prog = null; stepFeet(a, dt); continue; }
           a.x += fx * step; a.z += fz * step;
           a.walkAmt = Math.min(1, a.spd / 1.0);
           const fy = floorFor(a.x, a.z, a.y);
-          if (a.y - fy > 0.8) { startRagdoll(a, Math.sin(a.heading) * a.spd, 0, Math.cos(a.heading) * a.spd); continue; }   // geen grond meer onder je: vallen
+          if (a.y - fy > 0.8) { a.ragWhy = 'floor'; startRagdoll(a, Math.sin(a.heading) * a.spd, 0, Math.cos(a.heading) * a.spd); continue; }   // geen grond meer onder je: vallen
           a.y += (fy - a.y) * Math.min(1, dt * 14);
           stepFeet(a, dt);
           if (a.goingIn && a.wps.length === 1) a.fade = Math.max(0, Math.min(a.fade, d0 / 2.5));   // verdwijnt in de deuropening

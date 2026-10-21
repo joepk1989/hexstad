@@ -171,10 +171,14 @@
     return w < VTL.G ? 'g' : w < VTL.G + VTL.A ? 'a' : 'r';
   }
   let vecLightReg = [];   // lampen van de getekende kruisingen: [{ n, eid, lamps }], bijgewerkt door updateLights
-  const vecTrimW = (G, n) => {   // hoe ver de stoep voor een kruising ophoudt: tot aan de stoeprand van de breedste zijstraat
+  // Kruisingsvak: zo ver van de knoop houden rijstroken, markering en stoepen op. Minimaal 7,5 m, zodat ook een
+  // scherpe bocht (60° tussen de takken, gewoon op een zeshoekraster) ruimte heeft en afslaande auto's niet over de
+  // stoephoek gaan; bij brede wegen de halve breedte plus 2,5 m.
+  const vecJunctionTrim = (G, n) => {
     const N = G.nodes[n]; if (!N || N.edges.length < 3) return 0;
-    let hw = 0; for (const id of N.edges) { const t = G.edges.get(id).t; hw = Math.max(hw, PATH_DEF[t].hw + PATH_DEF[t].walk); } return hw + 0.3;
+    let hw = 0; for (const id of N.edges) hw = Math.max(hw, PATH_DEF[G.edges.get(id).t].hw); return Math.max(hw + 2.5, 7.5);
   };
+  const vecTrimW = (G, n) => { const t = vecJunctionTrim(G, n); return t ? t + 0.3 : 0; };   // stoep: net voorbij de stopstreep
   function offsetPts(src, off) {   // de lijn opzij geschoven (rechts van de looprichting bij off > 0)
     const out = [];
     for (let i = 0; i < src.length; i++) { const a = src[Math.max(0, i - 1)], b = src[Math.min(src.length - 1, i + 1)]; let dx = b[0] - a[0], dz = b[1] - a[1]; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l; out.push([src[i][0] - dz * off, src[i][1] + dx * off]); }
@@ -342,7 +346,7 @@
     const GR = vecGraphOf(P);
     // Middenberm van een laan: verhoogd gras met stoeprand en om de 10 m een boom; houdt op voor een kruising en
     // voor de kop van de laan (daar keren de auto's)
-    const medTrim = n => { const N = GR.nodes[n]; if (!N) return 0; if (N.edges.length < 3) return N.edges.length === 1 ? 7 : 0; let hw = 0; for (const id of N.edges) hw = Math.max(hw, PATH_DEF[GR.edges.get(id).t].hw); return hw + 2.5; };
+    const medTrim = n => { const N = GR.nodes[n]; if (!N) return 0; if (N.edges.length < 3) return N.edges.length === 1 ? 7 : 0; return vecJunctionTrim(GR, n) + 1.5; };
     for (const e of GR.edges.values()) {
       if (e.t !== 'laan') continue;
       const med = PATH_DEF.laan.med, mp = trimPts(e.pts, medTrim(e.a), medTrim(e.b)); if (mp.length < 2 || plen(mp) < 2) continue;
@@ -359,7 +363,7 @@
       }
     }
     // Wegmarkering per tak, en niet over de kruising heen
-    const markTrim = n => { const N = GR.nodes[n]; if (!N || N.edges.length < 3) return 0; let hw = 0; for (const id of N.edges) hw = Math.max(hw, PATH_DEF[GR.edges.get(id).t].hw); return hw + 0.3; };
+    const markTrim = n => vecJunctionTrim(GR, n);
     for (const e of GR.edges.values()) {
       if (e.t === 'pad') continue;
       const mp = trimPts(e.pts, markTrim(e.a), markTrim(e.b)); if (mp.length < 2) continue;

@@ -120,7 +120,7 @@
     const label = () => { btn.textContent = "Auto's: " + (on ? 'aan' : 'uit'); };
     label();
     const list = [];
-    let roadTiles = [], laanTiles = [], roadSet = new Set(), reckless = false, carSeq = 0;
+    let roadTiles = [], laanTiles = [], roadSet = new Set(), reckless = false, carSeq = 0, forceN = 0; const crashLog = [];
     const pick = a => a[Math.floor(Math.random() * a.length)];
     const right = (x, z) => [-z, x];
     const maskAt = (q, r) => roadLinks.get(lk(q, r, 0)) || 0;
@@ -314,10 +314,7 @@
     let VG = { nodes: [], edges: new Map(), totalLen: 0, ver: 0 };
     const VLANE = { weg: [1.25], brd: [1.1, 3.4], laan: [3.125] };   // afstand van de rijstrook tot het midden van de weg
     function vecGraph() { if (vecDirty) { vecDirty = false; VG = vecGraphOf(cells.paths, VG.ver + 1); } return VG; }
-    const nodeTrim = n => {   // hoe ver de rijstrook voor een kruising ophoudt (daar komt de bocht)
-      const N = VG.nodes[n]; if (!N || N.edges.length < 3) return 0;
-      let hw = 0; for (const id of N.edges) hw = Math.max(hw, PATH_DEF[VG.edges.get(id).t].hw); return hw + 1.0;
-    };
+    const nodeTrim = n => vecJunctionTrim(VG, n);   // hoe ver de rijstrook voor een kruising ophoudt (daar komt de bocht)
     const lanePts = (e, dir, off) => offsetPts(dir ? e.pts.slice().reverse() : e.pts, off);   // rijstrook: rechts van het midden
     const laneOff = (e, lane) => VLANE[e.t][Math.min(lane, VLANE[e.t].length - 1)];
     function vecLeg(e, dir, lane, from) {   // from: einde van de vorige rijstrook {pt, d}; daarvandaan een bocht naar deze
@@ -327,7 +324,7 @@
         const s = pts[0], d0 = dirAt(pts, 0);
         if (Math.hypot(s[0] - from.pt[0], s[1] - from.pt[1]) > 0.3) { pts = bez(from.pt, from.d, s, d0, 0.42, 16).concat(pts.slice(1)); turn = Math.abs(Math.atan2(from.d[0] * d0[1] - from.d[1] * d0[0], from.d[0] * d0[0] + from.d[1] * d0[1])) > 0.35; }
       }
-      return { vec: true, eid: e.id, dir, lane, nodeEnd: nB, q: 100000 + nB, r: 0, inS: 0, outS: 3, kind: turn ? 'turn' : 'lane', path: mkPath(pts), cx: 0, cz: 0, exitPt: pts[pts.length - 1], exitD: dirAt(pts, pts.length - 1) };
+      return { vec: true, eid: e.id, dir, lane, nodeEnd: nB, q: 100000 + nB, r: 1, inS: 0, outS: 3, kind: turn ? 'turn' : 'lane', path: mkPath(pts), cx: 0, cz: 0, exitPt: pts[pts.length - 1], exitD: dirAt(pts, pts.length - 1) };
     }
     function vecULeg(e, dir, lane, from) {   // keren om de kop van een doodlopende weg
       const nB = dir ? e.a : e.b, N = VG.nodes[nB], off = laneOff(e, lane), d = from.d, r = [-d[1], d[0]], pts = [];
@@ -396,6 +393,7 @@
       c.crash = null;
       // niet boven op een andere auto beginnen
       if (tryN < 8 && list.some(o => o !== c && o.path && Math.hypot(o.x - c.x, o.z - c.z) < 7)) return spawn(c, tryN + 1);
+      if (tryN >= 8) c.ghost = 3;   // geen vrije plek gevonden: even 'doorzichtig' zodat hij niet meteen botst
       return true;
     }
     function rebuild() {
@@ -409,7 +407,8 @@
       // hoe meer huizen en kantoren, hoe meer verkeer; nooit voller dan de wegen aankunnen
       const pop = cityCounts(), nRoad = roadTiles.length + laanTiles.length * 1.5 + VG.totalLen / 15.6;
       const want = Math.round(nRoad / 14 + pop.homes * 0.3 + pop.offices * 0.2);
-      const target = on && nRoad >= 3 ? Math.min(MAX, Math.max(1, Math.min(want, Math.floor(nRoad / 2.5)))) : 0;
+      let target = on && nRoad >= 3 ? Math.min(MAX, Math.max(1, Math.min(want, Math.floor(nRoad / 2.5)))) : 0;
+      if (forceN) target = Math.min(MAX, forceN);   // alleen voor de simulatietest
       while (list.length > target) list.pop();
       for (const c of list) {
         if (c.vec) { if (!validLeg(c)) spawn(c); else c.next = planNext(c); continue; }
@@ -504,8 +503,8 @@
     function hitPeople(c, dt, peds, lying, vx, vz) {
       const sp = Math.hypot(vx, vz);
       for (const a of peds) {
-        if (a.y >= 0.3 || !inside(c, a.x, a.z, 0.15, 0.2)) continue;
-        if (sp > 2) { people.hit(a, vx * 1.1, vz * 1.1); sound.carHit(Math.min(1, (sp - 2) / 10), a.x, 0.8, a.z); sound.grunt(a.x, 0.9, a.z, Math.min(1, (sp - 2) / 10)); }
+        if (a.y >= (reckless ? 0.3 : 0.2) || !inside(c, a.x, a.z, 0.15, 0.2)) continue;   // netjes rijdend verkeer raakt niemand op de stoep
+        if (sp > 2) { if (crashLog.length < 40) crashLog.push({ hit: 1, car: [+c.x.toFixed(1), +c.z.toFixed(1), +c.h.toFixed(2), c.eid, c.kind, +sp.toFixed(1), c.next && c.next.kind], ped: [+a.x.toFixed(1), +a.z.toFixed(1), +a.y.toFixed(2), a.node && a.node.key, a.wps.length, a.wps[0] && a.wps[0].map(v => +v.toFixed(1))] }); people.hit(a, vx * 1.1, vz * 1.1); sound.carHit(Math.min(1, (sp - 2) / 10), a.x, 0.8, a.z); sound.grunt(a.x, 0.9, a.z, Math.min(1, (sp - 2) / 10)); }
         else {   // stapvoets: mensen worden zacht opzij geschoven
           const dx = a.x - c.x, dz = a.z - c.z, lat = -dx * Math.sin(c.h) + dz * Math.cos(c.h), sgn = lat >= 0 ? 1 : -1;
           a.x += -Math.sin(c.h) * sgn * dt * 1.5; a.z += Math.cos(c.h) * sgn * dt * 1.5;
@@ -545,8 +544,9 @@
         if (vrel >= 0) continue;
         const impact = -vrel;
         // zacht tikje (netjes rijdend verkeer schampt hooguit): afremmen, niet tollen
-        if (impact < (reckless ? 1.2 : 2.8)) { A.v *= 0.6; B.v *= 0.6; continue; }
+        if (impact < (reckless ? 1.2 : 5.0)) { A.v *= 0.6; B.v *= 0.6; continue; }   // netjes verkeer: een tikje onder 18 km/u is geen klap
         const jimp = (1 + 0.25) * impact / 2;
+        if (crashLog.length < 40) crashLog.push({ impact: +impact.toFixed(1), A: [+A.x.toFixed(1), +A.z.toFixed(1), A.eid || A.q + ',' + A.r, A.kind, +A.v.toFixed(1), A.why], B: [+B.x.toFixed(1), +B.z.toFixed(1), B.eid || B.q + ',' + B.r, B.kind, +B.v.toFixed(1), B.why] });
         // klap: beide auto's gaan glijden en tollen
         const rx = dx / 2, rz = dz / 2;
         for (const [c, sgn, vx0, vz0, rrx, rrz] of [[A, -1, ax, az, rx, rz], [B, 1, bx, bz, -rx, -rz]]) {
@@ -594,6 +594,23 @@
       vecGraph,
       // stoep langs een tak: de lijn opzij geschoven en bij kruisingen ingekort tot aan de stoeprand van de zijstraat
       vecWalk: (e, dir, off) => vecWalkPts(VG, e, dir, off),
+      // meetpunten voor de simulatietest: auto's naast de weg, vastgelopen, ongeldige posities
+      setForce(n) { forceN = n; carsDirty = true; },
+      crashLog,
+      vecStats: () => {
+        const G = vecGraph(); let off = 0, stuck = 0, nan = 0, crash = 0, slow = 0, n = 0, stuckL = null;
+        const dist = (x, z) => { let d = 1e9; for (const e of G.edges.values()) for (let i = 0; i < e.pts.length - 1; i++) d = Math.min(d, distSeg(x, z, e.pts[i], e.pts[i + 1])); return d; };
+        for (const c of list) {
+          if (!c.vec || !c.path) continue; n++;
+          if (!isFinite(c.x) || !isFinite(c.z) || !isFinite(c.h)) { nan++; continue; }
+          const e = G.edges.get(c.eid), hw = e ? PATH_DEF[e.t].hw : 4.5;
+          if (dist(c.x, c.z) > hw + 0.8) off++;
+          if (c.crash) crash++;
+          if ((c.stuck || 0) > 8) { stuck++; (stuckL = stuckL || []).push([c.id, +c.x.toFixed(1), +c.z.toFixed(1), c.eid, c.kind, c.why, c.aheadOf && c.aheadOf.id, +(c.path.len - c.s).toFixed(1), c.next && c.next.kind, c.next && c.next.eid, +c.stuck.toFixed(0), 'want', +(c.lastWant || 0).toFixed(2), 'held', !!c.held, 'creep', +(c.creepT || 0).toFixed(1), 'ghost', +(c.ghost || 0).toFixed(1), 'yieldTo', c.yieldTo, 'dh?', +c.h.toFixed(2)]); }
+          if (c.v < 0.3) slow++;
+        }
+        return { n, off, stuck, stuckL, nan, crash, slow, why: list.filter(c => c.vec).map(c => c.why || '').reduce((m, w) => (m[w] = (m[w] || 0) + 1, m), {}) };
+      },
       vecDbg: () => ({ nodes: VG.nodes.map(n => [+n.x.toFixed(1), +n.z.toFixed(1), n.edges.length]), edges: [...VG.edges.values()].map(e => [e.id, e.a, e.b, Math.round(e.len)]), cars: list.map(c => [+c.x.toFixed(1), +c.z.toFixed(1), c.eid || null, c.kind, +c.v.toFixed(1), c.why]) }),
       list,
       get on() { return on; },
@@ -711,7 +728,7 @@
           if (!(c.creepT > 0) && !(c.ghost > 0)) { for (const o of list) if (o !== c) {
             // wie op mijn keerlus wacht, staat niet in de weg (anders wachten we op elkaar)
             if (keerT && o.next && o.next.q === c.q && o.next.r === c.r && o.next.outS === o.next.inS) continue;
-            const before = want; ahead(o.x, o.z, 1.7, reckless ? 4.5 : 7, o);
+            const before = want; ahead(o.x, o.z, reckless ? 1.7 : 2.0, reckless ? 4.5 : 7, o);
             // een auto die schuin staat (afslaan, wachten in de middenberm): ook de voor- en achterkant tellen
             if (straightNow) { const oc = Math.cos(o.h), os = Math.sin(o.h);
               ahead(o.x + oc * 2.1, o.z + os * 2.1, 1.25, reckless ? 2.6 : 4.2, o); ahead(o.x - oc * 2.1, o.z - os * 2.1, 1.25, reckless ? 2.6 : 4.2, o); }
@@ -721,9 +738,9 @@
             // het kruispunt is (bij gelijk: vaste volgorde). Roekeloze bestuurders kijken niet uit.
             if (!reckless && !o.crash && Math.abs(Math.cos(o.h - c.h)) < 0.9) {   // (rechtdoor achter of langs elkaar: geen kruising)
               const [ovx, ovz] = velOf(o), dx = o.x - c.x, dz = o.z - c.z, wx = ovx - ch * c.v, wz = ovz - sh * c.v, w2 = wx * wx + wz * wz;
-              if (w2 > 0.25 && dx * dx + dz * dz < 196) {
+              if (w2 > 0.25 && dx * dx + dz * dz < 400) {
                 const tc = -(dx * wx + dz * wz) / w2, mx = dx + wx * tc, mz = dz + wz * tc;
-                if (tc > 0 && tc < 2.2 && mx * mx + mz * mz < 2.1 * 2.1) {
+                if (tc > 0 && tc < 3.0 && mx * mx + mz * mz < 2.3 * 2.3) {
                   const myT = (dx * ch + dz * sh) > 0 ? 1 : 0;   // de ander rijdt vóór mij: ik ben later
                   const otherT = (-dx * Math.cos(o.h) - dz * Math.sin(o.h)) > 0 ? 1 : 0;
                   // op de laan heeft rechtdoorgaand verkeer voorrang op wie afslaat of keert
@@ -745,6 +762,9 @@
                 if (inside(o, px, pz, 0.6, 1.0)) { hit = o; break; }
               }
               if (hit) { const w = brakeTo(sa - 0.8); if (w < want) { want = w; c.why = 'path' + hit.id; c.yieldTo = hit.id; } break; }
+              // iemand op of vlak naast de bocht die ik ga maken (oversteken op de kruising): wachten
+              let ped = false; for (const a of peds) if (a.y < 0.3 && Math.abs(a.x - px) < 1.7 && Math.abs(a.z - pz) < 1.7) { ped = true; break; }
+              if (ped) { const w = brakeTo(sa - 0.3); if (w < want) { want = w; c.why = 'ahead'; } break; }
             }
           }
           c.held = held;
@@ -774,6 +794,7 @@
           c.pwait = held ? 0 : c.v < 0.2 ? (c.pwait || 0) + dt : (c.v > 2 ? 0 : (c.pwait || 0));
           if (c.pwait > 10) c.pwait = 0;
           if (c.wait > 6) c.wait = 0;
+          c.lastWant = want;
           c.v += Math.max(-(reckless ? 9 : 6) * dt, Math.min((reckless ? 7 : 2.5) * dt, want - c.v));
           c.v = Math.max(0, c.v);
           // rijden langs de rijlijn
