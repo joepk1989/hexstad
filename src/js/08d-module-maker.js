@@ -162,7 +162,7 @@
       }
       return cnt;
     }
-    function addWalls(a, d6, n) { const L = lvl(); let c = 0; for (const [i, j, d] of segsBetween(a, d6, n)) { const [p, q] = segOf(i, j, d); if (!inArea((p[0] + q[0]) / 2, (p[1] + q[1]) / 2)) continue; const k = wallKey(i, j, d); const had = L.w[k]; L.w[k] = { m: E.wmat, o: had ? had.o : '' }; c++; } return c; }
+    function addWalls(a, d6, n) { const L = lvl(); let c = 0; for (const [i, j, d] of segsBetween(a, d6, n)) { const [p, q] = segOf(i, j, d); if (!mv2NearArea(E.m, (p[0] + q[0]) / 2, (p[1] + q[1]) / 2)) continue; const k = wallKey(i, j, d); const had = L.w[k]; L.w[k] = { m: E.wmat, o: had ? had.o : '' }; c++; } return c; }
     function setOpening(x, z, o) { const w = nearestWall(x, z); if (!w) { say('Klik op een muur'); return false; } lvl().w[w.id].o = o; return true; }
     function eraseAt(x, z, firstOnly) {
       const L = lvl(); const oi = objectAt(x, z, 0.8); if (oi >= 0) { L.o.splice(oi, 1); return 'voorwerp'; }
@@ -262,8 +262,8 @@
         if (!o || ghost) { ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke(); if (!ghost && Wd.m === 'glass') { ctx.strokeStyle = '#eaf6ff'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke(); } return; }
         const len = Math.hypot(b[0] - a[0], b[1] - a[1]), ow = o === 'door' ? Math.min(1.2, len - 0.6) : o === 'window' ? Math.max(0.6, len - 0.8) : o === 'gate' ? Math.max(1.5, len - 0.5) : len - 0.3, f0 = (len - ow) / 2 / len, f1 = 1 - f0;
         const lp = (f) => toS(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f), P0 = lp(f0), P1 = lp(f1);
+        if (o === 'window') { ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke(); ctx.lineWidth = Math.max(2, 0.12 * s); ctx.strokeStyle = '#bfe3f7'; ctx.beginPath(); ctx.moveTo(P0[0], P0[1]); ctx.lineTo(P1[0], P1[1]); ctx.stroke(); return; }   // raam: muur loopt door, met een lichte band
         ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(P0[0], P0[1]); ctx.moveTo(P1[0], P1[1]); ctx.lineTo(B[0], B[1]); ctx.stroke();
-        if (o === 'window') { ctx.lineWidth = Math.max(2, 0.1 * s); ctx.strokeStyle = '#cfe9f5'; ctx.beginPath(); ctx.moveTo(P0[0], P0[1]); ctx.lineTo(P1[0], P1[1]); ctx.stroke(); }
         else if (o === 'door') { ctx.lineWidth = 1.5; ctx.strokeStyle = '#f2b233'; const ang = Math.atan2(P1[1] - P0[1], P1[0] - P0[0]), rr = Math.hypot(P1[0] - P0[0], P1[1] - P0[1]); ctx.beginPath(); ctx.arc(P0[0], P0[1], rr, ang, ang + Math.PI / 2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(P0[0], P0[1]); ctx.lineTo(P0[0] + Math.cos(ang + Math.PI / 2) * rr, P0[1] + Math.sin(ang + Math.PI / 2) * rr); ctx.stroke(); }
         else if (o === 'gate') { ctx.lineWidth = 2; ctx.strokeStyle = '#f2b233'; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(P0[0], P0[1]); ctx.lineTo(P1[0], P1[1]); ctx.stroke(); ctx.setLineDash([]); }
         else { ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(233,236,223,0.5)'; ctx.setLineDash([2, 5]); ctx.beginPath(); ctx.moveTo(P0[0], P0[1]); ctx.lineTo(P1[0], P1[1]); ctx.stroke(); ctx.setLineDash([]); }

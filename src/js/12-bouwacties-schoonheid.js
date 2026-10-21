@@ -330,7 +330,7 @@
     ghostArrow.visible = false;
     const res = pick(cx, cy); lastPickRes = res;
     edgeGhost.visible = false; moduleGhost.visible = false;
-    if (!res) { ghost.visible = false; ghostEdges.visible = false; return; }
+    if (!res || (mode === 'walk' && hand !== 'bouwen')) { ghost.visible = false; ghostEdges.visible = false; return; }
     if (VEC_TOOLS.has(tool)) { previewActive = false; ghost.visible = false; ghostEdges.visible = false; return; }
     if (tool === 'module') { previewActive = false; ghost.visible = false; ghostEdges.visible = false; if (res.place) { const a = anchorOf(res); showModuleGhost(a[0], a[1]); } return; }
     if (EDGE_TOOLS.has(tool)) {

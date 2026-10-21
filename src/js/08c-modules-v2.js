@@ -32,6 +32,12 @@
   }
   const mv2CellXZ = (q, r) => [R * SQ3 * (q + r / 2), 1.5 * R * r];
   const mv2InArea = (m, x, z) => { const [q, r] = mv2CellOf(x, z); return mv2HexDist(q, r) <= (m.k || 0); };
+  // Voor muren: een rib op de buitenrand van het gebied ligt precies op de grens; die hoort erbij (marge 10 cm)
+  function mv2NearArea(m, x, z) {
+    const k = m.k || 0, [q0, r0] = mv2CellOf(x, z); if (mv2HexDist(q0, r0) <= k) return true;
+    for (const [dq, dr] of [[1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]]) { const q = q0 + dq, r = r0 + dr; if (mv2HexDist(q, r) > k) continue; const c = mv2CellXZ(q, r); let inside = true; for (const f of FRAMES) if ((x - c[0]) * f.nx + (z - c[1]) * f.nz > INNER + 0.1) { inside = false; break; } if (inside) return true; }
+    return false;
+  }
   function mv2New(name) {
     return { v: 2, id: uid(), name: name || 'Nieuwe module', cat: 'Overig', k: 0, n: 4, lv: [mv2Level()], edges: [], cells: [], tris: [], paths: [] };
   }
@@ -99,7 +105,7 @@
         const W = L.w[id]; if (!W) continue;
         const [i, j, d] = id.split(',').map(Number), D = MV2.DIR3[d]; if (!D) continue;
         const a = mv2P(i, j, ts), b = mv2P(i + D[0], j + D[1], ts), len = Math.hypot(b[0] - a[0], b[1] - a[1]);
-        if (!mv2InArea(m, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2)) continue;
+        if (!mv2NearArea(m, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2)) continue;
         const mat = Mt.wl[W.m] || Mt.wl.brick, T = MV2.WALL_T;
         if (W.m === 'hedge') { wallBox(mat, a, b, y0, y0 + 1.4, 0.6); addWall(a, b, y0, y0 + 1.4, 0.3); continue; }
         if (W.m === 'fence') {

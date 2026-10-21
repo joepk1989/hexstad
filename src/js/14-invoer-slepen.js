@@ -21,7 +21,7 @@
     if (mode === 'walk') {
       if (e.pointerType === 'mouse') {
         if (document.pointerLockElement === canvas) {
-          if (e.button === 0 && DRAG_TOOLS.has(tool)) {   // ingedrukt houden: weg of pad trekken waar je naar kijkt
+          if (e.button === 0 && DRAG_TOOLS.has(tool) && hand === 'bouwen') {   // ingedrukt houden: weg of pad trekken waar je naar kijkt
             const res = pick(window.innerWidth / 2, window.innerHeight / 2);
             if (!res) return toast('Richt het puntje op de grond of een blok binnen 30 m');
             const st = stackOf(res.place[0], res.place[1]);
@@ -159,6 +159,7 @@
     keys[e.code] = true;
     if (mode === 'walk' && e.code === 'Space') { e.preventDefault(); jump(); }
     const n = parseInt(e.key, 10);
+    if (mode === 'walk' && e.code === 'KeyQ') { const H = ['kijken', 'bouwen', 'hamer']; setHand(H[(H.indexOf(hand) + 1) % 3]); toast(hand === 'kijken' ? 'Kijken' : hand === 'bouwen' ? 'Bouwen: ' + (TYPES[toolBase(tool)] ? TYPES[toolBase(tool)].name : tool) : 'Hamer: klik om te slopen', 1200); return; }
     if (e.code === 'KeyR') { e.shiftKey ? resetRotation() : rotateDir(); return; }
     const inCat = CATS[catIdx].tools;
     if (n >= 1 && n <= inCat.length) selectTool(inCat[n - 1]);
@@ -167,12 +168,19 @@
   window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
   document.getElementById('jumpBtn').addEventListener('pointerdown', e => { e.preventDefault(); jump(); });
   // Bouwen tijdens het lopen: wat in het midden van het beeld ligt
+  let handHintT = 0;
   function walkAction(erase) {
+    if (hand === 'kijken') { if (performance.now() - handHintT > 2500) { handHintT = performance.now(); toast('Je kijkt alleen · kies bovenin Bouwen of Hamer (Q)', 1800); } return; }
+    if (hand === 'bouwen' && erase) { toast('Pak de hamer om te slopen (Q)', 1400); return; }
     const cx = window.innerWidth / 2, cy = window.innerHeight / 2, res = pick(cx, cy);
     if (!res) return toast('Richt het puntje op de grond of een blok binnen 30 m');
     lastPickRes = res;
-    if (erase || tool === 'gum') { if (eraseModuleAt(res) || eraseEdgeAt(res) || erasePathAt(res) || eraseTriAt(res)) return; if (res.erase) removeTop(res.erase[0], res.erase[1]); else toast('Hier valt niets weg te halen'); }
-    else place(res.place[0], res.place[1]);
+    if (hand === 'hamer' || tool === 'gum') {
+      swingHand();
+      if (eraseModuleAt(res) || eraseEdgeAt(res) || erasePathAt(res) || eraseTriAt(res)) { sound.impact(1.2, res.point.x, res.point.y, res.point.z, false); return; }
+      if (res.erase) { removeTop(res.erase[0], res.erase[1]); sound.impact(1.2, res.point.x, res.point.y, res.point.z, false); } else toast('Hier valt niets weg te halen');
+    }
+    else { swingHand(); place(res.place[0], res.place[1]); }
   }
   // ---------- Weg trekken: linkermuisknop ingedrukt houden en slepen ----------
   // Elk vak waar je overheen sleept wordt weg (ook als je snel beweegt: de vakken ertussen worden ingevuld).

@@ -425,3 +425,10 @@ body.night .btn.tod { color: #cdd8ff; }
   #mm_side { border-left: 0; border-top: 1px solid var(--line); max-height: 42vh; flex-direction: row; flex-wrap: wrap; align-content: flex-start; }
   #mm_side section { flex: 1 1 260px; }
 }
+
+/* keuze in loopmodus: kijken, bouwen of hamer */
+.hands { position: fixed; z-index: 6; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top, 0px) + 14px); display: flex; gap: 2px; background: var(--panel); border: 1px solid rgba(238,241,236,0.25); border-radius: 999px; padding: 3px; }
+.hands button { font: 700 13px var(--font-ui, system-ui); color: var(--ink); background: transparent; border: 0; border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+.hands button[aria-pressed="true"] { background: var(--signal); color: var(--signal-ink); }
+body.walk .hud { visibility: hidden; }
+body.walk.hand-kijken .palette { display: none; }

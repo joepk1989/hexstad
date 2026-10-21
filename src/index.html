@@ -74,6 +74,11 @@
 <nav class="palette" id="palette" aria-label="Bouwblokken"></nav>
 
 <div id="walkUI" hidden>
+  <div class="hands" id="hands" role="radiogroup" aria-label="Wat doe je met je handen">
+    <button type="button" data-hand="kijken" aria-pressed="true" title="Alleen rondlopen en kijken (Q wisselt)">Kijken</button>
+    <button type="button" data-hand="bouwen" aria-pressed="false" title="Het gekozen blok neerzetten waar je naar kijkt">Bouwen</button>
+    <button type="button" data-hand="hamer" aria-pressed="false" title="Hamer: slopen wat je aankijkt">Hamer</button>
+  </div>
   <p class="walk-hint" id="walkHint"></p>
   <div class="joy" id="joy"><div class="knob" id="knob"></div></div>
   <button class="jump" id="jumpBtn" type="button">Spring</button>

@@ -30,6 +30,39 @@
     Object.assign(player, { x, z, y: columnTop(found[0], found[1]), vy: 0, yaw: orbit.theta, pitch: -0.05 });
   }
   function jump() { if (player.grounded) { player.vy = 3.2; player.grounded = false; } }  // ca. 0,5 m
+  // ---------- Wat je in je handen hebt tijdens het lopen: niets (kijken), het gekozen blok (bouwen) of een hamer ----------
+  // De hamer hangt rechtsonder in beeld, aan de camera; een klik zwaait hem en sloopt wat je aankijkt.
+  let hand = 'kijken';
+  scene.add(camera);
+  const handG = new THREE.Group(); handG.position.set(0.36, -0.32, -0.7); camera.add(handG); handG.visible = false;
+  const hammer = new THREE.Group(); handG.add(hammer);
+  { const steel = new THREE.MeshStandardMaterial({ color: '#8d949a', roughness: 0.45, metalness: 0.6 }), wood = new THREE.MeshStandardMaterial({ color: '#8f6440', roughness: 0.85 });
+    const h = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.36, 10), wood); h.position.y = 0.0; hammer.add(h);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.055, 0.055), steel); head.position.y = 0.2; hammer.add(head);
+    const claw = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.03, 0.04), steel); claw.position.set(-0.075, 0.2, 0); hammer.add(claw);
+    hammer.rotation.set(-0.55, 0.35, 0.25); }
+  const handBlock = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.08, 6), new THREE.MeshStandardMaterial({ color: '#d9b48f' })); handBlock.rotation.set(-0.35, 0.3, 0.1); handBlock.position.set(-0.02, 0.02, 0); handG.add(handBlock);
+  let swing = 0, bob = 0;
+  function setHand(h) {
+    hand = h; document.body.classList.remove('hand-kijken', 'hand-bouwen', 'hand-hamer'); document.body.classList.add('hand-' + h);
+    document.querySelectorAll('#hands button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.hand === h)));
+    hammer.visible = h === 'hamer'; handBlock.visible = h === 'bouwen'; handG.visible = h !== 'kijken' && mode === 'walk';
+    const pb = document.getElementById('placeBtn'); pb.hidden = h === 'kijken'; pb.textContent = h === 'hamer' ? 'Sloop' : 'Bouw';
+    ghost.visible = false;
+    try { localStorage.setItem('hexstad-hand', h); } catch (e) { /* geen opslag */ }
+  }
+  function swingHand() { swing = 1; }
+  function updateHand(dt, moving) {
+    if (!handG.visible) return;
+    if (swing > 0) swing = Math.max(0, swing - dt * 4.5);
+    bob += dt * (moving ? 7 : 2);
+    const sw = Math.sin(swing * Math.PI);   // 0 → 1 → 0: naar voren slaan
+    handG.position.set(0.36 + Math.sin(bob) * 0.006, -0.32 + Math.abs(Math.cos(bob)) * 0.01 - sw * 0.08, -0.7 - sw * 0.12);
+    handG.rotation.set(-sw * 1.1, sw * 0.25, 0);
+    if (hand === 'bouwen') { const c = (TYPES[toolBase(tool)] && TOOL_COL[toolBase(tool)]) || '#d9b48f'; handBlock.material.color.set(c); }
+  }
+  const TOOL_COL = { woning: '#d9b48f', kantoor: '#8fa6bd', dak: '#b5543c', park: '#5f9a4a', water: '#3a7ca5', pad: '#9b5a45', fietspad: '#7c8a91', looppad: '#cfc6b0', trap: '#bdb5a5', trappad: '#bdb5a5', helling: '#bdb5a5', hofhelling: '#b9ad96', kuil: '#5f9a4a', heuvel: '#5f9a4a', randpad: '#cfc6b0', module: '#f2b233', gum: '#e0573e' };
+  document.querySelectorAll('#hands button').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); setHand(b.dataset.hand); }));
   function updateWalk(dt) {
     let mx = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + joyVec.x;
     let mz = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0) - joyVec.y;
@@ -46,6 +79,7 @@
     player.vy -= 9.81 * dt; player.y += player.vy * dt;
     if (player.y <= floor) { player.y = floor; player.vy = 0; player.grounded = true; } else player.grounded = false;
     if (player.grounded) sound.walked(Math.hypot(vx, vz) * dt, floor < 0.02, speed > 3);
+    updateHand(dt, Math.hypot(vx, vz) > 0.1);
     camera.position.set(player.x, player.y + EYE, player.z);
     camera.rotation.set(player.pitch, player.yaw, 0);
   }
@@ -59,8 +93,8 @@
   const menuBtn = document.getElementById('menuBtn');
   const modeLbl = document.getElementById('modeLbl');
   document.getElementById('walkHint').textContent = coarse
-    ? 'Linkerduim lopen · rechterduim kijken · richt het puntje en tik op Bouw'
-    : 'Klik om de muis te vangen · WASD lopen · klik bouwt · rechtsklik haalt weg · scrollwiel wisselt van blok';
+    ? 'Linkerduim lopen · rechterduim kijken · kies bovenin Bouwen of Hamer en tik op de knop'
+    : 'Klik om de muis te vangen · WASD lopen · Q wisselt tussen kijken, bouwen en hamer · scrollwiel wisselt van blok';
 
   function setMode(m) {
     mode = m;
@@ -72,11 +106,12 @@
     toastEl.classList.add('fade');
     camera.fov = walking ? 72 : 45; camera.near = walking ? 0.1 : 1.0; camera.updateProjectionMatrix();
     if (walking) {
-      spawnPlayer(); camera.rotation.order = 'YXZ';
+      spawnPlayer(); camera.rotation.order = 'YXZ'; let h0 = 'kijken'; try { h0 = localStorage.getItem('hexstad-hand') || 'kijken'; } catch (e) { /* geen opslag */ } setHand(['kijken', 'bouwen', 'hamer'].includes(h0) ? h0 : 'kijken');
       const hint = document.getElementById('walkHint');
       hint.hidden = false; clearTimeout(setMode.hintT); setMode.hintT = setTimeout(() => { hint.hidden = true; }, 7000);
     }
     else {
+      handG.visible = false; document.body.classList.remove('hand-kijken', 'hand-bouwen', 'hand-hamer');
       if (document.pointerLockElement) document.exitPointerLock();
       applyOrbit();
     }
