@@ -299,18 +299,23 @@
     changed(); toast(P.length + ' vakken aangelegd', 1400);
   }
   // Getekende weg trekken (Weg, Brede weg, Laan): een vrije lijn door de vakmiddens; kruisingen ontstaan vanzelf
+  // Indrukken is het beginpunt, loslaten het eindpunt: de weg is altijd een rechte lijn daartussen (ook op een
+  // touchscreen makkelijk). Een bocht maak je door een tweede weg vanaf het eindpunt te trekken; die sluit vanzelf aan.
   function vecPaintTo(cell) {
     const D = roadDrag;
-    if (!D.vp) { D.vp = { t: VEC_T[D.tool], l: 0, r: 0, p: [] }; pathsOf().push(D.vp); }
+    if (!D.vp) { D.vp = { t: VEC_T[D.tool], l: 0, r: 0, p: [] }; D.vstart = cell; pathsOf().push(D.vp); }
     const L = D.last; if (L && L[0] === cell[0] && L[1] === cell[1]) return;
-    const todo = L ? hexLine(L, cell) : [cell]; D.last = cell;
-    for (const [q, r] of todo) { const w = cellToWorld(q, r), pt = [Math.round(w.x * 100) / 100, Math.round(w.z * 100) / 100], P = D.vp.p, l = P[P.length - 1]; if (!l || Math.hypot(l[0] - pt[0], l[1] - pt[1]) > 0.5) P.push(pt); }
-    if (D.vp.p.length > 1) { buildPathNet(); D.count = D.vp.p.length; }
+    D.last = cell;
+    const a = cellToWorld(D.vstart[0], D.vstart[1]), b = cellToWorld(cell[0], cell[1]);
+    const same = cell[0] === D.vstart[0] && cell[1] === D.vstart[1];
+    D.vp.p = same ? [] : [[Math.round(a.x * 100) / 100, Math.round(a.z * 100) / 100], [Math.round(b.x * 100) / 100, Math.round(b.z * 100) / 100]];
+    D.count = same ? 0 : hexDist(cell[0] - D.vstart[0], cell[1] - D.vstart[1]) + 1;
+    buildPathNet();
   }
   function vecDragEnd() {
     const D = roadDrag, vp = D.vp; D.vp = null; if (!vp) return;
     if (vp.p.length < 2) { const i = cells.paths.indexOf(vp); if (i >= 0) cells.paths.splice(i, 1); buildPathNet(); toast('Sleep van vak naar vak om een ' + TYPES[D.tool].name.toLowerCase() + ' te trekken', 1600); return; }
-    changed(); toast(TYPES[D.tool].name + ' aangelegd, ' + vp.p.length + ' vakken lang', 1400);
+    changed(); toast(TYPES[D.tool].name + ' aangelegd, ' + D.count + ' vakken lang', 1400);
   }
   function roadPaintTo(cell) {
     if (!cell) return;

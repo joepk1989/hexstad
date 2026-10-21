@@ -112,12 +112,12 @@
       if (cur.length > 1) pieces.push({ t: L.t, pts: cur });
     }
     // knopen: uiteinden die bij elkaar liggen zijn één knoop; het eerste uiteinde bepaalt de plek
-    const nodes = [], nodeOf = p => { for (let i = 0; i < nodes.length; i++) if (Math.hypot(nodes[i].x - p[0], nodes[i].z - p[1]) < 3) return i; nodes.push({ x: p[0], z: p[1], edges: [] }); return nodes.length - 1; };
+    const nodes = [], nodeOf = p => { for (let i = 0; i < nodes.length; i++) if (Math.hypot(nodes[i].x - p[0], nodes[i].z - p[1]) < 4.5) return i; nodes.push({ x: p[0], z: p[1], edges: [] }); return nodes.length - 1; };
     const edges = new Map(); let totalLen = 0;
     const rk = p => Math.round(p[0] * 2) / 2 + ',' + Math.round(p[1] * 2) / 2;
     for (const pc of pieces) {
       const a = nodeOf(pc.pts[0]), b = nodeOf(pc.pts[pc.pts.length - 1]), len = plen(pc.pts);
-      if (a === b || len < 3) continue;   // korter dan de samenvoegstraal van knopen: dan zijn a en b al één knoop
+      if (a === b || len < 4.5) continue;   // korter dan de samenvoegstraal van knopen: dan zijn a en b al één knoop
       let id = pc.t + ':' + rk(pc.pts[0]) + '>' + rk(pc.pts[pc.pts.length - 1]); while (edges.has(id)) id += "'";
       edges.set(id, { id, t: pc.t, pts: pc.pts, a, b, len }); nodes[a].edges.push(id); nodes[b].edges.push(id); totalLen += len;
     }
