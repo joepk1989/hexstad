@@ -54,11 +54,110 @@
   function placeModule(q0, r0) {
     const mod = modules[moduleSel]; if (!mod) { openSchets(); return false; }
     ensureIds();
+    { const i = instIdxAt(lastPickRes); if (i >= 0 && cells.inst[i].q === q0 && cells.inst[i].r === r0 && swapInst(i)) return true; }   // op een geplaatste module: wisselen
     const { n, skip } = placeCore(mod, moduleRot, q0, r0);
     if (n) (cells.inst || (cells.inst = [])).push({ mid: mod.id, m: JSON.parse(JSON.stringify(mod)), q: q0, r: r0, rot: moduleRot });
     buildTriNet(); buildPathNet(); buildEdgeNet(); changed();
     toast(n ? '"' + mod.name + '" geplaatst' + (skip ? ' · ' + skip + ' stukken overgeslagen (water of bebouwing)' : '') : 'Hier past de module niet', 2200);
     return n > 0;
+  }
+  // ---------- Randcodes: wat er op elke buitenrand van een module zit, zodat modules op elkaar aansluiten ----------
+  // Afgeleid uit de tekening: een weg die op het midden van een rand uitkomt → 'weg' (of 'brd', 'laan', 'pad'); anders de
+  // driehoeken vlak bij de rand: weg, pad, groen (gras), stoep (vloer/plein), muur (muur/dak/glas), water; niets → 'leeg'.
+  const CODE_OF_KIND = { weg: 'weg', pad: 'pad', gras: 'groen', vloer: 'stoep', plein: 'stoep', muur: 'muur', dak: 'muur', glas: 'muur', water: 'water' };
+  const CODE_COL = { weg: '#3c4045', brd: '#1f2326', laan: '#5f9a48', pad: '#9b5a45', groen: '#6aa84a', stoep: '#cbc8bd', muur: '#8a8a8a', water: '#4a8fd1', leeg: 'rgba(0,0,0,0)' };
+  const hexDistQR = (q, r) => Math.max(Math.abs(q), Math.abs(r), Math.abs(-q - r));
+  function moduleBoundary(k) {   // alle buitenranden van een gebied met straal k, als [q, r, zijde]
+    const out = [];
+    for (let q = -k; q <= k; q++) for (let r = -k; r <= k; r++) { if (hexDistQR(q, r) > k) continue; for (let s = 0; s < 6; s++) if (hexDistQR(q + NEIGH[s][0], r + NEIGH[s][1]) > k) out.push([q, r, s]); }
+    return out;
+  }
+  function moduleCodes(m) {
+    const codes = {}, kk = m.k || 0, ts = R / ([1, 2, 4, 8].includes(m.n) ? m.n : 2);
+    const tris = (m.tris || []).map(([i, j, t, kind]) => { const v = triVerts(i, j, t, ts); return { x: (v[0][0] + v[1][0] + v[2][0]) / 3, z: (v[0][1] + v[1][1] + v[2][1]) / 3, kind }; });
+    for (const [q, r, s] of moduleBoundary(kk)) {
+      const c = cellToWorld(q, r), f = FRAMES[s], mx = c.x + f.nx * INNER, mz = c.z + f.nz * INNER;
+      let code = null;
+      for (const p of m.paths || []) for (const e of [p.p[0], p.p[p.p.length - 1]]) if (Math.hypot(e[0] - mx, e[1] - mz) < 2.5) code = p.t;
+      if (!code) {
+        const cnt = {};
+        for (const t of tris) { if (Math.hypot(t.x - mx, t.z - mz) > 3.2) continue; const cd = CODE_OF_KIND[t.kind]; if (cd) cnt[cd] = (cnt[cd] || 0) + 1; }
+        code = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a])[0] || 'leeg';
+      }
+      codes[q + ',' + r + ',' + s] = code;
+    }
+    return codes;
+  }
+  const codesOf = m => m.codes || (m.codes = moduleCodes(m));
+  // code van een module op een rand van het gedraaide, geplaatste exemplaar (wereldrand q,r,zijde → lokaal terugdraaien)
+  function codeAtWorld(I, q, r, s) {
+    const codes = codesOf(I.m);
+    let [lq, lr] = [q - I.q, r - I.r], ls = s;
+    for (let i = 0; i < I.rot % 6; i++) { [lq, lr] = [-lr, lq + lr]; ls = (ls + 5) % 6; }   // omgekeerde van (q,r)→(q+r,−q), zijde −1
+    return codes[lq + ',' + lr + ',' + ls] || null;
+  }
+  const instArea = I => { const k = I.m.k || 0, out = []; for (let q = -k; q <= k; q++) for (let r = -k; r <= k; r++) if (hexDistQR(q, r) <= k) { let [a, b] = [q, r]; for (let i = 0; i < I.rot; i++) [a, b] = [a + b, -a]; out.push([a + I.q, b + I.r]); } return out; };
+  // Wat staat er naast een geplaatst exemplaar? Per buitenrand de code van de buur (andere module, vak, getekende weg)
+  function neighbourCodes(I) {
+    const req = []; const insts = (cells.inst || []).filter(J => J !== I && Number.isInteger(J.q) && Number.isInteger(J.r));
+    // getekende wegen van anderen (niet van dit exemplaar zelf) die op een rand uitkomen
+    const own = new Set(modulePaths(I.m, I.rot, I.q, I.r).map(p => Math.round(p.p[0][0] * 10) + ',' + Math.round(p.p[0][1] * 10)));
+    const ends = []; for (const p of cells.paths || []) { if (!p.p || p.p.length < 2 || own.has(Math.round(p.p[0][0] * 10) + ',' + Math.round(p.p[0][1] * 10))) continue; ends.push([p.p[0], p.t], [p.p[p.p.length - 1], p.t]); }
+    for (const [lq, lr, ls] of moduleBoundary(I.m.k || 0)) {
+      let [q, r] = [lq, lr], s = ls; for (let i = 0; i < I.rot; i++) { [q, r] = [q + r, -q]; s = (s + 1) % 6; }
+      q += I.q; r += I.r;
+      const nq = q + NEIGH[s][0], nr = r + NEIGH[s][1], ns = (s + 3) % 6;
+      let code = null;
+      const J = insts.find(J => instArea(J).some(([a, b]) => a === nq && b === nr));
+      if (J) code = codeAtWorld(J, nq, nr, ns);
+      if (!code) {
+        const c = cellToWorld(q, r), f = FRAMES[s], mx = c.x + f.nx * INNER, mz = c.z + f.nz * INNER;
+        for (const [e, t] of ends) if (Math.hypot(e[0] - mx, e[1] - mz) < 2.5) code = t;
+      }
+      if (!code) {
+        const st = stackOf(nq, nr), b = baseOf(st[0] || '');
+        code = !st.length ? 'leeg' : b === 'weg' || b === 'laan' ? 'weg' : b === 'pad' ? 'pad' : b === 'park' ? 'groen' : b === 'water' ? 'water' : isBuilding(b) ? 'muur' : 'leeg';
+      }
+      req.push({ q, r, s, code });
+    }
+    return req;
+  }
+  // Passende modules: zelfde straal, en op elke rand met een buur dezelfde code; gesorteerd op aantal afwijkingen
+  function matchingModules(I) {
+    const req = neighbourCodes(I), out = [];
+    for (let mi = 0; mi < modules.length; mi++) {
+      const m = modules[mi]; if ((m.k || 0) !== (I.m.k || 0) || !fineOK(m) && !(m.tris || []).length) continue;
+      for (let rot = 0; rot < 6; rot++) {
+        const J = { m, q: I.q, r: I.r, rot }; let bad = 0, used = 0;
+        for (const e of req) { if (e.code === 'leeg') continue; used++; if (codeAtWorld(J, e.q, e.r, e.s) !== e.code) bad++; }
+        out.push({ mi, rot, bad, used });
+      }
+    }
+    out.sort((a, b) => a.bad - b.bad || a.mi - b.mi || a.rot - b.rot);
+    return out;
+  }
+  function instIdxAt(res) {
+    if (!res || !res.point || !cells.inst) return -1;
+    const x = res.point.x, z = res.point.z; let best = -1, bd = 7;
+    cells.inst.forEach((I, i) => {
+      let d = 1e9; for (const a of instPts(I)) d = Math.min(d, Math.hypot(a[0] - x, a[1] - z));
+      if (Number.isInteger(I.q) && Number.isInteger(I.r)) for (const [q, r] of instArea(I)) { const c = cellToWorld(q, r); d = Math.min(d, Math.max(0, Math.hypot(c.x - x, c.z - z) - INNER)); }   // binnen het gebied van de module telt ook
+      if (d <= bd) { bd = d; best = i; }
+    });
+    return best;
+  }
+  // Klik op een geplaatste module: wissel naar de variant die het best op de buren aansluit; nog een klik: de volgende
+  function swapInst(i) {
+    const I = cells.inst[i]; if (!Number.isInteger(I.q) || !Number.isInteger(I.r)) return false;
+    const list = matchingModules(I); if (!list.length) return false;
+    const cur = list.findIndex(c => modules[c.mi].id === I.mid && c.rot === I.rot % 6);
+    const next = list[(cur + 1) % list.length], m = modules[next.mi];
+    cells.inst.splice(i, 1); removeInst(I);
+    const { n } = placeCore(m, next.rot, I.q, I.r);
+    if (n) cells.inst.push({ mid: m.id, m: JSON.parse(JSON.stringify(m)), q: I.q, r: I.r, rot: next.rot });
+    buildTriNet(); buildPathNet(); buildEdgeNet(); changed();
+    toast('"' + m.name + '"' + (next.rot ? ' · gedraaid' : '') + (next.bad ? ' · ' + next.bad + ' rand(en) sluiten niet aan' : ' · sluit aan') + ' (' + ((cur + 1) % list.length + 1) + '/' + list.length + ')', 2000);
+    return true;
   }
   // Stad en schets gelijk houden: een bewerkte module past alle geplaatste exemplaren aan, een verwijderde module haalt ze weg
   const instOf = mod => (cells.inst || []).filter(I => I.mid ? I.mid === mod.id : I.m.name === mod.name);
@@ -276,6 +375,17 @@
       else { strokePath(pts, 0.1, '#f1efe6', [3 * S.view.s, 3.5 * S.view.s]); }
     }
   }
+  function drawCodes() {   // randcodes langs de buitenranden: zo sluit deze module op andere aan
+    if (!S.tris.size && !S.paths.length) return;
+    const codes = moduleCodes(cur());
+    for (const [id, code] of Object.entries(codes)) {
+      if (code === 'leeg') continue;
+      const [q, r, s] = id.split(',').map(Number), [cx, cz] = cellXZ(q, r), f = FRAMES[s], mx = cx + f.nx * INNER, mz = cz + f.nz * INNER;
+      const a = toS(mx + f.tx * 2.2, mz + f.tz * 2.2), b = toS(mx - f.tx * 2.2, mz - f.tz * 2.2);
+      ctx.strokeStyle = CODE_COL[code] || '#fff'; ctx.lineWidth = Math.max(3, 1.1 * S.view.s); ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+      if (S.view.s > 5) { const t = toS(mx + f.nx * 1.6, mz + f.nz * 1.6); ctx.fillStyle = '#fff'; ctx.font = '700 11px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(code, t[0], t[1]); }
+    }
+  }
   function drawCur() {
     if (S.tool !== 'line') return;
     if (S.vm === '2d' && S.view.s > 3) { ctx.fillStyle = 'rgba(0,0,0,.18)'; for (const a of hexAnchors()) { const q = toS(a[0], a[1]); ctx.beginPath(); ctx.arc(q[0], q[1], 2, 0, 7); ctx.fill(); } }
@@ -326,6 +436,7 @@
     for (let q = -S.k; q <= S.k; q++) for (let r = -S.k; r <= S.k; r++) { if (hexDist(q, r) > S.k) continue; const [cx, cz] = cellXZ(q, r); path([0, 1, 2, 3, 4, 5].map(n => { const a = Math.PI / 6 + n * Math.PI / 3; return [cx + Math.cos(a) * R, cz + Math.sin(a) * R]; })); }
     ctx.stroke();
     const o = toS(0, 0); ctx.fillStyle = css('--signal'); ctx.beginPath(); ctx.arc(o[0], o[1], 4, 0, 7); ctx.fill();
+    drawCodes();
     drawMarks();
   }
   new ResizeObserver(resize).observe(stage);
@@ -474,7 +585,7 @@
   const say = t => { $('msg').textContent = t; };
   const counts = () => say(S.tris.size ? S.tris.size + ' driehoeken' : '');
 
-  const cur = () => ({ name: ($('name').value || '').trim() || 'Module ' + (modules.length + 1), n: S.n, k: S.k, fine: S.fine ? 1 : 0, edges: [], cells: [], paths: S.paths.map(a => ({ t: a.t, l: a.l || 0, r: a.r || 0, p: a.p.map(q => q.slice()) })), tris: [...S.tris].map(([id, v]) => { const k = kindOf(v), a = [...id.split(',').map(Number), k]; if (v.includes('@')) a.push(layOf(v)); return a; }) });
+  const cur = () => { const m = { name: ($('name').value || '').trim() || 'Module ' + (modules.length + 1), n: S.n, k: S.k, fine: S.fine ? 1 : 0, edges: [], cells: [], paths: S.paths.map(a => ({ t: a.t, l: a.l || 0, r: a.r || 0, p: a.p.map(q => q.slice()) })), tris: [...S.tris].map(([id, v]) => { const k = kindOf(v), a = [...id.split(',').map(Number), k]; if (v.includes('@')) a.push(layOf(v)); return a; }) }; m.codes = moduleCodes(m); return m; };
   function renderLib() {
     const el = $('lib'); el.innerHTML = modules.length ? '' : '<p class="hint">Nog geen modules. Teken iets en bewaar het.</p>';
     modules.forEach((m, idx) => {
@@ -503,7 +614,11 @@
     try { await navigator.clipboard.writeText(text); say('Gekopieerd. Plak de code in Hexstad.'); }
     catch (e) { $('code').select(); say('Selecteer en kopieer de code hierboven.'); }
   }
-  $('bCopyOne').onclick = () => { if (!S.tris.size) { say('Teken eerst iets'); return; } copy(JSON.stringify(cur())); };
+  $('bCopyOne').onclick = () => { if (!S.tris.size && !S.paths.length) { say('Teken eerst iets'); return; } copy(JSON.stringify(cur())); };
+  const download = (name, text) => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
+  $('bSaveOne').onclick = () => { if (!S.tris.size && !S.paths.length) { say('Teken eerst iets'); return; } const m = cur(); download(m.name.replace(/[^\w\-]+/g, '_') + '.json', JSON.stringify(m)); };
+  $('bSaveAll').onclick = () => { if (!modules.length) { say('Bewaar eerst een module'); return; } download('hexstad-modules.json', JSON.stringify(modules)); };
+  $('bFile').onchange = e => { const f = e.target.files && e.target.files[0]; if (!f) return; f.text().then(t => { $('code').value = t; $('bImport').click(); e.target.value = ''; }); };
   $('bCopyAll').onclick = () => { if (!modules.length) { say('Bewaar eerst een module'); return; } copy(JSON.stringify(modules)); };
   $('bImport').onclick = () => {
     try {

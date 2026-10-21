@@ -162,10 +162,13 @@
 
   <section>
     <h2>Delen</h2>
-    <p class="hint">Bewaarde modules staan meteen in het tabblad Modules. Met code deel je ze met een ander apparaat.</p>
+    <p class="hint">Bewaarde modules staan meteen in het tabblad Modules. Deel ze als bestand of als code. De gekleurde streepjes op de buitenranden zijn de randcodes (weg, stoep, groen, muur…): modules met dezelfde code sluiten op elkaar aan, en in de stad wisselt een klik op een geplaatste module naar de variant die het best bij de buren past.</p>
     <div class="row" style="margin:6px 0">
       <button id="s_bCopyOne" type="button">Kopieer module</button>
       <button id="s_bCopyAll" type="button">Kopieer alles</button>
+      <button id="s_bSaveOne" type="button">Bestand (.json)</button>
+      <button id="s_bSaveAll" type="button">Alles als bestand</button>
+      <label class="btn-like"><input id="s_bFile" type="file" accept=".json,application/json" hidden>Bestand laden</label>
     </div>
     <textarea id="s_code" spellcheck="false" placeholder="Plak hier een modulecode"></textarea>
     <div class="row" style="margin-top:6px"><button id="s_bImport" type="button">Laad uit code</button></div>

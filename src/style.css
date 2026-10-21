@@ -338,8 +338,8 @@ body.night .btn.tod { color: #cdd8ff; }
 #schetsApp h1 small { display: block; font: 400 12px var(--mono); color: var(--muted); margin-top: 2px; }
 #schetsApp h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); margin: 0 0 6px; font-weight: 700; }
 #schetsApp .kinds { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-#schetsApp button { font: inherit; color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; cursor: pointer; text-align: left; min-height: 38px; }
-#schetsApp button:hover { border-color: var(--muted); }
+#schetsApp button, #schetsApp .btn-like { font: inherit; color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; cursor: pointer; text-align: left; min-height: 38px; }
+#schetsApp button:hover, #schetsApp .btn-like:hover { border-color: var(--muted); }
 #schetsApp button[aria-pressed="true"] { border-color: var(--signal); box-shadow: inset 0 0 0 1px var(--signal); }
 #schetsApp .kinds button { display: flex; align-items: center; gap: 8px; }
 #schetsApp .sw { width: 18px; height: 18px; border-radius: 4px; flex: none; border: 1px solid rgba(0,0,0,.25); clip-path: none; }
@@ -368,3 +368,5 @@ body.night .btn.tod { color: #cdd8ff; }
 .sw-vbrd { background: linear-gradient(90deg, #cbc8bd 0 14%, #3c4045 14% 86%, #cbc8bd 86%); position: relative; }
 .sw-vbrd::after { content: ''; position: absolute; left: 48%; top: 10%; width: 4px; height: 80%; border-left: 1px solid #f1efe6; border-right: 1px solid #f1efe6; }
 .sw-vlaan { background: linear-gradient(90deg, #cbc8bd 0 10%, #9b5a45 10% 18%, #3c4045 18% 42%, #6aa84a 42% 58%, #3c4045 58% 82%, #9b5a45 82% 90%, #cbc8bd 90%); }
+
+#schetsApp .btn-like { display: inline-flex; align-items: center; }
