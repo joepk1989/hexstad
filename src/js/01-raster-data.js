@@ -49,8 +49,7 @@
     { name: 'Gebouwen', tools: ['woning', 'kantoor', 'dak'], todo: ['Winkel', 'School', 'Fabriek'] },
     { name: 'Groen en water', tools: ['park', 'water'], todo: ['Bomen', 'Hagen', 'Vijver', 'Fontein'] },
     { name: 'Terrein', tools: ['kuil', 'heuvel', 'helling', 'hofhelling'], todo: ['Klif', 'Strand'] },
-    { name: 'Bouwdelen', tools: ['blok', 'muur', 'tunnel', 'tribune', 'zuilen', 'hof'], todo: ['Brug', 'Poort', 'Toren'] },
-    { name: 'Modules', tools: ['module'] },
+    { name: 'Modules', tools: ['module'], todo: ['Brug', 'Poort', 'Toren'] },   // blok, muur, tunnel, tribune, zuilen en hof zijn modules geworden (zie 08b); bestaande steden tonen ze nog
   ];
   const TOOLS = [...CATS.flatMap(c => c.tools), 'gum'];
   const VEC_TOOLS = new Set(['vweg', 'vbrd', 'vlaan']), VEC_T = { vweg: 'weg', vbrd: 'brd', vlaan: 'laan' };   // getekende wegen: lijnen, geen vakken
