@@ -54,7 +54,8 @@
   const pathsOf = () => cells.paths || (cells.paths = []);
   const PW_H = 0.25;   // stoephoogte van een getekende weg
   // laan: per richting rijstrook 3,25 · parkeerstrook 2 · fietspad 2, met een middenberm van 3 m (med = halve berm)
-  const PATH_DEF = { weg: { hw: 4.5, walk: 2.2 }, brd: { hw: 6.5, walk: 2.2 }, laan: { hw: 8.75, walk: 2.5, med: 1.5 }, pad: { hw: 1.6, walk: 0.5 } };
+  // zelfde maten als de oude vakwegen: weg 9 m (rijbaan 5 m + 2 m stoep), brede weg 13 m (vier stroken), laan 22,5 m
+  const PATH_DEF = { weg: { hw: 2.5, walk: 2.0 }, brd: { hw: 4.5, walk: 2.0 }, laan: { hw: 8.75, walk: 2.5, med: 1.5 }, pad: { hw: 1.6, walk: 0.5 } };
   const vmat = (color, n) => std({ color, polygonOffset: true, polygonOffsetFactor: -n, polygonOffsetUnits: -n, side: THREE.DoubleSide });
   const VM = { grass: vmat('#6aa84a', 1), walk: vmat('#cbc8bd', 1), kerb: vmat('#9b988e', 2), asph: vmat('#3c4045', 3), dash: vmat('#f1efe6', 4), pave: vmat('#9b5a45', 3) };
   let pathGroup = null;
@@ -216,7 +217,7 @@
     }
     const laanMid = k => { const st = cells.get(k); const d = st && st.length === 1 ? laanD(st[0]) : -1; if (d < 0) return null; const G = LAAN_G[d], c = cw(k); return [rnd(c.x + G.n[0] * 6.75), rnd(c.z + G.n[1] * 6.75)]; };
     // gewone wegen: per as de maximale rechte reeksen
-    const used = new Set();
+    const used = new Set(), runs = [];
     for (let ax = 0; ax < 3; ax++) {
       const [dq, dr] = NEIGH[ax];
       for (const k of plain) {
@@ -225,13 +226,23 @@
         const run = [[q, r]]; let [a, b] = [q + dq, r + dr];
         while (plain.has(a + ',' + b)) { run.push([a, b]); a += dq; b += dr; }
         if (run.length < 2) continue;
-        run.forEach(c => used.add(c.join(',')));
-        const A = cellToWorld(run[0][0], run[0][1]), B = cellToWorld(run[run.length - 1][0], run[run.length - 1][1]);
-        let p0 = [rnd(A.x), rnd(A.z)], p1 = [rnd(B.x), rnd(B.z)];
-        const before = laanMid((q - dq) + ',' + (r - dr)), after = laanMid(a + ',' + b);   // sluit aan op een laan ernaast
-        if (before) p0 = before; if (after) p1 = after;
-        P.push({ t: 'weg', l: 0, r: 0, p: [p0, p1] });
+        runs.push({ run, before: (q - dq) + ',' + (r - dr), after: a + ',' + b });
       }
+    }
+    // Twee wegvakken naast elkaar die allebei ook aan een derde wegvak grenzen (een driehoekje van drie vakken, zoals in
+    // een breed kruispunt van vakwegen) zijn geen aparte weg: die korte dwarsverbinding vervalt als beide vakken al in
+    // een andere reeks zitten.
+    const common = R2 => { const [A, B] = R2.run; for (const [dq, dr] of NEIGH) { const k = (A[0] + dq) + ',' + (A[1] + dr); if (plain.has(k) && NEIGH.some(([eq, er]) => B[0] + eq === A[0] + dq && B[1] + er === A[1] + dr)) return true; } return false; };
+    const cand = runs.filter(x => x.run.length === 2 && common(x)), cover = new Map();
+    for (const x of runs) if (!cand.includes(x)) for (const c of x.run) cover.set(c.join(','), (cover.get(c.join(',')) || 0) + 1);
+    const keep = runs.filter(x => !cand.includes(x) || !x.run.every(c => cover.get(c.join(','))));
+    for (const { run, before, after } of keep) {
+      run.forEach(c => used.add(c.join(',')));
+      const A = cellToWorld(run[0][0], run[0][1]), B = cellToWorld(run[run.length - 1][0], run[run.length - 1][1]);
+      let p0 = [rnd(A.x), rnd(A.z)], p1 = [rnd(B.x), rnd(B.z)];
+      const lb = laanMid(before), la = laanMid(after);   // sluit aan op een laan ernaast
+      if (lb) p0 = lb; if (la) p1 = la;
+      P.push({ t: 'weg', l: 0, r: 0, p: [p0, p1] });
     }
     // losse wegvakken die in geen enkele reeks zitten maar wel aan een reeks grenzen: kort stukje naar het buurvak
     for (const k of plain) {
@@ -354,7 +365,7 @@
       const mp = trimPts(e.pts, markTrim(e.a), markTrim(e.b)); if (mp.length < 2) continue;
       if (e.t === 'weg') dashesInto(dash, mp, 0.07, Y + 0.03, 3, 3.5);
       else if (e.t === 'laan') { for (const sg of [1, -1]) { ribbonInto(dash, mp, 0.06, Y + 0.03, sg * 4.75); ribbonInto(pave, mp, 1.0, Y + 0.025, sg * 7.75); ribbonInto(dash, mp, 0.05, Y + 0.03, sg * 6.75); } }
-      else { dashesInto(dash, mp, 0.06, Y + 0.03, 3, 3.5, 3.2); dashesInto(dash, mp, 0.06, Y + 0.03, 3, 3.5, -3.2); ribbonInto(dash, mp, 0.05, Y + 0.03, 0.12); ribbonInto(dash, mp, 0.05, Y + 0.03, -0.12); }
+      else { dashesInto(dash, mp, 0.06, Y + 0.03, 3, 3.5, 2.25); dashesInto(dash, mp, 0.06, Y + 0.03, 3, 3.5, -2.25); ribbonInto(dash, mp, 0.05, Y + 0.03, 0.12); ribbonInto(dash, mp, 0.05, Y + 0.03, -0.12); }
     }
     // Stoephoeken op kruisingen: tussen twee opeenvolgende takken loopt de stoep door (afgesneden hoek), met stoeprand
     for (let n = 0; n < GR.nodes.length; n++) {
