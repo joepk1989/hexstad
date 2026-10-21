@@ -33,6 +33,7 @@
   }
   rebuildAll(); updateStats();
   if (modsReset) changed();
+  if (libRefreshed) { let n = 0; for (const m of modules) if (m.v === 2) n += syncModule(m); if (n) changed(); }   // vernieuwde standaardmodules ook in de stad
   selectTool('woning');
   applyOrbit();
   setTimeout(() => toast(cleaned
