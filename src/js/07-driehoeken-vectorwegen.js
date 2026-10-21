@@ -139,8 +139,26 @@
       let id = pc.t + ':' + rk(pc.pts[0]) + '>' + rk(pc.pts[pc.pts.length - 1]); while (edges.has(id)) id += "'";
       edges.set(id, { id, t: pc.t, pts: pc.pts, a, b, len }); nodes[a].edges.push(id); nodes[b].edges.push(id); totalLen += len;
     }
+    // Verkeerslichten: elke knoop met drie of meer takken. De takken worden in twee groepen verdeeld (de as van de
+    // eerste tak en de rest); de groepen krijgen om de beurt groen. Elke kruising heeft een eigen beginmoment.
+    for (let n = 0; n < nodes.length; n++) {
+      const N = nodes[n]; if (N.edges.length < 3) continue;
+      const dirIn = id => { const e = edges.get(id); const into = e.b === n; const p = into ? e.pts : e.pts.slice().reverse(); const a = p[p.length - 2], b = p[p.length - 1]; const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return [(b[0] - a[0]) / l, (b[1] - a[1]) / l]; };
+      const d0 = dirIn(N.edges[0]), grp = new Map();
+      for (const id of N.edges) { const d = dirIn(id); grp.set(id, Math.abs(d[0] * d0[0] + d[1] * d0[1]) > 0.7071 ? 0 : 1); }
+      if (![...grp.values()].includes(1)) continue;
+      N.light = { grp, off: ((Math.round(N.x * 7) * 31 + Math.round(N.z * 7) * 17) & 1023) / 1024 * 28 };
+    }
     return { nodes, edges, totalLen, ver: ver || 0 };
   }
+  const VTL = { G: 10, A: 2.5, AR: 1.5 };   // per groep: groen, oranje, alles rood
+  function vecLightState(G, n, eid, t) {   // 'g' | 'a' | 'r', of null als er geen licht staat
+    const N = G.nodes[n]; if (!N || !N.light || !N.light.grp.has(eid)) return null;
+    const per = VTL.G + VTL.A + VTL.AR, cyc = per * 2, tt = ((t + N.light.off) % cyc + cyc) % cyc, i = Math.floor(tt / per), w = tt - i * per;
+    if (N.light.grp.get(eid) !== i) return 'r';
+    return w < VTL.G ? 'g' : w < VTL.G + VTL.A ? 'a' : 'r';
+  }
+  let vecLightReg = [];   // lampen van de getekende kruisingen: [{ n, eid, lamps }], bijgewerkt door updateLights
   const vecTrimW = (G, n) => {   // hoe ver de stoep voor een kruising ophoudt: tot aan de stoeprand van de breedste zijstraat
     const N = G.nodes[n]; if (!N || N.edges.length < 3) return 0;
     let hw = 0; for (const id of N.edges) { const t = G.edges.get(id).t; hw = Math.max(hw, PATH_DEF[t].hw + PATH_DEF[t].walk); } return hw + 0.3;
@@ -214,11 +232,11 @@
   }
   function buildPathNet() {
     if (pathGroup) { pathGroup.traverse(m => { if (m.isMesh && m.userData.own) m.geometry.dispose(); }); scene.remove(pathGroup); }
-    pathGroup = pathBuild(cells.paths); scene.add(pathGroup); carsDirty = true; vecDirty = true; peopleDirty = true;
+    vecLightReg = []; pathGroup = pathBuild(cells.paths, vecLightReg); scene.add(pathGroup); carsDirty = true; vecDirty = true; peopleDirty = true;
     vecCover = vecCoverOf(cells.paths);
     for (const k of vecCover) { const [q, r] = k.split(',').map(Number); if (stackOf(q, r).length) continue; const c = cellToWorld(q, r), m = new THREE.Mesh(HEX_FLAT, SAND); m.position.set(c.x, 0.03, c.z); m.receiveShadow = true; pathGroup.add(m); }
   }
-  function pathBuild(P) {   // lint-meshes voor een lijst vrije wegen; ook gebruikt door de 3D-weergave in de schets
+  function pathBuild(P, lightReg) {   // lint-meshes voor een lijst vrije wegen; ook gebruikt door de 3D-weergave in de schets
     const pathGroup = new THREE.Group();
     if (!P || !P.length) return pathGroup;
     const grass = newLayer(), walk = newLayer(), kerb = newLayer(), asph = newLayer(), pave = newLayer(), dash = newLayer(), Y = 0.1;
@@ -263,6 +281,21 @@
       if (e.t === 'weg') dashesInto(dash, mp, 0.07, Y + 0.03, 3, 3.5);
       else if (e.t === 'laan') { for (const sg of [1, -1]) { ribbonInto(dash, mp, 0.06, Y + 0.03, sg * 4.75); ribbonInto(pave, mp, 1.0, Y + 0.025, sg * 7.75); ribbonInto(dash, mp, 0.05, Y + 0.03, sg * 6.75); } }
       else { dashesInto(dash, mp, 0.06, Y + 0.03, 3, 3.5, 3.2); dashesInto(dash, mp, 0.06, Y + 0.03, 3, 3.5, -3.2); ribbonInto(dash, mp, 0.05, Y + 0.03, 0.12); ribbonInto(dash, mp, 0.05, Y + 0.03, -0.12); }
+    }
+    // Verkeerslichten: per tak een paal rechts van de rijbaan, op de hoek van de stoep, met de kop naar het verkeer
+    for (let n = 0; n < GR.nodes.length; n++) {
+      const N = GR.nodes[n]; if (!N.light) continue;
+      for (const id of N.edges) {
+        const e = GR.edges.get(id), def = PATH_DEF[e.t], into = e.b === n, pts = into ? e.pts : e.pts.slice().reverse();
+        const lane = trimPts(offsetPts(pts, def.hw + 0.9), 0, vecTrimW(GR, n) - 0.6), p = lane[lane.length - 1], a = lane[Math.max(0, lane.length - 2)];
+        let dx = p[0] - a[0], dz = p[1] - a[1]; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+        const nx = -dx, nz = -dz, rot = Math.PI / 2 - Math.atan2(nz, nx);
+        const pole = new THREE.Mesh(G.tlPole, M.tlBody); pole.position.set(p[0], PW_H, p[1]); pathGroup.add(pole);
+        const hd = new THREE.Mesh(G.tlHead, M.tlBody); hd.position.set(p[0], PW_H + 3.0, p[1]); hd.rotation.y = rot; pathGroup.add(hd);
+        const lamps = {};
+        [['r', 0.3], ['a', 0], ['g', -0.3]].forEach(([c, dy]) => { const lm = new THREE.Mesh(G.tlLamp, M.lampOff); lm.position.set(p[0] + nx * 0.18, PW_H + 3.0 + dy, p[1] + nz * 0.18); lm.rotation.y = rot; pathGroup.add(lm); lamps[c] = lm; });
+        if (lightReg) lightReg.push({ n, eid: id, lamps });
+      }
     }
     for (const e of GR.edges.values()) {
       const def = PATH_DEF[e.t], hw = def.hw + def.walk;

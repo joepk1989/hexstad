@@ -344,7 +344,7 @@
       if (!opts.length) return vecULeg(e, c.dir, c.lane, from);
       const sc = opts.map(o => { const od = o.a === nEnd ? 0 : 1; let d0 = dirAt(o.pts, od ? o.pts.length - 1 : 0); if (od) d0 = [-d0[0], -d0[1]]; return { o, od, cos: d0[0] * from.d[0] + d0[1] * from.d[1] }; });
       const straight = sc.filter(x => x.cos > 0.8), ch = straight.length && Math.random() < 0.55 ? pick(straight) : pick(sc);
-      return vecLeg(ch.o, ch.od, laneFor(ch.o, c.lane), from);
+      const L = vecLeg(ch.o, ch.od, laneFor(ch.o, c.lane), from); L.viaNode = nEnd; L.viaEid = c.eid; return L;   // het licht staat bij de knoop waar deze tak begint
     }
     function spawnVec(c) {
       let x = Math.random() * VG.totalLen, e = null;
@@ -354,7 +354,8 @@
     }
     // Licht bij het binnenrijden van een stuk rijlijn
     function entryLight(L, t) {
-      if (!L || L.vec) return null;
+      if (!L) return null;
+      if (L.vec) return L.viaNode != null ? vecLightState(VG, L.viaNode, L.viaEid, t) : null;
       if (L.laan && L.port === 'mid') return null;
       return lightState(L.q, L.r, L.inS, t);
     }

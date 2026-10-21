@@ -620,6 +620,7 @@
     return w < TL.G ? 'g' : w < TL.G + TL.A ? 'a' : 'r';
   }
   function updateLights(t) {
+    if (vecLightReg.length) { const G = cars.vecGraph(); for (const L of vecLightReg) { const st = vecLightState(G, L.n, L.eid, t) || 'r'; for (const c of ['r', 'a', 'g']) { const want = c === st ? M.lampOn[c] : M.lampOff; if (L.lamps[c].material !== want) L.lamps[c].material = want; } } }
     for (const list of lightReg.values()) for (const L of list) {
       const st = lightState(L.q, L.r, L.arm, t) || 'r';
       for (const c of ['r', 'a', 'g']) { const want = c === st ? M.lampOn[c] : M.lampOff; if (L.lamps[c].material !== want) L.lamps[c].material = want; }
