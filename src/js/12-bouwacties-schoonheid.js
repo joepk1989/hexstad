@@ -230,7 +230,9 @@
     const { q, r } = o.userData;
     const n = h.face.normal.clone().transformDirection(h.object.matrixWorld);
     let cell;
-    if (n.y > 0.5) cell = [q, r];
+    // bovenkant, of de bovenste helft van het bovenste blok (zo kun je vanaf de straat op een gebouw stapelen)
+    const st = stackOf(q, r), topH = st.length ? TY(st[st.length - 1]).h : 0, ct = columnTop(q, r);
+    if (n.y > 0.5 || (st.length && h.point.y > ct - Math.max(0.5, topH) * 0.5)) cell = [q, r];
     else { const p = h.point.clone().addScaledVector(n, 0.4); cell = worldToCell(p.x, p.z); }
     return { place: cell, erase: [q, r], point: h.point };
   }
