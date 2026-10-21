@@ -339,7 +339,7 @@
         ribbonInto(pave, pts, def.hw, Y + 0.02); [pts[0], pts[pts.length - 1]].forEach(p => discInto(pave, p, def.hw, Y + 0.02));
         continue;
       }
-      ribbonInto(asph, pts, def.hw + 0.3, Y + 0.02); [pts[0], pts[pts.length - 1]].forEach(p => discInto(asph, p, def.hw + 0.3, Y + 0.02));
+      ribbonInto(asph, pts, def.hw + 0.3, Y + 0.02);   // de ronde kop komt alleen op een doodlopend eind (zie de knopen hieronder)
     }
     // Stoepen per tak van de graaf: 25 cm hoog (als bij de gewone wegen) met een stoeprand; ze houden op bij
     // een kruising, zodat ze niet over de zijstraat heen lopen. Aan de kop van een doodlopende weg een ring.
@@ -371,6 +371,8 @@
       else if (e.t === 'laan') { for (const sg of [1, -1]) { ribbonInto(dash, mp, 0.06, Y + 0.03, sg * 4.75); ribbonInto(pave, mp, 1.0, Y + 0.025, sg * 7.75); ribbonInto(dash, mp, 0.05, Y + 0.03, sg * 6.75); } }
       else { dashesInto(dash, mp, 0.06, Y + 0.03, 3, 3.5, 2.25); dashesInto(dash, mp, 0.06, Y + 0.03, 3, 3.5, -2.25); ribbonInto(dash, mp, 0.05, Y + 0.03, 0.12); ribbonInto(dash, mp, 0.05, Y + 0.03, -0.12); }
     }
+    // Kop van een doodlopende weg: rond asfalt
+    for (let n = 0; n < GR.nodes.length; n++) { const N = GR.nodes[n]; if (N.edges.length !== 1) continue; const e = GR.edges.get(N.edges[0]), p = e.a === n ? e.pts[0] : e.pts[e.pts.length - 1]; discInto(asph, p, PATH_DEF[e.t].hw + 0.3, Y + 0.02); }
     // Stoephoeken op kruisingen: tussen twee opeenvolgende takken loopt de stoep door (afgesneden hoek), met stoeprand
     for (let n = 0; n < GR.nodes.length; n++) {
       const N = GR.nodes[n]; if (N.edges.length < 3) continue;
@@ -381,6 +383,7 @@
         const sA = sideTo(A, B), sB = sideTo(B, A), dA = PATH_DEF[A.e.t], dB = PATH_DEF[B.e.t];
         const KA = vecWalkPts(GR, A.e, A.dir, sA * (dA.hw + 0.3))[0], OA = vecWalkPts(GR, A.e, A.dir, sA * (dA.hw + dA.walk))[0];
         const KB = vecWalkPts(GR, B.e, B.dir, sB * (dB.hw + 0.3))[0], OB = vecWalkPts(GR, B.e, B.dir, sB * (dB.hw + dB.walk))[0];
+        polyInto(asph, [[N.x, N.z], KA, KB], Y + 0.02);   // het kruisingsvak zelf: tot aan de afgesneden hoek dicht met asfalt
         polyInto(walk, [KA, KB, OB, OA], PW_H); polyInto(kerb, [KA, KB, [KB[0] + (OB[0] - KB[0]) * 0.08, KB[1] + (OB[1] - KB[1]) * 0.08], [KA[0] + (OA[0] - KA[0]) * 0.08, KA[1] + (OA[1] - KA[1]) * 0.08]], PW_H + 0.005);
         wallSeg(kerb, KA, KB, Y, PW_H); wallSeg(walk, OA, OB, 0, PW_H);
       }
