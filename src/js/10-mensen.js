@@ -57,7 +57,7 @@
     }
     // Getekende wegen: knopen op kruisingen en uiteinden, stoepen ertussen (nog los van het hexnetwerk)
     const G = cars.vecGraph();
-    const vn = G.nodes.map((N, i) => { const r = N.z / (1.5 * R); return { key: 'v' + i, q: N.x / (R * SQ3) - r / 2, r, y: PW_H, x: N.x, z: N.z, kind: { b: 'vec' }, edges: new Map() }; });
+    const vn = G.nodes.map(N => { const r = N.z / (1.5 * R); return { key: 'v' + Math.round(N.x * 2) / 2 + ',' + Math.round(N.z * 2) / 2, q: N.x / (R * SQ3) - r / 2, r, y: PW_H, x: N.x, z: N.z, kind: { b: 'vec' }, edges: new Map() }; });
     for (const e of G.edges.values()) {
       const A = vn[e.a], B = vn[e.b];
       A.edges.set(B.key, { to: B, side: -1, climb: false, vec: e, dir: 0 });
@@ -253,10 +253,11 @@
         const t = surfTop(s2, x, z);
         if (t !== null && t <= feet + 0.45 && (best === null || t > best)) best = t;
       }
-      if (best === null || best < 0.5) best = Math.max(best || 0, vecFloor(x, z));
+      if (best === null || best < 0.5) { const v = vecFloor(x, z); if (v > 0) best = Math.max(best || 0, v); }
       return best === null ? (feet < 0.5 ? 0 : feet) : best;
     }
     function place(a, n, fromDoor) {
+      curA = a;
       a.node = n; a.prev = null; a.wps = []; a.state = 'walk'; a.timer = 0;
       const [x, z] = centerOf(n, null, a);
       a.x = x; a.z = z; a.y = n.y; a.goingIn = false;
@@ -627,6 +628,7 @@
         if (t !== null && t <= y + 0.3 && (best === null || t > best)) best = t;
       }
       if (best !== null) return best;
+      { const v = vecFloor(x, z); if (v > 0) return v; }
       const [q, r] = worldToCell(x, z);
       return baseOf(stackOf(q, r)[0]) === 'water' ? -1.3 : 0;
     }

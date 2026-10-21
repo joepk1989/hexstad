@@ -27,7 +27,10 @@
     }
   } catch (e) {}
   save();
-  if (modsReset && cells.inst && cells.inst.length) { for (const I of cells.inst) removeInst(I); cells.inst = []; }   // eenmalig: oude modules uit de stad
+  if (modsReset) {   // eenmalig: oude modules uit de stad, ook uit de andere opgeslagen stad
+    if (cells.inst && cells.inst.length) { for (const I of cells.inst) removeInst(I); cells.inst = []; }
+    try { for (const k of [MINE, STORE]) { const o = load(k); if (o && o.inst && o.inst.length) { const keep = cells; cells = o; for (const I of o.inst) removeInst(I); o.inst = []; cells = keep; localStorage.setItem(k, serialize(o)); } } } catch (e) { /* geen opslag */ }
+  }
   rebuildAll(); updateStats();
   if (modsReset) changed();
   selectTool('woning');

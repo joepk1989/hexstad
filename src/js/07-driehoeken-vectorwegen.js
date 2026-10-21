@@ -116,7 +116,7 @@
     const rk = p => Math.round(p[0] * 2) / 2 + ',' + Math.round(p[1] * 2) / 2;
     for (const pc of pieces) {
       const a = nodeOf(pc.pts[0]), b = nodeOf(pc.pts[pc.pts.length - 1]), len = plen(pc.pts);
-      if (a === b || len < 4) continue;
+      if (a === b || len < 3) continue;   // korter dan de samenvoegstraal van knopen: dan zijn a en b al één knoop
       let id = pc.t + ':' + rk(pc.pts[0]) + '>' + rk(pc.pts[pc.pts.length - 1]); while (edges.has(id)) id += "'";
       edges.set(id, { id, t: pc.t, pts: pc.pts, a, b, len }); nodes[a].edges.push(id); nodes[b].edges.push(id); totalLen += len;
     }
@@ -133,7 +133,7 @@
   }
   function trimPts(pts, t0, t1) {   // t0 van het begin en t1 van het eind afknippen
     const seg = [0]; for (let i = 1; i < pts.length; i++) seg.push(seg[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
-    const len = seg[seg.length - 1]; if (t0 + t1 > len - 1.5) { const k = Math.max(0, len - 1.5) / (t0 + t1); t0 *= k; t1 *= k; }
+    const len = seg[seg.length - 1]; if (t0 + t1 > 0 && t0 + t1 > len - 1.5) { const k = Math.max(0, len - 1.5) / (t0 + t1); t0 *= k; t1 *= k; }
     const at = s => { let i = 1; while (i < seg.length - 1 && seg[i] < s) i++; const f = (s - seg[i - 1]) / Math.max(1e-6, seg[i] - seg[i - 1]); return [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * f, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * f]; };
     const out = [at(t0)]; for (let i = 0; i < pts.length; i++) if (seg[i] > t0 + 0.05 && seg[i] < len - t1 - 0.05) out.push(pts[i]); out.push(at(len - t1)); return out;
   }

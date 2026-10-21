@@ -198,7 +198,7 @@
     // Klopt een (gepland) stuk rijlijn nog na een verbouwing?
     function validLeg(L) {
       if (!L || !L.path) return false;
-      if (L.vec) return VG.edges.has(L.eid);
+      if (L.vec) { const e = VG.edges.get(L.eid); return !!e && (L.dir ? e.a : e.b) === L.nodeEnd; }
       if (L.laan) { const I = laanAt(L.q, L.r); return !!I && I.d === L.d && (L.port !== 'side' || ((I.arms >> L.inS) & 1) === 1); }
       return roadSet.has(key(L.q, L.r)) && ((maskAt(L.q, L.r) >> L.inS) & 1) === 1;
     }
@@ -339,9 +339,10 @@
       const e = VG.edges.get(c.eid); if (!e) return null;
       const from = { pt: c.exitPt, d: c.exitD };
       if (c.u) return vecLeg(e, c.dir ? 0 : 1, c.lane, from);
-      const N = VG.nodes[c.nodeEnd], opts = N.edges.filter(id => id !== c.eid).map(id => VG.edges.get(id));
+      const nEnd = c.dir ? e.a : e.b;   // uit de tak zelf halen: knoopnummers verschuiven als de graaf opnieuw gebouwd is
+      const N = VG.nodes[nEnd], opts = N.edges.filter(id => id !== c.eid).map(id => VG.edges.get(id));
       if (!opts.length) return vecULeg(e, c.dir, c.lane, from);
-      const sc = opts.map(o => { const od = o.a === c.nodeEnd ? 0 : 1; let d0 = dirAt(o.pts, od ? o.pts.length - 1 : 0); if (od) d0 = [-d0[0], -d0[1]]; return { o, od, cos: d0[0] * from.d[0] + d0[1] * from.d[1] }; });
+      const sc = opts.map(o => { const od = o.a === nEnd ? 0 : 1; let d0 = dirAt(o.pts, od ? o.pts.length - 1 : 0); if (od) d0 = [-d0[0], -d0[1]]; return { o, od, cos: d0[0] * from.d[0] + d0[1] * from.d[1] }; });
       const straight = sc.filter(x => x.cos > 0.8), ch = straight.length && Math.random() < 0.55 ? pick(straight) : pick(sc);
       return vecLeg(ch.o, ch.od, laneFor(ch.o, c.lane), from);
     }
@@ -626,6 +627,7 @@
         const lying = people.lying();
         const tNow = performance.now() / 1000;
         for (const c of list) {
+          if (!c.path) continue;   // kon nergens beginnen: wacht op de volgende herbouw
           if (c.crash) { crashStep(c, dt, peds, lying); continue; }
           const ch = Math.cos(c.h), sh = Math.sin(c.h);
           // gewenste snelheid: 30 km/u, langzamer in bochten en bij het keren (roekeloos: 75 km/u en bochten op de rand)

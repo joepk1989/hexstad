@@ -106,7 +106,7 @@
     const mod = modules[moduleSel], kk = mod ? moduleSel + ':' + moduleRot + ':' + q0 + ',' + r0 + ':' + mod.edges.length + ':' + (mod.cells || []).length + ':' + (mod.paths || []).length + ':' + (mod.tris || []).length : '';
     if (kk === moduleGhostKey) { moduleGhost.visible = !!mod; return; }
     moduleGhostKey = kk;
-    while (moduleGhost.children.length) { const c = moduleGhost.children.pop(); c.geometry.dispose(); }
+    while (moduleGhost.children.length) { const c = moduleGhost.children.pop(); c.geometry.dispose(); if (c.material && c.material.dispose) c.material.dispose(); }
     if (!mod) { moduleGhost.visible = false; return; }
     for (const [q, r, k, type] of moduleItems(mod, moduleRot, q0, r0)) {
       const [A, B] = edgeEnds(q, r, k), bad = !!edgeBlocked(q, r, k);
