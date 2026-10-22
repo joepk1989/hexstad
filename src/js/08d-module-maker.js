@@ -248,11 +248,11 @@
       // gebied
       ctx.fillStyle = css('--area'); ctx.strokeStyle = css('--grid2'); ctx.lineWidth = 1.5;
       for (let q = -k; q <= k; q++) for (let r = -k; r <= k; r++) if (mv2HexDist(q, r) <= k) { const c = mv2CellXZ(q, r); hexPath(c[0], c[1], R); ctx.fill(); ctx.stroke(); }
-      // raster
+      // raster: elke rib binnen of op de rand van het gebied (ook als het beginpunt erbuiten valt)
       if (s * t > 6) {
         ctx.strokeStyle = css('--grid'); ctx.lineWidth = 0.7; ctx.beginPath();
         const ext = R * (1 + 2 * k) + t, iM = Math.ceil(ext / (t * SQ3 / 2)) + 1, jM = Math.ceil(ext / t) + iM;
-        for (let i = -iM; i <= iM; i++) for (let j = -jM; j <= jM; j++) { const a = P(i, j); if (!inArea(a[0], a[1])) continue; for (const D of MV2.DIR3) { const b = P(i + D[0], j + D[1]); if (!inArea((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)) continue; const A = toS(a[0], a[1]), B = toS(b[0], b[1]); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); } }
+        for (let i = -iM; i <= iM; i++) for (let j = -jM; j <= jM; j++) { const a = P(i, j); for (const D of MV2.DIR3) { const b = P(i + D[0], j + D[1]); if (!mv2NearArea(E.m, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2)) continue; const A = toS(a[0], a[1]), B = toS(b[0], b[1]); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); } }
         ctx.stroke();
       }
       const tri = (id, fill) => { const [i, j, tt] = id.split(',').map(Number), v = mv2TriVerts(i, j, tt, t); ctx.beginPath(); v.forEach((p, n) => { const S = toS(p[0], p[1]); n ? ctx.lineTo(S[0], S[1]) : ctx.moveTo(S[0], S[1]); }); ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); };
