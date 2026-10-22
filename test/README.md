@@ -30,6 +30,9 @@ Eerst bouwen: `node build.js` in de hoofdmap. Daarna, vanuit `test/`:
 | `python mm_hoek.py [naam.png]` | muren die onder een hoek aansluiten, van dichtbij en van boven |
 | `python bordes_test.py` | trap van hoek naar hoek in een woning: twee verdiepingen op lopen; doorsnede en beelden van binnen |
 | `python mm_haaks.py` | module maker: muren onder 90° (rechthoekige kamer) |
+| `python mall.py` | winkelcentrum laden (129 modules, 4 lagen), stapelen via klik op een dak, vloerhoogte galerij |
+| `python wc_mods.py [namen]` | elke Winkelcentrum-module apart dichtbij, plus winkel met galerij erop |
+| `python mm_schans.py` | module maker: schans (S), penselen kern/rand, glazen dak, winkelvoorwerpen |
 | `python mod_namen.py [oude.html]` | modulenamen (hernoemen vanaf een oude versie, geen dubbele), zoeken, categorieën, maatfilters, , en . |
 | `python lowpoly.py` | low poly terrein: los vak, groepje, dijk met een weg erlangs en eroverheen |
 | `python mm_bordes.py` | module maker: bordestrap (U) tekenen met trapgat erboven, 3D-beeld |

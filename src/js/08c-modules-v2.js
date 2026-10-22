@@ -18,11 +18,11 @@
     DIRW: [[1, 0], [0, 1], [-1, 1], [2, -1], [1, 1], [-1, 2]],
     DIR12: [[1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1], [2, -1], [1, 1], [-1, 2], [-2, 1], [-1, -1], [1, -2]],
     DIR6: [[1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]],
-    floors: { paver: 'Klinkers', tile: 'Stoeptegels', wood: 'Houten vloer', parquet: 'Visgraat parket', carpet: 'Kantoorvloer', concrete: 'Beton', polished: 'Gepolijst beton', stonetile: 'Natuursteen tegels', grass: 'Gras', water: 'Water', asphalt: 'Asfalt', roof: 'Dakbedekking' },
+    floors: { paver: 'Klinkers', tile: 'Stoeptegels', wood: 'Houten vloer', parquet: 'Visgraat parket', carpet: 'Kantoorvloer', concrete: 'Beton', polished: 'Gepolijst beton', stonetile: 'Natuursteen tegels', grass: 'Gras', water: 'Water', asphalt: 'Asfalt', roof: 'Dakbedekking', glass: 'Glazen dak' },
     walls: { brick: 'Baksteen', darkbrick: 'Donkere steen', plaster: 'Wit stucwerk', concrete: 'Schoon beton', panel: 'Gevelpanelen', slats: 'Houten lamellen', corten: 'Cortenstaal', curtain: 'Glasgevel', glass: 'Glaswand', wood: 'Hout', stone: 'Natuursteen', hedge: 'Haag', fence: 'Hek' },
     openings: { '': 'Dicht', door: 'Deur', window: 'Raam', gate: 'Poort', open: 'Open' },
-    objects: { tree: 'Boom', bush: 'Struik', bench: 'Bankje', lamp: 'Lantaarn', pillar: 'Zuil', table: 'Tafel', planter: 'Plantenbak', fountain: 'Fontein', bin: 'Prullenbak', bike: 'Fietsenrek' },
-    cats: ['Wonen', 'Werken', 'Winkels', 'Openbaar', 'Groen', 'Pleinen', 'Verbindingen', 'Bouwdelen', 'Overig'],
+    objects: { tree: 'Boom', bush: 'Struik', bench: 'Bankje', lamp: 'Lantaarn', pillar: 'Zuil', table: 'Tafel', planter: 'Plantenbak', fountain: 'Fontein', bin: 'Prullenbak', bike: 'Fietsenrek', shelf: 'Winkelstelling', counter: 'Toonbank', sign: 'Lichtreclame' },
+    cats: ['Wonen', 'Werken', 'Winkels', 'Winkelcentrum', 'Openbaar', 'Groen', 'Pleinen', 'Verbindingen', 'Bouwdelen', 'Overig'],
   };
   const mv2Ts = m => R / ([1, 2, 4, 8].includes(m.n) ? m.n : 4);
   const mv2P = (i, j, ts) => [i * ts * SQ3 / 2, i * ts / 2 + j * ts];
@@ -91,7 +91,7 @@
   function mv2Mats() {
     if (MV2M) return MV2M;
     const MM = modernMats();
-    const fl = Object.assign({ paver: M.paver, tile: M.walkTop, wood: M.floorWood, carpet: M.floorOffice, concrete: M.concrete, grass: M.grass, water: M.water, asphalt: M.asphalt, roof: M.roofFlat }, MM.fl);
+    const fl = Object.assign({ paver: M.paver, tile: M.walkTop, wood: M.floorWood, carpet: M.floorOffice, concrete: M.concrete, grass: M.grass, water: M.water, asphalt: M.asphalt, roof: M.roofFlat, glass: new THREE.MeshStandardMaterial({ color: '#a9d3ea', transparent: true, opacity: 0.45, roughness: 0.12, metalness: 0.1, side: THREE.DoubleSide, depthWrite: false }) }, MM.fl);
     const wl = Object.assign({ glass: M.pane, wood: M.stairWood, stone: M.stone, hedge: M.leaf[1], fence: M.rail }, MM.wl);
     MV2M = { fl, wl, ceiling: M.ceiling, slab: M.concrete, frame: M.alu, trim: M.trim, roof: M.roofTile, step: M.stone, rampTop: M.paverPlain, trunk: M.trunk, leaf: M.leaf, bench: M.bench, lamp: M.lampOff, lampGlow: new THREE.MeshBasicMaterial({ color: '#ffe6a8' }), water: M.water, bin: M.tlBody, metal: M.alu };
     return MV2M;
@@ -99,9 +99,12 @@
   // ---------- Bouwen: geometrie en botsing voor één module ----------
   // tf(x, z) zet lokale coördinaten om naar de plek in de wereld (gedraaid en verschoven). Teruggegeven worden een
   // groep (al in wereldcoördinaten), loopvlakken per verdieping (kind 'tris') en muren voor de botsing.
-  function mv2Build(m, tf, origin = [0, 0]) {
+  // opts.stacked: de module staat op een andere module (begane grond krijgt een plafond eronder en geen maaiveld-
+  // details); opts.noRoof: de bovenste laag met alleen dakvloer weglaten (er staat een module op)
+  function mv2Build(m, tf, origin = [0, 0], opts = {}) {
     mv2Fix(m);
     const Mt = mv2Mats(), ts = mv2Ts(m), LH = MV2.LV_H, bags = new Map(), group = new THREE.Group(), surfaces = [], walls = [];
+    const nLv = opts.noRoof && m.lv.length > 1 && modRoofOnly(m) ? m.lv.length - 1 : m.lv.length, stacked = !!opts.stacked;
     const put = (mat, g) => { let L = bags.get(mat); if (!L) bags.set(mat, L = []); L.push(g); };
     const tfp = p => tf(p[0], p[1]);
     // doos tussen twee punten a en b (op de grond), dik t, van y0 tot y1; off schuift hem dwars
@@ -123,8 +126,8 @@
       for (const v of tris) { const W = v.map(tfp); const o = up ? [0, 2, 1] : [0, 1, 2]; for (const i of o) { pos.push(W[i][0], y, W[i][1]); uv.push(W[i][0] / 2, W[i][1] / 2); } }
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.computeVertexNormals(); return g;
     };
-    for (let li = 0; li < m.lv.length; li++) {
-      const L = m.lv[li], y0 = li * LH, walkPos = [];   // loopvlak: driehoeken (wereld, absolute hoogte) voor de botsing
+    for (let li = 0; li < nLv; li++) {
+      const L = m.lv[li], y0 = li * LH, walkPos = [], lifted = li > 0 || stacked;   // lifted: vloerplaat met plafond eronder   // loopvlak: driehoeken (wereld, absolute hoogte) voor de botsing
       const pushWalk = (a, b, c, ya, yb, yc) => { const A = tfp(a), B = tfp(b), C = tfp(c); walkPos.push(A[0] - origin[0], ya, A[1] - origin[1], B[0] - origin[0], yb, B[1] - origin[1], C[0] - origin[0], yc, C[1] - origin[1]); };
       // --- vloeren ---
       const byMat = {}, edgeCnt = new Map(), eid = (p, q) => [p.join(','), q.join(',')].sort().join('|');
@@ -133,14 +136,14 @@
         if (!mv2InArea(m, (v[0][0] + v[1][0] + v[2][0]) / 3, (v[0][1] + v[1][1] + v[2][1]) / 3)) continue;
         (byMat[mat] || (byMat[mat] = [])).push(v);
         for (const [p, q] of [[v[0], v[1]], [v[1], v[2]], [v[2], v[0]]]) { const k = eid(p, q); edgeCnt.set(k, (edgeCnt.get(k) || 0) + 1); }
-        const top = li ? y0 + 0.02 : 0.05; pushWalk(v[0], v[1], v[2], top, top, top);
+        const top = lifted ? y0 + 0.02 : 0.05; pushWalk(v[0], v[1], v[2], top, top, top);
       }
       for (const mat in byMat) {
-        const top = li ? y0 + 0.02 : (mat === 'water' ? -0.25 : 0.05);
+        const top = lifted ? y0 + 0.02 : (mat === 'water' ? -0.25 : 0.05);
         put(Mt.fl[mat] || Mt.fl.concrete, triGeo(byMat[mat], top));
-        if (li) put(Mt.ceiling, triGeo(byMat[mat], y0 - MV2.FLOOR_T, false));
+        if (lifted && mat !== 'glass') put(Mt.ceiling, triGeo(byMat[mat], y0 - MV2.FLOOR_T, false));
       }
-      if (li) {   // randen van de vloerplaat: een zijkant van 22 cm waar geen buurdriehoek ligt
+      if (lifted) {   // randen van de vloerplaat: een zijkant van 22 cm waar geen buurdriehoek ligt
         for (const mat in byMat) for (const v of byMat[mat]) for (const [p, q] of [[v[0], v[1]], [v[1], v[2]], [v[2], v[0]]]) if (edgeCnt.get(eid(p, q)) === 1) wallBox(Mt.slab, p, q, y0 - MV2.FLOOR_T, y0 + 0.02, 0.06);
       }
       // --- hoeken: waar twee muren onder een hoek samenkomen, een ronde hoekpost van dezelfde dikte, zodat de muren
@@ -189,7 +192,32 @@
       for (const S of L.s || []) {
         const D = MV2.DIR6[S.d] || MV2.DIR6[0], a = mv2P(S.a[0], S.a[1], ts), len = (S.n || 2) * ts, w = S.w || 2;
         const dx = D[0] * ts * SQ3 / 2, dz = D[0] * ts / 2 + D[1] * ts, dl = Math.hypot(dx, dz) || 1, ux = dx / dl, uz = dz / dl, nx = -uz, nz = ux;
-        const rise = S.h || LH, at = (al, lat) => [a[0] + ux * al + nx * lat, a[1] + uz * al + nz * lat];
+        const rise = S.h || LH, off = S.off || 0, at = (al, lat) => [a[0] + ux * al + nx * (lat + off), a[1] + uz * al + nz * (lat + off)];   // off: zijwaarts verschoven (trap in een galerijband)
+        if (S.k === 'hexramp') {   // schans: het hele vak is een helling van de instapzijde (maaiveld) naar de overkant (3 m)
+          const c = mv2CellXZ(S.q || 0, S.r || 0), f = FRAMES[(S.side || 0) % 6], ex = -f.nx, ez = -f.nz, lx = -ez, lz = ex;   // e: richting van de helling (instapzijde → uitstapzijde), l: dwars
+          const pt = (u, lat) => [c[0] + ex * u + lx * lat, c[1] + ez * u + lz * lat], hz = u => y0 + rise * (u + INNER) / (2 * INNER);
+          // bovenvlak: middenstrook (vlak) en twee gewrongen zijdriehoeken tot aan de punten (die liggen op 3 m)
+          const tri = (A, ya, B, yb, C, yc) => [[A, ya], [B, yb], [C, yc]];
+          const faces = [tri(pt(-INNER, -4.5), hz(-INNER), pt(INNER, 4.5), hz(INNER), pt(-INNER, 4.5), hz(-INNER)), tri(pt(-INNER, -4.5), hz(-INNER), pt(INNER, -4.5), hz(INNER), pt(INNER, 4.5), hz(INNER)),
+            tri(pt(-INNER, 4.5), y0, pt(INNER, 4.5), y0 + rise, pt(0, 9), y0 + rise), tri(pt(-INNER, -4.5), y0, pt(0, -9), y0 + rise, pt(INNER, -4.5), y0 + rise)];
+          const pos = [], uv = [];
+          for (const F of faces) {
+            const W3 = F.map(([p, y]) => { const Wp = tfp(p); return [Wp[0], y, Wp[1]]; }), ny = (W3[1][2] - W3[0][2]) * (W3[2][0] - W3[0][0]) - (W3[1][0] - W3[0][0]) * (W3[2][2] - W3[0][2]);
+            for (const i of (ny < 0 ? [0, 2, 1] : [0, 1, 2])) { pos.push(W3[i][0], W3[i][1], W3[i][2]); uv.push(W3[i][0] / 2, W3[i][2] / 2); }   // normaal omhoog
+            pushWalk(F[0][0], F[1][0], F[2][0], F[0][1], F[1][1], F[2][1]);
+          }
+          const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.computeVertexNormals(); put(Mt.rampTop, g);
+          // zijkanten: onder de uitstapzijde en de twee zijden ernaast een volle wand, naast de instap een driehoek
+          const quad = (A, ya0, ya1, B, yb0, yb1) => { const P1 = tfp(A), P2 = tfp(B); return [P1[0], ya0, P1[1], P2[0], yb0, P2[1], P2[0], yb1, P2[1], P1[0], ya0, P1[1], P2[0], yb1, P2[1], P1[0], ya1, P1[1]]; };
+          const sp = [], top = y0 + rise;
+          sp.push(...quad(pt(INNER, 4.5), y0, top, pt(INNER, -4.5), y0, top));                 // uitstapzijde (onder de bovenrand)
+          sp.push(...quad(pt(0, 9), y0, top, pt(INNER, 4.5), y0, top), ...quad(pt(INNER, -4.5), y0, top, pt(0, -9), y0, top));   // zijden naast de uitstap
+          sp.push(...quad(pt(-INNER, 4.5), y0, y0, pt(0, 9), y0, top), ...quad(pt(0, -9), y0, top, pt(-INNER, -4.5), y0, y0));   // driehoeken naast de instap
+          const g2 = new THREE.BufferGeometry(); g2.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3)); g2.setAttribute('uv', new THREE.Float32BufferAttribute(new Array(sp.length / 3 * 2).fill(0), 2)); g2.computeVertexNormals(); put(Mt.slab, g2);
+          const g3 = g2.clone(); const idx = []; for (let i = 0; i < sp.length / 3; i += 3) idx.push(i, i + 2, i + 1); g3.setIndex(idx); put(Mt.slab, g3.toNonIndexed());   // ook van binnen zichtbaar
+          for (const [A, B] of [[pt(INNER, 4.5), pt(INNER, -4.5)], [pt(0, 9), pt(INNER, 4.5)], [pt(INNER, -4.5), pt(0, -9)], [pt(-INNER, 4.5), pt(0, 9)], [pt(0, -9), pt(-INNER, -4.5)]]) addWall(A, B, y0, top + 1, 0.08);   // randen: niet vanaf de helling vallen
+          continue;
+        }
         if (S.k === 'u') {   // bordestrap: steek 1 (1,5 m) vooruit, bordes, steek 2 ernaast terug naar boven
           const sd = S.side || 1, h1 = rise / 2, N = Math.max(2, Math.round(len / 0.28)), run = len / N, rs = h1 / N, c2 = sd * w;
           for (let s = 0; s < N; s++) {
@@ -248,12 +276,15 @@
           case 'planter': col(Mt.slab, 0.75, 0.65, 0.5, 0, 0, 0, 8); place(Mt.leaf[2], new THREE.IcosahedronGeometry(0.55, 0).scale(1.2, 0.7, 1.2).translate(0, 0.75, 0)); for (let i = 0; i < 5; i++) { const a = i * 1.26, c = ['#e64a3c', '#f2b233', '#e9e6dc', '#d05a9a', '#f28c33'][i]; place(new THREE.MeshBasicMaterial({ color: c }), new THREE.SphereGeometry(0.09, 5, 4).translate(Math.cos(a) * 0.4, 0.95, Math.sin(a) * 0.4)); } solid(0.75, 1); break;
           case 'fountain': col(Mt.wl.stone, 1.8, 1.9, 0.5, 0, 0, 0, 12); col(Mt.water, 1.6, 1.6, 0.1, 0, 0.42, 0, 12); col(Mt.wl.stone, 0.12, 0.18, 1.3, 0, 0.4, 0, 8); col(Mt.wl.stone, 0.6, 0.5, 0.12, 0, 1.6, 0, 10); solid(1.9, 0.6); break;
           case 'bin': col(Mt.bin, 0.25, 0.22, 0.9, 0, 0, 0, 8); solid(0.25, 0.9); break;
+          case 'shelf': { box(Mt.wl.panel, 2.4, 1.9, 0.5, 0, 0.95, 0); for (const y of [0.45, 0.95, 1.45]) box(Mt.slab, 2.3, 0.04, 0.46, 0, y, 0.02); for (let i = 0; i < 6; i++) { const k = (hj + i * 37) % 5; box(new THREE.MeshStandardMaterial({ color: ['#d94b3a', '#3a7fd9', '#e9c04a', '#48a35a', '#e6e1d8'][k], roughness: 0.8 }), 0.32, 0.26, 0.3, -1 + i * 0.4, 0.45 + 0.5 * (i % 3) + 0.13, 0.04); } solid(1.2, 1.9); break; }
+          case 'counter': box(Mt.wl.slats, 2.2, 1.0, 0.7, 0, 0.5, 0); box(Mt.slab, 2.3, 0.05, 0.8, 0, 1.02, 0); box(Mt.metal, 0.35, 0.3, 0.3, 0.6, 1.2, 0); solid(1.1, 1.05); break;
+          case 'sign': { col(Mt.metal, 0.05, 0.06, 2.6, 0, 0, 0, 6); box(Mt.metal, 1.6, 0.6, 0.08, 0, 2.6, 0); box(new THREE.MeshBasicMaterial({ color: ['#ff4f6d', '#39b6ff', '#ffd23f', '#5de07a'][hj % 4] }), 1.5, 0.5, 0.1, 0, 2.6, 0); solid(0.1, 2.9); break; }
           case 'bike': for (let i = -2; i <= 2; i++) { box(Mt.metal, 0.04, 0.6, 0.6, i * 0.5, 0.3, 0); } box(Mt.metal, 2.3, 0.04, 0.04, 0, 0.6, 0.28); box(Mt.metal, 2.3, 0.04, 0.04, 0, 0.6, -0.28); solid(1.2, 0.7); break;
         }
       }
       if (walkPos.length) {
         const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(walkPos, 3));
-        surfaces.push({ kind: 'tris', cx: origin[0], cz: origin[1], B: triBuckets(g), base: 0, bottom: li ? y0 - MV2.FLOOR_T : -0.3 });
+        surfaces.push({ kind: 'tris', cx: origin[0], cz: origin[1], B: triBuckets(g), base: 0, bottom: lifted ? y0 - MV2.FLOOR_T : -0.3 });
       }
     }
     for (const [mat, list] of bags) { const mesh = new THREE.Mesh(mergeGeos(list), mat); mesh.castShadow = true; mesh.receiveShadow = true; mesh.userData.own = true; group.add(mesh); }
@@ -262,32 +293,59 @@
   // ---------- In de stad ----------
   const mv2Tf = (rot, q0, r0) => { const th = -rot * Math.PI / 3, c = Math.cos(th), s = Math.sin(th), o = cellToWorld(q0, r0); return (x, z) => [o.x + x * c - z * s, o.z + x * s + z * c]; };
   const mv2Area = I => { const k = I.m.k || 0, out = []; for (let q = -k; q <= k; q++) for (let r = -k; r <= k; r++) if (mv2HexDist(q, r) <= k) { let [a, b] = [q, r]; for (let i = 0; i < (I.rot || 0) % 6; i++) [a, b] = [a + b, -a]; out.push([a + I.q, b + I.r]); } return out; };
-  const modGroups = new Map();   // instantie → { group, col }
+  const modGroups = new Map();   // instantie → { group, col, roofed }
   const modCols = new Map();     // 'q,r' → [col] voor de botsing
-  const modCellSet = new Set();  // vakken die door een module v2 bezet zijn
+  const modCellSet = new Set();  // vakken die door een module v2 bezet zijn (op de grond)
   const modCellOccupied = (q, r) => modCellSet.has(q + ',' + r);
+  // ---------- Gelaagde stad: modules op elkaar ----------
+  // Een exemplaar heeft een laag lv (0 = op de grond, 1 = op 3 m, …). Het staat op de bovenkant van wat eronder staat:
+  // alle vakken van het gebied moeten op dezelfde hoogte eindigen. De bovenkant van een exemplaar is lv + aantal
+  // verdiepingen (een bovenste laag met alleen dakvloer telt niet mee: die wordt verborgen zodra er iets op staat).
+  const instLv = I => I.lv || 0, instTopLv = I => instLv(I) + modMeta(I.m).fl;
+  const modTop = new Map();   // 'q,r' → { top (laag), inst (bovenste exemplaar), kap }
+  const cellModTop = (q, r) => modTop.get(q + ',' + r) || null;
+  function instCovered(I) {   // staat er iets op dit exemplaar (dan zijn dak weglaten)?
+    const t = instTopLv(I), A = mv2Area(I);
+    for (const J of cells.inst || []) if (J !== I && J.m && J.m.v === 2 && instLv(J) === t && mv2Area(J).some(([q, r]) => A.some(([a, b]) => a === q && b === r))) return true;
+    return false;
+  }
   function buildModNet() {
     const live = new Set((cells.inst || []).filter(I => I.m && I.m.v === 2));
     for (const [I, e] of modGroups) if (!live.has(I)) { e.group.traverse(o => { if (o.isMesh && o.userData.own) o.geometry.dispose(); }); scene.remove(e.group); modGroups.delete(I); }
     const before = new Set(modCellSet);
-    modCols.clear(); modCellSet.clear();
+    modCols.clear(); modCellSet.clear(); modTop.clear();
+    for (const I of live) for (const [q, r] of mv2Area(I)) { const k = q + ',' + r, t = instTopLv(I), e = modTop.get(k); if (!e || t > e.top || (t === e.top && instLv(I) > instLv(e.inst))) modTop.set(k, { top: t, inst: I, kap: modMeta(I.m).top === 'kap' }); }
     for (const I of live) {
+      const covered = instCovered(I);
       let e = modGroups.get(I);
-      if (!e) { const o = cellToWorld(I.q, I.r), b = mv2Build(I.m, mv2Tf(I.rot, I.q, I.r), [o.x, o.z]), G = gH(I.q, I.r); b.group.position.y += G; e = { group: b.group, col: shiftCol({ surfaces: b.surfaces, walls: b.walls }, G) }; scene.add(e.group); modGroups.set(I, e); }
-      for (const [q, r] of mv2Area(I)) { const k = q + ',' + r; modCellSet.add(k); let L = modCols.get(k); if (!L) modCols.set(k, L = []); L.push(e.col); }
+      if (e && e.roofed === covered) { /* ongewijzigd */ } else {
+        if (e) { e.group.traverse(o => { if (o.isMesh && o.userData.own) o.geometry.dispose(); }); scene.remove(e.group); }
+        const o = cellToWorld(I.q, I.r), G = gH(I.q, I.r) + instLv(I) * MV2.LV_H, b = mv2Build(I.m, mv2Tf(I.rot, I.q, I.r), [o.x, o.z], { stacked: instLv(I) > 0, noRoof: covered });
+        b.group.position.y += G; b.group.userData.inst = I; e = { group: b.group, col: shiftCol({ surfaces: b.surfaces, walls: b.walls }, G), roofed: covered }; scene.add(e.group); modGroups.set(I, e);
+      }
+      for (const [q, r] of mv2Area(I)) { const k = q + ',' + r; if (!instLv(I)) modCellSet.add(k); let L = modCols.get(k); if (!L) modCols.set(k, L = []); L.push(e.col); }
     }
     // het terrein onder een module is een plateau: bij een nieuwe of weggehaalde module de stukken eromheen bijwerken
     const diff = []; for (const k of modCellSet) if (!before.has(k)) diff.push(k.split(',').map(Number)); for (const k of before) if (!modCellSet.has(k)) diff.push(k.split(',').map(Number));
     if (diff.length && cells.terr && Object.keys(cells.terr).length) { terrDirty(diff); terrFlush(); }
   }
-  function mv2CanPlace(mod, rot, q0, r0) {   // vrij? geen blokken, geen weg, geen andere module
+  // Kan de module hier, op laag lv? Op de grond: geen blokken, weg of module. Hoger: op elk vak moet precies op die
+  // laag een module eindigen (geen schuin dak), zodat hij er vlak op staat.
+  function mv2CanPlace(mod, rot, q0, r0, lv = 0) {
     for (const [q, r] of mv2Area({ m: mod, rot, q: q0, r: r0 })) {
       if (stackOf(q, r).length) return 'Hier staat al iets';
       if (vecCover.has(key(q, r))) return 'Hier ligt een weg';
-      if (modCellOccupied(q, r)) return 'Hier staat al een module';
+      const t = cellModTop(q, r);
+      if (!lv) { if (t) return 'Hier staat al een module (klik op het dak om erop te bouwen)'; continue; }
+      if (!t) return 'Hier staat niets om op te bouwen';
+      if (t.top !== lv) return t.top > lv ? 'Hier staat al een module' : 'Niet overal even hoog: ' + (lv - t.top) + ' laag lager';
+      if (t.kap) return 'Op een schuin dak kun je niet bouwen';
     }
+    if (lv + modMeta(mod).fl > MV2.MAX_LV + 1) return 'Te hoog';
     return null;
   }
+  // de laag waarop de gekozen module terechtkomt als je op dit vak klikt: bovenop wat er staat (0 op de grond)
+  const stackLvAt = (q, r) => { const t = cellModTop(q, r); return t ? t.top : 0; };
   // Randcodes: per buitenrand van het gebied wat er op de begane grond aan die rand ligt
   function modV2Codes(m) {
     mv2Fix(m);
@@ -309,11 +367,12 @@
   // fl: verdiepingen (een bovenste laag met alleen dakvloer telt niet mee), k/n: maat (1 of 7 vakken), h: hoogte in m,
   // top: 'kap' (schuin dak), 'plat' (beloopbaar plat dak: hier kan later een module op), 'open' (niets erboven),
   // bouw: is het een gebouw (muren of meer lagen), deur/weg: aantal randen met een deur of weg
+  const modRoofOnly = m => { const L = m.lv, T = L[L.length - 1]; return L.length > 1 && !Object.keys(T.w).length && !T.s.length && !T.o.length && !Object.keys(T.r || {}).length && Object.keys(T.f).length > 0; };
   function modMeta(m) {
     if (!m || m.v !== 2) return { fl: 0, k: 0, n: 1, h: 0, top: 'open', stack: false, bouw: false, deur: 0, weg: 0 };
     mv2Fix(m);
     const L = m.lv, T = L[L.length - 1], k = m.k || 0;
-    const roofOnly = L.length > 1 && !Object.keys(T.w).length && !T.s.length && !T.o.length && !Object.keys(T.r || {}).length && Object.keys(T.f).length > 0;
+    const roofOnly = modRoofOnly(m);
     const fl = L.length - (roofOnly ? 1 : 0);
     const solidWall = L.some(l => Object.values(l.w).some(w => w && w.m !== 'fence' && w.m !== 'hedge'));
     const bouw = L.length > 1 || solidWall;

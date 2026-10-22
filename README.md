@@ -71,6 +71,39 @@ Dat maakt `dist/hexstad.html` (één bestand, zelfde als de gepubliceerde versie
 
 Menu → Instellingen (`15c-instellingen.js`, bewaard in `localStorage` `hexstad-set`): **terrein** hoog (1 m rooster), normaal (2 m) of low poly (4 m, platte vlakken; het snelst), **schaduwen** zacht, eenvoudig of uit, **beeldscherpte** scherp, normaal of snel, **wolken**, en verder raster, hoogtelijnen, penseel, tijd, mensen, auto's en geluid.
 
+## Gelaagde stad: modules op elkaar
+
+Een geplaatst exemplaar heeft een laag `lv` (0 = op de grond, 1 = op 3 m, enzovoort). **Klik op het dak** van een module en de gekozen module komt erbovenop; klik op de gevel en je wisselt zoals voorheen naar de variant die het best aansluit. De spookmodule laat zien waar hij komt. Regels (`mv2CanPlace` in `08c`):
+- op elk vak van het gebied moet precies op die laag een module eindigen (geen zwevende of half ondersteunde modules);
+- op een schuin dak kun je niet bouwen;
+- de bovenkant van een module is `lv` + aantal verdiepingen; een bovenste laag met alleen dakvloer telt niet mee en wordt **verborgen zodra er iets op staat** (`noRoof` in `mv2Build`). Zo kijk je vanaf een galerij in de winkel eronder.
+
+Een gestapelde module krijgt een plafond onder zijn begane grond (`stacked`). Lopen en botsing werken per laag (`modCols`, `shiftCol`). Buren voor de randcodes zijn alleen modules op dezelfde laag. De gum haalt het exemplaar weg waar je op klikt (het bovenste).
+
+## Winkelcentrum: de hex-modules uit de SketchUp-schets
+
+De familie **Winkelcentrum** (categorie, `08e`) bouwt de tien bouwstenen uit `hex_mall.dae` na, elk met een functie; zijde +x is de voorkant of passagekant, de "kern" is de zeshoek van ¾ (straal 6,75 m) met een rand van 1,95 m eromheen:
+
+| SketchUp | Hexstad | Betekenis |
+|---|---|---|
+| variable | `Winkelcentrum · winkel`, `· winkel · boeken`, `· horeca` | winkelblok: glazen pui met open front, dichte zijwanden, stellingen, toonbank, lichtreclame; plat dak met glazen lichtkap |
+| recht | `· magazijn` | dicht betonblok met poort achter, stellingen |
+| half | `· café · half` | halve zeshoek langs de lange diagonaal; de diagonaal is een glazen pui naar de passage, tafels binnen |
+| afgesneden | `· winkel · afgesneden` | één zijde tot halverwege teruggezet; de schuine pui is de ingang |
+| tunnel | `· doorgang` | passage van 9 m breed dwars door het blok, met een berging in elke punt |
+| schans | `· oprit` | het hele vak is een helling naar de verdieping erboven (zie Schans in de maker) |
+| space | `· dakpaviljoen` | teruggezette opbouw van ¾ met een terras van 1,95 m rondom (hek, tafels) |
+| ring | `· galerij` | vloerring rond een vide met balustrade: zet hem op een winkel en je kijkt erin |
+| trapring | `· galerij · trap` | winkel beneden, galerij erboven, rechte trap in de band langs één zijde |
+
+De schansflanken (`schans_zijde`) staan tussen de vakken en zijn weggelaten. **Menu → Winkelcentrum (hex-modules)** laadt het hele winkelcentrum uit de schets: 129 modules in vier lagen (`MALL` in `08e`, uit de Collada-export gelezen), met op de begane grond winkels en twee opritten, op de eerste en derde verdieping een ring van blokken rond de diagonale passage met galerijen, trappen en teruggezette gevels, en op de tweede verdieping dakpaviljoens met terras. Waar de schets blokken liet zweven staat een open galerij als steun.
+
+Nieuw in de module maker hiervoor:
+- **Schans (S)**: klik in een vak bij de zijde waar je onderaan instapt; het hele vak wordt een oprit die aan de overkant 3 m hoger uitkomt (`hexramp` in `mv2Build`: vlakke middenstrook van 9 m en twee gewrongen zijdriehoeken, dichte wanden eromheen).
+- **Penseel (N)** voor de vloer: zeshoek · één driehoek · heel vak · kern (¾) · rand (galerij).
+- Vloermateriaal **Glazen dak** (doorzichtig, voor lichtkappen) en de voorwerpen **winkelstelling**, **toonbank** en **lichtreclame**.
+- Een trap kan zijwaarts verschoven staan (`off` in een trap-item), zodat hij in een galerijband van 1,95 m past.
+
 ## Modules: namen en bladeren
 
 Elke module heet **soort · variant (· bijzonderheid) · lagen · maat**, bijvoorbeeld `Rijhuis · baksteen · 2L` of `Plein · markt · 7v`. Het aantal lagen (`2L`, alleen bij gebouwen) en de maat (`7v` voor 7 vakken; 1 vak heeft geen toevoeging) rekent de module maker bij het bewaren zelf uit en zet ze achteraan (`modMeta`, `modSuffix` in `08c`). De standaardbibliotheek gebruikt dezelfde regel (`LIB_NAMES` in `08e`). Oude namen worden eenmalig omgezet, en de categorie Trappen heet nu **Verbindingen** (trappen, hellingen, bruggen: wat lagen met elkaar verbindt).
@@ -108,7 +141,7 @@ Een module v2 is een gebied van 1, 7, 19 of 37 vakken met verdiepingen van 3 m, 
 
 In de stad wordt een module echt gebouwd (`mv2Build`): één mesh per materiaal, plus loopvlakken per verdieping en muren voor de botsing, zodat je erdoorheen en de trap op kunt lopen. Vakken onder een module zijn bezet voor andere blokken en wegen. Randcodes (muur, deur, groen, stoep, water, weg, leeg) worden uit de begane grond afgeleid; een klik op een geplaatste module wisselt naar de variant die het best op de buren past.
 
-De **module maker** (Modules → Nieuw, of dubbelklik op een module) werkt als een bouwtekening: gereedschap bovenaan met sneltoetsen (V kiezen, H schuiven, F vloer, G vullen, W muur, M kamer, D deur, R raam, P poort, O open, C dicht, T trap, U bordestrap, L helling, K dak, B voorwerp, X gum), verdiepingen met ▲▼ of Page Up/Down, 3D-weergave met 3, ongedaan maken met Ctrl+Z. Bewaren zet de module in het palet; geplaatste exemplaren worden meteen bijgewerkt. Modules zijn als JSON-bestand te delen.
+De **module maker** (Modules → Nieuw, of dubbelklik op een module) werkt als een bouwtekening: gereedschap bovenaan met sneltoetsen (V kiezen, H schuiven, F vloer, G vullen, W muur, M kamer, D deur, R raam, P poort, O open, C dicht, T trap, U bordestrap, L helling, S schans, K dak, B voorwerp, X gum), verdiepingen met ▲▼ of Page Up/Down, 3D-weergave met 3, ongedaan maken met Ctrl+Z. Bewaren zet de module in het palet; geplaatste exemplaren worden meteen bijgewerkt. Modules zijn als JSON-bestand te delen.
 
 **3D is de standaardweergave** en je tekent er gewoon in: elke klik wordt een straal vanuit de camera, gesneden met het vlak van de verdieping waar je bent (`toW`/`toS` in `08d`), dus al het gereedschap werkt in 3D en bovenaanzicht hetzelfde. Het raster en de rand van het gebied liggen op de hoogte van die verdieping. Draaien: middelste muisknop, Alt+slepen, spatie+slepen of het handje; schuiven: Shift+slepen of het pijltje. Standaard zie je de module tot en met de verdieping waar je tekent. Op het noorden staat een **hoogtemeter**: een paal met een streep per verdieping (3 m), de huidige in oranje, met een N; in het bovenaanzicht een ladder boven het gebied. Zolang de module maker open is staat de stad stil (scheelt rekenwerk).
 

@@ -42,6 +42,7 @@
       zoomOut: '<circle cx="11" cy="11" r="7"/><path d="M16 16l5 5M8 11h6"/>',
       fit: '<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/>',
       brush: '<path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z"/><path d="M12 12l7.8-4.5M12 12v9M12 12L4.2 7.5" opacity=".5"/>',
+      hexramp: '<path d="M3 17L21 7v10z"/><path d="M3 17h18M7 15l10-5" opacity=".5"/><path d="M5 12l4-2M9 10l-1 3" opacity=".8"/>',
       grid: '<path d="M3 3h18v18H3zM9 3v18M15 3v18M3 9h18M3 15h18"/>',
     };
     const svg = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[k]}</svg>`;
@@ -49,7 +50,7 @@
       ['select', 'Kiezen en verschuiven (V): sleep om te schuiven', 'V'], ['hand', 'Schuiven (H)', 'H'],
       ['floor', 'Vloer (F): schilder driehoeken; rechtermuisknop wist', 'F'], ['fill', 'Vullen (G): vult een ruimte tot aan de muren met vloer; rechtermuisknop maakt leeg', 'G'], ['wall', 'Muur (W): sleep van punt naar punt langs het raster', 'W'], ['room', 'Kamer (M): muren rondom een heel vak', 'M'],
       ['door', 'Deur (D): klik op een muur', 'D'], ['window', 'Raam (R): klik op een muur', 'R'], ['gate', 'Poort (P): klik op een muur', 'P'], ['open', 'Open doorgang (O): klik op een muur', 'O'], ['close', 'Dicht (C): klik op een muur om de opening weg te halen', 'C'],
-      ['stair', 'Trap (T): sleep van onderaan omhoog, in een van zes richtingen', 'T'], ['ustair', 'Bordestrap (U): sleep de eerste steek; op het bordes keer je en loopt de tweede steek ernaast terug omhoog', 'U'], ['ramp', 'Helling (L): sleep van onderaan omhoog', 'L'],
+      ['stair', 'Trap (T): sleep van onderaan omhoog, in een van zes richtingen', 'T'], ['ustair', 'Bordestrap (U): sleep de eerste steek; op het bordes keer je en loopt de tweede steek ernaast terug omhoog', 'U'], ['ramp', 'Helling (L): sleep van onderaan omhoog', 'L'], ['hexramp', 'Schans (S): het hele vak wordt een helling naar de verdieping erboven; klik bij de zijde waar je onderaan instapt', 'S'],
       ['roof', 'Dak (K): klik op een vak; nog eens voor een plat dak, nog eens om weg te halen', 'K'], ['object', 'Voorwerp (B): klik om neer te zetten; klik erop om te draaien', 'B'],
       ['erase', 'Gum (X): haalt weg wat eronder ligt', 'X'],
     ];
@@ -57,7 +58,17 @@
     for (const [k, title, key] of TOOLS) { const b = document.createElement('button'); b.type = 'button'; b.title = title; b.innerHTML = svg(k) + `<kbd>${key}</kbd>`; b.addEventListener('click', () => setTool(k)); $('tools').appendChild(b); toolBtns[k] = b; }
     const mkBtn = (host, k, title, fn) => { const b = document.createElement('button'); b.type = 'button'; b.title = title; b.innerHTML = svg(k); b.addEventListener('click', fn); $(host).appendChild(b); return b; };
     const bUndo = mkBtn('edit', 'undo', 'Ongedaan maken (Ctrl+Z)', () => undo()), bRedo = mkBtn('edit', 'redo', 'Opnieuw (Ctrl+Y)', () => redo());
-    const bBrush = mkBtn('edit', 'brush', 'Penseel: zeshoek van 6 driehoeken of één driehoek', () => { E.brush = E.brush === 'hex' ? 'tri' : 'hex'; bBrush.setAttribute('aria-pressed', String(E.brush === 'hex')); say(E.brush === 'hex' ? 'Penseel: zeshoek' : 'Penseel: één driehoek'); }); bBrush.setAttribute('aria-pressed', 'true');
+    const BRUSHES = [['hex', 'zeshoek van 6 driehoeken'], ['tri', 'één driehoek'], ['cell', 'heel vak'], ['core', 'kern van het vak (¾)'], ['ring', 'rand van het vak (galerij, 1,95 m)']];
+    const bBrush = mkBtn('edit', 'brush', 'Penseel (N): zeshoek · driehoek · heel vak · kern · rand', () => { const i = BRUSHES.findIndex(b => b[0] === E.brush); E.brush = BRUSHES[(i + 1) % BRUSHES.length][0]; bBrush.setAttribute('aria-pressed', String(E.brush !== 'tri')); say('Penseel: ' + BRUSHES.find(b => b[0] === E.brush)[1], 1200); }); bBrush.setAttribute('aria-pressed', 'true');
+    // driehoeken van het penseel rond (x, z): zeshoek rond het rasterpunt, één driehoek, of (delen van) het vak
+    function brushTris(x, z) {
+      if (E.brush === 'hex') return around(...vertexAt(x, z)); if (E.brush === 'tri') return [triAt(x, z)];
+      const [q, r] = cellAt(x, z), c = mv2CellXZ(q, r), t = ts(), out = [], iM = Math.ceil(R / (t * SQ3 / 2)) + 2, jM = Math.ceil(R / t) + iM;
+      const ci = Math.round(c[0] / (t * SQ3 / 2)), cj = Math.round(c[1] / t - ci / 2);
+      const inHex = (px, pz, rad) => { for (const f of FRAMES) if ((px - c[0]) * f.nx + (pz - c[1]) * f.nz > rad + 1e-6) return false; return true; };
+      for (let i = ci - iM; i <= ci + iM; i++) for (let j = cj - jM; j <= cj + jM; j++) for (const tt of [0, 1]) { const v = mv2TriVerts(i, j, tt, t), px = (v[0][0] + v[1][0] + v[2][0]) / 3, pz = (v[0][1] + v[1][1] + v[2][1]) / 3; if (!inHex(px, pz, INNER)) continue; const core = inHex(px, pz, INNER * 0.75); if (E.brush === 'cell' || (E.brush === 'core' ? core : !core)) out.push([i, j, tt]); }
+      return out;
+    }
     mkBtn('edit', 'copyUp', 'Verdieping kopiëren naar de verdieping erboven', () => copyUp());
     const b2d = mkBtn('view', 'v2d', 'Bovenaanzicht (2)', () => setView('2d')), b3d = mkBtn('view', 'v3d', '3D (3): teken op de verdieping waar je bent; draaien met de middelste muisknop, Alt of het handje, schuiven met Shift', () => setView('3d'));
     const bUpto = mkBtn('view', 'upto', 'In 3D alleen tot en met de huidige verdieping tonen', () => { E.upto = !E.upto; bUpto.setAttribute('aria-pressed', String(E.upto)); dirty3(); });
@@ -106,7 +117,8 @@
     }
     function stairGeom(S) {
       const D = MV2.DIR6[S.d] || MV2.DIR6[0], a = P(S.a[0], S.a[1]), t = ts(), dx = D[0] * t * SQ3 / 2, dz = D[0] * t / 2 + D[1] * t, dl = Math.hypot(dx, dz) || 1, ux = dx / dl, uz = dz / dl, nx = -uz, nz = ux, len = (S.n || 1) * t, w = S.w || 1.2;
-      const at = (al, lat) => [a[0] + ux * al + nx * lat, a[1] + uz * al + nz * lat];
+      const off = S.off || 0, at = (al, lat) => [a[0] + ux * al + nx * (lat + off), a[1] + uz * al + nz * (lat + off)];
+      if (S.k === 'hexramp') { const c = mv2CellXZ(S.q || 0, S.r || 0), f = FRAMES[(S.side || 0) % 6], ex = -f.nx, ez = -f.nz, lx = -ez, lz = ex, pt = (u, lat) => [c[0] + ex * u + lx * lat, c[1] + ez * u + lz * lat]; return { a: pt(-INNER, 0), ux: ex, uz: ez, nx: lx, nz: lz, len: 2 * INNER, w: 9, at: (al, lat) => pt(al - INNER, lat), poly: [pt(-INNER, -4.5), pt(0, -9), pt(INNER, -4.5), pt(INNER, 4.5), pt(0, 9), pt(-INNER, 4.5)] }; }
       if (S.k === 'u') { const sd = S.side || 1, l0 = sd > 0 ? -w / 2 : -1.5 * w, l1 = sd > 0 ? 1.5 * w : w / 2; return { a, ux, uz, nx, nz, len, w, at, sd, poly: [at(0, l0), at(0, l1), at(len + w, l1), at(len + w, l0)] }; }   // bordestrap: twee steken naast elkaar plus het bordes
       return { a, ux, uz, nx, nz, len, w, at, poly: [at(0, -w / 2), at(0, w / 2), at(len, w / 2), at(len, -w / 2)] };
     }
@@ -127,8 +139,8 @@
     // ---------- zijpaneel: materiaal of keuze bij het gereedschap ----------
     const COL = { paver: '#8a5141', tile: '#cbc8bd', wood: '#a97c52', carpet: '#8b9397', concrete: '#c4c6c2', grass: '#6fa356', water: '#2d5a66', asphalt: '#3c4045', roof: '#5a5d59',
       brick: '#9a5b45', plaster: '#ece8e0', glass: '#a8cbd8', stone: '#bdb5a5', hedge: '#5a9440', fence: '#3b4248',
-      darkbrick: '#3d3a36', panel: '#4b5157', slats: '#a8743f', corten: '#97512e', curtain: '#6d8ea6', parquet: '#9a6a3e', polished: '#c9c8c3', stonetile: '#d9d0bf' };
-    const OBJ_GLYPH = { tree: '🌳', bush: '🌿', bench: '🪑', lamp: '💡', pillar: '🏛', table: '☕', planter: '🌷', fountain: '⛲', bin: '🗑', bike: '🚲' };
+      glass: '#bfe0f0', darkbrick: '#3d3a36', panel: '#4b5157', slats: '#a8743f', corten: '#97512e', curtain: '#6d8ea6', parquet: '#9a6a3e', polished: '#c9c8c3', stonetile: '#d9d0bf' };
+    const OBJ_GLYPH = { tree: '🌳', bush: '🌿', bench: '🪑', lamp: '💡', pillar: '🏛', table: '☕', planter: '🌷', fountain: '⛲', bin: '🗑', bike: '🚲', shelf: '🗄', counter: '🛒', sign: '🪧' };
     function renderCtx() {
       const sw = $('sw'), title = $('ctxTitle'), hint = $('ctxHint'); sw.innerHTML = '';
       const mk = (items, cur, set, glyph) => { for (const k in items) { const b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-pressed', String(cur === k)); b.innerHTML = (glyph ? `<span class="sw" style="border:0;font-size:16px;line-height:18px;text-align:center">${glyph[k] || ''}</span>` : `<span class="sw" style="background:${COL[k] || '#888'}"></span>`) + items[k]; b.addEventListener('click', () => { set(k); renderCtx(); }); sw.appendChild(b); } };
@@ -139,6 +151,7 @@
       else if (['door', 'window', 'gate', 'open', 'close'].includes(E.tool)) { title.textContent = MV2.openings[E.tool === 'close' ? '' : E.tool]; hint.textContent = E.tool === 'close' ? 'Klik op een muur om de opening dicht te maken.' : 'Klik op een muur. Deur 1,2 m breed en 2,2 m hoog; raam vanaf 0,9 m; poort tot 2,8 m; open laat alleen een latei staan.'; }
       else if (E.tool === 'ustair') { title.textContent = 'Bordestrap'; mk({ 1.2: 'Smal 1,2 m', 2: 'Breed 2 m' }, String(E.sw || 1.2), k => { E.sw = +k; }); mk({ 1: 'Keert naar links', '-1': 'Keert naar rechts' }, String(E.usd || 1), k => { E.usd = +k; }); hint.textContent = 'Sleep de eerste steek, van onderaan in de looprichting. Aan het eind komt een bordes (halverwege, 1,5 m); de tweede steek loopt ernaast terug en komt boven uit naast waar je begon. Laat daar een gat in de vloer van de verdieping erboven.'; }
       else if (E.tool === 'stair' || E.tool === 'ramp') { title.textContent = E.tool === 'stair' ? 'Trap' : 'Helling'; mk({ 1.2: 'Smal 1,2 m', 2: 'Breed 2 m', 3: 'Extra breed 3 m' }, String(E.sw || 1.2), k => { E.sw = +k; }); hint.textContent = 'Sleep van het laagste punt omhoog. De trap stijgt 3 m naar de volgende verdieping; laat daar een gat in de vloer. Hoe langer, hoe flauwer.'; }
+      else if (E.tool === 'hexramp') { title.textContent = 'Schans'; hint.textContent = 'Klik in een vak, vlak bij de zijde waar de helling onderaan begint. Het hele vak wordt een oprit die aan de overkant 3 m hoger uitkomt (de verdieping erboven). Rechtermuisknop haalt hem weg.'; }
       else if (E.tool === 'roof') { title.textContent = 'Dak'; hint.textContent = 'Klik op een vak: puntdak, nog eens: plat dak, nog eens: weg. Het dak ligt bovenop deze verdieping.'; }
       else if (E.tool === 'object') { title.textContent = 'Voorwerp'; mk(MV2.objects, E.obj, k => { E.obj = k; }, OBJ_GLYPH); hint.textContent = 'Klik om neer te zetten. Klik op een voorwerp om het 60° te draaien; rechtermuisknop haalt het weg.'; }
       else if (E.tool === 'erase') { title.textContent = 'Gum'; hint.textContent = 'Klik of sleep: voorwerp, muur, trap, dak of vloer onder de muis wordt weggehaald.'; }
@@ -146,7 +159,7 @@
     }
     // ---------- bewerkingen ----------
     function paintFloor(x, z, erase) {
-      const L = lvl(), list = (E.brush === 'hex' ? around(...vertexAt(x, z)) : [triAt(x, z)]).filter(okTri); let n = 0;
+      const L = lvl(), list = brushTris(x, z).filter(okTri); let n = 0;
       for (const id of list) { const k = id.join(','); if (erase) { if (L.f[k]) { delete L.f[k]; n++; } } else if (L.f[k] !== E.fmat) { L.f[k] = E.fmat; n++; } }
       return n;
     }
@@ -210,6 +223,7 @@
       if (E.tool === 'wall') { if (right) { const w = nearestWall(x, z); if (w) { snap(); delete lvl().w[w.id]; changed(); } return; } E.drag = { kind: 'wall', a: vertexAt(x, z), d: 0, n: 0 }; draw(); return; }
       if (['door', 'window', 'gate', 'open', 'close'].includes(E.tool)) { const before = JSON.stringify(E.m); if (setOpening(x, z, E.tool === 'close' ? '' : E.tool)) { E.undo.push(before); E.redo = []; E.dirty = true; changed(); } return; }
       if (E.tool === 'stair' || E.tool === 'ramp' || E.tool === 'ustair') { if (right) { const si = stairAt(x, z); if (si >= 0) { snap(); lvl().s.splice(si, 1); changed(); } return; } E.drag = { kind: 'stair', a: vertexAt(x, z), d: 0, n: 0 }; draw(); return; }
+      if (E.tool === 'hexramp') { const L = lvl(); if (right) { const si = stairAt(x, z); if (si >= 0) { snap(); L.s.splice(si, 1); changed(); } return; } if (!inArea(x, z)) return; const [q, r] = cellAt(x, z), c = mv2CellXZ(q, r); let side = 0, bd = -1e9; FRAMES.forEach((f, k) => { const d = (x - c[0]) * f.nx + (z - c[1]) * f.nz; if (d > bd) { bd = d; side = k; } }); snap(); const old = L.s.findIndex(S => S.k === 'hexramp' && S.q === q && S.r === r); if (old >= 0) L.s.splice(old, 1); L.s.push({ a: [0, 0], d: 0, n: 1, w: 9, k: 'hexramp', q, r, side }); changed(); say('Schans: instap aan zijde ' + (side + 1), 1000); return; }
       if (E.tool === 'roof') { if (!inArea(x, z)) return; const [q, r] = cellAt(x, z), k = q + ',' + r, L = lvl(); snap(); L.r[k] = right ? undefined : L.r[k] === 'hip' ? 'flat' : L.r[k] === 'flat' ? undefined : 'hip'; if (!L.r[k]) delete L.r[k]; changed(); return; }
       if (E.tool === 'object') { const L = lvl(), oi = objectAt(x, z, 0.8); snap(); if (oi >= 0) { if (right) L.o.splice(oi, 1); else L.o[oi].rot = ((L.o[oi].rot || 0) + Math.PI / 3) % (Math.PI * 2); } else if (!right && inArea(x, z)) L.o.push({ t: E.obj, x: Math.round(x * 4) / 4, z: Math.round(z * 4) / 4, rot: 0 }); changed(); return; }
       if (E.tool === 'erase') { snap(); const what = eraseAt(x, z); E.drag = { kind: 'erase' }; changed(); if (what) say(what + ' weggehaald', 700); return; }
@@ -253,7 +267,7 @@
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); save(); return; }
       if (e.key === 'PageUp') { e.preventDefault(); $('lvUp').click(); return; } if (e.key === 'PageDown') { e.preventDefault(); $('lvDn').click(); return; }
       if (e.key === 'Escape') { E.drag = null; draw(); return; }
-      if (e.key === '2') setView('2d'); if (e.key === '3') setView('3d');
+      if (e.key === '2') setView('2d'); if (e.key === '3') setView('3d'); if (e.key === 'n' || e.key === 'N') { bBrush.click(); return; }
       const t = TOOLS.find(x => x[2].toLowerCase() === e.key.toLowerCase()); if (t) setTool(t[0]);
     });
     document.addEventListener('keyup', e => { if (e.code === 'Space') spaceDown = false; });
@@ -293,12 +307,13 @@
       const stairDraw = (S, ghost) => {
         const g = stairGeom(S), pts = g.poly.map(p => toS(p[0], p[1]));
         ctx.beginPath(); pts.forEach((p, n) => n ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath();
-        ctx.fillStyle = ghost ? 'rgba(242,178,51,0.25)' : (S.k === 'ramp' ? 'rgba(170,140,100,0.55)' : 'rgba(190,180,165,0.6)'); ctx.fill(); ctx.strokeStyle = ghost ? '#f2b233' : '#e9ecdf'; ctx.lineWidth = 1.2; ctx.stroke();
+        ctx.fillStyle = ghost ? 'rgba(242,178,51,0.25)' : (S.k === 'ramp' || S.k === 'hexramp' ? 'rgba(170,140,100,0.55)' : 'rgba(190,180,165,0.6)'); ctx.fill(); ctx.strokeStyle = ghost ? '#f2b233' : '#e9ecdf'; ctx.lineWidth = 1.2; ctx.stroke();
         if (S.k === 'u') {   // twee steken met treden en pijlen: heen en, ernaast, terug
           const N = Math.max(2, Math.round(g.len / 0.28)); ctx.beginPath(); for (const c of [0, g.sd * g.w]) for (let n = 1; n <= N; n++) { const a = toS(...g.at(n * g.len / N, c - g.w / 2)), b = toS(...g.at(n * g.len / N, c + g.w / 2)); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); } ctx.strokeStyle = 'rgba(40,40,30,0.5)'; ctx.lineWidth = 1; ctx.stroke();
           ctx.strokeStyle = '#f2b233'; ctx.lineWidth = 2; ctx.beginPath(); const p0 = toS(...g.at(g.len * 0.1, 0)), p1 = toS(...g.at(g.len + g.w / 2, 0)), p2 = toS(...g.at(g.len + g.w / 2, g.sd * g.w)), p3 = toS(...g.at(g.len * 0.1, g.sd * g.w)); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]); ctx.lineTo(p3[0], p3[1]); ctx.stroke(); return;
         }
-        if (S.k !== 'ramp') { const N = Math.max(2, Math.round(g.len / 0.28)); ctx.beginPath(); for (let n = 1; n < N; n++) { const a = toS(...g.at(n * g.len / N, -g.w / 2)), b = toS(...g.at(n * g.len / N, g.w / 2)); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); } ctx.strokeStyle = 'rgba(40,40,30,0.5)'; ctx.lineWidth = 1; ctx.stroke(); }
+        if (S.k === 'hexramp') { ctx.strokeStyle = 'rgba(40,40,30,0.35)'; ctx.lineWidth = 1; ctx.beginPath(); for (let n = 1; n < 7; n++) { const a = toS(...g.at(n * g.len / 7, -4.5)), b = toS(...g.at(n * g.len / 7, 4.5)); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); } ctx.stroke(); }
+        if (S.k !== 'ramp' && S.k !== 'hexramp') { const N = Math.max(2, Math.round(g.len / 0.28)); ctx.beginPath(); for (let n = 1; n < N; n++) { const a = toS(...g.at(n * g.len / N, -g.w / 2)), b = toS(...g.at(n * g.len / N, g.w / 2)); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); } ctx.strokeStyle = 'rgba(40,40,30,0.5)'; ctx.lineWidth = 1; ctx.stroke(); }
         const a0 = toS(...g.at(g.len * 0.15, 0)), a1 = toS(...g.at(g.len * 0.9, 0)); ctx.strokeStyle = '#f2b233'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(a0[0], a0[1]); ctx.lineTo(a1[0], a1[1]); ctx.stroke();
         const ang = Math.atan2(a1[1] - a0[1], a1[0] - a0[0]); ctx.beginPath(); ctx.moveTo(a1[0], a1[1]); ctx.lineTo(a1[0] - 8 * Math.cos(ang - 0.5), a1[1] - 8 * Math.sin(ang - 0.5)); ctx.moveTo(a1[0], a1[1]); ctx.lineTo(a1[0] - 8 * Math.cos(ang + 0.5), a1[1] - 8 * Math.sin(ang + 0.5)); ctx.stroke();
       };
@@ -323,9 +338,10 @@
       else if (D && D.kind === 'stair' && D.n > 0) stairDraw({ a: D.a, d: D.d, n: D.n, w: E.sw || 1.2, k: E.tool === 'ramp' ? 'ramp' : E.tool === 'ustair' ? 'u' : 'stair', side: E.usd || 1 }, true);
       else if (hv && !E.pan) {
         const [x, z] = hv; ctx.strokeStyle = '#f2b233'; ctx.lineWidth = 2;
-        if (E.tool === 'floor') { for (const id of (E.brush === 'hex' ? around(...vertexAt(x, z)) : [triAt(x, z)]).filter(okTri)) { const v = mv2TriVerts(id[0], id[1], id[2], t); ctx.beginPath(); v.forEach((p, n) => { const S3 = toS(p[0], p[1]); n ? ctx.lineTo(S3[0], S3[1]) : ctx.moveTo(S3[0], S3[1]); }); ctx.closePath(); ctx.stroke(); } }
+        if (E.tool === 'floor') { for (const id of brushTris(x, z).filter(okTri)) { const v = mv2TriVerts(id[0], id[1], id[2], t); ctx.beginPath(); v.forEach((p, n) => { const S3 = toS(p[0], p[1]); n ? ctx.lineTo(S3[0], S3[1]) : ctx.moveTo(S3[0], S3[1]); }); ctx.closePath(); ctx.stroke(); } }
         else if (E.tool === 'wall' || E.tool === 'stair' || E.tool === 'ramp' || E.tool === 'ustair') { const v = vertexAt(x, z), p = toS(...P(v[0], v[1])); ctx.beginPath(); ctx.arc(p[0], p[1], 5, 0, Math.PI * 2); ctx.stroke(); }
         else if (['door', 'window', 'gate', 'open', 'close', 'erase'].includes(E.tool)) { const w = nearestWall(x, z); if (w) { const [i, j, d] = w.id.split(',').map(Number), [a, b] = segOf(i, j, d), A = toS(a[0], a[1]), B = toS(b[0], b[1]); ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke(); } }
+        else if (E.tool === 'hexramp') { if (inArea(x, z)) { const [q, r] = cellAt(x, z), c = mv2CellXZ(q, r); let side = 0, bd = -1e9; FRAMES.forEach((f, k) => { const d = (x - c[0]) * f.nx + (z - c[1]) * f.nz; if (d > bd) { bd = d; side = k; } }); stairDraw({ k: 'hexramp', q, r, side, a: [0, 0], d: 0, n: 1 }, true); } }
         else if (E.tool === 'roof' || E.tool === 'room') { if (inArea(x, z)) { const [q, r] = cellAt(x, z), c = mv2CellXZ(q, r); hexPath(c[0], c[1], R - 0.3); ctx.stroke(); } }
         else if (E.tool === 'object') { const S4 = toS(Math.round(x * 4) / 4, Math.round(z * 4) / 4); ctx.beginPath(); ctx.arc(S4[0], S4[1], Math.max(8, 0.5 * s), 0, Math.PI * 2); ctx.stroke(); }
       }

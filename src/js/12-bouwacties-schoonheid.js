@@ -156,7 +156,7 @@
     }
     if (tool === 'vrot') return placeRot(q, r);
     if (VEC_TOOLS.has(tool)) { toast('Sleep van vak naar vak om een ' + TYPES[tool].name.toLowerCase() + ' te trekken', 1600); return; }
-    if (tool === 'module') { const a = anchorOf(lastPickRes) || [q, r]; return placeModule(a[0], a[1]); }
+    if (tool === 'module') { const a = anchorOf(lastPickRes) || [q, r]; return placeModule(a[0], a[1], lastPickRes && lastPickRes.inst && !lastPickRes.side ? lastPickRes.lv : 0); }
     if (EDGE_TOOLS.has(tool)) return placeEdgeAt(lastPickRes);
     const T = toolBase(tool), wideTool = tool === 'fietspad';
     // Zelfde blok met een richting nog eens aantikken: draait het geplaatste blok 60°
@@ -240,12 +240,14 @@
   function pick(cx, cy) {
     ndc.set(cx / window.innerWidth * 2 - 1, -(cy / window.innerHeight) * 2 + 1);
     raycaster.setFromCamera(ndc, camera);
-    const hits = raycaster.intersectObjects([ground, terrGroup, blocks], true);
+    const hits = raycaster.intersectObjects([ground, terrGroup, blocks, ...(tool === 'module' || tool === 'gum' ? [...modGroups.values()].map(e => e.group) : [])], true);
     if (!hits.length) return null;
     const h = hits[0];
     if (mode === 'walk' && h.distance > REACH) return null;
     if (h.object === ground || h.object.userData.terr) return { place: worldToCell(h.point.x, h.point.z), erase: null, point: h.point, terr: !!h.object.userData.terr };
     let o = h.object;
+    { let g = o; while (g && !(g.userData && g.userData.inst)) g = g.parent;   // een module: bovenop bouwen (dak) of wisselen/weghalen (gevel)
+      if (g) { const I = g.userData.inst, n = h.face.normal.clone().transformDirection(h.object.matrixWorld), cell = worldToCell(h.point.x, h.point.z); return { place: cell, erase: cell, point: h.point, inst: I, lv: stackLvAt(cell[0], cell[1]), side: n.y < 0.5 }; } }
     while (o && (!o.userData || o.userData.q === undefined)) o = o.parent;
     if (!o) return null;
     const { q, r } = o.userData;
@@ -356,7 +358,7 @@
     if (terrHover(res, cx, cy)) { previewActive = false; ghost.visible = false; ghostEdges.visible = false; return; }
     if (!res || (mode === 'walk' && hand !== 'bouwen')) { ghost.visible = false; ghostEdges.visible = false; return; }
     if (VEC_TOOLS.has(tool) || tool === 'vrot') { previewActive = false; ghost.visible = false; ghostEdges.visible = false; return; }
-    if (tool === 'module') { previewActive = false; ghost.visible = false; ghostEdges.visible = false; if (res.place) { const a = anchorOf(res); showModuleGhost(a[0], a[1]); } return; }
+    if (tool === 'module') { previewActive = false; ghost.visible = false; ghostEdges.visible = false; if (res.place) { const a = anchorOf(res); showModuleGhost(a[0], a[1], res.inst && !res.side ? res.lv : 0); } return; }
     if (EDGE_TOOLS.has(tool)) {
       previewActive = false; ghost.visible = false; ghostEdges.visible = false;
       const ne = res.point ? nearestEdge(res.point.x, res.point.z) : null;

@@ -19,6 +19,15 @@
         return B;
       },
       cell(li, q, r, mat) { const c = mv2CellXZ(q, r); return B.hex(li, c[0], c[1], R - 0.01, mat); },
+      // alle driehoeken in het gebied waarvan het zwaartepunt aan pred(x, z) voldoet
+      where(li, pred, mat) {
+        const L = lv(li), iM = Math.ceil(ext / (ts * SQ3 / 2)) + 1, jM = Math.ceil(ext / ts) + iM;
+        for (let i = -iM; i <= iM; i++) for (let j = -jM; j <= jM; j++) for (const t of [0, 1]) { const v = mv2TriVerts(i, j, t, ts), x = (v[0][0] + v[1][0] + v[2][0]) / 3, z = (v[0][1] + v[1][1] + v[2][1]) / 3; if (!mv2InArea(m, x, z) || !pred(x, z)) continue; if (mat) L.f[i + ',' + j + ',' + t] = mat; else delete L.f[i + ',' + j + ',' + t]; }
+        return B;
+      },
+      // muur langs een muurrichting dw (0–2 langs de ribben, 3–5 haaks: 0°, 60°, 120°), n stukken vanaf (x, z)
+      wline(li, x, z, dw, n, mat, o = '') { const L = lv(li), D = MV2.DIRW[dw]; let a = vAt(x, z); for (let i = 0; i < n; i++) { L.w[a[0] + ',' + a[1] + ',' + dw] = { m: mat, o: typeof o === 'function' ? o(i) : o }; a = [a[0] + D[0], a[1] + D[1]]; } return B; },
+      hexramp(li, q, r, side) { lv(li).s.push({ a: [0, 0], d: 0, n: 1, w: 9, k: 'hexramp', q, r, side }); return B; },
       all(li, mat) { for (let q = -k; q <= k; q++) for (let r = -k; r <= k; r++) if (mv2HexDist(q, r) <= k) B.cell(li, q, r, mat); return B; },
       // muren langs de zeshoek (cx, cz, straal rad); sides: welke zijden (0..5); open: { zijde: 'door'|'window'|... of [opening, index] }; win: om de hoeveel ribben een raam
       ring(li, cx, cz, rad, mat, opts = {}) {
@@ -44,7 +53,7 @@
       // gat in de vloer van verdieping li boven een trap (zodat je er niet met je hoofd tegenaan loopt)
       hole(li, S) {
         const L = lv(li), D = MV2.DIR6[S.d], a = mv2P(S.a[0], S.a[1], ts), dx = D[0] * ts * SQ3 / 2, dz = D[0] * ts / 2 + D[1] * ts, dl = Math.hypot(dx, dz) || 1, ux = dx / dl, uz = dz / dl, nx = -uz, nz = ux, len = S.n * ts, hw = (S.w || 1.2) / 2 + 0.3;
-        const inside = (x, z, alMax) => { const cx = x - a[0], cz = z - a[1], al = cx * ux + cz * uz, lat = cx * nx + cz * nz; return al > 0.3 * len && al < alMax && Math.abs(lat) < hw; };
+        const off = S.off || 0, inside = (x, z, alMax) => { const cx = x - a[0], cz = z - a[1], al = cx * ux + cz * uz, lat = cx * nx + cz * nz - off; return al > 0.3 * len && al < alMax && Math.abs(lat) < hw; };
         for (const id in L.f) { const [i, j, t] = id.split(',').map(Number), v = mv2TriVerts(i, j, t, ts); if (v.some(p => inside(p[0], p[1], len - 0.3)) || inside((v[0][0] + v[1][0] + v[2][0]) / 3, (v[0][1] + v[1][1] + v[2][1]) / 3, len + 0.2)) delete L.f[id]; }
         return B;
       },
@@ -206,7 +215,61 @@
     { const b = libBuilder('Asfaltvlak', 'Bouwdelen'); b.cell(0, 0, 0, 'asphalt'); add(b); }
     { const b = libBuilder('Lantaarnrij', 'Bouwdelen'); b.cell(0, 0, 0, 'tile'); for (let i = -2; i <= 2; i++) b.obj(0, 'lamp', i * 3.5, 0); add(b); }
     { const b = libBuilder('Bomenrij', 'Bouwdelen'); b.cell(0, 0, 0, 'grass'); for (let i = -2; i <= 2; i++) b.obj(0, 'tree', i * 3.5, 0); add(b); }
+    // ---------- Winkelcentrum: de tien hex-modules uit de SketchUp-schets, elk met een functie. Ze staan op elkaar
+    // (gelaagde stad): een plat dak met glazen lichtkap verdwijnt zodra er een module op staat. Zijde 0 (+x) is
+    // de voorkant / passagekant; 'kern' is de zeshoek van ¾ (straal 6,75 m), de rand eromheen is 1,95 m breed. ----------
+    // Let op: ring()/cellRing() tellen de zijden vanaf de hoek op 30° (zijde s heeft zijn normaal op 60° + 60°·s), de
+    // meetkunde (FRAMES, nrm) telt vanaf +x (zijde k heeft zijn normaal op −60°·k). Ringzijde = (5 − k) mod 6.
+    const WC = 'Winkelcentrum', CORE = 6.75, nrm = k => [Math.cos(-k * Math.PI / 3), Math.sin(-k * Math.PI / 3)], rs = k => (5 - k + 6) % 6, FRONT = rs(0), NOT_FRONT = [1, 2, 3, 4, 5].map(rs);
+    const inCore = (x, z, rad = CORE) => { for (let k = 0; k < 6; k++) { const n = nrm(k); if (x * n[0] + z * n[1] > rad * SQ3 / 2 + 1e-6) return false; } return true; };
+    const wcRoof = (b, li, light = true) => { b.cell(li, 0, 0, 'roof'); if (light) b.hex(li, 0, 0, CORE, 'glass'); };   // plat dak met glazen lichtkap
+    const wcFront = (b, li, side, mat = 'curtain') => b.cellRing(li, 0, 0, mat, { sides: [side], open: { [side]: [['open', 1], ['open', 2]] } });   // brede open pui
+    const wcSides = (b, li, sides, mat = 'panel') => b.cellRing(li, 0, 0, mat, { sides });
+    { const b = libBuilder('Winkelcentrum · winkel', WC); b.cell(0, 0, 0, 'polished'); wcSides(b, 0, NOT_FRONT); wcFront(b, 0, FRONT); b.obj(0, 'shelf', -3, -3.2, Math.PI / 2).obj(0, 'shelf', -3, 3.2, Math.PI / 2).obj(0, 'shelf', -5.6, 0, 0).obj(0, 'counter', 3.2, -4.2, Math.PI / 2).obj(0, 'sign', 7.1, 0).obj(0, 'planter', 3, 4.5); wcRoof(b, 1); add(b); }
+    { const b = libBuilder('Winkelcentrum · winkel · boeken', WC); b.cell(0, 0, 0, 'parquet'); wcSides(b, 0, NOT_FRONT); wcFront(b, 0, FRONT); for (const z of [-4.5, -1.5, 1.5, 4.5]) b.obj(0, 'shelf', -3.6, z, 0); b.obj(0, 'counter', 3.6, -3.6, Math.PI / 2).obj(0, 'table', 3.6, 3.4).obj(0, 'sign', 7.1, 0); wcRoof(b, 1); add(b); }
+    { const b = libBuilder('Winkelcentrum · horeca', WC); b.cell(0, 0, 0, 'stonetile'); wcSides(b, 0, NOT_FRONT); wcFront(b, 0, FRONT); b.obj(0, 'counter', -5.4, 0, 0).circle(0, 'table', 1.5, 0, 3.6, 5, 0.3).obj(0, 'sign', 7.1, 0).obj(0, 'planter', 6.6, 4.2).obj(0, 'planter', 6.6, -4.2); wcRoof(b, 1); add(b); }
+    { const b = libBuilder('Winkelcentrum · magazijn', WC); b.cell(0, 0, 0, 'concrete'); b.cellRing(0, 0, 0, 'concrete', { open: { [rs(3)]: 'gate' } }); for (const z of [-4.5, -1.5, 1.5, 4.5]) b.obj(0, 'shelf', 2.5, z, 0).obj(0, 'shelf', -2.5, z, 0); b.obj(0, 'bin', 6.2, 0); wcRoof(b, 1, false); add(b); }
+    { // halfblok: de helft van het vak langs de lange diagonaal; de diagonaal is een glazen pui naar de passage
+      const b = libBuilder('Winkelcentrum · café · half', WC), u = [Math.cos(Math.PI / 6), Math.sin(Math.PI / 6)], side = (x, z) => u[0] * z - u[1] * x > 0.01;   // de helft aan de +z-kant van de diagonaal (hoek 210° → 30°)
+      b.where(0, side, 'stonetile'); b.cellRing(0, 0, 0, 'panel', { sides: [3, 4, 5].map(rs) }); b.line(0, -INNER, -4.5, 0, 8, 'curtain', i => (i === 3 || i === 4 ? 'open' : ''));
+      b.obj(0, 'counter', -4.6, 5.2, Math.PI / 6 + Math.PI / 2).obj(0, 'table', 0.8, 5.2).obj(0, 'table', -3.2, 2.6).obj(0, 'table', 3.6, 3.4).obj(0, 'planter', -6.2, 2.5).obj(0, 'sign', 1, 2);
+      b.where(1, side, 'roof'); add(b); }
+    { // afgesneden: zijde 1 is tot halverwege teruggezet; de schuine pui is de ingang (bijvoorbeeld aan een passage of plein)
+      const b = libBuilder('Winkelcentrum · winkel · afgesneden', WC), n1 = nrm(1), keep = (x, z) => x * n1[0] + z * n1[1] <= INNER / 2 + 0.01;
+      b.where(0, keep, 'polished'); b.cellRing(0, 0, 0, 'panel', { sides: [3, 4, 5].map(rs) }); b.line(0, INNER, 0, 1, 2, 'panel'); b.line(0, -INNER, -4.5, 5, 2, 'panel');
+      b.line(0, -INNER / 2, -6.75, 0, 6, 'curtain', i => (i === 2 || i === 3 ? 'open' : ''));
+      b.obj(0, 'shelf', -4, 2.4, Math.PI / 2).obj(0, 'shelf', -4, 5.4, Math.PI / 2).obj(0, 'shelf', -1, 5.8, 0).obj(0, 'counter', 4.2, 3.4, Math.PI / 2).obj(0, 'sign', 2.2, -3.2).obj(0, 'planter', -6.2, -1.5);
+      b.where(1, keep, 'roof'); b.hex(1, 0, 0, CORE * 0.7, 'glass'); add(b); }
+    { // doorgang: een 9 m brede passage dwars door het blok (zijde 3 → 0), met een berging in elke punt
+      const b = libBuilder('Winkelcentrum · doorgang', WC); b.where(0, (x, z) => Math.abs(z) < 4.5, 'paver'); b.where(0, (x, z) => Math.abs(z) >= 4.5, 'tile');
+      b.wline(0, -INNER, -4.5, 3, 4, 'concrete', i => (i === 2 ? 'door' : '')); b.wline(0, -INNER, 4.5, 3, 4, 'concrete', i => (i === 1 ? 'door' : '')); wcSides(b, 0, [1, 2, 4, 5].map(rs), 'concrete');
+      b.obj(0, 'bench', -3, 3.8, 0).obj(0, 'bench', 3, -3.8, 0).obj(0, 'bin', 5.5, 3.7).obj(0, 'planter', -5.5, -3.7).obj(0, 'shelf', 0, 6.8, 0).obj(0, 'shelf', 0, -6.8, 0); wcRoof(b, 1, false); add(b); }
+    { const b = libBuilder('Winkelcentrum · oprit', WC); b.hexramp(0, 0, 0, 3); add(b); }   // schans: onderaan in bij zijde 3, boven uit bij zijde 0 (de verdieping erboven)
+    { // dakpaviljoen: teruggezette opbouw van ¾ met een terras van 1,95 m rondom
+      const b = libBuilder('Winkelcentrum · dakpaviljoen', WC); b.cell(0, 0, 0, 'tile'); b.hex(0, 0, 0, CORE, 'wood'); b.ring(0, 0, 0, CORE, 'curtain', { open: { [FRONT]: 'gate' } }); b.cellRing(0, 0, 0, 'fence');
+      b.obj(0, 'counter', -4, 0, 0).obj(0, 'table', 1.5, 2.2).obj(0, 'table', 1.5, -2.2).obj(0, 'table', 7.4, 2.9, Math.PI / 6).obj(0, 'table', 7.4, -2.9, -Math.PI / 6).obj(0, 'table', -7.4, 0, Math.PI / 2).circle(0, 'planter', 0, 0, 7.4, 3, Math.PI / 2).obj(0, 'lamp', 7.4, 0);
+      b.hex(1, 0, 0, CORE, 'roof'); add(b); }
+    { // galerij: vloerring van 1,95 m rond een vide, met balustrade aan de binnenkant
+      const b = libBuilder('Winkelcentrum · galerij', WC); b.where(0, (x, z) => !inCore(x, z), 'polished'); b.ring(0, 0, 0, CORE, 'fence'); b.obj(0, 'planter', 6.8, 0).obj(0, 'planter', -6.8, 0).obj(0, 'bench', 0, 6.9, 0).obj(0, 'bin', 0, -6.9); add(b); }
+    { // galerij met trap: winkel beneden, erboven de galerijring; een rechte trap van 1,95 m in de band langs zijde 3
+      const b = libBuilder('Winkelcentrum · galerij · trap', WC); b.cell(0, 0, 0, 'polished'); wcSides(b, 0, NOT_FRONT); wcFront(b, 0, FRONT);
+      const S = { a: [-3, 3], d: 4, n: 3, w: 1.95, k: 'stair', off: -0.975 }; b.m.lv[0].s.push(S);   // vanaf (−5,85, 3,375) naar −z, in de band x −7,79…−5,85
+      b.obj(0, 'shelf', 0, -4.6, 0).obj(0, 'shelf', 0, 4.6, 0).obj(0, 'counter', 3.4, 0, Math.PI / 2).obj(0, 'sign', 7.1, 0);
+      b.where(1, (x, z) => !inCore(x, z), 'polished'); b.hole(1, S); b.ring(1, 0, 0, CORE, 'fence'); b.obj(1, 'planter', 6.8, 0).obj(1, 'bench', 0, 6.9, 0); add(b); }
     return out;
+  }
+  // ---------- Voorbeeld: het winkelcentrum uit de SketchUp-schets (hex_mall), 129 modules in vier lagen ----------
+  // [module, q, r, laag, draaiing]; de bouwstenen staan op elkaar, de passage loopt diagonaal door de bovenlagen
+  const MALL_NAMES = ["Winkelcentrum · café · half", "Winkelcentrum · dakpaviljoen", "Winkelcentrum · doorgang", "Winkelcentrum · galerij", "Winkelcentrum · galerij · trap", "Winkelcentrum · horeca", "Winkelcentrum · magazijn", "Winkelcentrum · oprit", "Winkelcentrum · winkel", "Winkelcentrum · winkel · afgesneden", "Winkelcentrum · winkel · boeken"];
+  const MALL = [[7,-1,-3,0,5],[8,0,-3,0,0],[8,1,-3,0,0],[5,-2,-2,0,0],[10,-1,-2,0,0],[4,0,-2,0,3],[8,1,-2,0,0],[8,2,-2,0,0],[7,-3,-1,0,0],[6,-2,-1,0,0],[8,-1,-1,0,0],[5,0,-1,0,0],[5,1,-1,0,0],[10,2,-1,0,0],[10,3,-1,0,0],[8,-3,0,0,0],[4,-2,0,0,2],[8,-1,0,0,0],[8,0,0,0,0],[8,1,0,0,0],[8,2,0,0,0],[5,3,0,0,0],[5,-3,1,0,0],[10,-2,1,0,0],[10,-1,1,0,0],[8,0,1,0,0],[8,1,1,0,0],[8,2,1,0,0],[8,3,1,0,0],[8,-2,2,0,0],[5,-1,2,0,0],[5,0,2,0,0],[10,1,2,0,0],[10,2,2,0,0],[8,-1,3,0,0],[8,0,3,0,0],[8,1,3,0,0],[10,0,-3,1,0],[8,1,-3,1,0],[8,-2,-2,1,0],[2,-1,-2,1,5],[5,1,-2,1,0],[10,2,-2,1,0],[2,-2,-1,1,0],[9,0,-1,1,3],[8,1,-1,1,0],[8,2,-1,1,0],[5,3,-1,1,0],[5,-3,0,1,0],[9,-1,0,1,0],[0,1,0,1,3],[8,2,0,1,0],[8,3,0,1,0],[8,-3,1,1,0],[8,-2,1,1,0],[5,-1,1,1,0],[0,0,1,1,0],[3,1,1,1,0],[10,2,1,1,0],[8,3,1,1,0],[8,-2,2,1,0],[8,-1,2,1,0],[8,0,2,1,0],[8,1,2,1,0],[5,2,2,1,0],[8,-1,3,1,0],[8,0,3,1,0],[8,1,3,1,0],[5,0,-3,2,0],[5,1,-3,2,0],[8,-2,-2,2,0],[1,-1,-2,2,0],[8,1,-2,2,0],[1,2,-2,2,0],[1,-2,-1,2,0],[3,0,-1,2,0],[3,1,-1,2,0],[8,2,-1,2,0],[1,3,-1,2,0],[8,-3,0,2,0],[3,-1,0,2,0],[3,1,0,2,0],[3,2,0,2,0],[8,3,0,2,0],[1,-3,1,2,0],[8,-3,1,2,0],[8,-2,1,2,0],[3,-1,1,2,0],[3,0,1,2,0],[3,2,1,2,0],[5,3,1,2,0],[1,-2,2,2,0],[8,-1,2,2,0],[3,0,2,2,0],[3,1,2,2,0],[8,2,2,2,0],[1,-1,3,2,0],[10,0,3,2,0],[10,1,3,2,0],[8,0,-3,3,0],[8,1,-3,3,0],[10,-2,-2,3,0],[10,-1,-2,3,0],[8,1,-2,3,0],[8,2,-2,3,0],[8,-2,-1,3,0],[9,0,-1,3,3],[10,1,-1,3,0],[10,2,-1,3,0],[8,3,-1,3,0],[8,-3,0,3,0],[9,-1,0,3,0],[0,1,0,3,3],[5,2,0,3,0],[5,3,0,3,0],[10,-3,1,3,0],[10,-2,1,3,0],[8,-1,1,3,0],[0,0,1,3,0],[8,2,1,3,0],[8,3,1,3,0],[5,-2,2,3,0],[5,-1,2,3,0],[10,0,2,3,0],[10,1,2,3,0],[8,2,2,3,0],[8,-1,3,3,0],[8,0,3,3,0],[5,1,3,3,0]];
+  function mallCity() {
+    const base = n => (n || '').replace(/( · \d+[Lv])+$/, ''), std = new Map(libStandard().map(m => [base(m.name), m])), byName = new Map(modules.map(m => [base(m.name), m]));   // zonder lagen/maat-achtervoegsel
+    const c = new Map(); c.inst = [];
+    for (const [ni, q, r, lv, rot] of MALL) {
+      const name = MALL_NAMES[ni], lib = byName.get(name) || std.get(name); if (!lib) continue;
+      c.inst.push(Object.assign({ mid: lib.id, m: JSON.parse(JSON.stringify(lib)), q, r, rot }, lv ? { lv } : {}));
+    }
+    return c;
   }
   // Eenmalig aan de lijst toevoegen (en terug te zetten via de module maker)
   function libInstall(force) {
@@ -228,3 +291,5 @@
       if (n) saveMods(); localStorage.setItem('hexstad-names1', '1');
     }
   } catch (e) { /* geen opslag */ }
+  // Nieuwe uitgave (lib4: Winkelcentrum): ontbrekende standaardmodules erbij, eigen en bestaande blijven zoals ze zijn
+  try { if (!localStorage.getItem('hexstad-lib4')) { libInstall(false); localStorage.setItem('hexstad-lib4', '1'); } } catch (e) { /* geen opslag */ }
