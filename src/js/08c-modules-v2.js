@@ -139,6 +139,23 @@
       if (li) {   // randen van de vloerplaat: een zijkant van 22 cm waar geen buurdriehoek ligt
         for (const mat in byMat) for (const v of byMat[mat]) for (const [p, q] of [[v[0], v[1]], [v[1], v[2]], [v[2], v[0]]]) if (edgeCnt.get(eid(p, q)) === 1) wallBox(Mt.slab, p, q, y0 - MV2.FLOOR_T, y0 + 0.02, 0.06);
       }
+      // --- hoeken: waar twee muren onder een hoek samenkomen, een ronde hoekpost van dezelfde dikte, zodat de muren
+      // zonder kier of uitstekend hoekje op elkaar aansluiten (muren zijn rechte blokken van punt tot punt) ---
+      { const ends = new Map(), add = (k, dir, W) => { let L2 = ends.get(k); if (!L2) ends.set(k, L2 = []); L2.push({ dir, W }); };
+        for (const id in L.w) { const W = L.w[id]; if (!W || W.m === 'fence' || W.m === 'glass') continue; const [i, j, d] = id.split(',').map(Number), D = MV2.DIR3[d]; if (!D) continue;
+          const a = mv2P(i, j, ts), b = mv2P(i + D[0], j + D[1], ts); if (!mv2NearArea(m, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2)) continue;
+          const l = Math.hypot(b[0] - a[0], b[1] - a[1]), u = [(b[0] - a[0]) / l, (b[1] - a[1]) / l];
+          add(i + ',' + j, u, W); add((i + D[0]) + ',' + (j + D[1]), [-u[0], -u[1]], W); }
+        for (const [k, L2] of ends) {
+          if (L2.length < 2) continue;
+          let bent = false; for (let x = 0; x < L2.length && !bent; x++) for (let y = x + 1; y < L2.length; y++) if (L2[x].dir[0] * L2[y].dir[0] + L2[x].dir[1] * L2[y].dir[1] > -0.99) { bent = true; break; }
+          if (!bent) continue;   // rechtdoor: de blokken sluiten al aan
+          const [i, j] = k.split(',').map(Number), c = mv2P(i, j, ts), hedge = L2.every(e => e.W.m === 'hedge'), W0 = L2.find(e => e.W.m !== 'hedge') || L2[0];
+          const mat = hedge ? (Mt.wl.hedge) : (Mt.wl[W0.W.m] || Mt.wl.brick), r = hedge ? 0.3 : MV2.WALL_T / 2, h = hedge ? 1.4 : LH;
+          const g = new THREE.CylinderGeometry(r * 1.02, r * 1.02, h, 12);
+          if (mat.userData && mat.userData.mUV) { const P2 = g.attributes.position, U = g.attributes.uv; for (let n = 0; n < P2.count; n++) U.setXY(n, Math.atan2(P2.getZ(n), P2.getX(n)) * r + c[0] + c[1], P2.getY(n) + y0 + h / 2); }
+          const Wp = tf(c[0], c[1]); g.translate(Wp[0], y0 + h / 2, Wp[1]); put(mat, g);
+        } }
       // --- muren ---
       for (const id in L.w) {
         const W = L.w[id]; if (!W) continue;
