@@ -460,7 +460,9 @@
           if (c.crash) { crashStep(c, dt, peds, lying); continue; }
           const ch = Math.cos(c.h), sh = Math.sin(c.h);
           // gewenste snelheid: 30 km/u, langzamer in bochten en bij het keren (roekeloos: 75 km/u en bochten op de rand)
-          let want = reckless ? 21 : ({ snel: 22, klink: 4.5, ring: 6.5 }[(VG.edges.get(c.eid) || {}).t] ?? 8.3); c.why = ''; c.yieldTo = -1;   // snelweg 80 km/u, klinkers stapvoets, rotonde rustig
+          let want = reckless ? 21 : ({ snel: 36.1, klink: 4.5, ring: 6.5 }[(VG.edges.get(c.eid) || {}).t] ?? 8.3); c.why = ''; c.yieldTo = -1;   // snelweg 130 km/u, klinkers stapvoets, rotonde rustig
+          { const lim = t => ({ snel: 36.1, klink: 4.5, ring: 6.5 }[t] ?? 8.3), vN = c.next ? Math.min(lim((VG.edges.get(c.next.eid) || {}).t), c.next.kind === 'turn' ? 5.5 : 99) : 99;   // van de snelweg af: op tijd afremmen tot de snelheid van wat komt
+            if (vN < want) want = Math.min(want, Math.sqrt(vN * vN + 2 * 3.5 * Math.max(0, c.path.len - c.s))); }
           const [, , hAhead] = posOn(c, c.s + Math.max(7, c.v * 1.4));
           let dh = hAhead - c.h; dh = Math.abs(Math.atan2(Math.sin(dh), Math.cos(dh)));
           const straightNow = c.outS === (c.inS + 3) % 6 && dh < 0.15;   // rechtdoor, en er komt nog geen bocht
@@ -470,7 +472,7 @@
           // obstakels voor de auto: andere auto's, mensen op de rijbaan, de speler
           const ahead = (x, z, latW, gap, who) => {
             const dx = x - c.x, dz = z - c.z, al = dx * ch + dz * sh, lat = -dx * sh + dz * ch;
-            if (al > 0 && al < Math.max(16, c.v * 2.4) && Math.abs(lat) < latW) { const w = brakeTo(al - gap); if (w < want) { want = w; c.why = 'ahead'; c.aheadOf = who || null; } }
+            if (al > 0 && al < Math.max(16, c.v * 2.4, c.v * c.v / 9 + 8) && Math.abs(lat) < latW) { const w = brakeTo(al - gap); if (w < want) { want = w; c.why = 'ahead'; c.aheadOf = who || null; } }
           };
           // verkeerslicht op de kruising waar je naartoe rijdt: stoppen bij rood, en bij oranje als het nog kan
           let held = false;
@@ -487,7 +489,7 @@
           // de rotonde of de snelweg op: voorrang geven aan wie daar al rijdt en naar deze aansluiting toe komt
           const tNext = c.next && (VG.edges.get(c.next.eid) || {}).t, tNow2 = (VG.edges.get(c.eid) || {}).t;
           if (!reckless && (tNext === 'ring' || tNext === 'snel') && tNow2 !== tNext) {
-            const N = VG.nodes[c.next.dir ? VG.edges.get(c.next.eid).b : VG.edges.get(c.next.eid).a], gap = c.path.len - c.s - 0.8, reach = tNext === 'snel' ? 45 : 13;
+            const N = VG.nodes[c.next.dir ? VG.edges.get(c.next.eid).b : VG.edges.get(c.next.eid).a], gap = c.path.len - c.s - 0.8, reach = tNext === 'snel' ? 95 : 13;
             if (N && gap > -0.6 && gap < 25) {
               const coming = list.some(o => o !== c && !o.crash && (VG.edges.get(o.eid) || {}).t === tNext && Math.hypot(o.x - N.x, o.z - N.z) < reach && ((N.x - o.x) * Math.cos(o.h) + (N.z - o.z) * Math.sin(o.h)) > -1.5);
               if (coming) { const w = gap < 0.3 ? 0 : brakeTo(gap); if (w < want) { want = w; held = true; c.why = 'voorrang'; } }
