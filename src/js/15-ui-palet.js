@@ -18,7 +18,7 @@
     renderModCards();
   }
   function renderModCards() {
-    toolScroll.querySelectorAll('.modcard, .todo').forEach(n => n.remove());
+    toolScroll.querySelectorAll('.modcard, .modcard-sep, .todo').forEach(n => n.remove());
     for (const nm of (CATS[catIdx].todo || [])) {
       const b = document.createElement('button'); b.type = 'button'; b.className = 'tool todo'; b.title = nm + ': nog te bepalen'; b.disabled = true;
       b.innerHTML = '<span class="sw sw-todo">?</span>' + nm; toolScroll.appendChild(b);

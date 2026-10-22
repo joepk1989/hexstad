@@ -35,7 +35,7 @@ async def main():
         await pg.evaluate("()=>[...document.querySelectorAll('.mchip')].find(b=>b.textContent.startsWith('Verbindingen')).click()"); await pg.wait_for_timeout(1500)
         await pg.mouse.click(640,300)
         for k in ['Period','Period','Comma']: await pg.keyboard.press(k); await pg.wait_for_timeout(200)
-        print('na . . , :', await pg.evaluate("()=>{const b=document.querySelector('.modcard[aria-pressed=true]'); return b&&b.title.split('\\n')[0]}"))
+        print('seps', await pg.evaluate("()=>document.querySelectorAll('.modcard-sep').length"), 'kaartjes', await pg.evaluate("()=>document.querySelectorAll('.modcard[data-mi]').length")); print('na . . , :', await pg.evaluate("()=>{const b=document.querySelector('.modcard[aria-pressed=true]'); return b&&b.title.split('\\n')[0]}"))
         await pg.screenshot(path='mod_verbind.png',timeout=300000)
         print('fouten:',errs[:5]); await b.close()
 asyncio.run(main())
