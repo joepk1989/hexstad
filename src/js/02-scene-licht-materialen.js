@@ -8,15 +8,61 @@
   const scene = new THREE.Scene();
   const GROUND_COL = '#8eab69';
   const HORIZON = '#dde5e1';
-  scene.background = (() => {
-    const c = document.createElement('canvas'); c.width = 2; c.height = 256;
-    const g = c.getContext('2d'); const grd = g.createLinearGradient(0, 0, 0, 256);
-    grd.addColorStop(0, '#6f9cc0'); grd.addColorStop(0.62, '#b9cfd9'); grd.addColorStop(1, HORIZON);
-    g.fillStyle = grd; g.fillRect(0, 0, 2, 256);
-    return new THREE.CanvasTexture(c);
-  })();
+  scene.background = new THREE.Color(HORIZON);
   scene.fog = new THREE.Fog(HORIZON, 380, 1150);
-  const skyTex = scene.background, skyCtx = skyTex.image.getContext('2d');
+  // Hemelkoepel: een bol rond de camera met een verloop naar de kijkhoogte (horizon → zenit), een gloed rond de zon
+  // en wat nevel onder de horizon. Kleuren komen van de tijd van de dag (zie DN.apply).
+  const skyU = { top: { value: new THREE.Color('#4f86c6') }, mid: { value: new THREE.Color('#a9cbe3') }, hor: { value: new THREE.Color(HORIZON) }, sunDir: { value: new THREE.Vector3(0.3, 0.6, 0.3) }, sunCol: { value: new THREE.Color('#fff2d0') }, glow: { value: 1 } };
+  const skyDome = new THREE.Mesh(new THREE.SphereGeometry(2400, 32, 20), new THREE.ShaderMaterial({
+    uniforms: skyU, side: THREE.BackSide, depthWrite: false, fog: false,
+    vertexShader: 'varying vec3 vDir; void main() { vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: `uniform vec3 top; uniform vec3 mid; uniform vec3 hor; uniform vec3 sunDir; uniform vec3 sunCol; uniform float glow; varying vec3 vDir;
+      void main() {
+        vec3 d = normalize(vDir); float h = d.y;
+        vec3 c = mix(hor, mid, smoothstep(0.0, 0.22, h));
+        c = mix(c, top, smoothstep(0.18, 0.85, h));
+        c = mix(c, hor * 0.92, smoothstep(0.0, -0.15, h));
+        float s = max(dot(d, normalize(sunDir)), 0.0);
+        c += sunCol * (pow(s, 900.0) * 1.2 + pow(s, 24.0) * 0.28 * glow + pow(s, 5.0) * 0.12 * glow) * smoothstep(-0.12, 0.05, sunDir.y);
+        gl_FragColor = vec4(c, 1.0);
+      }`,
+  }));
+  skyDome.frustumCulled = false; skyDome.renderOrder = -10; scene.add(skyDome);
+  // Wolken: zachte stapelwolken van een paar vlokken elk, op 380–580 m hoogte, die met de wind meedrijven en rond de
+  // camera doorlopen (wat er aan de ene kant uit drijft, komt aan de andere kant terug). Kleur volgt de dag.
+  const clouds = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+    for (let i = 0; i < 14; i++) {   // één vlok: een paar zachte bollen over elkaar
+      const x = 64 + (Math.random() - 0.5) * 50, y = 70 + (Math.random() - 0.5) * 34, r = 22 + Math.random() * 20, grd = g.createRadialGradient(x, y, 0, x, y, r);
+      grd.addColorStop(0, 'rgba(255,255,255,0.55)'); grd.addColorStop(0.6, 'rgba(255,255,255,0.25)'); grd.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = grd; g.fillRect(0, 0, 128, 128);
+    }
+    const tex = new THREE.CanvasTexture(c);
+    const group = new THREE.Group(), list = [], SPAN = 4000, mats = [];
+    for (let n = 0; n < 40; n++) {
+      const cl = new THREE.Group(), size = 110 + Math.random() * 170, puffs = 4 + Math.floor(Math.random() * 5);
+      for (let i = 0; i < puffs; i++) {
+        const m = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, fog: false, opacity: 0.9, color: '#ffffff' }); mats.push({ m, shade: 0.82 + Math.random() * 0.18 });
+        const sp = new THREE.Sprite(m), k = size * (0.55 + Math.random() * 0.6); sp.scale.set(k * 1.6, k, 1);
+        sp.position.set((Math.random() - 0.5) * size * 1.6, (Math.random() - 0.3) * size * 0.25, (Math.random() - 0.5) * size * 0.9); sp.renderOrder = -5; cl.add(sp);
+      }
+      cl.position.set((Math.random() - 0.5) * SPAN, 380 + Math.random() * 200, (Math.random() - 0.5) * SPAN); cl.renderOrder = -5;
+      group.add(cl); list.push(cl);
+    }
+    scene.add(group);
+    const wind = new THREE.Vector3(3.2, 0, 1.1), col = new THREE.Color();
+    return {
+      update(dt, cam) {
+        for (const cl of list) {
+          cl.position.addScaledVector(wind, dt);
+          for (const ax of ['x', 'z']) { let d = cl.position[ax] - cam[ax]; if (d > SPAN / 2) cl.position[ax] -= SPAN; else if (d < -SPAN / 2) cl.position[ax] += SPAN; }
+          const dist = Math.hypot(cl.position.x - cam.x, cl.position.z - cam.z), fade = (1 - Math.max(0, Math.min(1, (dist - 1200) / 700)))
+            * Math.max(0, Math.min(1, (cl.position.y - cam.y - 60) / 140));   // alleen boven je: van hoog boven de stad kijk je er niet doorheen
+          for (const sp of cl.children) sp.material.opacity = sp.userData.base * fade;
+        }
+      },
+      tint(c, opacity) { for (const { m, shade } of mats) { col.copy(c).multiplyScalar(shade); m.color.copy(col); } for (const cl of list) for (const sp of cl.children) sp.userData.base = opacity; },
+    };
+  })();
 
   const camera = new THREE.PerspectiveCamera(45, 1, 1.0, 5000);
   camera.rotation.order = 'YXZ';
@@ -65,8 +111,8 @@
     for (let i = 0; i < 650; i++) { const u = Math.random() * 2 - 1, a = Math.random() * Math.PI * 2, r = Math.sqrt(1 - u * u); sp.push(Math.cos(a) * r * 2000, Math.abs(u) * 2000 * 0.9 + 80, Math.sin(a) * r * 2000); }
     starGeo.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3));
     const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: '#ffffff', size: 2.2, sizeAttenuation: false, transparent: true, opacity: 0, fog: false, depthWrite: false }));
-    stars.frustumCulled = false; stars.renderOrder = -2; scene.add(stars);
-    const disc = (col, r) => { const m = new THREE.Mesh(new THREE.CircleGeometry(r, 32), new THREE.MeshBasicMaterial({ color: col, fog: false, depthWrite: false, transparent: true })); m.frustumCulled = false; m.renderOrder = -1; scene.add(m); return m; };
+    stars.frustumCulled = false; stars.renderOrder = -8; scene.add(stars);
+    const disc = (col, r) => { const m = new THREE.Mesh(new THREE.CircleGeometry(r, 32), new THREE.MeshBasicMaterial({ color: col, fog: false, depthWrite: false, transparent: true })); m.frustumCulled = false; m.renderOrder = -7; scene.add(m); return m; };
     const sunDisc = disc('#fff3c4', 70), moonDisc = disc('#e8eefc', 52);
     const dir = new THREE.Vector3();
     let lastSave = 0, lastK = -1;
@@ -75,12 +121,13 @@
       const day = sm(-0.12, 0.35, elev), dusk = Math.exp(-Math.pow(elev / 0.2, 2)), night = 1 - sm(-0.25, 0.05, elev);
       nightK = night;
       // lucht
-      const top = mix(mix('#050913', '#6f9cc0', day), '#3b4a78', dusk * 0.7);
-      const mid = mix(mix('#0c1530', '#b9cfd9', day), '#e58e72', dusk * 0.85);
+      const top = mix(mix('#050913', '#3f7bc4', day), '#34457a', dusk * 0.7);
+      const mid = mix(mix('#0c1530', '#9cc3e4', day), '#e58e72', dusk * 0.85);
       const hor = mix(mix('#18223d', HORIZON, day), '#f6bf8c', dusk * 0.9);
-      const grd = skyCtx.createLinearGradient(0, 0, 0, 256);
-      grd.addColorStop(0, '#' + top.getHexString()); grd.addColorStop(0.62, '#' + mid.getHexString()); grd.addColorStop(1, '#' + hor.getHexString());
-      skyCtx.fillStyle = grd; skyCtx.fillRect(0, 0, 2, 256); skyTex.needsUpdate = true;
+      skyU.top.value.copy(top); skyU.mid.value.copy(mid); skyU.hor.value.copy(hor); scene.background.copy(hor);
+      skyU.sunDir.value.set(Math.cos(a) * -1, elev * 0.8 + 0.1, 0.35); skyU.sunCol.value.copy(mix('#ff7a3a', '#fff2d0', sm(0.0, 0.45, elev))); skyU.glow.value = 0.6 + dusk * 1.6;
+      // wolken: wit overdag, roze en oranje bij zonsopgang en -ondergang, grijsblauw en zwakker 's nachts
+      clouds.tint(mix(mix('#3b4560', '#ffffff', day), '#ffb08a', dusk * 0.8), 0.92 - night * 0.55);
       scene.fog.color.copy(hor);
       // licht
       SUN_OFS.set(Math.cos(a) * -170 + 55, Math.max(40, elev * 170), 95);
@@ -103,7 +150,7 @@
     }
     function place(camPos) {
       for (const d of [sunDisc, moonDisc]) { const v = d.userData.dir; if (!v) continue; dir.set(v[0], v[1], v[2]).normalize(); d.position.copy(camPos).addScaledVector(dir, 1900); d.lookAt(camPos); }
-      stars.position.copy(camPos);
+      stars.position.copy(camPos); skyDome.position.copy(camPos);
     }
     function save(force) { const t = performance.now(); if (!force && t - lastSave < 3000) return; lastSave = t; try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* mag niet: jammer */ } }
     return {
