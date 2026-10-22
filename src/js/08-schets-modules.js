@@ -57,6 +57,7 @@
     ensureIds();
     { const i = instIdxAt(lastPickRes); if (i >= 0 && cells.inst[i].q === q0 && cells.inst[i].r === r0 && swapInst(i)) return true; }   // op een geplaatste module: wisselen
     const { n, skip } = placeCore(mod, moduleRot, q0, r0);
+    if (n) modUsed(mod);
     if (n) (cells.inst || (cells.inst = [])).push({ mid: mod.id, m: JSON.parse(JSON.stringify(mod)), q: q0, r: r0, rot: moduleRot });
     if (n && mod.v === 2 && Number.isInteger(q0) && Number.isInteger(r0)) { const G0 = gH(q0, r0); terrSet(mv2Area({ m: mod, rot: moduleRot, q: q0, r: r0 }).map(([q, r]) => [q, r, G0])); }   // de module staat vlak: het terrein eronder op één hoogte
     buildTriNet(); buildPathNet(); buildEdgeNet(); buildModNet(); changed();

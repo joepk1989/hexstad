@@ -387,12 +387,12 @@
     function loadModule(m, idx) { E.m = mv2Fix(JSON.parse(JSON.stringify(m))); E.editing = idx; E.lv = 0; E.undo = []; E.redo = []; E.dirty = false; $('name').value = E.m.name; catSel.value = E.m.cat || 'Overig'; $('area').value = String(E.m.k || 0); $('grid').value = String(E.m.n || 4); fit(); changed(); renderLib(); }
     function newModule() { loadModule(mv2New('Nieuwe module'), -1); $('name').value = ''; say('Nieuwe module: begin met vloer of muren', 2500); }
     function save(asCopy) {
-      const m = E.m; m.name = ($('name').value || '').trim() || 'Module ' + (modules.length + 1); m.cat = catSel.value; m.codes = modV2Codes(m); m._sig = Date.now();
+      const m = E.m; m.name = ($('name').value || '').trim() || 'Module ' + (modules.length + 1); m.cat = catSel.value; m.codes = modV2Codes(m); m._sig = Date.now(); m.name = m.name.replace(/( · \d+[Lv])+$/, '') + modSuffix(modMeta(m)); $('name').value = m.name;   // lagen en maat altijd achteraan, kloppend
       if (asCopy || E.editing < 0 || !modules[E.editing]) { m.id = uid(); modules.push(JSON.parse(JSON.stringify(m))); E.editing = modules.length - 1; }
       else { modules[E.editing] = JSON.parse(JSON.stringify(m)); const n = syncModule(modules[E.editing]); if (n) say('"' + m.name + '" bewaard · ' + n + ' in de stad bijgewerkt', 2500); }
       E.dirty = false; saveMods(); renderStrip(); renderLib(); if (!asCopy) say('"' + m.name + '" bewaard'); else say('Kopie bewaard als "' + m.name + '"');
     }
-    $('bSave').onclick = () => save(false); $('bDup').onclick = () => { $('name').value = ($('name').value || E.m.name) + ' (kopie)'; save(true); };
+    $('bSave').onclick = () => save(false); $('bDup').onclick = () => { $('name').value = ($('name').value || E.m.name).replace(/( · \d+[Lv])+$/, '') + ' · kopie'; save(true); };
     $('bNew').onclick = () => { if (E.dirty && !sure('new', 'Niet-bewaarde wijzigingen weggooien?')) return; newModule(); };
     $('name').addEventListener('input', () => { E.dirty = true; });
     catSel.addEventListener('change', () => { E.m.cat = catSel.value; E.dirty = true; });
@@ -412,12 +412,13 @@
     }
     function renderLib() {
       const el = $('lib'), q = ($('filter').value || '').trim().toLowerCase(); el.innerHTML = '';
-      const list = modules.map((m, i) => [m, i]).filter(([m]) => !q || (m.name || '').toLowerCase().includes(q) || (m.cat || '').toLowerCase().includes(q));
+      const ord = c => { const k = MV2.cats.indexOf(c || 'Overig'); return k < 0 ? 99 : k; }, coll = new Intl.Collator('nl', { numeric: true, sensitivity: 'base' });
+      const list = modules.map((m, i) => [m, i]).filter(([m]) => !q || q.split(/\s+/).every(w => ((m.name || '') + ' ' + (m.cat || '')).toLowerCase().includes(w))).sort(([a], [b]) => ord(a.cat) - ord(b.cat) || coll.compare(a.name || '', b.name || ''));
       $('libN').textContent = list.length + (list.length === modules.length ? '' : ' van ' + modules.length);
       for (const [m, i] of list) {
         const d = document.createElement('div'); d.className = 'mod'; d.setAttribute('aria-current', String(i === E.editing));
         const c = m.v === 2 ? mv2Thumb(m, 0, 18) : modThumb(m, 0, 18); d.appendChild(c);
-        const sp = document.createElement('span'); sp.innerHTML = `${m.name}<small>${m.v === 2 ? (m.cat || 'Overig') + ' · ' + m.lv.length + (m.lv.length === 1 ? ' laag' : ' lagen') : 'oude schets'}</small>`; d.appendChild(sp);
+        const sp = document.createElement('span'); const M = modMeta(m); sp.innerHTML = `${m.name}<small>${m.v === 2 ? (m.cat || 'Overig') + ' · ' + (M.n === 7 ? '7 vakken' : '1 vak') + (M.bouw ? ' · ' + M.fl + (M.fl === 1 ? ' laag' : ' lagen') : '') + (M.stack ? ' · plat dak' : '') : 'oude schets'}</small>`; d.appendChild(sp);
         const del = document.createElement('button'); del.type = 'button'; del.textContent = '×'; del.title = 'Verwijderen'; del.addEventListener('click', ev => { ev.stopPropagation(); if (!sure('del' + m.id, '"' + m.name + '" verwijderen? Geplaatste exemplaren gaan ook weg')) { del.textContent = 'Zeker?'; del.classList.add('warn'); return; } say('"' + m.name + '" verwijderd'); dropModule(m); modules.splice(i, 1); if (E.editing === i) { E.editing = -1; } else if (E.editing > i) E.editing--; saveMods(); renderStrip(); renderLib(); });
         d.appendChild(del);
         d.addEventListener('click', () => { if (m.v !== 2) { say('Een oude schets-module kun je hier niet bewerken; wel plaatsen of verwijderen', 3000); return; } if (E.dirty && !sure('load' + m.id, 'Niet-bewaarde wijzigingen weggooien?')) return; loadModule(m, i); });

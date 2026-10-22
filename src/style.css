@@ -82,10 +82,32 @@ button:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
 .pal-tab { flex: 1 0 auto; text-align: center; padding: 5px 11px; border-radius: 999px; border: 1px solid transparent; background: transparent; color: var(--ink-dim); font: 700 12px/1 inherit; letter-spacing: 0.04em; }
 .pal-tab[aria-pressed="true"] { background: var(--signal); color: var(--signal-ink); }
 .pal-row { display: flex; gap: 4px; min-width: 0; }
-.modcard { flex: none; min-width: 64px; max-width: 84px; }
+.modcard { flex: none; min-width: 72px; max-width: 92px; gap: 2px; }
+/* bladeren door modules: zoeken, categorieën, maat */
+.modbar { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 0 2px; }
+.msearch { flex: 0 1 210px; min-width: 120px; display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: 999px; background: rgba(255,255,255,0.06); border: 1px solid var(--line); color: var(--ink-dim); }
+.msearch:focus-within { border-color: var(--signal); color: var(--signal); }
+.msearch svg { width: 14px; height: 14px; flex: none; }
+.msearch input { flex: 1; min-width: 0; background: transparent; border: 0; outline: 0; color: var(--ink); font: 600 13px var(--font-ui); -webkit-user-select: text; user-select: text; }
+.msearch input::placeholder { color: var(--ink-dim); opacity: 0.8; }
+.mchips { flex: 1; min-width: 0; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+.mchips::-webkit-scrollbar { display: none; }
+.mchip, .mfilt button { flex: none; height: 26px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--ink-dim); font: 700 12px var(--font-ui); white-space: nowrap; }
+.mchip b { font-weight: 700; opacity: 0.55; margin-left: 2px; }
+.mchip.none { opacity: 0.4; }
+.mchip[aria-pressed="true"], .mfilt button[aria-pressed="true"] { background: var(--signal); border-color: transparent; color: var(--signal-ink); }
+.mchip[aria-pressed="true"] b { opacity: 0.7; }
+.mfilt { flex: none; display: flex; gap: 4px; padding-left: 6px; border-left: 1px solid var(--line); }
+.modcard-sep { flex: none; writing-mode: vertical-rl; transform: rotate(180deg); align-self: stretch; display: flex; align-items: center; justify-content: center; padding: 0 2px; margin: 4px 2px; border-left: 1px solid var(--line); font: 700 10px var(--font-ui); letter-spacing: 0.1em; text-transform: uppercase; color: var(--signal); }
+.modcard-sep.empty { writing-mode: horizontal-tb; transform: none; border: 0; font-size: 12px; text-transform: none; letter-spacing: 0; color: var(--ink-dim); padding: 0 12px; }
+.mth { position: relative; display: block; }
+.mbadge { position: absolute; right: -4px; bottom: -3px; font: 700 9px/1 var(--font-ui); font-style: normal; padding: 2px 4px; border-radius: 6px; background: #161c23; color: var(--ink); border: 1px solid var(--line); }
+.mstack { position: absolute; left: -3px; top: -3px; width: 10px; height: 10px; border-radius: 3px; background: var(--signal); border: 2px solid #161c23; }
+.modcard span.nv { max-width: 86px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: 10px; opacity: 0.75; margin-top: -2px; }
+@media (max-width: 640px) { .mfilt { display: none; } .msearch { flex-basis: 140px; } }
 .modcard.modcat { font: 700 12px var(--font-ui, system-ui); color: var(--ink); background: var(--bg-2, #1f262c); border: 1px solid var(--line); border-radius: 8px; padding: 0 4px; max-width: 96px; min-width: 72px; }
 .modcard canvas { width: 46px; height: 46px; border-radius: 7px; display: block; background: #c8dca4; }
-.modcard span.nm { max-width: 76px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.modcard span.nm { max-width: 86px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .modcard.add .plus { width: 46px; height: 46px; border-radius: 7px; border: 2px dashed var(--ink-dim); display: grid; place-items: center; font-size: 24px; color: var(--ink-dim); }
 .tool-scroll { display: flex; gap: 4px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .tool-scroll::-webkit-scrollbar { display: none; }

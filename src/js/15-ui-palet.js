@@ -23,27 +23,93 @@
       const b = document.createElement('button'); b.type = 'button'; b.className = 'tool todo'; b.title = nm + ': nog te bepalen'; b.disabled = true;
       b.innerHTML = '<span class="sw sw-todo">?</span>' + nm; toolScroll.appendChild(b);
     }
+    modBar.hidden = CATS[catIdx].name !== 'Modules';
     if (CATS[catIdx].name !== 'Modules') return;
-    // categoriekeuze vooraan, dan de kaartjes; miniaturen in 3D worden in kleine porties getekend (honderd modules)
-    const cats = ['Alles', ...MV2.cats.filter(c => modules.some(m => (m.cat || 'Overig') === c)), ...(modules.some(m => m.v !== 2) ? ['Oude schets'] : [])];
-    const selC = document.createElement('select'); selC.className = 'tool modcard modcat'; selC.setAttribute('aria-label', 'Categorie'); for (const c of cats) { const o = document.createElement('option'); o.value = c; o.textContent = c; selC.appendChild(o); } selC.value = cats.includes(modCat) ? modCat : 'Alles'; selC.addEventListener('change', () => { modCat = selC.value; try { localStorage.setItem('hexstad-modcat', modCat); } catch (e) { /* geen opslag */ } renderModCards(); }); toolScroll.appendChild(selC);
+    renderModBar();
     const add = document.createElement('button'); add.type = 'button'; add.className = 'tool modcard add'; add.innerHTML = '<span class="plus">+</span><span class="nm">Nieuw</span>'; add.addEventListener('click', () => openSchets()); toolScroll.appendChild(add);
-    const queue = [];
-    modules.forEach((m, i) => {
-      if (modCat !== 'Alles' && (modCat === 'Oude schets' ? m.v === 2 : (m.cat || 'Overig') !== modCat || m.v !== 2)) return;
-      const b = document.createElement('button'); b.type = 'button'; b.className = 'tool modcard'; b.title = m.name + (m.v === 2 ? ' · dubbelklik om te bewerken' : ''); b.setAttribute('aria-pressed', String(tool === 'module' && i === moduleSel));
-      const rot = i === moduleSel ? moduleRot : 0, c = document.createElement('canvas'); c.width = c.height = 92; c.style.width = c.style.height = '46px'; b.appendChild(c);
+    const queue = [], list = modVisible();
+    let lastCat = null;
+    for (const i of list) {
+      const m = modules[i], M = modMeta(m), cat = m.v === 2 ? (m.cat || 'Overig') : 'Oude schets';
+      if (modCat === 'Alles' && !modQuery && cat !== lastCat) { const d = document.createElement('div'); d.className = 'modcard-sep'; d.textContent = cat; toolScroll.appendChild(d); lastCat = cat; }
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'tool modcard'; b.dataset.mi = i;
+      b.title = m.name + '\n' + cat + ' · ' + (M.n === 7 ? '7 vakken' : '1 vak') + (M.bouw ? ' · ' + M.fl + (M.fl === 1 ? ' laag' : ' lagen') + ' (' + M.h + ' m)' : '') + ' · ' + ({ kap: 'schuin dak', plat: 'plat dak (stapelbaar)', open: 'open' })[M.top] + (M.deur ? ' · ' + M.deur + (M.deur === 1 ? ' deur' : ' deuren') : '') + (m.v === 2 ? '\nKlik: kiezen · dubbelklik: bewerken · rechtermuisknop: verwijderen' : '');
+      b.setAttribute('aria-pressed', String(tool === 'module' && i === moduleSel));
+      const rot = i === moduleSel ? moduleRot : 0, c = document.createElement('canvas'); c.width = c.height = 92; c.style.width = c.style.height = '46px';
+      const th = document.createElement('span'); th.className = 'mth'; th.appendChild(c);
+      const badge = (M.bouw ? M.fl + 'L' : '') + (M.k ? (M.bouw ? ' ' : '') + '7v' : ''); if (badge) { const bd = document.createElement('i'); bd.className = 'mbadge'; bd.textContent = badge; th.appendChild(bd); }
+      if (M.stack) { const st = document.createElement('i'); st.className = 'mstack'; st.title = 'Plat dak: stapelbaar'; th.appendChild(st); }
+      b.appendChild(th);
       if (m.v === 2) queue.push(() => { const t = mv2Thumb(m, rot, 46); c.getContext('2d').drawImage(t, 0, 0, 92, 92); }); else { const t = modThumb(m, rot, 46); c.getContext('2d').drawImage(t, 0, 0, 92, 92); }
-      const sp = document.createElement('span'); sp.className = 'nm'; sp.textContent = m.name; b.appendChild(sp);
+      const parts = (m.name || '').split(' · '), fam = parts[0], rest = parts.slice(1).filter(x => !/^\d+[Lv]$/.test(x)).join(' · ');
+      const sp = document.createElement('span'); sp.className = 'nm'; sp.textContent = fam; b.appendChild(sp);
+      if (rest) { const sv = document.createElement('span'); sv.className = 'nv'; sv.textContent = rest; b.appendChild(sv); }
       b.addEventListener('click', () => { moduleSel = i; moduleGhostKey = ''; selectTool('module'); renderModCards(); });
       if (m.v === 2) b.addEventListener('dblclick', () => openSchets(m));
-      b.title += ' · rechtermuisknop: verwijderen';
       let delArm = 0;   // rechtermuisknop: verwijderen (tweede keer binnen 4 s bevestigt)
       b.addEventListener('contextmenu', ev => { ev.preventDefault(); const now = performance.now(); if (now - delArm > 4000) { delArm = now; b.classList.add('warn'); toast('"' + m.name + '" verwijderen? Nog eens rechtermuisknop om te bevestigen (geplaatste exemplaren gaan ook weg)', 4000); return; }
         dropModule(m); const i2 = modules.indexOf(m); if (i2 >= 0) modules.splice(i2, 1); if (moduleSel === i2) moduleSel = modules.length ? 0 : null; else if (moduleSel > i2) moduleSel--; saveMods(); renderModCards(); toast('"' + m.name + '" verwijderd', 1500); });
       toolScroll.appendChild(b);
-    });
+    }
+    if (!list.length) { const d = document.createElement('div'); d.className = 'modcard-sep empty'; d.textContent = modQuery ? 'Niets gevonden voor "' + modQuery + '"' : 'Nog niets'; toolScroll.appendChild(d); }
+    const sel = toolScroll.querySelector('.modcard[aria-pressed="true"]'); if (sel) sel.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     const tick = () => { const t0 = performance.now(); while (queue.length && performance.now() - t0 < 12) queue.shift()(); if (queue.length) setTimeout(tick, 0); }; tick();
+  }
+  // ---------- Bladeren door de modules: zoeken, categorieën, maat, recent ----------
+  // Volgorde: categorie (vaste volgorde), dan naam (natuurlijk: 2L voor 10L). Zoeken kijkt in naam en categorie;
+  // meerdere woorden moeten allemaal voorkomen ("rij hout", "glas 7").
+  const modBar = document.createElement('div'); modBar.className = 'modbar'; modBar.hidden = true; paletteEl.insertBefore(modBar, palRow);
+  let modQuery = '', modSize = 0, modStack = false;   // modSize: 0 alle, 1 één vak, 7 zeven vakken
+  let modRecent = []; try { modRecent = JSON.parse(localStorage.getItem('hexstad-modrecent') || '[]'); } catch (e) { /* geen opslag */ }
+  function modUsed(m) { if (!m || !m.id) return; modRecent = [m.id, ...modRecent.filter(x => x !== m.id)].slice(0, 16); try { localStorage.setItem('hexstad-modrecent', JSON.stringify(modRecent)); } catch (e) { /* geen opslag */ } }
+  const coll = new Intl.Collator('nl', { numeric: true, sensitivity: 'base' });
+  const catOrd = c => { const i = MV2.cats.indexOf(c); return i < 0 ? 99 : i; };
+  const modCatOf = m => m.v === 2 ? (m.cat || 'Overig') : 'Oude schets';
+  function modMatch(m, cat) {
+    if (cat === 'Recent') { if (!modRecent.includes(m.id)) return false; }
+    else if (cat !== 'Alles' && modCatOf(m) !== cat) return false;
+    const M = modMeta(m);
+    if (modSize && M.n !== modSize) return false;
+    if (modStack && !M.stack) return false;
+    if (modQuery) { const hay = (m.name + ' ' + modCatOf(m)).toLowerCase(); if (!modQuery.toLowerCase().split(/\s+/).every(w => hay.includes(w))) return false; }
+    return true;
+  }
+  function modVisible() {
+    const idx = modules.map((m, i) => i).filter(i => modMatch(modules[i], modCat));
+    if (modCat === 'Recent') return idx.sort((a, b) => modRecent.indexOf(modules[a].id) - modRecent.indexOf(modules[b].id));
+    return idx.sort((a, b) => { const A = modules[a], B = modules[b]; return catOrd(modCatOf(A)) - catOrd(modCatOf(B)) || coll.compare(A.name || '', B.name || ''); });
+  }
+  function setModCat(c) { modCat = c; try { localStorage.setItem('hexstad-modcat', c); } catch (e) { /* geen opslag */ } renderModCards(); toolScroll.scrollLeft = 0; }
+  function renderModBar() {
+    if (!modBar.firstChild) {
+      modBar.innerHTML = '<label class="msearch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg><input type="search" id="modSearch" placeholder="Zoek module  ( / )" autocomplete="off" spellcheck="false" aria-label="Zoek module"></label><div class="mchips" id="modChips"></div><div class="mfilt"><button type="button" data-sz="1" title="Alleen modules van 1 vak">1 vak</button><button type="button" data-sz="7" title="Alleen modules van 7 vakken">7 vakken</button><button type="button" data-st="1" title="Alleen modules met een plat dak (stapelbaar)">Plat dak</button></div>';
+      const inp = modBar.querySelector('#modSearch');
+      inp.addEventListener('input', () => { modQuery = inp.value.trim(); renderModCards(); });
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Escape') { inp.value = ''; modQuery = ''; inp.blur(); renderModCards(); }
+        if (e.key === 'Enter') { const l = modVisible(); if (l.length) { moduleSel = l[0]; moduleGhostKey = ''; selectTool('module'); inp.blur(); renderModCards(); toast(modules[moduleSel].name, 900); } }
+        e.stopPropagation();
+      });
+      modBar.querySelectorAll('[data-sz]').forEach(b => b.addEventListener('click', () => { const v = +b.dataset.sz; modSize = modSize === v ? 0 : v; renderModCards(); }));
+      modBar.querySelector('[data-st]').addEventListener('click', () => { modStack = !modStack; renderModCards(); });
+    }
+    const chips = modBar.querySelector('#modChips'); chips.innerHTML = '';
+    const cats = ['Alles', ...(modRecent.some(id => modules.some(m => m.id === id)) ? ['Recent'] : []), ...MV2.cats.filter(c => modules.some(m => modCatOf(m) === c)), ...(modules.some(m => m.v !== 2) ? ['Oude schets'] : [])];
+    if (!cats.includes(modCat)) modCat = 'Alles';
+    for (const c of cats) {
+      const n = modules.filter(m => modMatch(m, c)).length;
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'mchip'; b.setAttribute('aria-pressed', String(c === modCat)); b.innerHTML = c + (c === 'Recent' ? '' : ' <b>' + n + '</b>'); if (!n && c !== modCat) b.classList.add('none');
+      b.addEventListener('click', () => setModCat(c)); chips.appendChild(b);
+    }
+    modBar.querySelectorAll('[data-sz]').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.sz === modSize)));
+    modBar.querySelector('[data-st]').setAttribute('aria-pressed', String(modStack));
+  }
+  // vorige / volgende module in de zichtbare lijst (sneltoetsen , en .)
+  function modStep(d) {
+    const l = modVisible(); if (!l.length) return;
+    if (CATS[catIdx].name !== 'Modules') setCat(CATS.findIndex(c => c.name === 'Modules'));
+    const at = l.indexOf(moduleSel), n = at < 0 ? (d > 0 ? 0 : l.length - 1) : (at + d + l.length) % l.length;
+    moduleSel = l[n]; moduleGhostKey = ''; selectTool('module'); renderModCards(); toast(modules[moduleSel].name, 900);
   }
   let modCat = 'Alles'; try { modCat = localStorage.getItem('hexstad-modcat') || 'Alles'; } catch (e) { /* geen opslag */ }
   const tsvg = d => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>';

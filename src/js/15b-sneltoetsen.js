@@ -8,6 +8,7 @@
     ['Kaart', null], [K('W', 'A', 'S', 'D'), 'schuiven (of pijltjes)'], [K('Q', 'E'), 'draaien'], [K('+', '−'), 'in- en uitzoomen'],
     ['Bouwen', null], [K('1') + '…' + K('9'), 'blok in deze categorie'], [K('Tab'), 'volgende categorie (Shift: vorige)'], [K('R'), 'draaien (Shift+R: terug)'],
     [K('Del'), 'gum aan/uit'], [K('[', ']'), 'penseel: 1, 7, 19 of 37 vakken'], [K('Shift') + '+wiel', 'ander blok'],
+    ['Modules', null], [K(',', '.'), 'vorige / volgende module'], [K('/'), 'zoek een module (Enter kiest de eerste)'],
     ['Terrein', null], ['slepen', 'boetseren (ingedrukt houden)'], [K('Shift') + '+slepen', 'andersom (ophogen ↔ afgraven)'], [K('1') + '…' + K('5'), 'ophogen · afgraven · egaliseren · glad · helling'],
     ['Weg slepen', null], [K('E', 'Q'), 'hoger / lager (ook Page Up/Down, wiel)'], ['stilhouden', 'hoekpunt: bocht in één sleep'],
     ['Overig', null], [K('G'), 'raster aan/uit'], [K('P'), 'tijd pauze / verder'], [K('L'), 'lopen'], [K('M'), 'menu'], [K('?'), 'dit overzicht'],
@@ -45,6 +46,9 @@
     if (roadDrag.on) return;       // tijdens slepen: hoogte (zie invoer)
     if (e.code === 'Tab') { e.preventDefault(); setCat((catIdx + (e.shiftKey ? CATS.length - 1 : 1)) % CATS.length); const t = CATS[catIdx].tools[0]; if (CATS[catIdx].name !== 'Modules') selectTool(t); toast(CATS[catIdx].name, 800); return; }
     if (e.code === 'Delete' || e.code === 'Backspace') { e.preventDefault(); if (tool === 'gum' && prevTool) selectTool(prevTool); else { prevTool = tool; selectTool('gum'); } toast(tool === 'gum' ? 'Gum' : 'Gum uit', 700); return; }
+    if (e.code === 'Comma') { modStep(-1); return; }    // vorige / volgende module
+    if (e.code === 'Period') { modStep(1); return; }
+    if (e.code === 'Slash' && !e.shiftKey) { e.preventDefault(); setCat(CATS.findIndex(c => c.name === 'Modules')); const i = document.getElementById('modSearch'); if (i) { i.focus(); i.select(); } return; }
     if (e.code === 'BracketLeft') { setBrush(terrBrush - 1); return; }
     if (e.code === 'BracketRight') { setBrush(terrBrush + 1); return; }
     if (e.code === 'KeyG') { document.getElementById('optGrid').click(); return; }

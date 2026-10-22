@@ -22,7 +22,7 @@
     walls: { brick: 'Baksteen', darkbrick: 'Donkere steen', plaster: 'Wit stucwerk', concrete: 'Schoon beton', panel: 'Gevelpanelen', slats: 'Houten lamellen', corten: 'Cortenstaal', curtain: 'Glasgevel', glass: 'Glaswand', wood: 'Hout', stone: 'Natuursteen', hedge: 'Haag', fence: 'Hek' },
     openings: { '': 'Dicht', door: 'Deur', window: 'Raam', gate: 'Poort', open: 'Open' },
     objects: { tree: 'Boom', bush: 'Struik', bench: 'Bankje', lamp: 'Lantaarn', pillar: 'Zuil', table: 'Tafel', planter: 'Plantenbak', fountain: 'Fontein', bin: 'Prullenbak', bike: 'Fietsenrek' },
-    cats: ['Wonen', 'Werken', 'Winkels', 'Openbaar', 'Groen', 'Pleinen', 'Trappen', 'Bouwdelen', 'Overig'],
+    cats: ['Wonen', 'Werken', 'Winkels', 'Openbaar', 'Groen', 'Pleinen', 'Verbindingen', 'Bouwdelen', 'Overig'],
   };
   const mv2Ts = m => R / ([1, 2, 4, 8].includes(m.n) ? m.n : 4);
   const mv2P = (i, j, ts) => [i * ts * SQ3 / 2, i * ts / 2 + j * ts];
@@ -305,6 +305,24 @@
     }
     return codes;
   }
+  // ---------- Modulegegevens (voor bladeren en, straks, stapelen) ----------
+  // fl: verdiepingen (een bovenste laag met alleen dakvloer telt niet mee), k/n: maat (1 of 7 vakken), h: hoogte in m,
+  // top: 'kap' (schuin dak), 'plat' (beloopbaar plat dak: hier kan later een module op), 'open' (niets erboven),
+  // bouw: is het een gebouw (muren of meer lagen), deur/weg: aantal randen met een deur of weg
+  function modMeta(m) {
+    if (!m || m.v !== 2) return { fl: 0, k: 0, n: 1, h: 0, top: 'open', stack: false, bouw: false, deur: 0, weg: 0 };
+    mv2Fix(m);
+    const L = m.lv, T = L[L.length - 1], k = m.k || 0;
+    const roofOnly = L.length > 1 && !Object.keys(T.w).length && !T.s.length && !T.o.length && !Object.keys(T.r || {}).length && Object.keys(T.f).length > 0;
+    const fl = L.length - (roofOnly ? 1 : 0);
+    const solidWall = L.some(l => Object.values(l.w).some(w => w && w.m !== 'fence' && w.m !== 'hedge'));
+    const bouw = L.length > 1 || solidWall;
+    const top = L.some(l => Object.keys(l.r || {}).length) ? 'kap' : roofOnly ? 'plat' : 'open';
+    const codes = m.codes || modV2Codes(m), cv = Object.values(codes);
+    return { fl, k, n: k ? 7 : 1, h: fl * MV2.LV_H, top, stack: top === 'plat', bouw, deur: cv.filter(c => c === 'deur').length, weg: cv.filter(c => c === 'weg').length };
+  }
+  // vaste achtervoegsels van een naam: aantal lagen (gebouwen) en maat
+  const modSuffix = M => (M.bouw ? ' · ' + M.fl + 'L' : '') + (M.k ? ' · ' + M.n + 'v' : '');
   // Miniatuur: de module in 3D, klein gerenderd (per module en draaiing onthouden)
   const thumbCache = new Map(); let thumbR = null;
   function mv2Thumb(m, rot, px) {

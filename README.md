@@ -71,6 +71,24 @@ Dat maakt `dist/hexstad.html` (één bestand, zelfde als de gepubliceerde versie
 
 Menu → Instellingen (`15c-instellingen.js`, bewaard in `localStorage` `hexstad-set`): **terrein** hoog (1 m rooster), normaal (2 m) of low poly (4 m, platte vlakken; het snelst), **schaduwen** zacht, eenvoudig of uit, **beeldscherpte** scherp, normaal of snel, **wolken**, en verder raster, hoogtelijnen, penseel, tijd, mensen, auto's en geluid.
 
+## Modules: namen en bladeren
+
+Elke module heet **soort · variant (· bijzonderheid) · lagen · maat**, bijvoorbeeld `Rijhuis · baksteen · 2L` of `Plein · markt · 7v`. Het aantal lagen (`2L`, alleen bij gebouwen) en de maat (`7v` voor 7 vakken; 1 vak heeft geen toevoeging) rekent de module maker bij het bewaren zelf uit en zet ze achteraan (`modMeta`, `modSuffix` in `08c`). De standaardbibliotheek gebruikt dezelfde regel (`LIB_NAMES` in `08e`). Oude namen worden eenmalig omgezet, en de categorie Trappen heet nu **Verbindingen** (trappen, hellingen, bruggen: wat lagen met elkaar verbindt).
+
+`modMeta(m)` geeft per module de gegevens voor bladeren en stapelen:
+- `fl`: verdiepingen (een bovenste laag met alleen dakvloer telt niet mee);
+- `n`: maat in vakken (1 of 7);
+- `h`: hoogte in meters;
+- `top`: `kap` (schuin dak), `plat` (beloopbaar plat dak, `stack: true`: hier kan straks een module op) of `open`;
+- `deur` / `weg`: hoeveel randen een deur of weg hebben.
+
+In het palet (tab Modules) staat boven de kaartjes een balk:
+- een zoekveld (`/`; meerdere woorden moeten allemaal voorkomen, Enter kiest de eerste);
+- knoppen per categorie met aantallen, plus **Recent** (de laatst geplaatste);
+- filters **1 vak**, **7 vakken** en **Plat dak**.
+
+Bij Alles staan de kaartjes per categorie gegroepeerd en op naam gesorteerd. Elk kaartje toont de soort, daaronder de variant, en een badge met lagen en maat; een geel blokje betekent plat dak. `,` en `.` springen naar de vorige of volgende module.
+
 ## Low poly terrein
 
 Standaard (Instellingen → Terrein → Low poly) wordt het terrein op het driehoeksrooster van de vakken getekend in plaats van op een vierkant rooster (`lpMesh` in `07b`). Elk vak bestaat uit zes driehoeken. Het midden ligt op de hoogte van het vak en elk hoekpunt op de laagste van de drie vakken die daar samenkomen. Eén verhoogd vak wordt zo een puntje, een groep een plateau met schuine flanken, en een strook van drie vakken breed een dijk. Elk vak dat een weg (met stoep) raakt is een wegvak: zijn midden en hoekpunten liggen op de hoogte van de weg. Een weg langs een dijk loopt daardoor strak langs de voet, en een weg over een dijk snijdt er met een bult doorheen. Lopen gebruikt precies dezelfde driehoeken (`lpHeight`).

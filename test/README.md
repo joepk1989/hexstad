@@ -30,6 +30,7 @@ Eerst bouwen: `node build.js` in de hoofdmap. Daarna, vanuit `test/`:
 | `python mm_hoek.py [naam.png]` | muren die onder een hoek aansluiten, van dichtbij en van boven |
 | `python bordes_test.py` | trap van hoek naar hoek in een woning: twee verdiepingen op lopen; doorsnede en beelden van binnen |
 | `python mm_haaks.py` | module maker: muren onder 90° (rechthoekige kamer) |
+| `python mod_namen.py [oude.html]` | modulenamen (hernoemen vanaf een oude versie, geen dubbele), zoeken, categorieën, maatfilters, , en . |
 | `python lowpoly.py` | low poly terrein: los vak, groepje, dijk met een weg erlangs en eroverheen |
 | `python mm_bordes.py` | module maker: bordestrap (U) tekenen met trapgat erboven, 3D-beeld |
 | `python bordes_test.py` | huis: de bordestrap op lopen, bordes op 1,7 m en bovenverdieping op 3,2 m |
