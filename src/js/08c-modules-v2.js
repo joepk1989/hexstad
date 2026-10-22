@@ -191,12 +191,16 @@
   function buildModNet() {
     const live = new Set((cells.inst || []).filter(I => I.m && I.m.v === 2));
     for (const [I, e] of modGroups) if (!live.has(I)) { e.group.traverse(o => { if (o.isMesh && o.userData.own) o.geometry.dispose(); }); scene.remove(e.group); modGroups.delete(I); }
+    const before = new Set(modCellSet);
     modCols.clear(); modCellSet.clear();
     for (const I of live) {
       let e = modGroups.get(I);
-      if (!e) { const o = cellToWorld(I.q, I.r), b = mv2Build(I.m, mv2Tf(I.rot, I.q, I.r), [o.x, o.z]); e = { group: b.group, col: { surfaces: b.surfaces, walls: b.walls } }; scene.add(e.group); modGroups.set(I, e); }
+      if (!e) { const o = cellToWorld(I.q, I.r), b = mv2Build(I.m, mv2Tf(I.rot, I.q, I.r), [o.x, o.z]), G = gH(I.q, I.r); b.group.position.y += G; e = { group: b.group, col: shiftCol({ surfaces: b.surfaces, walls: b.walls }, G) }; scene.add(e.group); modGroups.set(I, e); }
       for (const [q, r] of mv2Area(I)) { const k = q + ',' + r; modCellSet.add(k); let L = modCols.get(k); if (!L) modCols.set(k, L = []); L.push(e.col); }
     }
+    // het terrein onder een module is een plateau: bij een nieuwe of weggehaalde module de stukken eromheen bijwerken
+    const diff = []; for (const k of modCellSet) if (!before.has(k)) diff.push(k.split(',').map(Number)); for (const k of before) if (!modCellSet.has(k)) diff.push(k.split(',').map(Number));
+    if (diff.length && cells.terr && Object.keys(cells.terr).length) { terrDirty(diff); terrFlush(); }
   }
   function mv2CanPlace(mod, rot, q0, r0) {   // vrij? geen blokken, geen weg, geen andere module
     for (const [q, r] of mv2Area({ m: mod, rot, q: q0, r: r0 })) {

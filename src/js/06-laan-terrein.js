@@ -20,40 +20,12 @@
     const tg = NEIGH.map(([dq, dr]) => isKuilAt(q + dq, r + dr) ? null : { lvl: 0, notch: false });
     return { fn: terrainFn(-KUIL_D, tg, TERR_BAND), keyS: 'kuil' + tg.map(x => x ? 1 : 0).join('') };
   }
-  // Normalen uit het hoogteveld zelf (centrale verschillen), niet per driehoek: zacht belicht, en twee buurvakken
-  // krijgen op hun gedeelde rand dezelfde normaal, zodat er geen naad te zien is
-  function smoothTerrainNormals(g, fn, nfn) {
-    const p = g.attributes.position, n = g.attributes.normal, e = 0.35;
-    for (let i = 0; i < p.count; i++) {
-      const x = p.getX(i), y = p.getY(i), z = p.getZ(i); if (Math.abs(fn(x, z) - y) > 0.01) continue;   // wandjes aan de rand houden hun eigen normaal
-      if (nfn) { const v = nfn(x, z); n.setXYZ(i, v[0], v[1], v[2]); continue; }
-      const dx = (fn(x + e, z) - fn(x - e, z)) / (2 * e), dz = (fn(x, z + e) - fn(x, z - e)) / (2 * e), l = Math.hypot(dx, 1, dz);
-      n.setXYZ(i, -dx / l, 1 / l, -dz / l);
-    }
-    n.needsUpdate = true;
-    // kleur: onderaan precies de kleur van de grond (geen zichtbare zeshoekrand), hogerop een dieper groen
-    const C0 = new THREE.Color(GROUND_COL), C1 = new THREE.Color('#5f9447'), cc = new THREE.Color(), col = new Float32Array(p.count * 3);
-    for (let i = 0; i < p.count; i++) { cc.copy(C0).lerp(C1, smooth01(p.getY(i) / 5)); col[i * 3] = cc.r; col[i * 3 + 1] = cc.g; col[i * 3 + 2] = cc.b; }
-    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    return g;
-  }
   function makeTerrain(o, t, q, r, i, baseY, cx, cz, col) {
     let fn, keyS;
     if (baseOf(t) === 'kuil') {
       ({ fn, keyS } = kuilField(q, r));
       const hole = new THREE.Mesh(hexPlane(R, false, true), holeMat); hole.position.y = 0.005; hole.renderOrder = -10; o.add(hole);
-    } else {
-      // heuvel: alleen de bovenste verhoging van een stapel tekent het hele hoogteveld (absoluut, vanaf de grond)
-      const st = stackOf(q, r); if (i + 1 < st.length && baseOf(st[i + 1]) === 'heuvel') return;
-      if (!terrFieldAbs(q, r)) return;
-      const f0 = smoothTerrain(cx, cz);
-      const adj = roadTerrainAdjust(q, r, cx, cz, f0);   // langs een weg: het maaiveld sluit aan op de weg
-      const geo = smoothTerrainNormals(fieldHexGeo(adj || f0, 16), adj || f0); triBuckets(geo);
-      if (!M.terrain) M.terrain = new THREE.MeshStandardMaterial({ color: '#ffffff', vertexColors: true, roughness: 1, flatShading: false });
-      const m = new THREE.Mesh(geo, M.terrain); m.receiveShadow = true; m.castShadow = true; m.position.y = -baseY; m.userData.own = true; o.add(m);
-      col.surfaces.push({ kind: 'tris', cx, cz, B: geo.userData.tb, base: 0, bottom: 0 });
-      return;
-    }
+    } else return;   // oude verhoging: wordt bij het laden terrein (zie 07b)
     const geo = cachedField(keyS, () => fieldHexGeo(fn, 14));
     const m = new THREE.Mesh(geo, M.grass); m.receiveShadow = true; m.castShadow = true; o.add(m);
     col.surfaces.push({ kind: 'tris', cx, cz, B: geo.userData.tb, base: baseY, bottom: baseY });

@@ -214,11 +214,21 @@
     </div>
     <p class="sheet-sub">Leven in de stad</p>
     <div class="grid2">
+      <button class="btn" type="button" data-act="settings" id="setBtn" style="grid-column:1/-1">⚙ Instellingen: beeld, prestaties en opties</button>
       <button class="btn" type="button" data-act="people" id="peopleBtn">Mensen: aan</button>
       <button class="btn" type="button" data-act="cars" id="carsBtn">Auto's: aan</button>
       <a class="btn" href="https://claude.ai/artifact/8eXMwz3T3bTYqZaVYgA6J2" target="_blank" rel="noopener" style="text-decoration:none;text-align:center;grid-column:1/-1">Werkplaats: wat komt er nog ↗</a>
     </div>
     <button class="btn" type="button" data-act="cancel">Sluiten</button>
+  </div>
+</div>
+
+<div class="sheet" id="setSheet" hidden>
+  <div class="sheet-card" role="dialog" aria-labelledby="setTitle">
+    <h2 id="setTitle">Instellingen</h2>
+    <p>Loopt het niet soepel? Zet het terrein op low poly, de schaduwen op eenvoudig of uit, of de beeldscherpte op snel.</p>
+    <div class="set-rows" id="setRows"></div>
+    <button class="btn" type="button" id="setClose">Sluiten</button>
   </div>
 </div>
 

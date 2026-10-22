@@ -58,6 +58,7 @@
     { const i = instIdxAt(lastPickRes); if (i >= 0 && cells.inst[i].q === q0 && cells.inst[i].r === r0 && swapInst(i)) return true; }   // op een geplaatste module: wisselen
     const { n, skip } = placeCore(mod, moduleRot, q0, r0);
     if (n) (cells.inst || (cells.inst = [])).push({ mid: mod.id, m: JSON.parse(JSON.stringify(mod)), q: q0, r: r0, rot: moduleRot });
+    if (n && mod.v === 2 && Number.isInteger(q0) && Number.isInteger(r0)) { const G0 = gH(q0, r0); terrSet(mv2Area({ m: mod, rot: moduleRot, q: q0, r: r0 }).map(([q, r]) => [q, r, G0])); }   // de module staat vlak: het terrein eronder op één hoogte
     buildTriNet(); buildPathNet(); buildEdgeNet(); buildModNet(); changed();
     toast(n ? '"' + mod.name + '" geplaatst' + (skip ? ' · ' + skip + ' stukken overgeslagen (water of bebouwing)' : '') : 'Hier past de module niet', 2200);
     return n > 0;
@@ -215,8 +216,9 @@
       const bad = !!mv2CanPlace(mod, moduleRot, q0, r0);
       for (const [q, r] of mv2Area({ m: mod, rot: moduleRot, q: q0, r: r0 })) { const w = cellToWorld(q, r), g = new THREE.Mesh(new THREE.CylinderGeometry(R - 0.3, R - 0.3, 0.3, 6), new THREE.MeshBasicMaterial({ color: bad ? '#e0573e' : '#f2b233', transparent: true, opacity: 0.4, depthWrite: false })); g.position.set(w.x, 0.3, w.z); moduleGhost.add(g); }
       const b = mv2Build(mod, mv2Tf(moduleRot, q0, r0)); b.group.traverse(o => { if (o.isMesh) { o.material = new THREE.MeshBasicMaterial({ color: bad ? '#e0573e' : '#f2b233', transparent: true, opacity: 0.35, depthWrite: false }); o.castShadow = false; } }); moduleGhost.add(b.group);
-      moduleGhost.visible = true; return;
+      moduleGhost.position.y = Number.isInteger(q0) ? gH(q0, r0) : 0; moduleGhost.visible = true; return;
     }
+    moduleGhost.position.y = 0;
     for (const [q, r, k, type] of moduleItems(mod, moduleRot, q0, r0)) {
       const [A, B] = edgeEnds(q, r, k), bad = !!edgeBlocked(q, r, k);
       const m = new THREE.Mesh(new THREE.BoxGeometry(Math.hypot(B[0] - A[0], B[1] - A[1]), 0.3, type === 'brd' ? 13 : type === 'pad' ? 3 : 9), new THREE.MeshBasicMaterial({ color: bad ? '#e0573e' : '#f2b233', transparent: true, opacity: 0.5, depthWrite: false }));

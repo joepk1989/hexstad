@@ -12,7 +12,7 @@
       if (groups.has(k)) continue;
       const [q, r] = k.split(',').map(Number), { x, z } = cellToWorld(q, r);
       const top = baseOf(st[st.length - 1]), road = false;
-      let h = 0; for (const t of st) h += TY(t)?.h || 0;
+      let h = gH(q, r); for (const t of st) h += TY(t)?.h || 0;
       if (top === 'park' && st.length === 1) h = 0.1;
       if (top === 'water' || (st.length === 2 && baseOf(st[0]) === 'water')) h = st.length === 2 ? 0.25 : -1.2;
       const rad = road ? R : R * 0.88;
@@ -62,7 +62,8 @@
     const g = new THREE.Group();
     let y = 0;
     st.forEach((t, i) => { g.add(makeBlock(t, q, r, i, y, x, z, col)); y += TY(t).h; });
-    g.position.set(x, 0, z);
+    const G = gH(q, r); g.position.set(x, G, z); shiftCol(col, G);   // alles op het vak staat op de terreinhoogte
+    { const pl = terrPlinth(q, r); if (pl) g.add(pl); }
     blocks.add(g); groups.set(k, g); colMap.set(k, col);
   }
   let peopleDirty = true, peopleLocalEdit = false, carsDirty = true, vecDirty = true;
@@ -78,6 +79,7 @@
       if (b === 'park' || b === 'pad' || b === 'weg') todo.add(key(nq, nr));
     }
     for (const k of todo) { const [cq, cr] = k.split(',').map(Number); buildColumn(cq, cr); }
+    terrDirty([[q, r]]); terrFlush();   // plateau van het vak
     peopleDirty = true; peopleLocalEdit = true; carsDirty = true;
   }
   // Veel vakken tegelijk (een laan trekken): de netwerken één keer bijwerken
@@ -93,10 +95,12 @@
       }
     }
     for (const k of todo) { const [cq, cr] = k.split(',').map(Number); buildColumn(cq, cr); }
+    terrDirty(list); terrFlush();
     peopleDirty = true; peopleLocalEdit = true; carsDirty = true;
   }
   function rebuildAll() {
     convertCellRoads();   // oude vakwegen worden getekende wegen
+    terrMigrate(); terrHold = true; terrRebuildAll();   // oude verhogingen worden terreinhoogte
     terrVer++; roadCols = new Map();
     for (const g of groups.values()) { disposeGroup(g); blocks.remove(g); }
     groups.clear(); colMap.clear();
@@ -105,6 +109,7 @@
     if (LOD.on) { LOD.fx = mode === 'walk' ? player.x : orbit.target.x; LOD.fz = mode === 'walk' ? player.z : orbit.target.z; }
     for (const k of cells.keys()) { const [q, r] = k.split(',').map(Number); buildColumn(q, r); }
     lodProxy(); buildEdgeNet(); buildPathNet(); buildTriNet(); buildModNet(); peopleDirty = true; carsDirty = true;
+    terrHold = false; terrFlush();
   }
 
   // ---------- Botsing tijdens lopen ----------
@@ -187,7 +192,7 @@
     return false;
   }
   function floorAt(x, z, feet) {
-    let best = 0;
+    let best = Math.max(0, terrGround(x, z));   // het maaiveld (terrein), daarboven wat er gebouwd is
     const cols = nearby(x, z);
     for (const [ox, oz] of SAMPLES) for (const c of cols) for (const s of c.surfaces) {
       const t = surfTop(s, x + ox, z + oz);

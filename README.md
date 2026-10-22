@@ -57,10 +57,17 @@ Dat maakt `dist/hexstad.html` (één bestand, zelfde als de gepubliceerde versie
 
 ## Terrein en wegen op hoogte
 
-- **Verhogen** stapelt verhogingen van 3 m op elkaar (tot 30 m); **Verlagen** haalt er één af, op vlakke grond wordt het een uitgraving. Met `[` en `]` werkt het penseel op 1, 7 of 19 vakken tegelijk.
-- Een stapel verhogingen is één hoogteveld (`terrFieldAbs` in `05`): het vak loopt naar een randwaarde die het deelt met de buurman (halverwege tussen twee heuvelvakken, of de hoogte van vlakke grond ernaast); hoeken delen de drie vakken eromheen. Daarna wordt het hoogteveld op een vast wereldrooster (0,75 m) gaussisch vervaagd en naar vlakke grond in 3 m zacht naar 0 gebracht (`smoothTerrain`, `terrMask`): glooiende heuvels zonder piramidevlakken of naden tussen vakken, met normalen uit het veld zelf en onderaan de kleur van de grond.
-- **Wegen volgen het terrein** (`pathProf` in `07`): het maaiveld onder de middenlijn, uitgevlakt over ±6 m. Tijdens het slepen maakt `E`/`Q` (of Page Up/Down, scrollwiel, ▲▼) de weg 1,5 m hoger of lager boven het terrein (`path.y`, per punt, tot 12 m). Hoger dan het maaiveld krijgt een wand tot de grond; het maaiveld van een heuvel sluit aan op de weg (ingraving of dijkje).
-- Wegen die op verschillende hoogte over elkaar gaan (viaduct) worden **niet** met elkaar verbonden. Auto's, mensen en de speler gebruiken de bovenkant van de weg als loopvlak (`roadCols`), dus ze rijden en lopen mee op en af.
+- **Terrein is een eigen laag** (`07b-terrein.js`): één hoogte per vak in `cells.terr` (`'q,r'` → meter, 0 … 30), opgeslagen als `__g`. Oude steden met opgestapelde "verhogingen" worden bij het laden omgezet (3 m per verhoging, `terrMigrate`).
+- **Het landschap**: tussen de middens van drie buurvakken loopt het vlak lineair (driehoeksrooster, geen zeshoekranden), daarna gaussisch vervaagd (σ 3 m) op een vast wereldrooster. Een vak waar iets op staat is een vlak plateau op zijn eigen hoogte met een stenen **sokkel** tot op de grond (`terrPlinth`): strakke rand, en tussen twee bebouwde vakken van verschillende hoogte een keermuur. Langs een weg sluit het maaiveld aan op de weg, gemeten vanaf de weg zelf (`roadAdjust`): een ingraving of dijk die evenwijdig aan de weg loopt.
+- Het landschap is opgedeeld in **stukken van 32 × 32 m**; een bewerking rekent en tekent alleen de stukken die het raakt. `terrainHeightAt` is het veld zonder wegen (daar volgen de wegen op), `terrGround` het getekende maaiveld (daar lopen mensen en de speler op).
+- **Alles op een vak staat op de terreinhoogte** (`gH(q, r)`): de kolom (`buildColumn`) en modules worden opgetild, hun botsvlakken verschoven (`shiftCol`). Stapels blijven intern relatief (vanaf 0); `colTopW` geeft de echte hoogte.
+- **Boetseren** (`14b-boetseren.js`, Terrein): Ophogen, Afgraven, Egaliseren, Gladstrijken en Helling trekken. Muis ingedrukt houden en slepen (touchscreen: even vasthouden), Shift draait ophogen/afgraven om, `[` `]` maakt het penseel 1, 7, 19 of 37 vakken. Bebouwde vakken blijven liggen. Een ring toont het penseel, een label de hoogte, en hoogtelijnen (elke 1,5 m, dikker elke 7,5 m) het reliëf. Een geplaatste module maakt het terrein onder zich vlak.
+- **Wegen volgen het terrein** (`pathProf` in `07`): het maaiveld onder de middenlijn, uitgevlakt over ±6 m. Tijdens het slepen maakt `E`/`Q` (of Page Up/Down, scrollwiel, ▲▼) de weg 1,5 m hoger of lager boven het terrein (`path.y`, per punt, tot 12 m).
+- Wegen die op verschillende hoogte over elkaar gaan (viaduct) worden **niet** met elkaar verbonden; een echt brugdek met pijlers moet nog komen.
+
+## Instellingen
+
+Menu → Instellingen (`15c-instellingen.js`, bewaard in `localStorage` `hexstad-set`): **terrein** hoog (1 m rooster), normaal (2 m) of low poly (4 m, platte vlakken; het snelst), **schaduwen** zacht, eenvoudig of uit, **beeldscherpte** scherp, normaal of snel, **wolken**, en verder raster, hoogtelijnen, penseel, tijd, mensen, auto's en geluid.
 
 ## Modules en de module maker
 

@@ -45,9 +45,15 @@
     }
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pointers.size === 1) {
-      downInfo = { x: e.clientX, y: e.clientY, t: performance.now(), moved: false, panMode: e.button === 2 || e.shiftKey, right: e.button === 2,
+      const terrT = TERR_TOOLS.has(tool) && e.button === 0 && !e.altKey;
+      downInfo = { x: e.clientX, y: e.clientY, t: performance.now(), moved: false, panMode: e.button === 2 || (e.shiftKey && !terrT), right: e.button === 2,
         rotate: e.button === 1 || e.altKey,
         road: (DRAG_TOOLS.has(tool) || EDGE_TOOLS.has(tool) || lineModSel()) && e.button === 0 && !e.shiftKey && !e.altKey && e.pointerType === 'mouse' };
+      if (terrT && e.pointerType === 'mouse') { downInfo.sculpt = sculptStart(e.clientX, e.clientY, e.shiftKey); downInfo.moved = true; }   // terrein: meteen boetseren
+      if (terrT && e.pointerType !== 'mouse') {   // touchscreen: even vasthouden, dan boetseren
+        const d0 = downInfo; clearTimeout(roadHold);
+        roadHold = setTimeout(() => { if (downInfo !== d0 || d0.moved || pointers.size !== 1) return; d0.moved = true; d0.sculpt = sculptStart(d0.x, d0.y, false); }, 320);
+      }
       // touchscreen: even stil vasthouden met een weg of pad gekozen, dan slepen trekt er een
       if (DRAG_TOOLS.has(tool) && e.pointerType !== 'mouse') {
         const d0 = downInfo;
@@ -83,6 +89,7 @@
     if (!p) { if (e.pointerType === 'mouse') updateGhost(e.clientX, e.clientY); return; }
     const dx = e.clientX - p.x, dy = e.clientY - p.y;
     p.x = e.clientX; p.y = e.clientY;
+    if (pointers.size === 1 && downInfo && downInfo.sculpt) { sculptMove(e.clientX, e.clientY); updateGhost(e.clientX, e.clientY); return; }
     if (pointers.size === 1 && downInfo) {
       if (!downInfo.moved && Math.hypot(e.clientX - downInfo.x, e.clientY - downInfo.y) > 7) downInfo.moved = true;
       if (!downInfo.moved) return;
@@ -119,6 +126,7 @@
     const wasSingle = pointers.size === 1;
     pointers.delete(e.pointerId);
     clearTimeout(roadHold);
+    if (SC.on) { sculptEnd(); if (downInfo) downInfo.moved = true; }
     if (roadDrag.on) { roadDragEnd(); if (downInfo) downInfo.moved = true; }
     if (e.type === 'pointerup' && wasSingle && downInfo && !downInfo.moved && !downInfo.rotate && performance.now() - downInfo.t < 600) {
       if (downInfo.right) eraseAt(e.clientX, e.clientY); else handleTap(e.clientX, e.clientY);
@@ -129,7 +137,7 @@
   }
   canvas.addEventListener('pointerup', endPointer);
   canvas.addEventListener('pointercancel', endPointer);
-  canvas.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse' && !pointers.size) ghost.visible = false; });
+  canvas.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse' && !pointers.size) { ghost.visible = false; brushRing.hide(); terrLbl.hidden = true; } });
   // Scrollwiel: tijdens het lopen wissel je van blok; in bouwmodus zoom je, met Shift wissel je
   let wheelAcc = 0, wheelT = 0;
   canvas.addEventListener('wheel', e => {
@@ -195,7 +203,7 @@
   function groundHit(cx, cy) {
     ndc.set(cx / window.innerWidth * 2 - 1, -(cy / window.innerHeight) * 2 + 1);
     raycaster.setFromCamera(ndc, camera);
-    const objs = pathGroup ? [ground, blocks, pathGroup] : [ground, blocks];
+    const objs = pathGroup ? [ground, terrGroup, blocks, pathGroup] : [ground, terrGroup, blocks];
     return raycaster.intersectObjects(objs, true)[0] || null;
   }
   function groundCellAt(cx, cy) { const h = groundHit(cx, cy); return h ? worldToCell(h.point.x, h.point.z) : null; }

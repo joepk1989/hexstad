@@ -7,7 +7,8 @@
   const KEYS_BUILD = [
     ['Kaart', null], [K('W', 'A', 'S', 'D'), 'schuiven (of pijltjes)'], [K('Q', 'E'), 'draaien'], [K('+', '−'), 'in- en uitzoomen'],
     ['Bouwen', null], [K('1') + '…' + K('9'), 'blok in deze categorie'], [K('Tab'), 'volgende categorie (Shift: vorige)'], [K('R'), 'draaien (Shift+R: terug)'],
-    [K('Del'), 'gum aan/uit'], [K('[', ']'), 'terreinpenseel: 1, 7 of 19 vakken'], [K('Shift') + '+wiel', 'ander blok'],
+    [K('Del'), 'gum aan/uit'], [K('[', ']'), 'penseel: 1, 7, 19 of 37 vakken'], [K('Shift') + '+wiel', 'ander blok'],
+    ['Terrein', null], ['slepen', 'boetseren (ingedrukt houden)'], [K('Shift') + '+slepen', 'andersom (ophogen ↔ afgraven)'], [K('1') + '…' + K('5'), 'ophogen · afgraven · egaliseren · glad · helling'],
     ['Weg slepen', null], [K('E', 'Q'), 'hoger / lager (ook Page Up/Down, wiel)'], ['stilhouden', 'hoekpunt: bocht in één sleep'],
     ['Overig', null], [K('G'), 'raster aan/uit'], [K('P'), 'tijd pauze / verder'], [K('L'), 'lopen'], [K('M'), 'menu'], [K('?'), 'dit overzicht'],
   ];
@@ -32,7 +33,7 @@
   try { if (!localStorage.getItem('hexstad-keys-seen') && !document.body.classList.contains('coarse')) setTimeout(() => { toggleKeys(true); setTimeout(() => { if (!keysPanel.matches(':hover')) toggleKeys(false); }, 9000); }, 1500); } catch (e) { /* geen opslag */ }
 
   // terreinpenseel: 0 = één vak, 1 = met de ring eromheen (7), 2 = twee ringen (19)
-  function setBrush(b) { terrBrush = Math.max(0, Math.min(2, b)); toast('Terreinpenseel: ' + [1, 7, 19][terrBrush] + (terrBrush ? ' vakken' : ' vak'), 1000); }
+  function setBrush(b) { terrBrush = Math.max(0, Math.min(3, b)); toast('Terreinpenseel: ' + [1, 7, 19, 37][terrBrush] + (terrBrush ? ' vakken' : ' vak'), 1000); if (lastHover) updateGhost(); }
   let prevTool = null;
   const busy = e => { const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return true; const mm = document.getElementById('mmApp'), sk = document.getElementById('schetsApp'); return (mm && !mm.hidden) || (sk && !sk.hidden) || e.ctrlKey || e.metaKey || e.altKey; };
   window.addEventListener('keydown', e => {

@@ -49,7 +49,7 @@
     crosshairEl.classList.toggle('bad', mode === 'walk' && ghost.visible && previewActive && previewKey.endsWith('false|walk'));
     sound.update(dt);
     updateLights(now / 1000);
-    DN.update(dt); clouds.update(dt, camera.position);
+    DN.update(dt); clouds.update(dt, camera.position); sculptUpdate(dt);
     people.update(dt);
     cars.update(dt);
     if (mode === 'walk') {

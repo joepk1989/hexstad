@@ -130,21 +130,6 @@
     for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz || 1e-9, f = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / l2)), d = (a[0] + dx * f - x) ** 2 + (a[1] + dz * f - z) ** 2; if (d < bd) { bd = d; bi = i; bf = f; } }
     return P.h[bi] + ((P.h[bi + 1] ?? P.h[bi]) - P.h[bi]) * bf;
   }
-  // Maaiveld van een heuvelvak langs een weg: tot de rand van de stoep gelijk met de weg (iets eronder), daarna in 3 m
-  // terug naar het terrein; zo ontstaat een ingraving of een dijkje. null als er geen weg in de buurt ligt.
-  function roadTerrainAdjust(q, r, cx, cz, f0) {
-    const P = (cells.paths || []).filter(p => PATH_DEF[p.t] && p.p && p.p.length > 1), near = [];
-    for (const path of P) { const pr = pathProf(path), def = PATH_DEF[path.t], reach = def.hw + def.walk + 3.5 + R; if (cx < pr.bb[0] - reach || cx > pr.bb[2] + reach || cz < pr.bb[1] - reach || cz > pr.bb[3] + reach) continue; if (distPoly(cx, cz, pr.pts) < reach) near.push({ path, pr, def }); }
-    if (!near.length) return null;
-    return (x, z) => {
-      const X = cx + x, Z = cz + z; let v = f0(x, z), wBest = 0, tBest = v, dBest = 1e9;
-      for (const { path, pr, def } of near) {
-        const d = distPoly(X, Z, pr.pts), edge = def.hw + (path.t === 'pad' ? 0.6 : def.walk) + 2.2; if (d > edge + 3.2) continue;   // ruim: ook de stoephoeken van een kruising
-        const w = d <= edge ? 1 : smooth01(1 - (d - edge) / 3.2); if (w > wBest || (w === 1 && wBest === 1 && d < dBest)) { wBest = w; dBest = d; tBest = pathH(path, X, Z) - 0.15; }
-      }
-      return wBest > 0 ? v + (tBest - v) * wBest : v;
-    };
-  }
   // ---------- Vectorwegen als graaf: knopen op uiteinden, kruisingen en T-aansluitingen, takken ertussen ----------
   // Gebruikt door de auto's en de mensen (rijstroken en stoepen) en door de tekenlaag (stoepen die bij kruisingen ophouden).
   const segX = (a, b, c, d) => {   // snijpunt van segmenten ab en cd als [t, u], of null
@@ -487,7 +472,6 @@
     for (const [q, r] of list) for (const [dq, dr] of [[0, 0], ...NEIGH]) if (vecCover.has((q + dq) + ',' + (r + dr))) { buildPathNet(); return true; }
     return false;
   }
-  let roadTerr = new Set();   // heuvelvakken langs een weg: hun maaiveld sluit aan op de weg
   // quick: tijdens het slepen alleen de tekening; botsing en het maaiveld langs de weg pas bij het loslaten
   function buildPathNet(quick) {
     if (pathGroup) { pathGroup.traverse(m => { if (m.isMesh && m.userData.own) m.geometry.dispose(); }); scene.remove(pathGroup); }
@@ -495,9 +479,8 @@
     vecLightReg = []; pathGroup = pathBuild(cells.paths, vecLightReg, quick); scene.add(pathGroup); carsDirty = true; vecDirty = true; peopleDirty = true;
     if (!quick) roadCols = pathGroup.userData.col || new Map();
     vecCover = vecCoverOf(cells.paths);
-    if (!quick) { const now = new Set(); for (const k of vecCoverOf(cells.paths)) { const [q, r] = k.split(',').map(Number); for (const [dq, dr] of [[0, 0], ...NEIGH]) if (terrN(q + dq, r + dr)) now.add((q + dq) + ',' + (r + dr)); }
-      for (const k of new Set([...now, ...roadTerr])) { const [q, r] = k.split(',').map(Number); buildColumn(q, r); } roadTerr = now; }
-    for (const k of vecCover) { const [q, r] = k.split(',').map(Number); if (stackOf(q, r).length) continue; const c = cellToWorld(q, r), m = new THREE.Mesh(HEX_FLAT, SAND); m.position.set(c.x, 0.03, c.z); m.receiveShadow = true; pathGroup.add(m); }
+    if (!quick) terrRoadsChanged();   // het maaiveld langs de wegen sluit aan op de weg
+    // (geen zandkleurige zeshoeken meer onder de weg: de rand van de weg volgt de weg zelf, niet het raster)
   }
   function pathBuild(P, lightReg, quick) {   // lint-meshes voor een lijst vrije wegen; ook gebruikt door de 3D-weergave in de schets
     const pathGroup = new THREE.Group();

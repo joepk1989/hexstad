@@ -60,6 +60,8 @@
           for (const sp of cl.children) sp.material.opacity = sp.userData.base * fade;
         }
       },
+      setOn(v) { group.visible = !!v; },
+      get on() { return group.visible; },
       tint(c, opacity) { for (const { m, shade } of mats) { col.copy(c).multiplyScalar(shade); m.color.copy(col); } for (const cl of list) for (const sp of cl.children) sp.userData.base = opacity; },
     };
   })();

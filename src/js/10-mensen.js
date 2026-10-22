@@ -51,6 +51,7 @@
       }
       if (n.kind.level === 'low') link(n, nodes.get(lk(n.q, n.r, n.y + 3)), -1, true);   // trap of helling op
     }
+    for (const n of nodes.values()) { n.yr = n.y; n.y += gH(n.q, n.r); }   // hoogte in de wereld: op het terrein van het vak
     // Getekende wegen: knopen op kruisingen en uiteinden, stoepen ertussen (nog los van het hexnetwerk)
     const G = cars.vecGraph();
     const vn = G.nodes.map((N, vi) => { const r = N.z / (1.5 * R); return { vi, key: 'v' + Math.round(N.x * 2) / 2 + ',' + Math.round(N.z * 2) / 2, q: N.x / (R * SQ3) - r / 2, r, y: PW_H + (N.y || 0), x: N.x, z: N.z, kind: { b: 'vec' }, edges: new Map() }; });
@@ -68,7 +69,7 @@
       for (const sg of [1, -1]) { const pts = vecWalkPts(G, e, 0, sg * off); if (pts.length) walkSides.push({ e, sg, pts, reach: e.len }); }
     }
     for (const n of nodes.values()) {
-      if (n.kind.b !== 'door' || n.y > 0.41) continue;
+      if (n.kind.b !== 'door' || n.yr > 0.41) continue;
       const c = cellToWorld(n.q, n.r), fd = FRAMES[n.kind.d], dx = c.x + fd.nx * (INNER - 1.5), dz = c.z + fd.nz * (INNER - 1.5);
       let best = null;
       for (const W of walkSides) {   // de stoeppunten per tak zijn één keer uitgerekend (niet per voordeur opnieuw)
@@ -258,6 +259,7 @@
         if (t !== null && t <= feet + 0.45 && (best === null || t > best)) best = t;
       }
       if (best === null || best < 0.5) { const v = vecFloor(x, z); if (v > 0) best = Math.max(best || 0, v); }
+      const tg = terrGround(x, z); if (tg > 0.02 && (best === null || best < tg)) best = tg;   // het maaiveld
       return best === null ? (feet < 0.5 ? 0 : feet) : best;
     }
     function place(a, n, fromDoor) {
@@ -852,6 +854,7 @@
       },
       // Een blok op iemand gezet: die wordt weggeslingerd
       onPlaced(q, r, y0, y1) {
+        y0 += gH(q, r); y1 += gH(q, r);
         const c = cellToWorld(q, r);
         for (const a of agents) {
           if (a.state === 'inside' || a.state === 'rag' || a.state === 'getup') continue;

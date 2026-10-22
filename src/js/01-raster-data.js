@@ -29,7 +29,7 @@
     trappad: { name: 'Trappad', h: 3 },
     tribune: { name: 'Tribune', h: 3 },
     hofhelling: { name: 'Opgang', h: 3 },
-    kuil:    { name: 'Verlagen', h: -3 },   // uitgraving: de bodem ligt 3 m onder straatniveau, met grashellingen naar de rand
+    kuil:    { name: 'Uitgraving', h: -3 },   // uitgraving: de bodem ligt 3 m onder straatniveau, met grashellingen naar de rand
     heuvel:  { name: 'Verhogen', h: 3 },    // verhoogd terrein: plateau van 3 m met grashellingen
     brug:    { name: 'Brug', h: 3 },        // dek over een uitgraving (komt vanzelf onder een weg)
     brugp:   { name: 'Brug', h: 3 - 0.15 }, // idem, over een pad op de bodem
@@ -40,6 +40,8 @@
     vweg: { name: 'Weg', h: 0 },        // alleen als gereedschap: getekende weg (vrije lijn, sleep van vak naar vak)
     vbrd: { name: 'Brede weg', h: 0 },  // idem, vier rijstroken
     vlaan: { name: 'Laan', h: 0 },      // idem, met middenberm en bomen
+    tophoog: { name: 'Ophogen', h: 0 }, tafgraaf: { name: 'Afgraven', h: 0 }, tvlak: { name: 'Egaliseren', h: 0 },   // terrein boetseren (zie 14b)
+    tglad: { name: 'Gladstrijken', h: 0 }, thelling: { name: 'Helling trekken', h: 0 },
     module: { name: 'Module', h: 0 },   // alleen als gereedschap: een bewaarde schets plaatsen   // alleen als gereedschap: bewaard als breed pad (pad32)
   };
   // Het palet is in groepen verdeeld; het scrollwiel loopt ze allemaal door
@@ -48,7 +50,7 @@
     { name: 'Paden', tools: ['pad', 'fietspad', 'looppad', 'randpad', 'trap', 'trappad'], todo: ['Brugpad', 'Plein'] },
     { name: 'Gebouwen', tools: ['woning', 'kantoor', 'dak'], todo: ['Winkel', 'School', 'Fabriek'] },
     { name: 'Groen en water', tools: ['park', 'water'], todo: ['Bomen', 'Hagen', 'Vijver', 'Fontein'] },
-    { name: 'Terrein', tools: ['kuil', 'heuvel', 'helling', 'hofhelling'], todo: ['Klif', 'Strand'] },
+    { name: 'Terrein', tools: ['tophoog', 'tafgraaf', 'tvlak', 'tglad', 'thelling', 'kuil', 'helling', 'hofhelling'], todo: ['Water', 'Klif'] },
     { name: 'Modules', tools: ['module'], todo: ['Brug', 'Poort', 'Toren'] },   // blok, muur, tunnel, tribune, zuilen en hof zijn modules geworden (zie 08b); bestaande steden tonen ze nog
   ];
   const TOOLS = [...CATS.flatMap(c => c.tools), 'gum'];
@@ -160,7 +162,7 @@
   // of lege bouwgrond is een losse kladstad: daar mag je in rommelen zonder dat je eigen stad verandert.
   const STORE = 'hexstad-v2', MINE = 'hexstad-mijnstad', SLOT = 'hexstad-plek';
   let slot = 'mijn', slotName = 'Mijn stad';
-  const serialize = m => { const o = Object.fromEntries(m); if (m.edges && m.edges.size) o.__e = [...m.edges]; if (m.paths && m.paths.length) o.__p = m.paths; if (m.tris && m.tris.length) o.__t = m.tris; if (m.inst && m.inst.length) o.__i = m.inst; return JSON.stringify(o); };
+  const serialize = m => { const o = Object.fromEntries(m); if (m.edges && m.edges.size) o.__e = [...m.edges]; if (m.paths && m.paths.length) o.__p = m.paths; if (m.tris && m.tris.length) o.__t = m.tris; if (m.inst && m.inst.length) o.__i = m.inst; if (m.terr) { const g = {}; for (const k in m.terr) if (m.terr[k] > 0.004) g[k] = Math.round(m.terr[k] * 100) / 100; if (Object.keys(g).length) o.__g = g; } return JSON.stringify(o); };
   function save() {
     try {
       localStorage.setItem(STORE, serialize(cells));
@@ -177,6 +179,7 @@
       if (Array.isArray(obj.__e)) m.edges = new Map(obj.__e.filter(e => Array.isArray(e) && typeof e[0] === 'string' && (e[1] === 'weg' || e[1] === 'brd' || e[1] === 'pad')));
       if (Array.isArray(obj.__p)) m.paths = obj.__p.filter(p => p && ['weg', 'brd', 'laan', 'pad'].includes(p.t) && Array.isArray(p.p) && p.p.length > 1 && p.p.every(a => Array.isArray(a) && isFinite(a[0]) && isFinite(a[1])));
       if (Array.isArray(obj.__i)) m.inst = obj.__i.filter(x => x && x.m && Array.isArray(x.m.edges) && isFinite(x.q) && isFinite(x.r) && isFinite(x.rot));
+      if (obj.__g && typeof obj.__g === 'object') { m.terr = {}; for (const k in obj.__g) { const v = +obj.__g[k]; if (/^-?\d+,-?\d+$/.test(k) && isFinite(v) && v > 0) m.terr[k] = Math.min(TERR_TOP, v); } }
       if (Array.isArray(obj.__t)) m.tris = obj.__t.filter(t => t && TRI_STY[t.k] && Array.isArray(t.v) && t.v.length === 6 && t.v.every(isFinite));
       for (const k in obj) if (k !== '__e' && k !== '__p' && k !== '__t' && k !== '__i' && Array.isArray(obj[k]) && obj[k].every(t => typeof t === 'string' && TY(t))) m.set(k, obj[k]);
       return m;
@@ -625,4 +628,8 @@
     return { homes, offices };
   }
   const columnTop = (q, r) => stackOf(q, r).reduce((s, t) => s + TY(t).h, 0);
+  // Terreinhoogte van een vak (m). Alles op het vak (blokken, paden, gebouwen) staat op deze hoogte; columnTop is
+  // daarboven gerekend (relatief), colTopW is de echte hoogte in de wereld.
+  const gH = (q, r) => (cells.terr && cells.terr[q + ',' + r]) || 0;
+  const colTopW = (q, r) => gH(q, r) + columnTop(q, r);
 

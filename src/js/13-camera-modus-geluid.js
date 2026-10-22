@@ -123,7 +123,7 @@
   // Wind (sterker op hoogte), vogels bij groen, klotsend water bij grachten, stadsruis bij straten, voetstappen.
   function indoorsAt(x, z, y) {   // sta je in een woning of kantoor?
     const [q, r] = worldToCell(x, z);
-    let h = 0;
+    let h = gH(q, r);
     for (const t of stackOf(q, r)) { const top = h + TY(t).h; if (y >= h - 0.1 && y < top - 0.5) return isBuilding(t); h = top; }
     return false;
   }

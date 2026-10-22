@@ -3,7 +3,7 @@
   const statsEl = document.getElementById('stats');
   function updateStats() {
     let n = 0, top = 0;
-    for (const [k, st] of cells) { n += st.length; const [q, r] = k.split(',').map(Number); top = Math.max(top, columnTop(q, r)); }
+    for (const [k, st] of cells) { n += st.length; const [q, r] = k.split(',').map(Number); top = Math.max(top, colTopW(q, r)); }
     statsEl.textContent = `${slotName} · ${n} ${n === 1 ? 'blok' : 'blokken'} · hoogste punt ${top.toFixed(top % 1 ? 1 : 0).replace('.', ',')} m`;
     refreshMineUI();
     if (typeof updateScore === 'function') updateScore();
@@ -129,6 +129,7 @@
     if (vecCover.has(key(q, r)) && !st.length && t !== 'pad' && t !== 'heuvel') return 'Hier ligt een weg';
     if (t === 'heuvel' && terrN(q, r) >= TERR_MAX) return 'Hoger dan ' + TERR_MAX * 3 + ' m kan niet';
     if (modCellOccupied(q, r)) return 'Hier staat een module';
+    if ((t === 'kuil' || t === 'water') && gH(q, r) > 0.3) return (t === 'kuil' ? 'Een uitgraving' : 'Water') + ' kan alleen op vlakke grond (hoogte 0)';
     if (!allowedOn(t, top, st[st.length - 2])) return whyNot(t, top);
     if (columnTop(q, r) + TY(t).h > MAX_H + 0.01) return 'Maximaal 60 meter hoog';
     if (mode === 'walk') {   // niet bouwen op de plek waar je zelf staat
@@ -138,7 +139,7 @@
     return null;
   }
   // Terreinpenseel: verhogen of verlagen in één keer op 1, 7 of 19 vakken
-  let terrBrush = 0;
+  let terrBrush = 1;
   function terrainEdit(q, r, T) {   // één stap hoger of lager; geeft true als er iets veranderde
     const k = key(q, r), st = stackOf(q, r);
     if (modCellOccupied(q, r)) return false;
@@ -147,6 +148,7 @@
     return false;
   }
   function place(q, r) {
+    if (TERR_TOOLS.has(tool)) return terrImpulse(q, r);
     if ((tool === 'heuvel' || tool === 'kuil') && terrBrush > 0) {
       const list = []; for (let dq = -terrBrush; dq <= terrBrush; dq++) for (let dr = -terrBrush; dr <= terrBrush; dr++) if (hexDist(dq, dr) <= terrBrush && terrainEdit(q + dq, r + dr, tool)) list.push([q + dq, r + dr]);
       if (!list.length) return toast('Hier kan het terrein niet ' + (tool === 'heuvel' ? 'hoger' : 'lager'));
@@ -237,11 +239,11 @@
   function pick(cx, cy) {
     ndc.set(cx / window.innerWidth * 2 - 1, -(cy / window.innerHeight) * 2 + 1);
     raycaster.setFromCamera(ndc, camera);
-    const hits = raycaster.intersectObjects([ground, blocks], true);
+    const hits = raycaster.intersectObjects([ground, terrGroup, blocks], true);
     if (!hits.length) return null;
     const h = hits[0];
     if (mode === 'walk' && h.distance > REACH) return null;
-    if (h.object === ground) return { place: worldToCell(h.point.x, h.point.z), erase: null, point: h.point };
+    if (h.object === ground || h.object.userData.terr) return { place: worldToCell(h.point.x, h.point.z), erase: null, point: h.point, terr: !!h.object.userData.terr };
     let o = h.object;
     while (o && (!o.userData || o.userData.q === undefined)) o = o.parent;
     if (!o) return null;
@@ -249,7 +251,7 @@
     const n = h.face.normal.clone().transformDirection(h.object.matrixWorld);
     let cell;
     // bovenkant, of de bovenste helft van het bovenste blok (zo kun je vanaf de straat op een gebouw stapelen)
-    const st = stackOf(q, r), topH = st.length ? TY(st[st.length - 1]).h : 0, ct = columnTop(q, r);
+    const st = stackOf(q, r), topH = st.length ? TY(st[st.length - 1]).h : 0, ct = colTopW(q, r);
     if (n.y > 0.5 || (st.length && h.point.y > ct - Math.max(0.5, topH) * 0.5)) cell = [q, r];
     else { const p = h.point.clone().addScaledVector(n, 0.4); cell = worldToCell(p.x, p.z); }
     return { place: cell, erase: [q, r], point: h.point };
@@ -327,7 +329,7 @@
     try {   // even doen alsof het blok er al staat, zodat paden goed aansluiten
       const pr = computePathLinks(); pathLinks = pr.masks; pathIfs = pr.ifs; pathCorners = pr.corners; cornerVia = pr.via;
       const { x, z } = cellToWorld(q, r);
-      previewGroup.position.set(x, 0, z);
+      previewGroup.position.set(x, gH(q, r), z);
       let yy = baseY;
       items.forEach((it, j) => { previewGroup.add(makeBlock(it, q, r, n0 + j, yy, x, z, { surfaces: [], walls: [] })); yy += TY(it).h; });
     } finally {
@@ -350,6 +352,7 @@
     ghostArrow.visible = false;
     const res = pick(cx, cy); lastPickRes = res;
     edgeGhost.visible = false; moduleGhost.visible = false;
+    if (terrHover(res, cx, cy)) { previewActive = false; ghost.visible = false; ghostEdges.visible = false; return; }
     if (!res || (mode === 'walk' && hand !== 'bouwen')) { ghost.visible = false; ghostEdges.visible = false; return; }
     if (VEC_TOOLS.has(tool)) { previewActive = false; ghost.visible = false; ghostEdges.visible = false; return; }
     if (tool === 'module') { previewActive = false; ghost.visible = false; ghostEdges.visible = false; if (res.place) { const a = anchorOf(res); showModuleGhost(a[0], a[1]); } return; }
@@ -369,17 +372,17 @@
       const [q, r] = res.erase; const st = stackOf(q, r); const t = st[st.length - 1];
       const { x, z } = cellToWorld(q, r);
       ghost.geometry = geoFor(t); ghost.material = ghostBad;
-      ghost.position.set(x, columnTop(q, r) - TY(t).h - 0.02, z); ghost.scale.setScalar(1.05);
+      ghost.position.set(x, colTopW(q, r) - TY(t).h - 0.02, z); ghost.scale.setScalar(1.05);
     } else {
       const [q, r] = res.place; const { x, z } = cellToWorld(q, r);
       const valid = !canPlace(q, r, tool);
       showPreview(q, r, valid);
       previewActive = true;
       ghost.geometry = geoFor(baseOf(tool)); ghost.material = ghostNone;
-      ghost.position.set(x, columnTop(q, r) + 0.01, z); ghost.scale.setScalar(1.01);
+      ghost.position.set(x, colTopW(q, r) + 0.01, z); ghost.scale.setScalar(1.01);
       if (DIRECTIONAL.has(tool)) {
         const f = FRAMES[viewDirIndex()];
-        ghostArrow.position.set(x, columnTop(q, r) + 3.4, z); ghostArrow.rotation.y = -Math.atan2(f.nz, f.nx);
+        ghostArrow.position.set(x, colTopW(q, r) + 3.4, z); ghostArrow.rotation.y = -Math.atan2(f.nz, f.nx);
         ghostArrow.material = valid ? ghostMat : ghostBad; ghostArrow.visible = true;
       }
     }

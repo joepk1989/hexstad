@@ -42,11 +42,19 @@
     const tick = () => { const t0 = performance.now(); while (queue.length && performance.now() - t0 < 12) queue.shift()(); if (queue.length) setTimeout(tick, 0); }; tick();
   }
   let modCat = 'Alles'; try { modCat = localStorage.getItem('hexstad-modcat') || 'Alles'; } catch (e) { /* geen opslag */ }
+  const tsvg = d => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>';
+  const TERR_SVG = {
+    tophoog: tsvg('<path d="M2 20c4-1 5-9 10-9s6 8 10 9" fill="#6fa356" stroke="#3d6b2c"/><path d="M12 9V2M9 5l3-3 3 3" stroke="#fff"/>'),
+    tafgraaf: tsvg('<path d="M2 8c4 1 5 9 10 9s6-8 10-9v14H2z" fill="#6fa356" stroke="#3d6b2c"/><path d="M12 2v7M9 6l3 3 3-3" stroke="#fff"/>'),
+    tvlak: tsvg('<path d="M2 20V13h20v7z" fill="#6fa356" stroke="#3d6b2c"/><path d="M3 9h18" stroke="#fff"/><path d="M8 6l-3 3 3 3M16 6l3 3-3 3" stroke="#fff"/>'),
+    tglad: tsvg('<path d="M2 20c3 0 4-6 7-6s4 3 6 3 4-5 7-5v8z" fill="#6fa356" stroke="#3d6b2c"/><path d="M4 8c3-3 6 2 8 0s5-3 8 0" stroke="#fff"/>'),
+    thelling: tsvg('<path d="M2 20L22 7v13z" fill="#6fa356" stroke="#3d6b2c"/><circle cx="5" cy="17" r="1.6" fill="#fff" stroke="none"/><circle cx="19" cy="8" r="1.6" fill="#fff" stroke="none"/><path d="M6.5 15.5l10-6" stroke="#fff" stroke-dasharray="2 2"/>'),
+  };
   TOOLS.forEach((t) => {
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'tool'; b.id = 'tool-' + t;
     b.title = t === 'gum' ? 'Gum: haalt de bovenste laag weg' : VEC_TOOLS.has(t) ? TYPES[t].name + ': sleep van vak naar vak; rechtermuisknop of gum haalt de hele weg weg' : TYPES[t].name;
-    b.innerHTML = `<span class="sw sw-${t}">${t === 'gum' ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>' : ''}</span>${t === 'gum' ? 'Gum' : (TOOL_LABEL[t] || TYPES[t].name)}`;
+    b.innerHTML = `<span class="sw sw-${t}">${TERR_SVG[t] ? TERR_SVG[t] : t === 'gum' ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>' : ''}</span>${t === 'gum' ? 'Gum' : (TOOL_LABEL[t] || TYPES[t].name)}`;
     b.addEventListener('click', () => selectTool(t));
     (t === 'gum' ? palRow : toolScroll).appendChild(b); toolBtns[t] = b;
   });
@@ -87,7 +95,8 @@
   let terrHintShown = false;
   function selectTool(t) {
     tool = t;
-    if ((t === 'heuvel' || t === 'kuil') && !terrHintShown) { terrHintShown = true; setTimeout(() => toast(t === 'heuvel' ? 'Klik nog eens op hetzelfde vak: 3 m hoger · [ ] maakt het penseel groter' : 'Op een heuvel: 3 m lager · op vlakke grond: een uitgraving · [ ] penseel', 3200), 50); }
+    if (TERR_TOOLS.has(t) && !terrHintShown) { terrHintShown = true; setTimeout(() => toast((coarse ? 'Vasthouden en slepen' : 'Ingedrukt houden en slepen') + ' om te boetseren · Shift: andersom · [ ] penseel', 3200), 50); }
+    { let cw = true; try { cw = setState.contour; } catch (e) { /* instellingen nog niet geladen */ } terrU.uContour.value = TERR_TOOLS.has(t) && cw ? 1 : 0; } if (!TERR_TOOLS.has(t)) { brushRing.hide(); terrLbl.hidden = true; }
     if (t !== 'gum' && catOf(t) !== catIdx) setCat(catOf(t));
     for (const k in toolBtns) toolBtns[k].setAttribute('aria-pressed', String(k === t));
     placeBtn.textContent = t === 'gum' ? 'Weg' : 'Bouw';
@@ -131,7 +140,7 @@
   todRange.addEventListener('input', () => { DN.set(+todRange.value); ui(); });
   todPanel.querySelectorAll('[data-tod]').forEach(b => b.addEventListener('click', () => { DN.set(+b.dataset.tod); ui(); }));
   todAutoBtn.addEventListener('click', () => { DN.st.auto = !DN.st.auto; DN.set(DN.st.tod); ui(); });
-  DN.apply(); ui(); window.__DN = DN; window.__mods = modules; window.__saveMods = () => { saveMods(); renderModCards(); }; window.__libStandard = libStandard; window.__match = matchingModules; window.__libInstall = libInstall; window.__modDbg = () => { let walls = 0, surfaces = 0; for (const L of modCols.values()) for (const c of L) { walls += c.walls.length; surfaces += c.surfaces.length; } return { walls, surfaces, floorAt, blockedAt, mv2Build, mv2New }; }; window.__SC = () => ({ roadTop, terrainHeightAt, pathProf, pathH, player, walkAction, pick, hand: () => hand, getCells: () => cells, cars, people, buildPathNet, openSchets, cover: () => [...vecCover], canPlace, place, scene, renderer, orbit, applyOrbit, camera, edgeMid: k => { const [q, r, kk] = k.split(',').map(Number), [a, b] = edgeEnds(q, r, kk), v = new THREE.Vector3((a[0] + b[0]) / 2, 0, (a[1] + b[1]) / 2).project(camera); return [(v.x + 1) / 2 * window.innerWidth, (1 - v.y) / 2 * window.innerHeight]; }, dbgPick: (x, y) => { const r = pick(x, y); return r && r.point ? { p: [r.point.x, r.point.z], ne: nearestExistingEdge(r.point.x, r.point.z, 4.5), n2: nearestEdge(r.point.x, r.point.z), tool } : r; }, setCells: o => { cells = new Map(Object.entries(o)); rebuildAll(); } });
+  DN.apply(); ui(); window.__DN = DN; window.__mods = modules; window.__saveMods = () => { saveMods(); renderModCards(); }; window.__libStandard = libStandard; window.__match = matchingModules; window.__libInstall = libInstall; window.__modDbg = () => { let walls = 0, surfaces = 0; for (const L of modCols.values()) for (const c of L) { walls += c.walls.length; surfaces += c.surfaces.length; } return { walls, surfaces, floorAt, blockedAt, mv2Build, mv2New }; }; window.__SC = () => ({ roadTop, terrainHeightAt, terrGround, terrSet, terrFlush, gH, tChunks, tRoadSegs: () => tRoadSegs, pathProf, pathH, player, walkAction, pick, hand: () => hand, getCells: () => cells, cars, people, buildPathNet, openSchets, cover: () => [...vecCover], canPlace, place, scene, renderer, orbit, applyOrbit, camera, edgeMid: k => { const [q, r, kk] = k.split(',').map(Number), [a, b] = edgeEnds(q, r, kk), v = new THREE.Vector3((a[0] + b[0]) / 2, 0, (a[1] + b[1]) / 2).project(camera); return [(v.x + 1) / 2 * window.innerWidth, (1 - v.y) / 2 * window.innerHeight]; }, dbgPick: (x, y) => { const r = pick(x, y); return r && r.point ? { p: [r.point.x, r.point.z], ne: nearestExistingEdge(r.point.x, r.point.z, 4.5), n2: nearestEdge(r.point.x, r.point.z), tool } : r; }, setCells: o => { cells = new Map(Object.entries(o)); rebuildAll(); } });
 
   // ---------- Optiebalk onderaan: opties van het gekozen blok + spelinstellingen ----------
   const optTool = document.getElementById('ogTool'), optToolName = document.getElementById('ogToolName');
@@ -174,6 +183,7 @@
     if (cells.tris) undoCells.tris = cells.tris.map(t => ({ k: t.k, v: t.v.slice(), h: t.h }));
     if (cells.paths) undoCells.paths = cells.paths.map(p => ({ t: p.t, l: p.l || 0, r: p.r || 0, p: p.p.map(a => a.slice()) }));
     if (cells.inst) undoCells.inst = cells.inst.slice();
+    if (cells.terr) undoCells.terr = { ...cells.terr };
     undoBtn.hidden = false; clearTimeout(undoTimer);
     undoTimer = setTimeout(() => { undoBtn.hidden = true; undoCells = null; }, 10000);
   }
@@ -230,6 +240,7 @@
     if (act === 'home') { orbit.target.set(0, 0, 0); applyOrbit(); toast('Terug in het midden', 1200); }
     if (act === 'empty') { cells = new Map(); rebuildAll(); changed(); toast('Lege bouwgrond · bewaar wat je bouwt via Menu → Deze stad bewaren'); }
     if (act === 'cars') { cars.setOn(!cars.on); toast(cars.on ? 'Er rijden weer auto\'s' : 'Geen auto\'s meer op straat'); }
+    if (act === 'settings') { sheet.hidden = true; openSettings(); return; }
     if (act === 'people') { people.setOn(!people.on); toast(people.on ? 'Er lopen weer mensen door de stad' : 'Geen mensen meer op straat'); }
     sheet.hidden = true; adoptArmed = false; refreshMineUI();
   });
