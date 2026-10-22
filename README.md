@@ -73,7 +73,7 @@ Menu → Instellingen (`15c-instellingen.js`, bewaard in `localStorage` `hexstad
 
 ## Trappen in huizen
 
-Woningen en kantoren hebben een **bordestrap** (`SW` in `03`): de trap loopt schuin door het vak langs de lange diagonaal. Steek 1 begint in het midden en gaat 1,5 m omhoog naar een bordes in een hoek; steek 2 gaat ernaast terug en komt boven weer in het midden uit. Per verdieping ligt het bordes in de tegenoverliggende hoek, zodat je boven rechtdoor de volgende trap op loopt. Treden op een schuine betonplaat, een witte tussenwand, leuningen, en een trapgat met balustrade (behalve waar je boven uitkomt). Lopen gaat over schuine loopvlakken (`slopeU`) en het bordes (`poly`); de vloer erboven heeft een gat in de vorm van de trap (`holePoly`). Ramen achter het bordes en deuren tegen de bordeswanden vervallen.
+Woningen en kantoren hebben een **trap van hoek naar hoek** (`SW` in `03`), zoals in de schets: per verdieping één steek schuin door het vak langs de lange diagonaal, 3 m omhoog over 12 m. Bovenaan kom je uit op de vloer in de hoek, en daar begint de volgende steek, op de strook ernaast, terug naar de andere hoek: een zigzag door het hele gebouw. In de vloer erboven zit een sleuf waar de steek doorheen komt, met een balustrade behalve aan de kant waar je boven uitkomt. Treden op een schuine betonplaat, leuningen aan beide kanten. Lopen gaat over een schuin loopvlak (`slopeU`); de vloer met de sleuf heeft een gat (`holePoly`). Omdat de trap midden in het vak staat, kan elke muur een deur, raam of doorgang hebben.
 
 ## Modules en de module maker
 
