@@ -28,7 +28,7 @@
           let a = vAt(p0[0], p0[1]); const d6 = dirOf(p1[0] - p0[0], p1[1] - p0[1]);
           for (let i = 0; i < per; i++) {
             const [ki, kj, kd, nxt] = segKey(a, d6), key = ki + ',' + kj + ',' + kd; a = nxt;
-            const [p, q] = [mv2P(ki, kj, ts), mv2P(ki + MV2.DIR3[kd][0], kj + MV2.DIR3[kd][1], ts)]; if (!mv2NearArea(m, (p[0] + q[0]) / 2, (p[1] + q[1]) / 2)) continue;
+            const [p, q] = [mv2P(ki, kj, ts), mv2P(ki + MV2.DIRW[kd][0], kj + MV2.DIRW[kd][1], ts)]; if (!mv2NearArea(m, (p[0] + q[0]) / 2, (p[1] + q[1]) / 2)) continue;
             let o = ''; const sp = open[s];
             if (sp) { if (typeof sp === 'string') { if (i === Math.floor((per - 1) / 2)) o = sp; } else for (const [oo, idx] of sp) if (i === idx) o = oo; }
             if (!o && win && (i % win === win - 1 || per === 1)) o = 'window';

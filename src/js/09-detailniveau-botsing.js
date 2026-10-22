@@ -142,8 +142,14 @@
       if (u < s.u0 || u > s.u1 || p < s.p0 || p > s.p1) return null;
       return s.kind === 'rect' ? s.top : s.y0 + (s.y1 - s.y0) * (p - s.p0) / (s.p1 - s.p0);
     }
+    if (s.kind === 'slopeU') {   // schuine steek van een bordestrap: hoogte loopt lineair langs u
+      const u = dx * s.tx + dz * s.tz, p = dx * s.nx + dz * s.nz;
+      if (u < s.u0 || u > s.u1 || p < s.p0 || p > s.p1) return null;
+      return s.y0 + (s.y1 - s.y0) * (u - s.u0) / (s.u1 - s.u0);
+    }
     if (s.kind === 'hex') {
       if (!inHex(dx, dz)) return null;
+      if (s.holePoly && inPoly(dx, dz, s.holePoly)) return null;
       if (s.hole && inRect(dx, dz, FRAMES[s.hk ?? STAIR], HOLE.u0, HOLE.u1, HOLE.p0, HOLE.p1) !== null) return null;
       return s.top;
     }

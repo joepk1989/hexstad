@@ -71,6 +71,10 @@ Dat maakt `dist/hexstad.html` (één bestand, zelfde als de gepubliceerde versie
 
 Menu → Instellingen (`15c-instellingen.js`, bewaard in `localStorage` `hexstad-set`): **terrein** hoog (1 m rooster), normaal (2 m) of low poly (4 m, platte vlakken; het snelst), **schaduwen** zacht, eenvoudig of uit, **beeldscherpte** scherp, normaal of snel, **wolken**, en verder raster, hoogtelijnen, penseel, tijd, mensen, auto's en geluid.
 
+## Trappen in huizen
+
+Woningen en kantoren hebben een **bordestrap** (`SW` in `03`): de trap loopt schuin door het vak langs de lange diagonaal. Steek 1 begint in het midden en gaat 1,5 m omhoog naar een bordes in een hoek; steek 2 gaat ernaast terug en komt boven weer in het midden uit. Per verdieping ligt het bordes in de tegenoverliggende hoek, zodat je boven rechtdoor de volgende trap op loopt. Treden op een schuine betonplaat, een witte tussenwand, leuningen, en een trapgat met balustrade (behalve waar je boven uitkomt). Lopen gaat over schuine loopvlakken (`slopeU`) en het bordes (`poly`); de vloer erboven heeft een gat in de vorm van de trap (`holePoly`). Ramen achter het bordes en deuren tegen de bordeswanden vervallen.
+
 ## Modules en de module maker
 
 Een module v2 is een gebied van 1, 7, 19 of 37 vakken met verdiepingen van 3 m, getekend op het fijne driehoekraster (zijde 4,5 of 2,25 m):
@@ -87,6 +91,8 @@ De **module maker** (Modules → Nieuw, of dubbelklik op een module) werkt als e
 **3D is de standaardweergave** en je tekent er gewoon in: elke klik wordt een straal vanuit de camera, gesneden met het vlak van de verdieping waar je bent (`toW`/`toS` in `08d`), dus al het gereedschap werkt in 3D en bovenaanzicht hetzelfde. Het raster en de rand van het gebied liggen op de hoogte van die verdieping. Draaien: middelste muisknop, Alt+slepen, spatie+slepen of het handje; schuiven: Shift+slepen of het pijltje. Standaard zie je de module tot en met de verdieping waar je tekent. Op het noorden staat een **hoogtemeter**: een paal met een streep per verdieping (3 m), de huidige in oranje, met een N; in het bovenaanzicht een ladder boven het gebied. Zolang de module maker open is staat de stad stil (scheelt rekenwerk).
 
 **Hoeken**: waar twee muren onder een hoek samenkomen staat een ronde hoekpost van dezelfde dikte en hetzelfde materiaal, zodat de rechte muurblokken zonder kier of uitstekend hoekje aansluiten (ook bij hagen).
+
+**Muren onder 90°**: behalve langs de ribben van het raster (30°, 90°, 150°) kun je muren ook haaks daarop trekken (0°, 60°, 120°, `MV2.DIRW` 3–5, √3 × zo lang), zodat een muur in twaalf richtingen snapt en rechthoekige kamers mogelijk zijn. Vullen (G) stopt alleen bij muren langs het raster.
 
 **Gevels en vloeren** (`modernMats` in `08c`): baksteen, donkere steen, wit stucwerk, schoon beton, gevelpanelen, houten lamellen, cortenstaal en glasgevel als textuur op ware schaal (uv in meters, doorlopend over stukken en verdiepingen); vloeren ook in visgraat parket, gepolijst beton en natuursteen tegels.
 

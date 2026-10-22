@@ -77,17 +77,19 @@
     const inArea = (x, z) => mv2InArea(E.m, x, z);
     const okTri = id => { const c = centroid(id); return inArea(c[0], c[1]); };
     const wallKey = (i, j, d) => i + ',' + j + ',' + d;
-    const segOf = (i, j, d) => { const D = MV2.DIR3[d]; return [P(i, j), P(i + D[0], j + D[1])]; };
-    // ribben tussen twee rasterpunten op één lijn (richting d6, n stappen)
-    function segsBetween(a, d6, n) {
-      const out = [], D = MV2.DIR6[d6]; let [i, j] = a;
-      for (let s = 0; s < n; s++) { const ni = i + D[0], nj = j + D[1]; const d3 = d6 % 3, fw = d6 < 3; out.push(fw ? [i, j, d3] : [ni, nj, d3]); i = ni; j = nj; }
+    const segOf = (i, j, d) => { const D = MV2.DIRW[d]; return [P(i, j), P(i + D[0], j + D[1])]; };
+    // ribben tussen twee rasterpunten op één lijn (richting d12, n stappen): 0–5 langs het raster, 6–11 haaks erop
+    function segsBetween(a, d12, n) {
+      const out = [], D = MV2.DIR12[d12]; let [i, j] = a;
+      const k = d12 < 6 ? d12 % 3 : 3 + (d12 - 6) % 3, fw = d12 < 6 ? d12 < 3 : d12 < 9;
+      for (let s = 0; s < n; s++) { const ni = i + D[0], nj = j + D[1]; out.push(fw ? [i, j, k] : [ni, nj, k]); i = ni; j = nj; }
       return out;
     }
-    // vanuit rasterpunt a naar punt (x, z): beste van de zes richtingen en het aantal stappen
-    function dirSteps(a, x, z) {
+    // vanuit rasterpunt a naar punt (x, z): beste richting en het aantal stappen. Muren: twaalf richtingen (elke 30°,
+    // dus ook haaks op elkaar); trappen: de zes langs het raster
+    function dirSteps(a, x, z, twelve) {
       const p = P(a[0], a[1]); let best = null;
-      for (let d = 0; d < 6; d++) { const D = MV2.DIR6[d], q = P(a[0] + D[0], a[1] + D[1]), ux = q[0] - p[0], uz = q[1] - p[1], l = Math.hypot(ux, uz), al = ((x - p[0]) * ux + (z - p[1]) * uz) / l, lat = Math.abs(((x - p[0]) * -uz + (z - p[1]) * ux) / l); if (al < 0) continue; const sc = lat - al * 0.05; if (!best || sc < best.sc) best = { d, n: Math.max(1, Math.round(al / l)), sc }; }
+      for (let d = 0; d < (twelve ? 12 : 6); d++) { const D = MV2.DIR12[d], q = P(a[0] + D[0], a[1] + D[1]), ux = q[0] - p[0], uz = q[1] - p[1], l = Math.hypot(ux, uz), al = ((x - p[0]) * ux + (z - p[1]) * uz) / l, lat = Math.abs(((x - p[0]) * -uz + (z - p[1]) * ux) / l); if (al < 0) continue; const sc = lat - al * 0.05; if (!best || sc < best.sc) best = { d, n: Math.max(1, Math.round(al / l)), sc }; }
       return best || { d: 0, n: 1 };
     }
     function nearestWall(x, z, maxD = 0.7) {   // dichtstbijzijnde muurrib op deze verdieping
@@ -223,7 +225,7 @@
       E.hover = [x, z]; $('readout').textContent = `x ${x.toFixed(1)}  z ${z.toFixed(1)} m · ${E.lv === 0 ? 'begane grond' : E.lv + 'e verdieping'}`;
       if (E.drag) {
         if (E.drag.kind === 'floor') { if (paintFloor(x, z, E.drag.erase)) dirty3(); }
-        else if (E.drag.kind === 'wall' || E.drag.kind === 'stair') { const ds = dirSteps(E.drag.a, x, z); E.drag.d = ds.d; E.drag.n = Math.max(E.drag.kind === 'stair' ? 1 : 0, ds.n); if (Math.hypot(x - P(...E.drag.a)[0], z - P(...E.drag.a)[1]) < ts() * 0.5) E.drag.n = 0; }
+        else if (E.drag.kind === 'wall' || E.drag.kind === 'stair') { const ds = dirSteps(E.drag.a, x, z, E.drag.kind === 'wall'); E.drag.d = ds.d; E.drag.n = Math.max(E.drag.kind === 'stair' ? 1 : 0, ds.n); if (Math.hypot(x - P(...E.drag.a)[0], z - P(...E.drag.a)[1]) < ts() * 0.5) E.drag.n = 0; }
         else if (E.drag.kind === 'erase') { if (eraseAt(x, z, true)) dirty3(); }
       }
       draw();
@@ -396,7 +398,7 @@
     function refineModule(m, f) {   // f = 2: elk rasterpunt (i,j) wordt (2i,2j); driehoeken en ribben splitsen
       for (const L of m.lv) {
         const nf = {}; for (const id in L.f) { const [i, j, t] = id.split(',').map(Number), mat = L.f[id]; const I2 = i * f, J = j * f; if (f === 2) { if (!t) [[I2, J, 0], [I2 + 1, J, 0], [I2, J + 1, 0], [I2, J, 1]].forEach(k => { nf[k.join(',')] = mat; }); else [[I2 + 1, J, 1], [I2, J + 1, 1], [I2 + 1, J + 1, 1], [I2 + 1, J + 1, 0]].forEach(k => { nf[k.join(',')] = mat; }); } else nf[id] = mat; } L.f = nf;
-        const nw = {}; for (const id in L.w) { const [i, j, d] = id.split(',').map(Number), D = MV2.DIR3[d]; for (let s = 0; s < f; s++) nw[wallKey(i * f + D[0] * s, j * f + D[1] * s, d)] = Object.assign({}, L.w[id]); } L.w = nw;
+        const nw = {}; for (const id in L.w) { const [i, j, d] = id.split(',').map(Number), D = MV2.DIRW[d]; for (let s = 0; s < f; s++) nw[wallKey(i * f + D[0] * s, j * f + D[1] * s, d)] = Object.assign({}, L.w[id]); } L.w = nw;
         for (const S of L.s) { S.a = [S.a[0] * f, S.a[1] * f]; S.n = S.n * f; }
       }
       m.n = (m.n || 4) * f;

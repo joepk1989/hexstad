@@ -28,6 +28,8 @@ Eerst bouwen: `node build.js` in de hoofdmap. Daarna, vanuit `test/`:
 | `python mm_3d.py` | module maker in 3D: standaardweergave, muur tekenen op een verdieping, verwijderen met twee klikken |
 | `python mm_gevels.py` | toren met per verdieping een andere moderne gevel en vloer; schermafbeelding |
 | `python mm_hoek.py [naam.png]` | muren die onder een hoek aansluiten, van dichtbij en van boven |
+| `python bordes_test.py` | bordestrap in een woning: lopen over steek 1, bordes en steek 2; schermafbeeldingen van binnen |
+| `python mm_haaks.py` | module maker: muren onder 90° (rechthoekige kamer) |
 | `python mk_test.py` | de module maker: vloer, muren, deur, raam, trap, dak, opslaan, plaatsen |
 | `python lib_test.py` | de honderd standaardmodules bouwen en plaatsen (screenshots in `out/`) |
 | `python perf.py` / `prof.py` | tijd per geplaatst blok in een grote stad, profiel |

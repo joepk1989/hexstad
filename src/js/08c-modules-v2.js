@@ -13,6 +13,10 @@
   const MV2 = {
     LV_H: 3, WALL_T: 0.25, FLOOR_T: 0.2, MAX_LV: 8,
     DIR3: [[1, 0], [0, 1], [-1, 1]],
+    // muurrichtingen: 0–2 langs de ribben van het raster, 3–5 haaks daarop (0°, 60°, 120°; √3 × zo lang), zodat je
+    // muren onder 90° op elkaar kunt laten aansluiten
+    DIRW: [[1, 0], [0, 1], [-1, 1], [2, -1], [1, 1], [-1, 2]],
+    DIR12: [[1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1], [2, -1], [1, 1], [-1, 2], [-2, 1], [-1, -1], [1, -2]],
     DIR6: [[1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]],
     floors: { paver: 'Klinkers', tile: 'Stoeptegels', wood: 'Houten vloer', parquet: 'Visgraat parket', carpet: 'Kantoorvloer', concrete: 'Beton', polished: 'Gepolijst beton', stonetile: 'Natuursteen tegels', grass: 'Gras', water: 'Water', asphalt: 'Asfalt', roof: 'Dakbedekking' },
     walls: { brick: 'Baksteen', darkbrick: 'Donkere steen', plaster: 'Wit stucwerk', concrete: 'Schoon beton', panel: 'Gevelpanelen', slats: 'Houten lamellen', corten: 'Cortenstaal', curtain: 'Glasgevel', glass: 'Glaswand', wood: 'Hout', stone: 'Natuursteen', hedge: 'Haag', fence: 'Hek' },
@@ -142,7 +146,7 @@
       // --- hoeken: waar twee muren onder een hoek samenkomen, een ronde hoekpost van dezelfde dikte, zodat de muren
       // zonder kier of uitstekend hoekje op elkaar aansluiten (muren zijn rechte blokken van punt tot punt) ---
       { const ends = new Map(), add = (k, dir, W) => { let L2 = ends.get(k); if (!L2) ends.set(k, L2 = []); L2.push({ dir, W }); };
-        for (const id in L.w) { const W = L.w[id]; if (!W || W.m === 'fence' || W.m === 'glass') continue; const [i, j, d] = id.split(',').map(Number), D = MV2.DIR3[d]; if (!D) continue;
+        for (const id in L.w) { const W = L.w[id]; if (!W || W.m === 'fence' || W.m === 'glass') continue; const [i, j, d] = id.split(',').map(Number), D = MV2.DIRW[d]; if (!D) continue;
           const a = mv2P(i, j, ts), b = mv2P(i + D[0], j + D[1], ts); if (!mv2NearArea(m, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2)) continue;
           const l = Math.hypot(b[0] - a[0], b[1] - a[1]), u = [(b[0] - a[0]) / l, (b[1] - a[1]) / l];
           add(i + ',' + j, u, W); add((i + D[0]) + ',' + (j + D[1]), [-u[0], -u[1]], W); }
@@ -159,7 +163,7 @@
       // --- muren ---
       for (const id in L.w) {
         const W = L.w[id]; if (!W) continue;
-        const [i, j, d] = id.split(',').map(Number), D = MV2.DIR3[d]; if (!D) continue;
+        const [i, j, d] = id.split(',').map(Number), D = MV2.DIRW[d]; if (!D) continue;
         const a = mv2P(i, j, ts), b = mv2P(i + D[0], j + D[1], ts), len = Math.hypot(b[0] - a[0], b[1] - a[1]);
         if (!mv2NearArea(m, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2)) continue;
         const mat = Mt.wl[W.m] || Mt.wl.brick, T = MV2.WALL_T;
@@ -270,7 +274,7 @@
   function modV2Codes(m) {
     mv2Fix(m);
     const codes = {}, ts = mv2Ts(m), L0 = m.lv[0], k = m.k || 0;
-    const wallsMid = []; for (const id in L0.w) { const W = L0.w[id]; if (!W) continue; const [i, j, d] = id.split(',').map(Number), D = MV2.DIR3[d]; if (!D) continue; const a = mv2P(i, j, ts), b = mv2P(i + D[0], j + D[1], ts); wallsMid.push({ x: (a[0] + b[0]) / 2, z: (a[1] + b[1]) / 2, o: W.o || '', m: W.m }); }
+    const wallsMid = []; for (const id in L0.w) { const W = L0.w[id]; if (!W) continue; const [i, j, d] = id.split(',').map(Number), D = MV2.DIRW[d]; if (!D) continue; const a = mv2P(i, j, ts), b = mv2P(i + D[0], j + D[1], ts); wallsMid.push({ x: (a[0] + b[0]) / 2, z: (a[1] + b[1]) / 2, o: W.o || '', m: W.m }); }
     const floors = []; for (const id in L0.f) { const [i, j, t] = id.split(',').map(Number), v = mv2TriVerts(i, j, t, ts); floors.push({ x: (v[0][0] + v[1][0] + v[2][0]) / 3, z: (v[0][1] + v[1][1] + v[2][1]) / 3, m: L0.f[id] }); }
     for (const [q, r, s] of moduleBoundary(k)) {
       const c = mv2CellXZ(q, r), f = FRAMES[s], mx = c[0] + f.nx * INNER, mz = c[1] + f.nz * INNER;   // midden van de rand
