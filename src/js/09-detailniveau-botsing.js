@@ -67,6 +67,7 @@
   }
   let peopleDirty = true, peopleLocalEdit = false, carsDirty = true, vecDirty = true;
   function rebuildAround(q, r) {
+    terrVer++;
     const todo = new Set();
     for (const k of refreshPathLinks()) todo.add(k);
     todo.add(key(q, r));
@@ -81,6 +82,7 @@
   }
   // Veel vakken tegelijk (een laan trekken): de netwerken één keer bijwerken
   function rebuildMany(list) {
+    terrVer++;
     const todo = new Set();
     for (const k of refreshPathLinks()) todo.add(k);
     for (const [q, r] of list) {
@@ -95,6 +97,7 @@
   }
   function rebuildAll() {
     convertCellRoads();   // oude vakwegen worden getekende wegen
+    terrVer++; roadCols = new Map();
     for (const g of groups.values()) { disposeGroup(g); blocks.remove(g); }
     groups.clear(); colMap.clear();
     { const res = computePathLinks(); pathLinks = res.masks; pathIfs = res.ifs; pathCorners = res.corners; cornerVia = res.via; }
@@ -149,7 +152,8 @@
     const c = colMap.get(key(q, r)); if (c) out.push(c);
     const e0 = edgeColMap.get(key(q, r)); if (e0) out.push(e0);
     const m0 = modCols.get(key(q, r)); if (m0) out.push(...m0);
-    for (const [dq, dr] of NEIGH) { const kk = key(q + dq, r + dr), c2 = colMap.get(kk); if (c2) out.push(c2); const e2 = edgeColMap.get(kk); if (e2) out.push(e2); const m2 = modCols.get(kk); if (m2) for (const x of m2) if (!out.includes(x)) out.push(x); }
+    const r0 = roadCols.get(key(q, r)); if (r0) for (const x of r0) if (!out.includes(x)) out.push(x);
+    for (const [dq, dr] of NEIGH) { const kk = key(q + dq, r + dr), c2 = colMap.get(kk); if (c2) out.push(c2); const e2 = edgeColMap.get(kk); if (e2) out.push(e2); const m2 = modCols.get(kk); if (m2) for (const x of m2) if (!out.includes(x)) out.push(x); const r2 = roadCols.get(kk); if (r2) for (const x of r2) if (!out.includes(x)) out.push(x); }
     return out;
   }
   function segDist(x, z, w) {

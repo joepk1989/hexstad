@@ -216,7 +216,7 @@
       c.x = x; c.z = z; c.h = h; c.v = 4; c.spin = 0; c.steer = 0; c.wait = 0;
       { const [ax, az, ah] = posOn(c, c.s - WB); c.rx = ax; c.rz = az; c.h = ah; c.delta = 0; c.x = ax + Math.cos(ah) * WB; c.z = az + Math.sin(ah) * WB; }
       // vering: hoogte, stampen en rollen van de carrosserie, met snelheden; wielhoogtes
-      c.sy = ASPH_H; c.vy = 0; c.pitch = 0; c.vp = 0; c.roll = 0; c.vr = 0; c.g = [ASPH_H, ASPH_H, ASPH_H, ASPH_H]; c.hPrev = h; c.vPrev = 4;
+      { const t = roadTop(c.x, c.z, ASPH_H); c.sy = t ?? ASPH_H; } c.vy = 0; c.pitch = 0; c.vp = 0; c.roll = 0; c.vr = 0; c.g = [c.sy, c.sy, c.sy, c.sy]; c.hPrev = h; c.vPrev = 4;
       c.crash = null;
       // niet boven op een andere auto beginnen
       if (tryN < 8 && list.some(o => o !== c && o.path && Math.hypot(o.x - c.x, o.z - c.z) < 7)) return spawn(c, tryN + 1);
@@ -245,6 +245,8 @@
     // Elk wiel voelt de grond eronder (rijbaan 12 cm, stoeprand 25 cm, berm, brugdek). De carrosserie hangt
     // aan veren: ze volgt het vlak door de vier wielen, veert na als een wiel een stoeprand op- of afrijdt,
     // helt naar buiten in een bocht en duikt in bij het remmen.
+    const baseOf_ = c => (c.sy ?? ASPH_H) - ASPH_H;   // maaiveld onder de auto (0 op een vlakke weg, hoger op een heuvel of viaduct)
+    const lvlOf = (a, c) => a.y - baseOf_(c);         // hoogte van iemand t.o.v. de weg van deze auto
     function groundPt(x, z) {
       let best = 0;
       for (const cl of nearby(x, z)) for (const s2 of cl.surfaces) {
@@ -256,13 +258,13 @@
     const wheelWorld = (c, wx, wz) => { const ch = Math.cos(c.h), sh = Math.sin(c.h); return [c.x + wx * ch - wz * sh, c.z + wx * sh + wz * ch]; };
     function suspend(c, dt) {
       if (dt <= 0) return;
-      const g = WHEELS.map(([wx, wz]) => Math.max(c.vec ? ASPH_H : 0, groundPt(...wheelWorld(c, wx, wz))));
+      const g = WHEELS.map(([wx, wz], j) => { const [x, z] = wheelWorld(c, wx, wz), t = roadTop(x, z, c.g && c.g[j] != null ? c.g[j] : (c.sy ?? ASPH_H)); return t !== null ? t : Math.max(c.vec ? ASPH_H : 0, groundPt(x, z)); });   // het wiel voelt de weg onder zich, op elke hoogte
       // een wiel dat een stoeprand op of af gaat: tikje in de vering en een doffe bons
       let jolt = 0;
       g.forEach((v, j) => { jolt = Math.max(jolt, Math.abs(v - (c.g[j] ?? v))); });
       if (jolt > 0.07 && c.v > 1.5 && (c.lastBump || 0) < performance.now() - 400) { c.lastBump = performance.now(); sound.impact(Math.min(0.35, jolt * c.v * 0.12), c.x, ASPH_H, c.z, false); }
       c.g = g;
-      c.onCurb = g.some(v => v > ASPH_H + 0.07);
+      c.onCurb = g.some(v => v > Math.min(...g) + 0.07);
       let yaw = c.h - (c.hPrev ?? c.h); yaw = Math.atan2(Math.sin(yaw), Math.cos(yaw)) / dt; c.hPrev = c.h;
       const acc = (c.v - (c.vPrev ?? c.v)) / dt; c.vPrev = c.v;
       const gF = (g[0] + g[1]) / 2, gR = (g[2] + g[3]) / 2, gP = (g[0] + g[2]) / 2, gN = (g[1] + g[3]) / 2;
@@ -312,7 +314,7 @@
     function hitPeople(c, dt, peds, lying, vx, vz) {
       const sp = Math.hypot(vx, vz);
       for (const a of peds) {
-        if (a.y >= (reckless ? 0.3 : 0.2) || !inside(c, a.x, a.z, 0.15, 0.2)) continue;   // netjes rijdend verkeer raakt niemand op de stoep
+        { const ly = lvlOf(a, c); if (ly >= (reckless ? 0.3 : 0.2) || ly < -1 || !inside(c, a.x, a.z, 0.15, 0.2)) continue; }   // netjes rijdend verkeer raakt niemand op de stoep
         if (sp > 2) { if (crashLog.length < 40) crashLog.push({ hit: 1, car: [+c.x.toFixed(1), +c.z.toFixed(1), +c.h.toFixed(2), c.eid, c.kind, +sp.toFixed(1), c.next && c.next.kind], ped: [+a.x.toFixed(1), +a.z.toFixed(1), +a.y.toFixed(2), a.node && a.node.key, a.wps.length, a.wps[0] && a.wps[0].map(v => +v.toFixed(1))] }); people.hit(a, vx * 1.1, vz * 1.1); sound.carHit(Math.min(1, (sp - 2) / 10), a.x, 0.8, a.z); sound.grunt(a.x, 0.9, a.z, Math.min(1, (sp - 2) / 10)); }
         else {   // stapvoets: mensen worden zacht opzij geschoven
           const dx = a.x - c.x, dz = a.z - c.z, lat = -dx * Math.sin(c.h) + dz * Math.cos(c.h), sgn = lat >= 0 ? 1 : -1;
@@ -325,7 +327,7 @@
         // over iemand heen die al ligt: een doffere klap (niet elk beeldje opnieuw)
         if (sp > 2 && (a.klapT || 0) < performance.now() - 700 && inside(c, pr[6], pr[8], 0.2, 0.2)) { a.klapT = performance.now(); sound.carHit(Math.min(0.4, sp / 25), pr[6], 0.4, pr[8]); }
         // geraakte delen krijgen de snelheid van de auto mee, plus een zetje opzij en omhoog
-        people.kick(a, (px, pz, py) => py < 1.25 + (c.sy || 0) && inside(c, px, pz, 0.12, 0.12), vx * 1.1 + (pr[6] - c.x) * 0.4, sp > 2 ? 1 + sp * 0.12 : 0.4, vz * 1.1 + (pr[8] - c.z) * 0.4);
+        people.kick(a, (px, pz, py) => py < 1.25 + (c.sy || 0) && py > (c.sy || 0) - 1.2 && inside(c, px, pz, 0.12, 0.12), vx * 1.1 + (pr[6] - c.x) * 0.4, sp > 2 ? 1 + sp * 0.12 : 0.4, vz * 1.1 + (pr[8] - c.z) * 0.4);
       }
     }
     // Twee auto's die elkaar raken: botsen (rechthoeken, impuls, wegglijden en tollen)
@@ -335,7 +337,7 @@
       for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
         const A = list[i], B = list[j], dx = B.x - A.x, dz = B.z - A.z;
         if (A.ghost > 0 || B.ghost > 0) continue;
-        if (dx * dx + dz * dz > 27) continue;
+        if (dx * dx + dz * dz > 27 || Math.abs((A.sy ?? 0) - (B.sy ?? 0)) > 2) continue;   // een viaduct erboven: geen botsing
         const axes = [[Math.cos(A.h), Math.sin(A.h)], [-Math.sin(A.h), Math.cos(A.h)], [Math.cos(B.h), Math.sin(B.h)], [-Math.sin(B.h), Math.cos(B.h)]];
         const ext = (c, ax) => HL * Math.abs(Math.cos(c.h) * ax[0] + Math.sin(c.h) * ax[1]) + HW * Math.abs(-Math.sin(c.h) * ax[0] + Math.cos(c.h) * ax[1]);
         let best = 1e9, n = null;
@@ -437,7 +439,7 @@
         }
       },
       setOn(v) { on = v; label(); try { localStorage.setItem('hexstad-autos', on ? '1' : '0'); } catch (e) {} carsDirty = true; },
-      blocks(x, z, y) { if (y > 1.5) return false; for (const c of list) if (inside(c, x, z, 0.3, 0.3)) return true; return false; },
+      blocks(x, z, y) { for (const c of list) { const dy = y - baseOf_(c); if (dy > 1.5 || dy < -1.5) continue; if (inside(c, x, z, 0.3, 0.3)) return true; } return false; },
       // Komt er een auto aan die binnen een paar seconden langs dit punt rijdt?
       approaching(x, z) {
         for (const c of list) {
@@ -450,7 +452,7 @@
         if (carsDirty) { carsDirty = false; rebuild(); }
         if (!list.length) { render(); return; }   // alleen geparkeerde auto's
         dt = Math.min(dt, 0.1);
-        const peds = people.agents.filter(a => (a.state === 'walk' || a.state === 'pause') && a.y < 1.0);
+        const peds = people.agents.filter(a => (a.state === 'walk' || a.state === 'pause'));
         const lying = people.lying();
         const tNow = performance.now() / 1000;
         for (const c of list) {
@@ -497,7 +499,7 @@
             // pas weer 'vast' worden als hij nergens meer doorheen staat
             if (c.ghost <= 0 && list.some(o => o !== c && Math.hypot(o.x - c.x, o.z - c.z) < 4.6 && (inside(o, c.x, c.z, 1.4, 0.4) || inside(c, o.x, o.z, 1.4, 0.4)))) c.ghost = 0.5;
           }
-          if (!(c.creepT > 0) && !(c.ghost > 0)) { for (const o of list) if (o !== c) {
+          if (!(c.creepT > 0) && !(c.ghost > 0)) { for (const o of list) if (o !== c && Math.abs((o.sy ?? 0) - (c.sy ?? 0)) < 2) {
             // wie op mijn keerlus wacht, staat niet in de weg (anders wachten we op elkaar)
             if (keerT && o.next && o.next.q === c.q && o.next.r === c.r && o.next.outS === o.next.inS) continue;
             const before = want; ahead(o.x, o.z, reckless ? 1.7 : 2.0, reckless ? 4.5 : 7, o);
@@ -530,22 +532,23 @@
               const sa = k * 1.6, [px, pz] = posOn(c, c.s + 2.3 + sa);
               let hit = null;
               for (const o of list) {
-                if (o === c || o.crash || Math.abs(o.x - px) > 4 || Math.abs(o.z - pz) > 4 || o.yieldTo === c.id) continue;
+                if (o === c || o.crash || Math.abs(o.x - px) > 4 || Math.abs(o.z - pz) > 4 || o.yieldTo === c.id || Math.abs((o.sy ?? 0) - (c.sy ?? 0)) > 2) continue;
                 if (inside(o, px, pz, 0.6, 1.0)) { hit = o; break; }
               }
               if (hit) { const w = brakeTo(sa - 0.8); if (w < want) { want = w; c.why = 'path' + hit.id; c.yieldTo = hit.id; } break; }
               // iemand op of vlak naast de bocht die ik ga maken (oversteken op de kruising): wachten
-              let ped = false; for (const a of peds) if (a.y < 0.3 && Math.abs(a.x - px) < 1.7 && Math.abs(a.z - pz) < 1.7) { ped = true; break; }
+              let ped = false; for (const a of peds) if (lvlOf(a, c) < 0.3 && lvlOf(a, c) > -1 && Math.abs(a.x - px) < 1.7 && Math.abs(a.z - pz) < 1.7) { ped = true; break; }
               if (ped) { const w = brakeTo(sa - 0.3); if (w < want) { want = w; c.why = 'ahead'; } break; }
             }
           }
           c.held = held;
           const patient = (c.pwait || 0) < 6;   // na 6 s wachten stapvoets verder; mensen stappen dan opzij
           // iemand ligt op straat: netjes remmen (roekeloos: gewoon doorrijden)
-          if (!reckless) for (const a of lying) { const pr = a.rag.p; if (pr[7] < 0.6) ahead(pr[6], pr[8], 2.4, 4.5); }
+          if (!reckless) for (const a of lying) { const pr = a.rag.p, ly = pr[7] - baseOf_(c); if (ly < 0.6 && ly > -1) ahead(pr[6], pr[8], 2.4, 4.5); }
           if (!reckless) for (const a of peds) {
-            if (a.y < 0.2) { if (patient) ahead(a.x, a.z, 2.2, 4); else want = Math.min(want, 1.2); }   // iemand op de rijbaan: stoppen
-            else if (a.y < 0.3) {   // mensen vlak naast de weg: vaart minderen, ze kunnen zomaar oversteken
+            const al_ = lvlOf(a, c); if (al_ < -1 || al_ > 2) continue;
+            if (al_ < 0.2) { if (patient) ahead(a.x, a.z, 2.2, 4); else want = Math.min(want, 1.2); }   // iemand op de rijbaan: stoppen
+            else if (al_ < 0.3) {   // mensen vlak naast de weg: vaart minderen, ze kunnen zomaar oversteken
               const dx = a.x - c.x, dz = a.z - c.z, al = dx * ch + dz * sh, lat = -dx * sh + dz * ch;
               if (al > -1 && al < 14 && Math.abs(lat) < 4.2 && a.spd > 0.3) want = Math.min(want, 4.5);
             }

@@ -32,6 +32,7 @@ Wat er in de bestanden zit:
 | `13` camera-modus-geluid | camera, loopmodus, geluid |
 | `14` invoer-slepen | muis en aanraking, wegen slepen |
 | `15` ui-palet | palet en menu's |
+| `15b` sneltoetsen | toetsen in bouwmodus (schuiven, draaien, categorie, gum, penseel…) en het hulpvenster (?) |
 | `16` start | opstarten |
 
 ## Het wegsysteem
@@ -53,6 +54,13 @@ node build.js
 ```
 
 Dat maakt `dist/hexstad.html` (één bestand, zelfde als de gepubliceerde versie) en kopieert de geluiden ernaast. `dist/` staat niet in git.
+
+## Terrein en wegen op hoogte
+
+- **Verhogen** stapelt verhogingen van 3 m op elkaar (tot 30 m); **Verlagen** haalt er één af, op vlakke grond wordt het een uitgraving. Met `[` en `]` werkt het penseel op 1, 7 of 19 vakken tegelijk.
+- Een stapel verhogingen is één hoogteveld (`terrFieldAbs` in `05`): het vak loopt naar een randwaarde die het deelt met de buurman (halverwege tussen twee heuvelvakken, of de hoogte van vlakke grond ernaast); hoeken delen de drie vakken eromheen. Tussen heuvelvakken is het glooiend, naar vlakke grond blijft een plateau met talud.
+- **Wegen volgen het terrein** (`pathProf` in `07`): het maaiveld onder de middenlijn, uitgevlakt over ±6 m. Tijdens het slepen maakt `E`/`Q` (of Page Up/Down, scrollwiel, ▲▼) de weg 1,5 m hoger of lager boven het terrein (`path.y`, per punt, tot 12 m). Hoger dan het maaiveld krijgt een wand tot de grond; het maaiveld van een heuvel sluit aan op de weg (ingraving of dijkje).
+- Wegen die op verschillende hoogte over elkaar gaan (viaduct) worden **niet** met elkaar verbonden. Auto's, mensen en de speler gebruiken de bovenkant van de weg als loopvlak (`roadCols`), dus ze rijden en lopen mee op en af.
 
 ## Modules en de module maker
 
@@ -84,6 +92,7 @@ Steden en modules staan in `localStorage` van de browser. Modules kunnen als JSO
 7. ✅ Modules v2 met verdiepingen, openingen, trappen, daken en voorwerpen; begaanbaar in de stad
 8. ✅ Module maker met gereedschap en iconen, 3D-weergave, bibliotheek
 9. ✅ Honderd standaardmodules in families (wonen, werken, winkels, openbaar, groen, pleinen, trappen, bouwdelen)
+10. ✅ Hoog terrein, wegen over heuvels en viaducten, sneltoetsen met hulpvenster
 
 Nog te doen:
 

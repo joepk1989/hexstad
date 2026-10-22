@@ -53,7 +53,7 @@
     }
     // Getekende wegen: knopen op kruisingen en uiteinden, stoepen ertussen (nog los van het hexnetwerk)
     const G = cars.vecGraph();
-    const vn = G.nodes.map((N, vi) => { const r = N.z / (1.5 * R); return { vi, key: 'v' + Math.round(N.x * 2) / 2 + ',' + Math.round(N.z * 2) / 2, q: N.x / (R * SQ3) - r / 2, r, y: PW_H, x: N.x, z: N.z, kind: { b: 'vec' }, edges: new Map() }; });
+    const vn = G.nodes.map((N, vi) => { const r = N.z / (1.5 * R); return { vi, key: 'v' + Math.round(N.x * 2) / 2 + ',' + Math.round(N.z * 2) / 2, q: N.x / (R * SQ3) - r / 2, r, y: PW_H + (N.y || 0), x: N.x, z: N.z, kind: { b: 'vec' }, edges: new Map() }; });
     for (const e of G.edges.values()) {
       const A = vn[e.a], B = vn[e.b];
       A.edges.set(B.key, { to: B, side: -1, climb: false, vec: e, dir: 0 });
@@ -950,7 +950,7 @@
             if (a.y >= 0.2 && floorFor(nx, nz, a.y) >= 0.2) a.carWait = 0;
           }
           // niet tegen een auto aan lopen: staat er een vlak voor je (ook op de kruising), dan wacht je even
-          if (typeof cars !== 'undefined' && cars.list.length && a.y < 0.5 && cars.blocks(a.x + fx * 1.3, a.z + fz * 1.3, a.y)) { a.spd = Math.max(0, a.spd - dt * 8); a.prog = null; stepFeet(a, dt); continue; }
+          if (typeof cars !== 'undefined' && cars.list.length && cars.blocks(a.x + fx * 1.3, a.z + fz * 1.3, a.y)) { a.spd = Math.max(0, a.spd - dt * 8); a.prog = null; stepFeet(a, dt); continue; }
           a.x += fx * step; a.z += fz * step;
           a.walkAmt = Math.min(1, a.spd / 1.0);
           const fy = floorFor(a.x, a.z, a.y);

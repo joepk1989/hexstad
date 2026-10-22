@@ -1,0 +1,60 @@
+import asyncio, os, json
+from playwright.async_api import async_playwright
+HERE=os.path.dirname(os.path.abspath(__file__)); DIST=os.path.join(HERE,'..','dist','hexstad.html'); THREE=os.path.join(HERE,'node_modules','three','build','three.min.js'); EMB=os.path.join(HERE,'out','emb.html'); os.makedirs(os.path.join(HERE,'out'),exist_ok=True); os.chdir(os.path.join(HERE,'out'))
+src=open(DIST,encoding='utf-8').read().replace('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js','file://'+THREE).replace('<head>','<head><meta charset="utf-8">',1)
+open(EMB,'w',encoding='utf-8').write(src)
+async def main():
+    async with async_playwright() as p:
+        b=await p.chromium.launch(args=['--use-gl=swiftshader','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader'])
+        pg=await b.new_page(viewport={"width":1100,"height":700}); errs=[]
+        pg.on('pageerror',lambda e:errs.append(str(e)+' '+(e.stack or '')[:300]))
+        await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
+        await pg.evaluate("()=>{document.querySelector('[data-act=empty]').click(); const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true;}"); await pg.wait_for_timeout(400)
+        # terreingereedschap: Verhogen, penseel 19 → 7 → 1
+        await pg.evaluate("()=>{document.querySelectorAll('.pal-tab')[4].click(); document.getElementById('tool-heuvel').click();}")
+        await pg.mouse.move(550,350)
+        await pg.keyboard.press(']'); await pg.keyboard.press(']')
+        await pg.evaluate("()=>{const S=window.__SC(); S.place(0,0); S.place(0,0);}")
+        await pg.keyboard.press('[')
+        await pg.evaluate("()=>{const S=window.__SC(); S.place(0,0); S.place(0,0);}")
+        await pg.keyboard.press('[')
+        await pg.evaluate("()=>{const S=window.__SC(); S.place(0,0); S.place(0,0);}")
+        h=await pg.evaluate("()=>{const S=window.__SC(); const c=S.getCells(); return {mid:(c.get('0,0')||[]).length, r1:(c.get('1,0')||[]).length, r2:(c.get('2,0')||[]).length, top:+S.terrainHeightAt(0,0).toFixed(1)}}"); print('berg',h)
+        # verlagen op de top: één eraf
+        await pg.evaluate("()=>{document.getElementById('tool-kuil').click(); window.__SC().place(0,0);}")
+        print('na verlagen', await pg.evaluate("()=>(window.__SC().getCells().get('0,0')||[]).length"))
+        # camera
+        await pg.evaluate("()=>{const S=window.__SC(); S.orbit.target.set(0,0,0); S.orbit.phi=0.55; S.orbit.dist=170; S.orbit.theta=0.0; S.applyOrbit();}")
+        await pg.wait_for_timeout(500)
+        scr=lambda x,z,y=0: pg.evaluate("([x,y,z])=>{const S=window.__SC(); const v=new S.camera.position.constructor(x,y,z).project(S.camera); return [(v.x+1)/2*innerWidth,(1-v.y)/2*innerHeight]}",[x,y,z])
+        # weg slepen over de berg, aan het eind 3 m hoger
+        await pg.evaluate("()=>{document.querySelectorAll('.pal-tab')[0].click(); document.getElementById('tool-vweg').click();}")
+        a=await scr(-70,0); bb=await scr(70,0,0)
+        await pg.mouse.move(*a); await pg.mouse.down(); await pg.mouse.move(*bb, steps=12); await pg.wait_for_timeout(300)
+        vis=await pg.evaluate("()=>!document.getElementById('dragH').hidden"); print('hoogteknoppen zichtbaar',vis)
+        await pg.keyboard.press('e'); print('na e', await pg.evaluate("()=>{const c=window.__SC().getCells(); return [c.paths.length, c.paths.map(p=>p.y||null), document.getElementById('toast').textContent]}")); await pg.keyboard.press('e'); await pg.wait_for_timeout(200)
+        await pg.mouse.up(); await pg.wait_for_timeout(500)
+        P=await pg.evaluate("()=>window.__SC().getCells().paths.map(p=>({p:p.p.length,y:p.y||null}))"); print('wegen',P)
+        # viaduct: tweede weg dwars eroverheen, begin en eind 6 m hoog
+        a=await scr(40,-60); bb=await scr(40,60); a2=await scr(40,-50)
+        await pg.mouse.move(*a); await pg.mouse.down(); await pg.mouse.move(*a2, steps=3); await pg.wait_for_timeout(100)
+        print('sleep actief', await pg.evaluate("()=>!document.getElementById('dragH').hidden"))
+        for i in range(4): await pg.keyboard.press('PageUp')
+        await pg.mouse.move(*bb, steps=14); await pg.wait_for_timeout(200)
+        for i in range(4): await pg.keyboard.press('PageUp')
+        await pg.mouse.up(); await pg.wait_for_timeout(600)
+        P=await pg.evaluate("()=>window.__SC().getCells().paths.map(p=>({p:p.p.map(q=>q.map(Math.round)),y:p.y||null}))"); print('wegen',json.dumps(P))
+        G=await pg.evaluate("()=>{const G=window.__SC().cars.vecGraph(); return {nodes:G.nodes.length, edges:G.edges.size, ys:G.nodes.map(n=>+(n.y||0).toFixed(1))}}"); print('graaf',G)
+        await pg.evaluate("()=>{const S=window.__SC(); S.cars.setOn(true); S.cars.setForce(8); S.people.setOn(true);}")
+        await pg.wait_for_timeout(2500); await pg.screenshot(path='terrein_a.png')
+        await pg.evaluate("()=>{const S=window.__SC(); S.orbit.target.set(40,4,0); S.orbit.phi=1.1; S.orbit.dist=70; S.orbit.theta=1.2; S.applyOrbit();}")
+        await pg.wait_for_timeout(2500); await pg.screenshot(path='terrein_viaduct.png')
+        # sneltoetsen: paneel en schuiven met D
+        await pg.keyboard.press('Shift+Slash'); await pg.wait_for_timeout(300)
+        t0=await pg.evaluate("()=>window.__SC().orbit.target.x"); await pg.keyboard.down('d'); await pg.wait_for_timeout(500); await pg.keyboard.up('d'); t1=await pg.evaluate("()=>window.__SC().orbit.target.x")
+        print('paneel', await pg.evaluate("()=>!document.getElementById('keysPanel').hidden"), 'schuiven', round(t0,1), '->', round(t1,1))
+        await pg.screenshot(path='terrein_keys.png')
+        await pg.evaluate("()=>{window.__SC().renderer.render=()=>{}}"); await pg.wait_for_timeout(12000)
+        st=await pg.evaluate("()=>{const S=window.__SC(); return {cars:S.cars.vecStats(), ys:S.cars.list.map(c=>+(c.sy||0).toFixed(1)), peds:S.people.vecStats()}}"); print(json.dumps(st))
+        print(errs[:3]); await b.close()
+asyncio.run(main())

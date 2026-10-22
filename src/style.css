@@ -432,3 +432,19 @@ body.night .btn.tod { color: #cdd8ff; }
 .hands button[aria-pressed="true"] { background: var(--signal); color: var(--signal-ink); }
 body.walk .hud { visibility: hidden; }
 body.walk.hand-kijken .palette { display: none; }
+
+/* hoogte van een weg tijdens het slepen */
+.dragh { position: fixed; z-index: 8; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top, 0px) + 74px); display: flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid rgba(238,241,236,0.3); border-radius: 999px; padding: 4px; font: 700 12px var(--font-ui, system-ui); color: var(--ink); }
+.dragh button { width: 44px; height: 36px; border-radius: 999px; border: 0; background: var(--signal); color: var(--signal-ink); font: 700 16px var(--font-ui, system-ui); cursor: pointer; }
+/* sneltoetsen */
+.keysbtn { position: fixed; z-index: 6; right: calc(var(--gutter-r, 16px) + 0px); bottom: calc(env(safe-area-inset-bottom, 0px) + 150px); width: 38px; height: 38px; border-radius: 10px; background: var(--panel); color: var(--ink); border: 1px solid rgba(238,241,236,0.25); font: 400 19px system-ui; cursor: pointer; }
+body.coarse .keysbtn { display: none; }
+.keys { position: fixed; z-index: 9; right: calc(var(--gutter-r, 16px) + 0px); bottom: calc(env(safe-area-inset-bottom, 0px) + 196px); width: 272px; max-height: 60vh; overflow-y: auto; background: rgba(26,33,41,0.94); color: var(--ink); border: 1px solid rgba(238,241,236,0.2); border-radius: 12px; padding: 10px 12px; font: 500 12.5px/1.35 var(--font-ui, system-ui); box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+.keys-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.keys-h b { font-size: 13px; letter-spacing: .04em; text-transform: uppercase; }
+.keys-h button { background: transparent; border: 0; color: var(--ink); font-size: 18px; cursor: pointer; }
+.keys dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 0; }
+.keys dt { white-space: nowrap; text-align: right; }
+.keys dd { margin: 0; color: #c9d0c6; }
+.keys kbd { display: inline-block; min-width: 18px; padding: 1px 5px; border-radius: 4px; background: #2f3a44; border: 1px solid #4a5763; font: 600 11px ui-monospace, monospace; text-align: center; color: #eef1ec; }
+.keys .sep { grid-column: 1 / -1; margin-top: 6px; font-weight: 700; color: var(--signal); font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; }

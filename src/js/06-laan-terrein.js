@@ -26,9 +26,15 @@
       ({ fn, keyS } = kuilField(q, r));
       const hole = new THREE.Mesh(hexPlane(R, false, true), holeMat); hole.position.y = 0.005; hole.renderOrder = -10; o.add(hole);
     } else {
-      const tg = edgeTargets(q, r, baseY, HEUV_H);
-      keyS = 'heuv' + JSON.stringify(tg);
-      fn = terrainFn(HEUV_H, tg, TERR_BAND);
+      // heuvel: alleen de bovenste verhoging van een stapel tekent het hele hoogteveld (absoluut, vanaf de grond)
+      const st = stackOf(q, r); if (i + 1 < st.length && baseOf(st[i + 1]) === 'heuvel') return;
+      const f0 = terrFieldAbs(q, r); if (!f0) return;
+      const adj = roadTerrainAdjust(q, r, cx, cz, f0);   // langs een weg: het maaiveld sluit aan op de weg
+      const geo = adj ? fieldHexGeo(adj, 16) : cachedField('ht' + f0.key, () => fieldHexGeo(f0, 14));
+      if (adj) triBuckets(geo);
+      const m = new THREE.Mesh(geo, M.grass); m.receiveShadow = true; m.castShadow = true; m.position.y = -baseY; if (adj) m.userData.own = true; o.add(m);
+      col.surfaces.push({ kind: 'tris', cx, cz, B: geo.userData.tb, base: 0, bottom: 0 });
+      return;
     }
     const geo = cachedField(keyS, () => fieldHexGeo(fn, 14));
     const m = new THREE.Mesh(geo, M.grass); m.receiveShadow = true; m.castShadow = true; o.add(m);

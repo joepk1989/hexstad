@@ -57,6 +57,7 @@
       if (roadDrag.on) { const res = pick(window.innerWidth / 2, window.innerHeight / 2); if (res) roadPaintTo(res.place); }
       if ((frameNo++ & 1) === 0) updateGhost(window.innerWidth / 2, window.innerHeight / 2);
     }
+    else updateBuildKeys(dt);
     // oneindige bouwgrond: grond en rasterlijnen schuiven mee met waar je bent (rasterlijnen in hele vakken)
     {
       const fx = mode === 'walk' ? player.x : orbit.target.x, fz = mode === 'walk' ? player.z : orbit.target.z;

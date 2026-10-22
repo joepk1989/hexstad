@@ -126,7 +126,8 @@
     const st = stackOf(q, r);
     const top = st[st.length - 1];
     t = toolBase(t);
-    if (vecCover.has(key(q, r)) && !st.length && t !== 'pad') return 'Hier ligt een weg';
+    if (vecCover.has(key(q, r)) && !st.length && t !== 'pad' && t !== 'heuvel') return 'Hier ligt een weg';
+    if (t === 'heuvel' && terrN(q, r) >= TERR_MAX) return 'Hoger dan ' + TERR_MAX * 3 + ' m kan niet';
     if (modCellOccupied(q, r)) return 'Hier staat een module';
     if (!allowedOn(t, top, st[st.length - 2])) return whyNot(t, top);
     if (columnTop(q, r) + TY(t).h > MAX_H + 0.01) return 'Maximaal 60 meter hoog';
@@ -136,7 +137,21 @@
     }
     return null;
   }
+  // Terreinpenseel: verhogen of verlagen in één keer op 1, 7 of 19 vakken
+  let terrBrush = 0;
+  function terrainEdit(q, r, T) {   // één stap hoger of lager; geeft true als er iets veranderde
+    const k = key(q, r), st = stackOf(q, r);
+    if (modCellOccupied(q, r)) return false;
+    if (T === 'heuvel') { if (st.length && !terrOnly(q, r)) return false; if (terrN(q, r) >= TERR_MAX) return false; cells.set(k, st.concat(['heuvel'])); return true; }
+    if (T === 'kuil') { if (terrOnly(q, r)) { const ns = st.slice(0, -1); if (ns.length) cells.set(k, ns); else cells.delete(k); return true; } if (!st.length && !vecCover.has(k)) { cells.set(k, ['kuil']); return true; } return false; }
+    return false;
+  }
   function place(q, r) {
+    if ((tool === 'heuvel' || tool === 'kuil') && terrBrush > 0) {
+      const list = []; for (let dq = -terrBrush; dq <= terrBrush; dq++) for (let dr = -terrBrush; dr <= terrBrush; dr++) if (hexDist(dq, dr) <= terrBrush && terrainEdit(q + dq, r + dr, tool)) list.push([q + dq, r + dr]);
+      if (!list.length) return toast('Hier kan het terrein niet ' + (tool === 'heuvel' ? 'hoger' : 'lager'));
+      rebuildMany(list); terrainChanged(list); changed(); toast((tool === 'heuvel' ? 'Verhoogd: ' : 'Verlaagd: ') + list.length + ' vakken', 900); return;
+    }
     if (VEC_TOOLS.has(tool)) { toast('Sleep van vak naar vak om een ' + TYPES[tool].name.toLowerCase() + ' te trekken', 1600); return; }
     if (tool === 'module') { const a = anchorOf(lastPickRes) || [q, r]; return placeModule(a[0], a[1]); }
     if (EDGE_TOOLS.has(tool)) return placeEdgeAt(lastPickRes);
@@ -182,6 +197,8 @@
       rebuildAround(q, r); changed(); toast(msg, 1600);
       return;
     }
+    // Verlagen op een heuvel: één verhoging eraf
+    if (T === 'kuil' && terrOnly(q, r)) { st0.pop(); if (!st0.length) cells.delete(key(q, r)); rebuildAround(q, r); terrainChanged([[q, r]]); changed(); toast(terrN(q, r) ? 'Verlaagd tot ' + terrN(q, r) * 3 + ' m' : 'Weer op straatniveau', 900); return; }
     const why = canPlace(q, r, tool);
     if (why) return toast(why);
     const k = key(q, r);
@@ -189,7 +206,8 @@
     const y0 = columnTop(q, r);
     st.push(...itemsFor(q, r, tool, DIRECTIONAL.has(T) ? viewDirIndex() : 0)); cells.set(k, st);
     if (T === 'woning' && columnTop(q, r) + TY('dak').h <= MAX_H + 0.01) st.push('dak');   // een huis krijgt standaard een dak
-    rebuildAround(q, r); changed();
+    rebuildAround(q, r); if (T === 'heuvel' || T === 'kuil') terrainChanged([[q, r]]); changed();
+    if (T === 'heuvel' && terrN(q, r) > 1) toast('Verhoogd tot ' + terrN(q, r) * 3 + ' m', 900);
     people.onPlaced(q, r, y0, columnTop(q, r));
   }
   function removeTop(q, r) {
@@ -198,7 +216,7 @@
     st.pop();
     while (st.length && (baseOf(st[st.length - 1]) === 'brug' || baseOf(st[st.length - 1]) === 'brugp')) st.pop();   // een brug zonder weg erop hoort er niet te blijven
     if (!st.length) cells.delete(k);
-    rebuildAround(q, r); changed();
+    rebuildAround(q, r); terrainChanged([[q, r]]); changed();
   }
 
   // De trap loopt omhoog in de richting waarin je kijkt

@@ -70,7 +70,7 @@
     trap:    ['grond', 'dakvlak', 'zuilen', 'kuil', 'heuvel'],
     hof:     ['grond', 'dakvlak', 'zuilen', 'heuvel'],
     kuil:    ['grond'],
-    heuvel:  ['grond'],
+    heuvel:  ['grond', 'heuvel'],   // verhogingen op elkaar: hoger terrein
     brug:    ['kuil'],
     brugp:   ['kuilpad'],
     zuilen:  ['grond', 'zuilen', 'blok'],
@@ -175,7 +175,7 @@
       const obj = JSON.parse(raw);
       const m = new Map();
       if (Array.isArray(obj.__e)) m.edges = new Map(obj.__e.filter(e => Array.isArray(e) && typeof e[0] === 'string' && (e[1] === 'weg' || e[1] === 'brd' || e[1] === 'pad')));
-      if (Array.isArray(obj.__p)) m.paths = obj.__p.filter(p => p && ['weg', 'brd', 'pad'].includes(p.t) && Array.isArray(p.p) && p.p.length > 1 && p.p.every(a => Array.isArray(a) && isFinite(a[0]) && isFinite(a[1])));
+      if (Array.isArray(obj.__p)) m.paths = obj.__p.filter(p => p && ['weg', 'brd', 'laan', 'pad'].includes(p.t) && Array.isArray(p.p) && p.p.length > 1 && p.p.every(a => Array.isArray(a) && isFinite(a[0]) && isFinite(a[1])));
       if (Array.isArray(obj.__i)) m.inst = obj.__i.filter(x => x && x.m && Array.isArray(x.m.edges) && isFinite(x.q) && isFinite(x.r) && isFinite(x.rot));
       if (Array.isArray(obj.__t)) m.tris = obj.__t.filter(t => t && TRI_STY[t.k] && Array.isArray(t.v) && t.v.length === 6 && t.v.every(isFinite));
       for (const k in obj) if (k !== '__e' && k !== '__p' && k !== '__t' && k !== '__i' && Array.isArray(obj[k]) && obj[k].every(t => typeof t === 'string' && TY(t))) m.set(k, obj[k]);

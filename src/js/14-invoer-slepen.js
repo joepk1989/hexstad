@@ -135,6 +135,7 @@
   canvas.addEventListener('wheel', e => {
     e.preventDefault();
     const d = e.deltaY || e.deltaX;   // Shift+wiel geeft in sommige browsers deltaX
+    if (roadDrag.on && roadDrag.vp) { wheelAcc += d; const now = performance.now(); if (Math.abs(wheelAcc) < 40 || now - wheelT < 120) return; roadHeightStep(wheelAcc < 0 ? 1 : -1); wheelAcc = 0; wheelT = now; return; }   // tijdens het slepen van een weg: hoger of lager
     if (mode === 'walk' || e.shiftKey) {
       wheelAcc += d;
       const now = performance.now();
@@ -159,6 +160,7 @@
     keys[e.code] = true;
     if (mode === 'walk' && e.code === 'Space') { e.preventDefault(); jump(); }
     const n = parseInt(e.key, 10);
+    if (roadDrag.on && roadDrag.vp && ['KeyE', 'KeyQ', 'PageUp', 'PageDown', 'Equal', 'Minus', 'NumpadAdd', 'NumpadSubtract'].includes(e.code)) { e.preventDefault(); roadHeightStep(['KeyE', 'PageUp', 'Equal', 'NumpadAdd'].includes(e.code) ? 1 : -1); return; }
     if (mode === 'walk' && e.code === 'KeyQ') { const H = ['kijken', 'bouwen', 'hamer']; setHand(H[(H.indexOf(hand) + 1) % 3]); toast(hand === 'kijken' ? 'Kijken' : hand === 'bouwen' ? 'Bouwen: ' + (TYPES[toolBase(tool)] ? TYPES[toolBase(tool)].name : tool) : 'Hamer: klik om te slopen', 1200); return; }
     if (e.code === 'KeyR') { e.shiftKey ? resetRotation() : rotateDir(); return; }
     const inCat = CATS[catIdx].tools;
@@ -189,18 +191,15 @@
   const DRAG_TOOLS = new Set(['pad', 'fietspad', 'kuil', 'heuvel', 'looppad', 'tunnel', 'water', 'vweg', 'vbrd', 'vlaan']);
   const roadDrag = { on: false, last: null, count: 0, tool: 'weg' };
   let dakHintShown = false, padHintShown = false;
-  function groundCellAt(cx, cy) {
+  // Waar wijs je naar op de grond? Ook op een heuvel: eerst het terrein (en wegen), anders het grondvlak
+  function groundHit(cx, cy) {
     ndc.set(cx / window.innerWidth * 2 - 1, -(cy / window.innerHeight) * 2 + 1);
     raycaster.setFromCamera(ndc, camera);
-    const h = raycaster.intersectObject(ground, false)[0];
-    return h ? worldToCell(h.point.x, h.point.z) : null;
+    const objs = pathGroup ? [ground, blocks, pathGroup] : [ground, blocks];
+    return raycaster.intersectObjects(objs, true)[0] || null;
   }
-  function groundPointAt(cx, cy) {
-    ndc.set(cx / window.innerWidth * 2 - 1, -(cy / window.innerHeight) * 2 + 1);
-    raycaster.setFromCamera(ndc, camera);
-    const h = raycaster.intersectObject(ground, false)[0];
-    return h ? { x: h.point.x, z: h.point.z } : null;
-  }
+  function groundCellAt(cx, cy) { const h = groundHit(cx, cy); return h ? worldToCell(h.point.x, h.point.z) : null; }
+  function groundPointAt(cx, cy) { const h = groundHit(cx, cy); return h ? { x: h.point.x, z: h.point.z } : null; }
   function hexLine(a, b) {
     const A = cellToWorld(a[0], a[1]), B = cellToWorld(b[0], b[1]), n = hexDist(b[0] - a[0], b[1] - a[1]), out = [];
     for (let i = 1; i <= n; i++) {
@@ -297,7 +296,7 @@
   // touchscreen makkelijk). Een bocht maak je door een tweede weg vanaf het eindpunt te trekken; die sluit vanzelf aan.
   function vecPaintTo(cell) {
     const D = roadDrag;
-    if (!D.vp) { D.vp = { t: VEC_T[D.tool], l: 0, r: 0, p: [] }; D.vstart = cell; D.vcorners = []; pathsOf().push(D.vp); }
+    if (!D.vp) { D.vp = { t: VEC_T[D.tool], l: 0, r: 0, p: [] }; D.vstart = cell; D.vcorners = []; D.voffs = []; D.voff0 = 0; D.voff = 0; pathsOf().push(D.vp); showDragH(true); }
     const L = D.last; if (L && L[0] === cell[0] && L[1] === cell[1]) return;
     D.last = cell;
     // Even stilhouden tijdens het slepen zet een hoekpunt: daarna gaat de weg vanaf dat punt verder (een bocht in één sleep)
@@ -305,7 +304,7 @@
     const arm = ms => { D.vtimer = setTimeout(() => {
       const still = performance.now() - (D.vmoveT || 0);
       if (still < 600) { arm(600 - still); return; }   // de muis bewoog nog (bijvoorbeeld een trage weergave): nog even wachten
-      if (D.on && D.vp && D.vend && !(D.vend[0] === D.vfrom()[0] && D.vend[1] === D.vfrom()[1])) { D.vcorners.push(D.vend); D.last = null; vecPaintTo(D.vend); toast('Hoekpunt · sleep verder voor de bocht', 1200); }
+      if (D.on && D.vp && D.vend && !(D.vend[0] === D.vfrom()[0] && D.vend[1] === D.vfrom()[1])) { D.vcorners.push(D.vend); D.voffs.push(D.voff); D.last = null; vecPaintTo(D.vend); toast('Hoekpunt · sleep verder voor de bocht', 1200); }
     }, ms); };
     arm(650);
     D.vfrom = () => D.vcorners.length ? D.vcorners[D.vcorners.length - 1] : D.vstart;
@@ -318,15 +317,30 @@
     const W = c => { const w = cellToWorld(c[0], c[1]); return [Math.round(w.x * 100) / 100, Math.round(w.z * 100) / 100]; };
     const same = cell[0] === from[0] && cell[1] === from[1];
     D.vp.p = [D.vstart, ...D.vcorners, ...(same ? [] : [cell])].map(W);
+    { const ys = [D.voff0, ...D.voffs, ...(same ? [] : [D.voff])]; if (ys.some(v => v)) D.vp.y = ys; else delete D.vp.y; }   // ophoging per punt (m boven het terrein)
     if (D.vp.p.length < 2) D.vp.p = [];
     D.count = 0; for (let i = 1; i < D.vp.p.length; i++) D.count += 1;
     { const pts = [D.vstart, ...D.vcorners, ...(same ? [] : [cell])]; D.count = pts.length < 2 ? 0 : 1 + pts.slice(1).reduce((n, c, i) => n + hexDist(c[0] - pts[i][0], c[1] - pts[i][1]), 0); }
-    buildPathNet();
+    buildPathNet(true);
   }
+  // Tijdens het slepen van een weg: hoger of lager (E/Q, Page Up/Down, + / −, scrollwiel of de knoppen ▲▼).
+  // Zolang je nog op het beginvak staat, verander je het begin; daarna het punt waar je nu bent.
+  const dragHEl = document.getElementById('dragH');
+  function showDragH(on) { if (dragHEl) dragHEl.hidden = !on; }
+  function roadHeightStep(dir) {
+    const D = roadDrag; if (!D.on || !D.vp) return false;
+    const atStart = !D.vend || (D.vend[0] === D.vstart[0] && D.vend[1] === D.vstart[1] && !D.vcorners.length);
+    const cur = atStart ? D.voff0 : D.voff, nv = Math.max(0, Math.min(ROAD_MAX_OFF, Math.round((cur + dir * 1.5) * 2) / 2));
+    if (atStart) { D.voff0 = nv; D.voff = nv; } else { D.voff = nv; const lc = D.vcorners[D.vcorners.length - 1]; if (lc && D.vend && lc[0] === D.vend[0] && lc[1] === D.vend[1]) D.voffs[D.voffs.length - 1] = nv; }   // op een hoekpunt: dat punt
+    D.last = null; vecPaintTo(D.vend || D.vstart);
+    toast(nv ? (atStart ? 'Begin van de weg ' : 'Weg hier ') + nv.toLocaleString('nl') + ' m boven het terrein' : (atStart ? 'Begin van de weg' : 'Weg hier') + ' op het terrein', 1100);
+    return true;
+  }
+  if (dragHEl) dragHEl.querySelectorAll('button').forEach(b => b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); roadHeightStep(+b.dataset.d); }));
   function vecDragEnd() {
-    const D = roadDrag, vp = D.vp; D.vp = null; clearTimeout(D.vtimer); if (!vp) return;
+    const D = roadDrag, vp = D.vp; D.vp = null; clearTimeout(D.vtimer); showDragH(false); if (!vp) return;
     if (vp.p.length < 2) { const i = cells.paths.indexOf(vp); if (i >= 0) cells.paths.splice(i, 1); buildPathNet(); toast('Sleep van vak naar vak om een ' + TYPES[D.tool].name.toLowerCase() + ' te trekken', 1600); return; }
-    changed(); toast(TYPES[D.tool].name + ' aangelegd, ' + D.count + ' vakken lang', 1400);
+    buildPathNet(); changed(); toast(TYPES[D.tool].name + ' aangelegd, ' + D.count + ' vakken lang', 1400);
   }
   function roadPaintTo(cell) {
     if (!cell) return;
@@ -347,7 +361,10 @@
     for (const [q, r] of want) {
       const k = key(q, r); if (D.prior.has(k)) continue;
       const st = stackOf(q, r), top = st[st.length - 1];
-      if (top && baseOf(top) === toolBase(T)) continue;
+      if (T === 'kuil' && terrOnly(q, r)) {   // verlagen over een heuvel: één verhoging eraf
+        D.prior.set(k, st.slice()); const ns = st.slice(0, -1); if (ns.length) cells.set(k, ns); else cells.delete(k); touched.push([q, r]); continue;
+      }
+      if (top && baseOf(top) === toolBase(T) && !(T === 'heuvel' && terrOnly(q, r))) continue;
       if (canPlace(q, r, T)) continue;
       const y0 = columnTop(q, r);
       D.prior.set(k, st.length ? st.slice() : null);
@@ -356,6 +373,7 @@
     }
     if (!touched.length) return;
     if (touched.length > 3) rebuildMany(touched); else for (const [q, r] of touched) rebuildAround(q, r);
+    if (T === 'heuvel' || T === 'kuil') terrainChanged(touched);
     for (const [q, r, y0] of placed) people.onPlaced(q, r, y0, columnTop(q, r));
     D.count = D.prior.size;
     changed();

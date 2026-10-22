@@ -57,7 +57,7 @@
   // zelfde maten als de oude vakwegen: weg 9 m (rijbaan 5 m + 2 m stoep), brede weg 13 m (vier stroken), laan 22,5 m
   const PATH_DEF = { weg: { hw: 2.5, walk: 2.0 }, brd: { hw: 4.5, walk: 2.0 }, laan: { hw: 8.75, walk: 2.5, med: 1.5 }, pad: { hw: 1.6, walk: 0.5 } };
   const vmat = (color, n) => std({ color, polygonOffset: true, polygonOffsetFactor: -n, polygonOffsetUnits: -n, side: THREE.DoubleSide });
-  const VM = { grass: vmat('#6aa84a', 1), walk: vmat('#cbc8bd', 1), kerb: vmat('#9b988e', 2), asph: vmat('#3c4045', 3), dash: vmat('#f1efe6', 4), pave: vmat('#9b5a45', 3) };
+  const VM = { skirt: vmat('#a9a59a', 0), grass: vmat('#6aa84a', 1), walk: vmat('#cbc8bd', 1), kerb: vmat('#9b988e', 2), asph: vmat('#3c4045', 3), dash: vmat('#f1efe6', 4), pave: vmat('#9b5a45', 3) };
   let pathGroup = null;
   // Welke vakken beslaat een getekende weg? Een vak hoort erbij als zijn midden dicht genoeg bij de lijn ligt
   // (breedte van de weg plus een half vak). Die vakken krijgen een zandkleurige vloer en zijn niet meer bebouwbaar.
@@ -75,7 +75,7 @@
   }
   // Vakken waar een weg niet doorheen mag: gebouwen en alles wat hoger is dan de grond, en water
   // (water en een uitgraving mogen: daar wordt de weg een brug)
-  const vecObstacle = (q, r) => { if (modCellOccupied(q, r)) return true; const st = stackOf(q, r); if (!st.length) return false; const b = baseOf(st[0]); if (b === 'water' || b === 'kuil') return st.length > 1; return b === 'heuvel' || columnTop(q, r) > 0.5; };
+  const vecObstacle = (q, r) => { if (modCellOccupied(q, r)) return true; const st = stackOf(q, r); if (!st.length) return false; const b = baseOf(st[0]); if (b === 'water' || b === 'kuil') return st.length > 1; if (b === 'heuvel') return !terrOnly(q, r); return columnTop(q, r) > 0.5; };   // over een heuvel mag een weg: hij volgt het terrein
   const SAND = std({ color: '#d6c69a', polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
   const HEX_FLAT = (() => { const s = new THREE.Shape(); for (let i = 0; i < 6; i++) { const a = Math.PI / 6 + i * Math.PI / 3; i ? s.lineTo(Math.cos(a) * R, Math.sin(a) * R) : s.moveTo(Math.cos(a) * R, Math.sin(a) * R); } s.closePath(); return new THREE.ShapeGeometry(s).rotateX(-Math.PI / 2); })();
   function smoothPts(p) {   // hoeken afronden (straal tot 8 m, nooit verder dan de helft van een stuk), ongeveer elke 2 m een punt
@@ -97,6 +97,54 @@
     lineTo(cur, p[p.length - 1]);
     return out;
   }
+  // ---------- Hoogte van een weg: volgt het terrein, glad gemaakt, plus de eigen ophoging ----------
+  // Elke getekende weg krijgt een hoogteprofiel langs zijn lengte: het maaiveld onder de middenlijn (een brug over water
+  // of een uitgraving blijft op straatniveau), uitgevlakt over ±6 m zodat hij geleidelijk stijgt en daalt. path.y
+  // (optioneel, per punt) tilt de weg op dat punt op boven het terrein; daartussen loopt de ophoging lineair.
+  const profCache = new Map();
+  let terrVer = 0;   // telt op bij elke verandering van de vakken (terrein): profielen worden dan opnieuw berekend
+  const ROAD_MAX_OFF = 12;
+  function pathProf(path) {
+    const sig = terrVer + '|' + JSON.stringify(path.p) + '|' + (path.y ? path.y.join(',') : '');
+    let P = profCache.get(path); if (P && P.sig === sig) return P;
+    const sp = smoothPts(path.p), pts = [], S = [];
+    for (let i = 0; i < sp.length - 1; i++) { const a = sp[i], b = sp[i + 1], l = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.ceil(l / 1.5)); for (let j = 0; j < n; j++) pts.push([a[0] + (b[0] - a[0]) * j / n, a[1] + (b[1] - a[1]) * j / n]); }
+    pts.push(sp[sp.length - 1]); for (let i = 0; i < pts.length; i++) S.push(i ? S[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]) : 0);
+    const live = !!(cells.paths && cells.paths.includes(path));
+    let h = pts.map(p => live ? terrainHeightAt(p[0], p[1]) : 0);
+    if (live && h.some(v => v > 0.01)) {   // glad: gemiddelde over ±6 m, twee keer
+      for (let pass = 0; pass < 2; pass++) { const o = h.slice(); let a = 0, b = 0, sum = 0; for (let i = 0; i < h.length; i++) { while (b < h.length && S[b] <= S[i] + 6) sum += o[b++]; while (S[a] < S[i] - 6) sum -= o[a++]; h[i] = sum / (b - a); } }
+    }
+    if (live && Array.isArray(path.y) && path.y.some(v => v)) {   // ophoging per punt, lineair langs de weg
+      const sAt = q => { let bi = 0, bd = 1e9; pts.forEach((p, i) => { const d = Math.hypot(p[0] - q[0], p[1] - q[1]); if (d < bd) { bd = d; bi = i; } }); return S[bi]; };
+      const keys = path.p.map((q, i) => [sAt(q), Math.max(0, Math.min(ROAD_MAX_OFF, +path.y[i] || 0))]).sort((x, y) => x[0] - y[0]);
+      h = h.map((v, i) => { const s0 = S[i]; let j = 0; while (j < keys.length - 1 && keys[j + 1][0] < s0) j++; const A = keys[j], B = keys[Math.min(j + 1, keys.length - 1)], f = B[0] > A[0] ? Math.max(0, Math.min(1, (s0 - A[0]) / (B[0] - A[0]))) : 0; return v + A[1] + (B[1] - A[1]) * f; });
+    }
+    let x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9; for (const p of pts) { x0 = Math.min(x0, p[0]); z0 = Math.min(z0, p[1]); x1 = Math.max(x1, p[0]); z1 = Math.max(z1, p[1]); }
+    P = { sig, pts, S, h, bb: [x0, z0, x1, z1], flat: !h.some(v => Math.abs(v) > 0.01) };
+    profCache.set(path, P); return P;
+  }
+  function pathH(path, x, z) {   // hoogte van de weg bij het dichtstbijzijnde punt van zijn middenlijn
+    const P = pathProf(path); if (P.flat) return 0;
+    let bi = 0, bf = 0, bd = 1e9; const pts = P.pts;
+    for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz || 1e-9, f = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / l2)), d = (a[0] + dx * f - x) ** 2 + (a[1] + dz * f - z) ** 2; if (d < bd) { bd = d; bi = i; bf = f; } }
+    return P.h[bi] + ((P.h[bi + 1] ?? P.h[bi]) - P.h[bi]) * bf;
+  }
+  // Maaiveld van een heuvelvak langs een weg: tot de rand van de stoep gelijk met de weg (iets eronder), daarna in 3 m
+  // terug naar het terrein; zo ontstaat een ingraving of een dijkje. null als er geen weg in de buurt ligt.
+  function roadTerrainAdjust(q, r, cx, cz, f0) {
+    const P = (cells.paths || []).filter(p => PATH_DEF[p.t] && p.p && p.p.length > 1), near = [];
+    for (const path of P) { const pr = pathProf(path), def = PATH_DEF[path.t], reach = def.hw + def.walk + 3.5 + R; if (cx < pr.bb[0] - reach || cx > pr.bb[2] + reach || cz < pr.bb[1] - reach || cz > pr.bb[3] + reach) continue; if (distPoly(cx, cz, pr.pts) < reach) near.push({ path, pr, def }); }
+    if (!near.length) return null;
+    return (x, z) => {
+      const X = cx + x, Z = cz + z; let v = f0(x, z), wBest = 0, tBest = v, dBest = 1e9;
+      for (const { path, pr, def } of near) {
+        const d = distPoly(X, Z, pr.pts), edge = def.hw + (path.t === 'pad' ? 0.6 : def.walk) + 2.2; if (d > edge + 3.2) continue;   // ruim: ook de stoephoeken van een kruising
+        const w = d <= edge ? 1 : smooth01(1 - (d - edge) / 3.2); if (w > wBest || (w === 1 && wBest === 1 && d < dBest)) { wBest = w; dBest = d; tBest = pathH(path, X, Z) - 0.15; }
+      }
+      return wBest > 0 ? v + (tBest - v) * wBest : v;
+    };
+  }
   // ---------- Vectorwegen als graaf: knopen op uiteinden, kruisingen en T-aansluitingen, takken ertussen ----------
   // Gebruikt door de auto's en de mensen (rijstroken en stoepen) en door de tekenlaag (stoepen die bij kruisingen ophouden).
   const segX = (a, b, c, d) => {   // snijpunt van segmenten ab en cd als [t, u], of null
@@ -109,13 +157,14 @@
   const dirAt = (pts, i) => { const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)]; let dx = b[0] - a[0], dz = b[1] - a[1]; const l = Math.hypot(dx, dz) || 1; return [dx / l, dz / l]; };
   function vecGraphOf(paths, ver) {
     const P = (paths || []).filter(p => (p.t === 'weg' || p.t === 'brd' || p.t === 'laan') && p.p && p.p.length > 1);
-    const lines = P.map(p => { const pts = smoothPts(p.p); let x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9; for (const q of pts) { x0 = Math.min(x0, q[0]); z0 = Math.min(z0, q[1]); x1 = Math.max(x1, q[0]); z1 = Math.max(z1, q[1]); } return { t: p.t, pts, cuts: new Set(), bb: [x0 - 9, z0 - 9, x1 + 9, z1 + 9] }; });
+    const lines = P.map(p => { const pts = smoothPts(p.p), src = p; let x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9; for (const q of pts) { x0 = Math.min(x0, q[0]); z0 = Math.min(z0, q[1]); x1 = Math.max(x1, q[0]); z1 = Math.max(z1, q[1]); } return { t: p.t, src, pts, cuts: new Set(), bb: [x0 - 9, z0 - 9, x1 + 9, z1 + 9] }; });
+    const sameLevel = (A, B, x, z) => Math.abs(pathH(A.src, x, z) - pathH(B.src, x, z)) < 2.5;   // een weg die eroverheen gaat (viaduct) kruist niet
     const bbHit = (A, B) => A.bb[0] <= B.bb[2] && B.bb[0] <= A.bb[2] && A.bb[1] <= B.bb[3] && B.bb[1] <= A.bb[3];
     const cutAt = (L, i, f) => { if (f < 0.02) { if (i > 0) L.cuts.add(i); } else if (f > 0.98) { if (i + 1 < L.pts.length - 1) L.cuts.add(i + 1); } else L.cuts.add(i + f); };
     // kruisende lijnen: allebei knippen op het snijpunt
     for (let a = 0; a < lines.length; a++) for (let b = a + 1; b < lines.length; b++) {
       const A = lines[a], B = lines[b]; if (!bbHit(A, B)) continue;
-      for (let i = 0; i < A.pts.length - 1; i++) for (let j = 0; j < B.pts.length - 1; j++) { const x = segX(A.pts[i], A.pts[i + 1], B.pts[j], B.pts[j + 1]); if (x) { cutAt(A, i, x[0]); cutAt(B, j, x[1]); } }
+      for (let i = 0; i < A.pts.length - 1; i++) for (let j = 0; j < B.pts.length - 1; j++) { const x = segX(A.pts[i], A.pts[i + 1], B.pts[j], B.pts[j + 1]); if (x && sameLevel(A, B, A.pts[i][0] + (A.pts[i + 1][0] - A.pts[i][0]) * x[0], A.pts[i][1] + (A.pts[i + 1][1] - A.pts[i][1]) * x[0])) { cutAt(A, i, x[0]); cutAt(B, j, x[1]); } }
     }
     // een uiteinde dat op een andere lijn uitkomt (T-aansluiting): die lijn daar knippen
     for (const A of lines) for (const e of [A.pts[0], A.pts[A.pts.length - 1]]) for (const B of lines) {
@@ -126,7 +175,7 @@
         const f = Math.max(0, Math.min(1, ((e[0] - p[0]) * dx + (e[1] - p[1]) * dz) / l2)), d = Math.hypot(e[0] - p[0] - dx * f, e[1] - p[1] - dz * f);
         if (d < bd) { bd = d; bi = j; bf = f; }
       }
-      if (bi >= 0 && bd < PATH_DEF[B.t].hw + 1.5 && !(bi === 0 && bf < 0.02) && !(bi === B.pts.length - 2 && bf > 0.98)) cutAt(B, bi, bf);
+      if (bi >= 0 && bd < PATH_DEF[B.t].hw + 1.5 && !(bi === 0 && bf < 0.02) && !(bi === B.pts.length - 2 && bf > 0.98) && sameLevel(A, B, e[0], e[1])) cutAt(B, bi, bf);
     }
     const pieces = [];
     for (const L of lines) {
@@ -135,12 +184,12 @@
         while (ci < cuts.length && cuts[ci] < i + 1) {
           const f = cuts[ci] - i, p = f <= 0 ? L.pts[i] : [L.pts[i][0] + (L.pts[i + 1][0] - L.pts[i][0]) * f, L.pts[i][1] + (L.pts[i + 1][1] - L.pts[i][1]) * f];
           if (f > 0) cur.push(p);
-          if (cur.length > 1) pieces.push({ t: L.t, pts: cur });
+          if (cur.length > 1) pieces.push({ t: L.t, src: L.src, pts: cur });
           cur = [p]; ci++;
         }
         cur.push(L.pts[i + 1]);
       }
-      if (cur.length > 1) pieces.push({ t: L.t, pts: cur });
+      if (cur.length > 1) pieces.push({ t: L.t, src: L.src, pts: cur });
     }
     // knopen: uiteinden die bij elkaar liggen zijn één knoop; het eerste uiteinde bepaalt de plek
     const nodes = [], nodeOf = p => { for (let i = 0; i < nodes.length; i++) if (Math.hypot(nodes[i].x - p[0], nodes[i].z - p[1]) < 7) return i; nodes.push({ x: p[0], z: p[1], edges: [] }); return nodes.length - 1; };
@@ -162,7 +211,7 @@
       let pts = snap(pc.pts, a, true); pts = snap(pts, b, false); if (pts.length < 2) return;
       const len = plen(pts); if (len < 7) return;   // korter dan de samenvoegstraal van knopen: dan zijn a en b al één knoop
       let id = pc.t + ':' + rk(pts[0]) + '>' + rk(pts[pts.length - 1]); while (edges.has(id)) id += "'";
-      edges.set(id, { id, t: pc.t, pts, a, b, len }); nodes[a].edges.push(id); nodes[b].edges.push(id); totalLen += len;
+      edges.set(id, { id, t: pc.t, src: pc.src, pts, a, b, len }); nodes[a].edges.push(id); nodes[b].edges.push(id); totalLen += len;
     });
     // Verkeerslichten: elke knoop met drie of meer takken. De takken worden in twee groepen verdeeld (de as van de
     // eerste tak en de rest); de groepen krijgen om de beurt groen. Elke kruising heeft een eigen beginmoment.
@@ -175,6 +224,7 @@
       if (reps.length < 2) continue;
       N.light = { grp, n: reps.length, off: ((Math.round(N.x * 7) * 31 + Math.round(N.z * 7) * 17) & 1023) / 1024 * 28 };
     }
+    nodes.forEach(N => { let sum = 0; for (const id of N.edges) { const e = edges.get(id); sum += pathH(e.src, N.x, N.z); } N.y = N.edges.length ? sum / N.edges.length : 0; });   // hoogte van de knoop
     return { nodes, edges, totalLen, ver: ver || 0 };
   }
   const VTL = { G: 10, A: 2.5, AR: 1.5 };   // per groep: groen, oranje, alles rood
@@ -314,42 +364,60 @@
     for (const { k } of laanC) cells.delete(k);
     return true;
   }
-  const newLayer = () => ({ pos: [], idx: [] });
+  // Lagen van de wegtekening. Alles wordt eerst plat bedacht (y = hoogte boven de weg) en bij het wegschrijven op de
+  // hoogte van de weg gelegd: HF(x, z) is de hoogtefunctie van het stuk dat nu getekend wordt (een weg, een tak of een
+  // knoop). Elk stuk krijgt ook een groepsnummer, zodat de botsing per stuk een eigen onderkant heeft (een viaduct over
+  // een weg blokkeert het lopen eronder niet).
+  let HF = null, HG = 0;
+  const newLayer = () => ({ pos: [], idx: [], mk: [] });
+  const ALL_L = [];
+  function ctx(fn, g) { HF = fn; HG = g; for (const L of ALL_L) L.mk.push([L.idx.length, g]); }
+  const hy = (x, z) => HF ? HF(x, z) : 0;
+  const pushV = (L, x, y, z) => L.pos.push(x, y + hy(x, z), z);
+  const densify = (pts, step = 2) => { const out = [pts[0]]; for (let i = 1; i < pts.length; i++) { const a = pts[i - 1], b = pts[i], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / step)); for (let j = 1; j <= n; j++) out.push([a[0] + (b[0] - a[0]) * j / n, a[1] + (b[1] - a[1]) * j / n]); } return out; };   // genoeg punten om een helling te volgen
   function ribbonInto(L, pts, hw, y, off = 0) {   // een lint rond een lijn; off schuift het opzij
     if (pts.length < 2) return;
+    if (HF) pts = densify(pts);
     const base = L.pos.length / 3;
     for (let i = 0; i < pts.length; i++) {
       const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
       let dx = b[0] - a[0], dz = b[1] - a[1]; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
       const nx = -dz, nz = dx, cx = pts[i][0] + nx * off, cz = pts[i][1] + nz * off;
-      L.pos.push(cx + nx * hw, y, cz + nz * hw, cx - nx * hw, y, cz - nz * hw);
+      const h = hy(pts[i][0], pts[i][1]);   // dwars over de weg: één hoogte (vlak wegdek)
+      L.pos.push(cx + nx * hw, y + h, cz + nz * hw, cx - nx * hw, y + h, cz - nz * hw);
     }
     for (let i = 0; i < pts.length - 1; i++) { const a = base + i * 2; L.idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
   }
-  function wallInto(L, pts, off, y0, y1) {   // verticale strook (stoeprand) langs een lijn, off opzij
+  function wallInto(L, pts, off, y0, y1, abs0) {   // verticale strook (stoeprand) langs een lijn, off opzij; abs0: onderkant absoluut
     if (pts.length < 2) return;
+    if (HF) pts = densify(pts);
     const base = L.pos.length / 3;
     for (let i = 0; i < pts.length; i++) {
       const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
       let dx = b[0] - a[0], dz = b[1] - a[1]; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
-      const x = pts[i][0] - dz * off, z = pts[i][1] + dx * off;
-      L.pos.push(x, y0, z, x, y1, z);
+      const x = pts[i][0] - dz * off, z = pts[i][1] + dx * off, h = hy(pts[i][0], pts[i][1]);
+      L.pos.push(x, abs0 ? y0 : y0 + h, z, x, y1 + h, z);
     }
     for (let i = 0; i < pts.length - 1; i++) { const a = base + i * 2; L.idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
   }
   function ringWallInto(L, p, r, y0, y1) {
-    const base = L.pos.length / 3;
-    for (let i = 0; i < 24; i++) { const a = i * Math.PI / 12, x = p[0] + Math.cos(a) * r, z = p[1] + Math.sin(a) * r; L.pos.push(x, y0, z, x, y1, z); }
+    const base = L.pos.length / 3, h = hy(p[0], p[1]);
+    for (let i = 0; i < 24; i++) { const a = i * Math.PI / 12, x = p[0] + Math.cos(a) * r, z = p[1] + Math.sin(a) * r; L.pos.push(x, y0 + h, z, x, y1 + h, z); }
     for (let i = 0; i < 24; i++) { const a = base + i * 2, b = base + ((i + 1) % 24) * 2; L.idx.push(a, a + 1, b, a + 1, b + 1, b); }
   }
-  function polyInto(L, pts, y) {   // platte veelhoek (waaier vanuit het eerste punt)
-    const base = L.pos.length / 3; for (const p of pts) L.pos.push(p[0], y, p[1]);
-    for (let i = 1; i < pts.length - 1; i++) L.idx.push(base, base + i, base + i + 1);
+  function polyInto(L, pts, y) {   // platte veelhoek (waaier vanuit het eerste punt); op een helling fijner verdeeld
+    if (!HF) { const base = L.pos.length / 3; for (const p of pts) pushV(L, p[0], y, p[1]); for (let i = 1; i < pts.length - 1; i++) L.idx.push(base, base + i, base + i + 1); return; }
+    for (let i = 1; i < pts.length - 1; i++) {
+      const A = pts[0], B = pts[i], C = pts[i + 1], n = Math.max(1, Math.min(12, Math.ceil(Math.max(Math.hypot(B[0] - A[0], B[1] - A[1]), Math.hypot(C[0] - A[0], C[1] - A[1]), Math.hypot(C[0] - B[0], C[1] - B[1])) / 2)));
+      const base = L.pos.length / 3, id = (a, b) => base + a * (n + 1) - a * (a - 1) / 2 + b;   // a = stap richting B, b = richting C (a + b ≤ n)
+      for (let a2 = 0; a2 <= n; a2++) for (let b2 = 0; b2 <= n - a2; b2++) { const x = A[0] + (B[0] - A[0]) * a2 / n + (C[0] - A[0]) * b2 / n, z = A[1] + (B[1] - A[1]) * a2 / n + (C[1] - A[1]) * b2 / n; pushV(L, x, y, z); }
+      for (let a2 = 0; a2 < n; a2++) for (let b2 = 0; b2 < n - a2; b2++) { L.idx.push(id(a2, b2), id(a2 + 1, b2), id(a2, b2 + 1)); if (b2 < n - a2 - 1) L.idx.push(id(a2 + 1, b2), id(a2 + 1, b2 + 1), id(a2, b2 + 1)); }
+    }
   }
-  function wallSeg(L, a, b, y0, y1) { const base = L.pos.length / 3; L.pos.push(a[0], y0, a[1], a[0], y1, a[1], b[0], y0, b[1], b[0], y1, b[1]); L.idx.push(base, base + 1, base + 2, base + 1, base + 3, base + 2); }
+  function wallSeg(L, a, b, y0, y1) { const base = L.pos.length / 3, ha = hy(a[0], a[1]), hb = hy(b[0], b[1]); L.pos.push(a[0], y0 + ha, a[1], a[0], y1 + ha, a[1], b[0], y0 + hb, b[1], b[0], y1 + hb, b[1]); L.idx.push(base, base + 1, base + 2, base + 1, base + 3, base + 2); }
   function discInto(L, p, r, y) {
-    const base = L.pos.length / 3; L.pos.push(p[0], y, p[1]);
-    for (let i = 0; i < 16; i++) { const a = i * Math.PI / 8; L.pos.push(p[0] + Math.cos(a) * r, y, p[1] + Math.sin(a) * r); }
+    const base = L.pos.length / 3, h = hy(p[0], p[1]); L.pos.push(p[0], y + h, p[1]);
+    for (let i = 0; i < 16; i++) { const a = i * Math.PI / 8; L.pos.push(p[0] + Math.cos(a) * r, y + h, p[1] + Math.sin(a) * r); }
     for (let i = 0; i < 16; i++) L.idx.push(base, base + 1 + i, base + 1 + (i + 1) % 16);
   }
   function dashesInto(L, pts, hw, y, len, gap, off = 0) {
@@ -362,6 +430,51 @@
     }
     flush();
   }
+  function skirtInto(L, pts, sg) {   // wand langs een lijn van de weg (bovenkant stoep) tot het maaiveld, waar de weg erboven ligt
+    if (pts.length < 2) return;
+    pts = densify(pts, 1.5);
+    const top = p => PW_H + hy(p[0], p[1]), bot = p => { const [q, r] = worldToCell(p[0], p[1]), b = baseOf(stackOf(q, r)[0] || ''); return b === 'water' || b === 'kuil' ? null : terrainHeightAt(p[0], p[1]) - 0.05; };
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1], ba = bot(a), bb = bot(b); if (ba === null || bb === null) continue;
+      const ta = top(a), tb = top(b); if (ta - ba < 0.35 && tb - bb < 0.35) continue;
+      const base = L.pos.length / 3; L.pos.push(a[0], Math.min(ba, ta), a[1], a[0], ta, a[1], b[0], Math.min(bb, tb), b[1], b[0], tb, b[1]);
+      L.idx.push(base, base + 1, base + 2, base + 1, base + 3, base + 2);
+    }
+  }
+  // Botsing: de bovenkant van asfalt, stoep, berm en klinkers als driehoeken, per stuk (groep) een eigen loopvlak
+  let roadCols = new Map();   // 'q,r' → [col]
+  function roadCollision(layers) {
+    const groups = new Map();
+    for (const L of layers) {
+      const mk = L.mk.concat([[L.idx.length, -1]]);
+      for (let m = 0; m < mk.length - 1; m++) {
+        const g = mk[m][1], i0 = mk[m][0], i1 = mk[m + 1][0]; if (i1 <= i0) continue;
+        let G = groups.get(g); if (!G) groups.set(g, G = []);
+        for (let t = i0; t + 2 < i1; t += 3) { const a = L.idx[t], b = L.idx[t + 1], c = L.idx[t + 2]; G.push(L.pos[a * 3], L.pos[a * 3 + 1], L.pos[a * 3 + 2], L.pos[b * 3], L.pos[b * 3 + 1], L.pos[b * 3 + 2], L.pos[c * 3], L.pos[c * 3 + 1], L.pos[c * 3 + 2]); }
+      }
+    }
+    const out = new Map();
+    for (const [, pos] of groups) {
+      if (!pos.length) continue;
+      let lo = 1e9, x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9;
+      for (let i = 0; i < pos.length; i += 3) { lo = Math.min(lo, pos[i + 1]); x0 = Math.min(x0, pos[i]); x1 = Math.max(x1, pos[i]); z0 = Math.min(z0, pos[i + 2]); z1 = Math.max(z1, pos[i + 2]); }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      const col = { surfaces: [{ kind: 'tris', cx: 0, cz: 0, B: triBuckets(g), base: 0, bottom: lo - 0.35, road: true }], walls: [] };
+      const [qa, ra] = worldToCell(x0, z0), [qb, rb] = worldToCell(x1, z1), seen = new Set();
+      for (let q = Math.min(qa, qb) - 2; q <= Math.max(qa, qb) + 2; q++) for (let r = Math.min(ra, rb) - 2; r <= Math.max(ra, rb) + 2; r++) {
+        const c = cellToWorld(q, r); if (c.x < x0 - R || c.x > x1 + R || c.z < z0 - R || c.z > z1 + R) continue;
+        const k = q + ',' + r; if (seen.has(k)) continue; seen.add(k); let L = out.get(k); if (!L) out.set(k, L = []); L.push(col);
+      }
+    }
+    return out;
+  }
+  // Hoogte van een weg (rijbaan of stoep) onder een punt, het dichtst bij ref; null als er geen weg is
+  function roadTop(x, z, ref) {
+    const L = roadCols.get(key(...worldToCell(x, z))); if (!L) return null;
+    let best = null;
+    for (const c of L) for (const s2 of c.surfaces) { const t = surfTop(s2, x, z); if (t !== null && (best === null || Math.abs(t - ref) < Math.abs(best - ref))) best = t; }
+    return best;
+  }
   function layerMesh(L, mat) {
     if (!L.pos.length) return null;
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(L.pos, 3));
@@ -369,21 +482,35 @@
     g.setAttribute('normal', new THREE.BufferAttribute(nn, 3)); g.setIndex(L.idx);
     const m = new THREE.Mesh(g, mat); m.receiveShadow = true; m.userData.own = true; return m;
   }
-  function buildPathNet() {
+  // Terrein veranderd onder of naast een weg: de weg (hoogteprofiel) opnieuw opbouwen
+  function terrainChanged(list) {
+    for (const [q, r] of list) for (const [dq, dr] of [[0, 0], ...NEIGH]) if (vecCover.has((q + dq) + ',' + (r + dr))) { buildPathNet(); return true; }
+    return false;
+  }
+  let roadTerr = new Set();   // heuvelvakken langs een weg: hun maaiveld sluit aan op de weg
+  // quick: tijdens het slepen alleen de tekening; botsing en het maaiveld langs de weg pas bij het loslaten
+  function buildPathNet(quick) {
     if (pathGroup) { pathGroup.traverse(m => { if (m.isMesh && m.userData.own) m.geometry.dispose(); }); scene.remove(pathGroup); }
-    vecLightReg = []; pathGroup = pathBuild(cells.paths, vecLightReg); scene.add(pathGroup); carsDirty = true; vecDirty = true; peopleDirty = true;
+    for (const k of profCache.keys()) if (!cells.paths || !cells.paths.includes(k)) profCache.delete(k);
+    vecLightReg = []; pathGroup = pathBuild(cells.paths, vecLightReg, quick); scene.add(pathGroup); carsDirty = true; vecDirty = true; peopleDirty = true;
+    if (!quick) roadCols = pathGroup.userData.col || new Map();
     vecCover = vecCoverOf(cells.paths);
+    if (!quick) { const now = new Set(); for (const k of vecCoverOf(cells.paths)) { const [q, r] = k.split(',').map(Number); for (const [dq, dr] of [[0, 0], ...NEIGH]) if (terrN(q + dq, r + dr)) now.add((q + dq) + ',' + (r + dr)); }
+      for (const k of new Set([...now, ...roadTerr])) { const [q, r] = k.split(',').map(Number); buildColumn(q, r); } roadTerr = now; }
     for (const k of vecCover) { const [q, r] = k.split(',').map(Number); if (stackOf(q, r).length) continue; const c = cellToWorld(q, r), m = new THREE.Mesh(HEX_FLAT, SAND); m.position.set(c.x, 0.03, c.z); m.receiveShadow = true; pathGroup.add(m); }
   }
-  function pathBuild(P, lightReg) {   // lint-meshes voor een lijst vrije wegen; ook gebruikt door de 3D-weergave in de schets
+  function pathBuild(P, lightReg, quick) {   // lint-meshes voor een lijst vrije wegen; ook gebruikt door de 3D-weergave in de schets
     const pathGroup = new THREE.Group();
     if (!P || !P.length) return pathGroup;
-    const grass = newLayer(), walk = newLayer(), kerb = newLayer(), asph = newLayer(), pave = newLayer(), dash = newLayer(), Y = 0.1;
+    const grass = newLayer(), walk = newLayer(), kerb = newLayer(), asph = newLayer(), pave = newLayer(), dash = newLayer(), skirt = newLayer(), Y = 0.1;
+    ALL_L.length = 0; ALL_L.push(grass, walk, kerb, asph, pave, dash, skirt); let gid = 0;
     const GR = vecGraphOf(P), heads = GR.nodes.map((_, n) => vecHead(GR, n)).filter(Boolean);
+    const pathHF = path => (x, z) => pathH(path, x, z);
+    const nodeHF = n => { const src = GR.nodes[n].edges.map(id => GR.edges.get(id).src); return (x, z) => { let best = 0, bd = 1e9; for (const p of src) { const pr = pathProf(p); if (pr.flat) { if (bd > 1e8) { best = 0; bd = 1e8; } continue; } const d = distPoly(x, z, pr.pts); if (d < bd) { bd = d; best = pathH(p, x, z); } } return best; }; };
     const headTrim = pt => { let t = 0; for (const H of heads) if (Math.hypot(H.N.x - pt[0], H.N.z - pt[1]) < 4) t = Math.max(t, H.cN); return t; };   // het asfalt stopt waar de ronde kop begint
     for (const path of P) {
       const def = PATH_DEF[path.t]; if (!def || !path.p || path.p.length < 2) continue;
-      const pts = smoothPts(path.p);
+      const pts = smoothPts(path.p); ctx(pathHF(path), gid++);
       const edgeW = path.t === 'pad' ? def.hw + 0.3 : def.hw + def.walk;
       for (const [w, sg] of [[path.r, 1], [path.l, -1]]) if (w > 0) ribbonInto(grass, pts, w / 2, path.t === 'pad' ? Y - 0.005 : PW_H - 0.005, sg * (edgeW + w / 2));
       if (path.t === 'pad') {
@@ -400,6 +527,7 @@
     const medTrim = n => { const N = GR.nodes[n]; if (!N) return 0; if (N.edges.length < 3) return N.edges.length === 1 ? (vecHead(GR, n).cN + 3) : vecBendTrim(GR, n, 9.75); return vecJunctionTrim(GR, n) + 1.5; };
     for (const e of GR.edges.values()) {
       if (e.t !== 'laan') continue;
+      ctx(pathHF(e.src), gid++);
       const med = PATH_DEF.laan.med, mp = trimPts(e.pts, medTrim(e.a), medTrim(e.b)); if (mp.length < 2 || plen(mp) < 2) continue;
       ribbonInto(grass, mp, med, PW_H + 0.005); for (const sg of [1, -1]) wallInto(kerb, mp, sg * med, Y, PW_H); ribbonInto(kerb, mp, med, PW_H, 0);
       [mp[0], mp[mp.length - 1]].forEach(p => { ringWallInto(kerb, p, med, Y, PW_H); discInto(grass, p, med, PW_H + 0.005); });
@@ -408,8 +536,8 @@
         while (i < mp.length - 1 && acc + Math.hypot(mp[i][0] - mp[i - 1][0], mp[i][1] - mp[i - 1][1]) < s) { acc += Math.hypot(mp[i][0] - mp[i - 1][0], mp[i][1] - mp[i - 1][1]); i++; }
         const a = mp[i - 1], b = mp[i], f = (s - acc) / Math.max(1e-6, Math.hypot(b[0] - a[0], b[1] - a[1])), x = a[0] + (b[0] - a[0]) * f, z = a[1] + (b[1] - a[1]) * f;
         const hj = (Math.round(x * 3) * 31 + Math.round(z * 3) * 17) & 1023, sc = 0.85 + (hj % 4) * 0.07;
-        const tr = new THREE.Mesh(G.trunk, M.trunk); tr.scale.set(0.85, 1.25, 0.85); tr.position.set(x, PW_H - 0.02, z); tr.castShadow = true; pathGroup.add(tr);
-        const cr = new THREE.Mesh(G.crown, M.leaf[hj % 3]); cr.scale.set(sc, sc * 1.2, sc); cr.position.set(x, PW_H + 3.2 + 2.1 * sc, z); cr.rotation.y = (hj % 7) * 0.4; cr.castShadow = true; pathGroup.add(cr);
+        const tr = new THREE.Mesh(G.trunk, M.trunk); tr.scale.set(0.85, 1.25, 0.85); tr.position.set(x, PW_H - 0.02 + hy(x, z), z); tr.castShadow = true; pathGroup.add(tr);
+        const cr = new THREE.Mesh(G.crown, M.leaf[hj % 3]); cr.scale.set(sc, sc * 1.2, sc); cr.position.set(x, PW_H + 3.2 + 2.1 * sc + hy(x, z), z); cr.rotation.y = (hj % 7) * 0.4; cr.castShadow = true; pathGroup.add(cr);
         s += 10;
       }
     }
@@ -417,6 +545,7 @@
     const markTrim = n => { const H = vecHead(GR, n); return H ? H.cN : (vecJunctionTrim(GR, n) || vecBendTrim(GR, n, 1.0)); };
     for (const e of GR.edges.values()) {
       if (e.t === 'pad') continue;
+      ctx(pathHF(e.src), gid++);
       const mp = trimPts(e.pts, markTrim(e.a), markTrim(e.b)); if (mp.length < 2) continue;
       if (e.t === 'weg') dashesInto(dash, mp, 0.07, Y + 0.03, 3, 3.5);
       else if (e.t === 'laan') { for (const sg of [1, -1]) { ribbonInto(dash, mp, 0.06, Y + 0.03, sg * 4.75); ribbonInto(pave, mp, 1.0, Y + 0.025, sg * 7.75); ribbonInto(dash, mp, 0.05, Y + 0.03, sg * 6.75); } }
@@ -425,6 +554,7 @@
     // Knikken: asfalt rond dichtmaken en de stoep met een ronde buitenhoek om de knik heen leggen
     for (let n = 0; n < GR.nodes.length; n++) {
       const B = vecBend(GR, n); if (!B) continue;
+      ctx(nodeHF(n), gid++);
       const N = GR.nodes[n], hw = B.hw, ow = hw + B.walk, kw = hw + 0.3, tr = vecBendTrim(GR, n, ow + 0.3);
       discInto(asph, [N.x, N.z], kw, Y + 0.02);
       const bis = [B.A.d[0] + B.B.d[0], B.A.d[1] + B.B.d[1]], bl = Math.hypot(bis[0], bis[1]) || 1; bis[0] /= bl; bis[1] /= bl;
@@ -443,6 +573,7 @@
     // Stoephoeken op kruisingen: tussen twee opeenvolgende takken loopt de stoep door (afgesneden hoek), met stoeprand
     for (let n = 0; n < GR.nodes.length; n++) {
       const N = GR.nodes[n]; if (N.edges.length < 3) continue;
+      ctx(nodeHF(n), gid++);
       const arms = N.edges.map(id => { const e = GR.edges.get(id), dir = e.a === n ? 0 : 1, p = dir ? e.pts.slice().reverse() : e.pts, a = p[0], b = p[Math.min(p.length - 1, 2)]; const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return { e, dir, d: [(b[0] - a[0]) / l, (b[1] - a[1]) / l], th: Math.atan2(b[1] - a[1], b[0] - a[0]) }; }).sort((x, y) => x.th - y.th);
       for (let i = 0; i < arms.length; i++) {
         const A = arms[i], B = arms[(i + 1) % arms.length];
@@ -458,31 +589,36 @@
     // Verkeerslichten: per tak een paal rechts van de rijbaan, op de hoek van de stoep, met de kop naar het verkeer
     for (let n = 0; n < GR.nodes.length; n++) {
       const N = GR.nodes[n]; if (!N.light) continue;
+      ctx(nodeHF(n), gid++);
       for (const id of N.edges) {
         const e = GR.edges.get(id), def = PATH_DEF[e.t], into = e.b === n, pts = into ? e.pts : e.pts.slice().reverse();
         const lane = trimPts(offsetPts(pts, def.hw + 0.9), 0, vecTrimW(GR, n) - 0.6), p = lane[lane.length - 1], a = lane[Math.max(0, lane.length - 2)];
         let dx = p[0] - a[0], dz = p[1] - a[1]; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
         const nx = -dx, nz = -dz, rot = Math.PI / 2 - Math.atan2(nz, nx);
-        const pole = new THREE.Mesh(G.tlPole, M.tlBody); pole.position.set(p[0], PW_H, p[1]); pathGroup.add(pole);
-        const hd = new THREE.Mesh(G.tlHead, M.tlBody); hd.position.set(p[0], PW_H + 3.0, p[1]); hd.rotation.y = rot; pathGroup.add(hd);
+        const pole = new THREE.Mesh(G.tlPole, M.tlBody); pole.position.set(p[0], PW_H + hy(p[0], p[1]), p[1]); pathGroup.add(pole);
+        const hd = new THREE.Mesh(G.tlHead, M.tlBody); hd.position.set(p[0], PW_H + 3.0 + hy(p[0], p[1]), p[1]); hd.rotation.y = rot; pathGroup.add(hd);
         const lamps = {};
-        [['r', 0.3], ['a', 0], ['g', -0.3]].forEach(([c, dy]) => { const lm = new THREE.Mesh(G.tlLamp, M.lampOff); lm.position.set(p[0] + nx * 0.18, PW_H + 3.0 + dy, p[1] + nz * 0.18); lm.rotation.y = rot; pathGroup.add(lm); lamps[c] = lm; });
+        [['r', 0.3], ['a', 0], ['g', -0.3]].forEach(([c, dy]) => { const lm = new THREE.Mesh(G.tlLamp, M.lampOff); lm.position.set(p[0] + nx * 0.18, PW_H + 3.0 + dy + hy(p[0], p[1]), p[1] + nz * 0.18); lm.rotation.y = rot; pathGroup.add(lm); lamps[c] = lm; });
         if (lightReg) lightReg.push({ n, eid: id, lamps });
       }
     }
     // Brug: waar de weg over water of een uitgraving gaat, krijgt hij een dek met zijkanten tot op de bodem
     for (const e of GR.edges.values()) {
       const def = PATH_DEF[e.t], hw = def.hw + def.walk, samp = [];
+      ctx(pathHF(e.src), gid++);
       for (let i = 0; i < e.pts.length - 1; i++) { const a = e.pts[i], b = e.pts[i + 1], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 2)); for (let j = 0; j < n; j++) samp.push([a[0] + (b[0] - a[0]) * j / n, a[1] + (b[1] - a[1]) * j / n]); }
       samp.push(e.pts[e.pts.length - 1]);
       const depth = p => { const [q, r] = worldToCell(p[0], p[1]), b = baseOf(stackOf(q, r)[0] || ''); return b === 'water' ? -1.5 : b === 'kuil' ? -3.2 : null; };
       let run = [];
-      const flush = () => { if (run.length > 1) { const d = Math.min(...run.map(x => x[1])); const pts = run.map(x => x[0]); for (const sg of [1, -1]) wallInto(walk, pts, sg * hw, d, 0.01); ribbonInto(kerb, pts, hw, d); } run = []; };
+      const flush = () => { if (run.length > 1) { const d = Math.min(...run.map(x => x[1])); const pts = run.map(x => x[0]); for (const sg of [1, -1]) wallInto(walk, pts, sg * hw, d, 0.01, true); const keep = HF; HF = null; ribbonInto(kerb, pts, hw, d); HF = keep; } run = []; };
       for (const p of samp) { const d = depth(p); if (d === null) flush(); else run.push([p, d]); }
       flush();
     }
     for (const e of GR.edges.values()) {
       const def = PATH_DEF[e.t], hw = def.hw + def.walk;
+      ctx(pathHF(e.src), gid++);
+      // dijkje of viaduct: waar de weg hoger ligt dan het maaiveld, een wand van de stoeprand naar beneden
+      if (!pathProf(e.src).flat) for (const sg of [1, -1]) skirtInto(skirt, vecWalkPts(GR, e, 0, sg * hw), sg);
       for (const sg of [1, -1]) {
         const sp = vecWalkPts(GR, e, 0, sg * (def.hw + def.walk / 2)), kp = vecWalkPts(GR, e, 0, sg * (def.hw + 0.3)), ep = vecWalkPts(GR, e, 0, sg * hw);
         ribbonInto(walk, sp, def.walk / 2, PW_H); wallInto(kerb, kp, 0, Y, PW_H); ribbonInto(kerb, vecWalkPts(GR, e, 0, sg * (def.hw + 0.15)), 0.15, PW_H + 0.005); wallInto(walk, ep, 0, 0, PW_H);
@@ -497,7 +633,9 @@
         for (let i = 0; i < inner.length - 1; i++) { polyInto(walk, [inner[i], outer[i], outer[i + 1], inner[i + 1]], PW_H); polyInto(kerb, [inner[i], kt[i], kt[i + 1], inner[i + 1]], PW_H + 0.005); wallSeg(kerb, kt[i], kt[i + 1], Y, PW_H); wallSeg(walk, outer[i], outer[i + 1], 0, PW_H); }
       }
     }
-    [[grass, VM.grass], [walk, VM.walk], [kerb, VM.kerb], [asph, VM.asph], [pave, VM.pave], [dash, VM.dash]].forEach(([L, mat]) => { const m = layerMesh(L, mat); if (m) pathGroup.add(m); });
+    ctx(null, -1);
+    [[grass, VM.grass], [walk, VM.walk], [kerb, VM.kerb], [asph, VM.asph], [pave, VM.pave], [dash, VM.dash], [skirt, VM.skirt]].forEach(([L, mat]) => { const m = layerMesh(L, mat); if (m) pathGroup.add(m); });
+    if (lightReg && !quick) pathGroup.userData.col = roadCollision([asph, walk, pave, grass]);
     return pathGroup;
   }
   const distPoly = (x, z, pts) => { let d = 1e9; for (let i = 0; i < pts.length - 1; i++) d = Math.min(d, distSeg(x, z, pts[i], pts[i + 1])); return d; };

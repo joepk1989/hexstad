@@ -701,6 +701,55 @@
       return { lvl: +e.lvl.toFixed(3), notch: !!e.notch };
     });
   }
+  // ---------- Hoog terrein: verhogingen op elkaar ----------
+  // Een vak met n verhogingen onderop ligt n × 3 m hoog. Het hele heuvelvak wordt één hoogteveld: het midden is vlak
+  // op de eigen hoogte, naar de rand toe loopt het naar een randwaarde die het met de buurman deelt (halverwege tussen
+  // twee heuvelvakken, of de hoogte van een buurman zonder heuvel). Hoeken delen de drie vakken eromheen. Zo sluiten
+  // vakken van verschillende hoogte naadloos op elkaar aan en ontstaan echte heuvels en bergen.
+  const TERR_MAX = 10;
+  const terrN = (q, r) => { let n = 0; for (const t of stackOf(q, r)) { if (baseOf(t) !== 'heuvel') break; n++; } return n; };
+  const terrOnly = (q, r) => { const st = stackOf(q, r); return st.length > 0 && st.every(t => baseOf(t) === 'heuvel'); };
+  function terrInfo(q, r, k) {   // wat ligt er naast (q, r) aan zijde k, op de grond: { h, terr }
+    const nq = q + NEIGH[k][0], nr = r + NEIGH[k][1], n = terrN(nq, nr);
+    if (n) return { h: n * HEUV_H, terr: true };
+    const e = edgeInfo(q, r, k, 0);
+    return { h: e && e.lvl > 0 && e.lvl < 1 ? e.lvl : 0, terr: false };
+  }
+  const CORNER = [0, 1, 2, 3, 4, 5].map(j => { const a = (30 + 60 * j) * Math.PI / 180; return [R * Math.cos(a), R * Math.sin(a)]; });
+  // welke twee buren delen hoek j (afstand van hun midden tot de hoek is R)
+  const CORNER_NB = CORNER.map(c => [0, 1, 2, 3, 4, 5].filter(k => Math.abs(Math.hypot(FRAMES[k].nx * 2 * INNER - c[0], FRAMES[k].nz * 2 * INNER - c[1]) - R) < 0.01));
+  const cornerAt = (x, z) => { let b = 0, bd = 1e9; CORNER.forEach((c, j) => { const d = Math.hypot(c[0] - x, c[1] - z); if (d < bd) { bd = d; b = j; } }); return b; };
+  const EDGE_C = [0, 1, 2, 3, 4, 5].map(k => { const f = FRAMES[k]; return [cornerAt(f.nx * INNER - f.tx * R / 2, f.nz * INNER - f.tz * R / 2), cornerAt(f.nx * INNER + f.tx * R / 2, f.nz * INNER + f.tz * R / 2)]; });
+  const terrFnCache = new Map();
+  function terrFieldAbs(q, r) {   // hoogteveld (absoluut, lokaal rond het vakmidden) van een heuvelvak
+    const n = terrN(q, r); if (!n) return null;
+    const own = n * HEUV_H, nb = [0, 1, 2, 3, 4, 5].map(k => terrInfo(q, r, k));
+    const cv = CORNER_NB.map(([k1, k2]) => { const L = [{ h: own, terr: true }, nb[k1], nb[k2]], non = L.filter(x => !x.terr); return non.length ? Math.min(...non.map(x => x.h)) : (L[0].h + L[1].h + L[2].h) / 3; });
+    const mid = nb.map(x => x.terr ? (own + x.h) / 2 : x.h);
+    const soft = terrOnly(q, r);   // kaal terrein: helemaal glooiend; staat er iets op, dan een vlak plateau in het midden
+    const key = own + '|' + (soft ? 's' : 'p') + nb.map(x => x.terr ? 1 : 0).join('') + '|' + mid.map(v => v.toFixed(2)).join(',') + '|' + cv.map(v => v.toFixed(2)).join(',');
+    let fn = terrFnCache.get(key);
+    if (!fn) {
+      fn = (x, z) => {
+        let k = 0, best = -1e9; for (let i = 0; i < 6; i++) { const p = x * FRAMES[i].nx + z * FRAMES[i].nz; if (p > best) { best = p; k = i; } }
+        const f = FRAMES[k], d = INNER - best, u = Math.max(-R / 2, Math.min(R / 2, x * f.tx + z * f.tz));
+        const [cA, cB] = EDGE_C[k], b = u < 0 ? cv[cA] + (mid[k] - cv[cA]) * (u + R / 2) / (R / 2) : mid[k] + (cv[cB] - mid[k]) * u / (R / 2);
+        const diff = Math.abs(b - own); if (diff < 1e-3) return own;
+        const band = soft && nb[k].terr ? INNER * 0.98 : Math.min(INNER * 0.97, Math.max(TERR_BAND, 2.2 + diff * 0.75));   // tussen twee heuvelvakken glooiend; naar vlakke grond een rand met plateau
+        if (d >= band) return own;
+        return own + (b - own) * smooth01(1 - d / band);
+      };
+      fn.key = key;
+      if (terrFnCache.size > 4000) terrFnCache.clear();
+      terrFnCache.set(key, fn);
+    }
+    return fn;
+  }
+  // hoogte van het maaiveld (zonder wegen) op een punt in de wereld: heuvels; elders 0
+  function terrainHeightAt(x, z) {
+    const [q, r] = worldToCell(x, z), fn = terrFieldAbs(q, r); if (!fn) return 0;
+    const c = cellToWorld(q, r); return fn(x - c.x, z - c.z);
+  }
   function fieldFn(own, tg, band = BAND) {
     return (x, z) => {
       let num = 0, den = 0;
