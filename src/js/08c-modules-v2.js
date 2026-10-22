@@ -14,8 +14,8 @@
     LV_H: 3, WALL_T: 0.25, FLOOR_T: 0.2, MAX_LV: 8,
     DIR3: [[1, 0], [0, 1], [-1, 1]],
     DIR6: [[1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]],
-    floors: { paver: 'Klinkers', tile: 'Stoeptegels', wood: 'Houten vloer', carpet: 'Kantoorvloer', concrete: 'Beton', grass: 'Gras', water: 'Water', asphalt: 'Asfalt', roof: 'Dakbedekking' },
-    walls: { brick: 'Baksteen', plaster: 'Stucwerk', concrete: 'Beton', glass: 'Glaswand', wood: 'Hout', stone: 'Natuursteen', hedge: 'Haag', fence: 'Hek' },
+    floors: { paver: 'Klinkers', tile: 'Stoeptegels', wood: 'Houten vloer', parquet: 'Visgraat parket', carpet: 'Kantoorvloer', concrete: 'Beton', polished: 'Gepolijst beton', stonetile: 'Natuursteen tegels', grass: 'Gras', water: 'Water', asphalt: 'Asfalt', roof: 'Dakbedekking' },
+    walls: { brick: 'Baksteen', darkbrick: 'Donkere steen', plaster: 'Wit stucwerk', concrete: 'Schoon beton', panel: 'Gevelpanelen', slats: 'Houten lamellen', corten: 'Cortenstaal', curtain: 'Glasgevel', glass: 'Glaswand', wood: 'Hout', stone: 'Natuursteen', hedge: 'Haag', fence: 'Hek' },
     openings: { '': 'Dicht', door: 'Deur', window: 'Raam', gate: 'Poort', open: 'Open' },
     objects: { tree: 'Boom', bush: 'Struik', bench: 'Bankje', lamp: 'Lantaarn', pillar: 'Zuil', table: 'Tafel', planter: 'Plantenbak', fountain: 'Fontein', bin: 'Prullenbak', bike: 'Fietsenrek' },
     cats: ['Wonen', 'Werken', 'Winkels', 'Openbaar', 'Groen', 'Pleinen', 'Trappen', 'Bouwdelen', 'Overig'],
@@ -48,12 +48,47 @@
     m.edges = m.edges || []; m.cells = m.cells || []; m.tris = m.tris || []; m.paths = m.paths || []; if (!m.id) m.id = uid();
     return m;
   };
+  // Moderne gevels en vloeren: textuur op ware schaal (uv in meters), herhalend. mvTex(breedte, hoogte in m, tekenfunctie)
+  function mvTex(wm, hm, draw, ppm = 96, floor = false) {
+    const c = document.createElement('canvas'); c.width = Math.max(8, Math.round(wm * ppm)); c.height = Math.max(8, Math.round(hm * ppm));
+    const g = c.getContext('2d'); draw(g, c.width, c.height, ppm);
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8;
+    t.repeat.set((floor ? 2 : 1) / wm, (floor ? 2 : 1) / hm);   // vloer-uv loopt in stappen van 2 m (zie triGeo)
+    return t;
+  }
+  const hash01 = (a, b) => { const v = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453; return v - Math.floor(v); };
+  const noise = (g, w, h, base, amt, n = 900) => { g.fillStyle = base; g.fillRect(0, 0, w, h); for (let i = 0; i < n; i++) { const x = hash01(i, 1) * w, y = hash01(i, 2) * h, r = 1 + hash01(i, 3) * 3, k = hash01(i, 4); g.fillStyle = k > 0.5 ? `rgba(255,255,255,${(amt * (k - 0.5)).toFixed(3)})` : `rgba(0,0,0,${(amt * (0.5 - k)).toFixed(3)})`; g.fillRect(x, y, r, r); } };
+  function modernMats() {
+    const mk = (tex, o = {}) => { const m = new THREE.MeshStandardMaterial(Object.assign({ map: tex, roughness: 0.85 }, o)); m.userData.mUV = true; return m; };
+    const brick = (bc, mc, bw, bh, jw, wm, hm, vary) => mvTex(wm, hm, (g, w, h, p) => { g.fillStyle = mc; g.fillRect(0, 0, w, h); const rows = Math.round(hm / bh), cols = Math.round(wm / bw);
+      for (let r = 0; r < rows; r++) for (let c = -1; c <= cols; c++) { const x = (c + (r % 2) * 0.5) * bw * p, y = r * bh * p, k = hash01(r, c); g.fillStyle = bc; g.fillRect(x + jw * p / 2, y + jw * p / 2, bw * p - jw * p, bh * p - jw * p); g.fillStyle = `rgba(${k > 0.5 ? '255,255,255' : '0,0,0'},${(Math.abs(k - 0.5) * vary).toFixed(3)})`; g.fillRect(x + jw * p / 2, y + jw * p / 2, bw * p - jw * p, bh * p - jw * p); } });
+    const wl = {
+      brick: mk(brick('#8f4a37', '#9e968a', 0.21, 0.0625, 0.01, 2.1, 0.625, 0.35)),
+      darkbrick: mk(brick('#3a3734', '#8e8a83', 0.49, 0.05, 0.008, 1.96, 0.5, 0.25)),
+      plaster: mk(mvTex(2, 2, (g, w, h) => noise(g, w, h, '#f1eee8', 0.05, 1400)), { roughness: 0.95 }),
+      concrete: mk(mvTex(2.4, 1.2, (g, w, h, p) => { noise(g, w, h, '#b8b7b0', 0.08, 1600); g.fillStyle = 'rgba(60,60,55,0.35)'; g.fillRect(0, 0, w, 2); g.fillRect(0, 0, 2, h); for (const [fx, fy] of [[0.25, 0.25], [0.75, 0.25], [0.25, 0.75], [0.75, 0.75]]) { g.beginPath(); g.arc(fx * w, fy * h, 0.015 * p, 0, Math.PI * 2); g.fill(); } })),
+      panel: mk(mvTex(3.6, 3, (g, w, h, p) => { for (let i = 0; i < 3; i++) { const k = hash01(i, 7); g.fillStyle = `hsl(210, 6%, ${30 + k * 6}%)`; g.fillRect(i * 1.2 * p, 0, 1.2 * p, h); } g.fillStyle = '#1d2023'; for (let i = 0; i <= 3; i++) g.fillRect(i * 1.2 * p - 2, 0, 4, h); g.fillRect(0, 0, w, 3); g.fillRect(0, h - 3, w, 3); }, 64), { roughness: 0.55, metalness: 0.15 }),
+      slats: mk(mvTex(0.9, 3, (g, w, h, p) => { g.fillStyle = '#2a1f17'; g.fillRect(0, 0, w, h); for (let i = 0; i < 10; i++) { const k = hash01(i, 9); g.fillStyle = `hsl(${26 + k * 6}, ${42 + k * 10}%, ${40 + k * 10}%)`; g.fillRect(i * 0.09 * p, 0, 0.07 * p, h); g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(i * 0.09 * p, 0, 0.015 * p, h); } }, 100), { roughness: 0.8 }),
+      corten: mk(mvTex(2, 3, (g, w, h, p) => { const grd = g.createLinearGradient(0, 0, 0, h); grd.addColorStop(0, '#8d4b2b'); grd.addColorStop(1, '#a35a32'); g.fillStyle = grd; g.fillRect(0, 0, w, h); for (let i = 0; i < 2600; i++) { const k = hash01(i, 11); g.fillStyle = k > 0.5 ? 'rgba(190,110,60,0.25)' : 'rgba(60,25,10,0.25)'; g.fillRect(hash01(i, 12) * w, hash01(i, 13) * h, 1 + k * 3, 1 + k * 2); } g.fillStyle = 'rgba(40,18,8,0.6)'; for (let y = 0; y < 3; y++) g.fillRect(0, y * p - 1, w, 2); }, 64), { roughness: 0.9, metalness: 0.2 }),
+      curtain: mk(mvTex(1.5, 3, (g, w, h, p) => { const grd = g.createLinearGradient(0, 0, w * 0.4, h); grd.addColorStop(0, '#9fbfd3'); grd.addColorStop(0.55, '#5f7f97'); grd.addColorStop(1, '#3d5468'); g.fillStyle = grd; g.fillRect(0, 0, w, h); g.fillStyle = 'rgba(255,255,255,0.14)'; g.beginPath(); g.moveTo(0.1 * w, h); g.lineTo(0.55 * w, 0); g.lineTo(0.7 * w, 0); g.lineTo(0.25 * w, h); g.fill(); g.fillStyle = '#2b3a46'; g.fillRect(0, h - 0.9 * p, w, 0.9 * p); g.fillStyle = '#cfd4d7'; g.fillRect(0, 0, 4, h); g.fillRect(w - 4, 0, 4, h); g.fillRect(0, 0, w, 5); g.fillRect(0, h - 0.9 * p - 2, w, 4); }, 64), { roughness: 0.15, metalness: 0.35 }),
+    };
+    const fl = {
+      polished: mk(mvTex(2, 2, (g, w, h) => { noise(g, w, h, '#c9c8c3', 0.07, 2200); }, 96, true), { roughness: 0.35 }),
+      stonetile: mk(mvTex(1.2, 1.2, (g, w, h, p) => { g.fillStyle = '#9c968a'; g.fillRect(0, 0, w, h); for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) { const k = hash01(i + 3, j + 5); g.fillStyle = `hsl(40, ${12 + k * 6}%, ${74 + k * 8}%)`; g.fillRect(i * 0.6 * p + 1, j * 0.6 * p + 1, 0.6 * p - 2, 0.6 * p - 2); } }, 96, true), { roughness: 0.6 }),
+      parquet: mk(mvTex(1.2, 1.2, (g, w, h, p) => { g.fillStyle = '#6e4a2c'; g.fillRect(0, 0, w, h); const pl = 0.48 * p, pw = 0.08 * p;
+        for (let col = 0; col < 4; col++) { g.save(); g.beginPath(); g.rect(col * 0.3 * p, 0, 0.3 * p, h); g.clip(); const sgn = col % 2 ? 1 : -1;
+          for (let i = -10; i < 30; i++) { const k = hash01(col, i); g.save(); g.translate(col * 0.3 * p + 0.15 * p, i * pw * Math.SQRT2); g.rotate(sgn * Math.PI / 4); g.fillStyle = `hsl(${30 + k * 6}, ${45 + k * 10}%, ${45 + k * 12}%)`; g.fillRect(-pl / 2, -pw / 2 + 0.5, pl - 1, pw - 1); g.restore(); }
+          g.restore(); } }, 96, true), { roughness: 0.55 }),
+    };
+    return { wl, fl };
+  }
   // Materialen (gedeeld met de stad)
   let MV2M = null;
   function mv2Mats() {
     if (MV2M) return MV2M;
-    const fl = { paver: M.paver, tile: M.walkTop, wood: M.floorWood, carpet: M.floorOffice, concrete: M.concrete, grass: M.grass, water: M.water, asphalt: M.asphalt, roof: M.roofFlat };
-    const wl = { brick: M.brick[0], plaster: M.plasterPlain, concrete: M.concrete, glass: M.pane, wood: M.stairWood, stone: M.stone, hedge: M.leaf[1], fence: M.rail };
+    const MM = modernMats();
+    const fl = Object.assign({ paver: M.paver, tile: M.walkTop, wood: M.floorWood, carpet: M.floorOffice, concrete: M.concrete, grass: M.grass, water: M.water, asphalt: M.asphalt, roof: M.roofFlat }, MM.fl);
+    const wl = Object.assign({ glass: M.pane, wood: M.stairWood, stone: M.stone, hedge: M.leaf[1], fence: M.rail }, MM.wl);
     MV2M = { fl, wl, ceiling: M.ceiling, slab: M.concrete, frame: M.alu, trim: M.trim, roof: M.roofTile, step: M.stone, rampTop: M.paverPlain, trunk: M.trunk, leaf: M.leaf, bench: M.bench, lamp: M.lampOff, lampGlow: new THREE.MeshBasicMaterial({ color: '#ffe6a8' }), water: M.water, bin: M.tlBody, metal: M.alu };
     return MV2M;
   }
@@ -69,6 +104,10 @@
     const wallBox = (mat, a, b, y0, y1, t, off = 0) => {
       const dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1e-6, nx = -dz / l, nz = dx / l;
       const g = new THREE.BoxGeometry(l, y1 - y0, t); const mx = (a[0] + b[0]) / 2 + nx * off, mz = (a[1] + b[1]) / 2 + nz * off;
+      if (mat.userData && mat.userData.mUV) {   // uv in meters: de textuur loopt door over aangrenzende stukken en verdiepingen
+        const P = g.attributes.position, N = g.attributes.normal, U = g.attributes.uv, along = mx * dx / l + mz * dz / l, yc = (y0 + y1) / 2;
+        for (let i = 0; i < P.count; i++) { const x = P.getX(i), y = P.getY(i), z = P.getZ(i); if (Math.abs(N.getY(i)) > 0.5) U.setXY(i, x + along, z); else if (Math.abs(N.getX(i)) > 0.5) U.setXY(i, z, y + yc); else U.setXY(i, x + along, y + yc); }
+      }
       const W = tf(mx, mz), W2 = tf(mx + dx / l, mz + dz / l), ang = Math.atan2(-(W2[1] - W[1]), W2[0] - W[0]);
       g.rotateY(ang); g.translate(W[0], (y0 + y1) / 2, W[1]); put(mat, g);
     };

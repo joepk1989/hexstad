@@ -43,7 +43,9 @@
       : 'Klik bouwt · rechtsklik wist · sleep om te draaien · rechts slepen schuift · scroll zoomt · Shift+scroll wisselt', 5000), 400);
 
   let last = performance.now(), frameNo = 0;
+  const mmAppEl = document.getElementById('mmApp');
   function frame(now) {
+    if (mmAppEl && !mmAppEl.hidden) { last = now; requestAnimationFrame(frame); return; }   // module maker open: de stad staat stil (scheelt veel rekenwerk)
     frameMs += (Math.min(1000, now - last) - frameMs) * 0.1;   // gemiddelde beeldtijd (trage computer: langer stilhouden voor een hoekpunt)
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
     previewGroup.visible = previewActive && ghost.visible && !(mode === 'walk' && previewKey.endsWith('false|walk'));

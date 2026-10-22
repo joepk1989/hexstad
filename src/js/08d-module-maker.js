@@ -7,8 +7,11 @@
     const app = document.getElementById('mmApp'); if (!app) return;
     const $ = id => document.getElementById('mm_' + id);
     const cv = $('cv'), ctx = cv.getContext('2d'), cv3 = $('cv3'), stage = $('stage');
-    const E = window.__MME = { m: null, lv: 0, tool: 'wall', wmat: 'brick', fmat: 'paver', open: 'door', obj: 'tree', skind: 'stair', brush: 'hex', view: { x: 0, z: 0, s: 14 }, vm: '2d', th: 0.6, ph: 0.95, upto: false, undo: [], redo: [], hover: null, drag: null, editing: -1, dirty: false, pan: null };
+    const E = window.__MME = { m: null, lv: 0, tool: 'wall', wmat: 'brick', fmat: 'paver', open: 'door', obj: 'tree', skind: 'stair', brush: 'hex', view: { x: 0, z: 0, s: 14 }, vm: '3d', th: 0.6, ph: 0.85, upto: true, undo: [], redo: [], hover: null, drag: null, editing: -1, dirty: false, pan: null };
     let W = 0, H = 0, dpr = 1, drawReq = false, msgT = 0;
+    // Bevestigen met een tweede klik (een venster als confirm() werkt niet overal, bijvoorbeeld in een ingesloten pagina)
+    let sureKey = null, sureT = 0;
+    const sure = (key, msg) => { const now = performance.now(); if (sureKey === key && now - sureT < 4000) { sureKey = null; return true; } sureKey = key; sureT = now; say(msg + ' · klik nog eens om te bevestigen', 4000); return false; };
     const say = (t, ms = 1800) => { $('msg').textContent = t; clearTimeout(msgT); if (ms) msgT = setTimeout(() => { $('msg').textContent = ''; }, ms); };
     // ---------- gereedschap met iconen ----------
     const I = {
@@ -55,11 +58,11 @@
     const bUndo = mkBtn('edit', 'undo', 'Ongedaan maken (Ctrl+Z)', () => undo()), bRedo = mkBtn('edit', 'redo', 'Opnieuw (Ctrl+Y)', () => redo());
     const bBrush = mkBtn('edit', 'brush', 'Penseel: zeshoek van 6 driehoeken of één driehoek', () => { E.brush = E.brush === 'hex' ? 'tri' : 'hex'; bBrush.setAttribute('aria-pressed', String(E.brush === 'hex')); say(E.brush === 'hex' ? 'Penseel: zeshoek' : 'Penseel: één driehoek'); }); bBrush.setAttribute('aria-pressed', 'true');
     mkBtn('edit', 'copyUp', 'Verdieping kopiëren naar de verdieping erboven', () => copyUp());
-    const b2d = mkBtn('view', 'v2d', 'Bovenaanzicht (2)', () => setView('2d')), b3d = mkBtn('view', 'v3d', '3D-weergave (3): sleep om te draaien', () => setView('3d'));
+    const b2d = mkBtn('view', 'v2d', 'Bovenaanzicht (2)', () => setView('2d')), b3d = mkBtn('view', 'v3d', '3D (3): teken op de verdieping waar je bent; draaien met de middelste muisknop, Alt of het handje, schuiven met Shift', () => setView('3d'));
     const bUpto = mkBtn('view', 'upto', 'In 3D alleen tot en met de huidige verdieping tonen', () => { E.upto = !E.upto; bUpto.setAttribute('aria-pressed', String(E.upto)); dirty3(); });
     mkBtn('view', 'zoomIn', 'Inzoomen', () => zoom(1.25)); mkBtn('view', 'zoomOut', 'Uitzoomen', () => zoom(0.8)); mkBtn('view', 'fit', 'Passend maken', () => fit());
     function setTool(k) { E.tool = k; for (const t in toolBtns) toolBtns[t].setAttribute('aria-pressed', String(t === k)); E.drag = null; renderCtx(); cv.style.cursor = k === 'hand' || k === 'select' ? 'grab' : 'crosshair'; draw(); }
-    function setView(v) { E.vm = v; b2d.setAttribute('aria-pressed', String(v === '2d')); b3d.setAttribute('aria-pressed', String(v === '3d')); cv3.style.display = v === '3d' ? 'block' : 'none'; if (v === '3d') dirty3(); draw(); }
+    function setView(v) { E.vm = v; b2d.setAttribute('aria-pressed', String(v === '2d')); b3d.setAttribute('aria-pressed', String(v === '3d')); cv3.style.display = v === '3d' ? 'block' : 'none'; if (v === '3d') { ensure3(); camSync(); rebuild3(); } draw(); }
     // ---------- raster ----------
     const ts = () => mv2Ts(E.m);
     const P = (i, j) => mv2P(i, j, ts());
@@ -110,7 +113,7 @@
     const snap = () => { E.undo.push(JSON.stringify(E.m)); if (E.undo.length > 80) E.undo.shift(); E.redo = []; E.dirty = true; };
     const undo = () => { if (!E.undo.length) return; E.redo.push(JSON.stringify(E.m)); E.m = mv2Fix(JSON.parse(E.undo.pop())); E.lv = Math.min(E.lv, E.m.lv.length - 1); changed(); say('Ongedaan gemaakt', 900); };
     const redo = () => { if (!E.redo.length) return; E.undo.push(JSON.stringify(E.m)); E.m = mv2Fix(JSON.parse(E.redo.pop())); E.lv = Math.min(E.lv, E.m.lv.length - 1); changed(); };
-    function changed() { bUndo.disabled = !E.undo.length; bRedo.disabled = !E.redo.length; renderLevels(); dirty3(); draw(); }
+    function changed() { bUndo.disabled = !E.undo.length; bRedo.disabled = !E.redo.length; renderLevels(); rebuild3(); draw(); }
     // ---------- verdiepingen ----------
     function renderLevels() { $('lvName').textContent = E.lv === 0 ? 'Begane grond' : E.lv + 'e verdieping'; $('lvUp').disabled = E.lv >= MV2.MAX_LV - 1; $('lvDn').disabled = E.lv === 0; }
     $('lvUp').onclick = () => { if (E.lv >= MV2.MAX_LV - 1) return; E.lv++; while (E.m.lv.length <= E.lv) E.m.lv.push(mv2Level()); changed(); };
@@ -119,7 +122,8 @@
     function copyUp() { snap(); const L = lvl(); while (E.m.lv.length <= E.lv + 1) E.m.lv.push(mv2Level()); const U = E.m.lv[E.lv + 1]; U.f = Object.assign({}, L.f, U.f); U.w = Object.assign({}, JSON.parse(JSON.stringify(L.w)), U.w); E.lv++; changed(); say('Verdieping gekopieerd naar boven'); }
     // ---------- zijpaneel: materiaal of keuze bij het gereedschap ----------
     const COL = { paver: '#8a5141', tile: '#cbc8bd', wood: '#a97c52', carpet: '#8b9397', concrete: '#c4c6c2', grass: '#6fa356', water: '#2d5a66', asphalt: '#3c4045', roof: '#5a5d59',
-      brick: '#9a5b45', plaster: '#e8e2d6', glass: '#a8cbd8', stone: '#bdb5a5', hedge: '#5a9440', fence: '#3b4248' };
+      brick: '#9a5b45', plaster: '#ece8e0', glass: '#a8cbd8', stone: '#bdb5a5', hedge: '#5a9440', fence: '#3b4248',
+      darkbrick: '#3d3a36', panel: '#4b5157', slats: '#a8743f', corten: '#97512e', curtain: '#6d8ea6', parquet: '#9a6a3e', polished: '#c9c8c3', stonetile: '#d9d0bf' };
     const OBJ_GLYPH = { tree: '🌳', bush: '🌿', bench: '🪑', lamp: '💡', pillar: '🏛', table: '☕', planter: '🌷', fountain: '⛲', bin: '🗑', bike: '🚲' };
     function renderCtx() {
       const sw = $('sw'), title = $('ctxTitle'), hint = $('ctxHint'); sw.innerHTML = '';
@@ -172,15 +176,27 @@
       return paintFloor(x, z, true) ? 'vloer' : null;
     }
     // ---------- muisinvoer ----------
-    const toW = (sx, sz) => [(sx - W / 2) / E.view.s + E.view.x, (sz - H / 2) / E.view.s + E.view.z];
-    const toS = (x, z) => [W / 2 + (x - E.view.x) * E.view.s, H / 2 + (z - E.view.z) * E.view.s];
+    // Bovenaanzicht: schaal en verschuiving. In 3D: een straal vanuit de camera, gesneden met het vlak van de verdieping
+    // waar je bent; zo werkt al het gereedschap in beide weergaven hetzelfde.
+    const lvY = () => E.lv * MV2.LV_H + 0.03;
+    const v3a = new THREE.Vector3(), rc3 = new THREE.Raycaster(), pl3 = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), nd3 = new THREE.Vector2();
+    const toW = (sx, sz) => {
+      if (E.vm !== '3d' || !cam) return [(sx - W / 2) / E.view.s + E.view.x, (sz - H / 2) / E.view.s + E.view.z];
+      nd3.set(sx / W * 2 - 1, -(sz / H) * 2 + 1); rc3.setFromCamera(nd3, cam); pl3.constant = -lvY();
+      const hit = rc3.ray.intersectPlane(pl3, v3a); return hit ? [hit.x, hit.z] : [1e5, 1e5];
+    };
+    const toS = (x, z, y) => {
+      if (E.vm !== '3d' || !cam) return [W / 2 + (x - E.view.x) * E.view.s, H / 2 + (z - E.view.z) * E.view.s];
+      v3a.set(x, y === undefined ? lvY() : y, z).project(cam); return [(v3a.x + 1) / 2 * W, (1 - v3a.y) / 2 * H];
+    };
     const ptr = new Map();
     let spaceDown = false;
     cv.addEventListener('contextmenu', e => e.preventDefault());
     cv.addEventListener('pointerdown', e => {
       cv.setPointerCapture(e.pointerId); ptr.set(e.pointerId, { x: e.clientX, y: e.clientY });
       const rect = cv.getBoundingClientRect(), sx = e.clientX - rect.left, sy = e.clientY - rect.top, [x, z] = toW(sx, sy);
-      if (E.vm === '3d') { E.pan = { kind: 'orbit', sx: e.clientX, sy: e.clientY, th: E.th, ph: E.ph }; return; }
+      if (E.vm === '3d' && (e.button === 1 || e.altKey || spaceDown || E.tool === 'hand' || (ptr.size > 1))) { E.pan = { kind: 'orbit', sx: e.clientX, sy: e.clientY, th: E.th, ph: E.ph }; return; }   // draaien
+      if (E.vm === '3d' && (e.shiftKey || E.tool === 'select')) { E.pan = { kind: 'pan3', w: [x, z] }; cv.style.cursor = 'grabbing'; return; }   // schuiven over de verdieping
       if (e.button === 1 || spaceDown || E.tool === 'hand' || E.tool === 'select' || ptr.size > 1) { E.pan = { kind: 'pan', sx: e.clientX, sy: e.clientY, vx: E.view.x, vz: E.view.z }; cv.style.cursor = 'grabbing'; return; }
       const right = e.button === 2;
       if (E.tool === 'floor') { snap(); paintFloor(x, z, right); E.drag = { kind: 'floor', erase: right }; changed(); return; }
@@ -198,6 +214,7 @@
       if (ptr.has(e.pointerId)) ptr.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (E.pan) {
         if (E.pan.kind === 'orbit') { E.th = E.pan.th - (e.clientX - E.pan.sx) * 0.008; E.ph = Math.max(0.15, Math.min(1.45, E.pan.ph + (e.clientY - E.pan.sy) * 0.006)); dirty3(); return; }
+        if (E.pan.kind === 'pan3') { E.view.x += E.pan.w[0] - x; E.view.z += E.pan.w[1] - z; dirty3(); return; }
         if (ptr.size > 1) {   // knijpen: zoomen
           const pts = [...ptr.values()]; if (!E.pan.pd) E.pan.pd = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y); const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y); if (E.pan.pd) { E.view.s = Math.max(3, Math.min(80, E.view.s * d / E.pan.pd)); E.pan.pd = d; } draw(); return;
         }
@@ -243,14 +260,14 @@
     function hexPath(cx, cz, rad) { ctx.beginPath(); for (let i = 0; i < 6; i++) { const a = (30 + 60 * i) * Math.PI / 180, [sx, sz] = toS(cx + rad * Math.cos(a), cz + rad * Math.sin(a)); i ? ctx.lineTo(sx, sz) : ctx.moveTo(sx, sz); } ctx.closePath(); }
     function paint() {
       const m = E.m; if (!m) return; const L = lvl(), k = m.k || 0, t = ts(), s = E.view.s;
-      ctx.fillStyle = css('--paper'); ctx.fillRect(0, 0, W, H);
-      if (E.vm === '3d') { ctx.clearRect(0, 0, W, H); return; }
-      // gebied
-      ctx.fillStyle = css('--area'); ctx.strokeStyle = css('--grid2'); ctx.lineWidth = 1.5;
-      for (let q = -k; q <= k; q++) for (let r = -k; r <= k; r++) if (mv2HexDist(q, r) <= k) { const c = mv2CellXZ(q, r); hexPath(c[0], c[1], R); ctx.fill(); ctx.stroke(); }
+      const in3 = E.vm === '3d';
+      if (in3) { camSync(); ctx.clearRect(0, 0, W, H); } else { ctx.fillStyle = css('--paper'); ctx.fillRect(0, 0, W, H); }
+      // gebied (in 3D alleen de rand, op de hoogte van de verdieping)
+      ctx.fillStyle = css('--area'); ctx.strokeStyle = in3 ? 'rgba(242,178,51,0.65)' : css('--grid2'); ctx.lineWidth = 1.5;
+      for (let q = -k; q <= k; q++) for (let r = -k; r <= k; r++) if (mv2HexDist(q, r) <= k) { const c = mv2CellXZ(q, r); hexPath(c[0], c[1], R); if (!in3) ctx.fill(); ctx.stroke(); }
       // raster: elke rib binnen of op de rand van het gebied (ook als het beginpunt erbuiten valt)
       if (s * t > 6) {
-        ctx.strokeStyle = css('--grid'); ctx.lineWidth = 0.7; ctx.beginPath();
+        ctx.strokeStyle = in3 ? 'rgba(20,24,16,0.45)' : css('--grid'); ctx.lineWidth = in3 ? 1.1 : 0.7; ctx.beginPath();   // in 3D donker: zichtbaar op lichte en donkere vloeren
         const ext = R * (1 + 2 * k) + t, iM = Math.ceil(ext / (t * SQ3 / 2)) + 1, jM = Math.ceil(ext / t) + iM;
         for (let i = -iM; i <= iM; i++) for (let j = -jM; j <= jM; j++) { const a = P(i, j); for (const D of MV2.DIR3) { const b = P(i + D[0], j + D[1]); if (!mv2NearArea(E.m, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2)) continue; const A = toS(a[0], a[1]), B = toS(b[0], b[1]); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); } }
         ctx.stroke();
@@ -276,6 +293,7 @@
         const a0 = toS(...g.at(g.len * 0.15, 0)), a1 = toS(...g.at(g.len * 0.9, 0)); ctx.strokeStyle = '#f2b233'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(a0[0], a0[1]); ctx.lineTo(a1[0], a1[1]); ctx.stroke();
         const ang = Math.atan2(a1[1] - a0[1], a1[0] - a0[0]); ctx.beginPath(); ctx.moveTo(a1[0], a1[1]); ctx.lineTo(a1[0] - 8 * Math.cos(ang - 0.5), a1[1] - 8 * Math.sin(ang - 0.5)); ctx.moveTo(a1[0], a1[1]); ctx.lineTo(a1[0] - 8 * Math.cos(ang + 0.5), a1[1] - 8 * Math.sin(ang + 0.5)); ctx.stroke();
       };
+      if (in3) { paintHover(); heightMeter(); return; }   // in 3D toont het model zelf vloeren, muren en trappen
       // verdieping eronder: vaag
       if (E.lv > 0) { const U = m.lv[E.lv - 1]; ctx.globalAlpha = 0.35; for (const id in U.f) tri(id, COL[U.f[id]] || '#888'); ctx.globalAlpha = 1; for (const id in U.w) wallLine(id, U.w[id], true); }
       // huidige verdieping
@@ -286,6 +304,10 @@
       for (const o of L.o) { const S2 = toS(o.x, o.z); ctx.fillStyle = 'rgba(23,27,20,0.7)'; ctx.beginPath(); ctx.arc(S2[0], S2[1], Math.max(8, 0.5 * s), 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#9aa38c'; ctx.lineWidth = 1; ctx.stroke(); ctx.font = `${Math.max(11, Math.min(26, 0.8 * s))}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff'; ctx.fillText(OBJ_GLYPH[o.t] || '•', S2[0], S2[1] + 1); if (o.rot) { ctx.strokeStyle = '#f2b233'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(S2[0], S2[1]); ctx.lineTo(S2[0] + Math.cos(o.rot) * 0.9 * s, S2[1] + Math.sin(o.rot) * 0.9 * s); ctx.stroke(); } }
       // randcodes op de begane grond
       if (E.lv === 0) { const codes = modV2Codes(m); for (const kk in codes) { const [q, r, sd] = kk.split(',').map(Number), c = mv2CellXZ(q, r), f = FRAMES[sd], mx = c[0] + f.nx * (INNER - 0.4), mz = c[1] + f.nz * (INNER - 0.4), A = toS(mx - f.tx * 2.2, mz - f.tz * 2.2), B = toS(mx + f.tx * 2.2, mz + f.tz * 2.2); ctx.strokeStyle = CODE_COL[codes[kk]] || 'rgba(0,0,0,0)'; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke(); } }
+      paintHover(); heightMeter();
+      // schaalbalk
+      ctx.fillStyle = css('--muted'); ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillRect(W - 12 - 10 * s, H - 16, 10 * s, 2); ctx.fillText('10 m', W - 12 - 10 * s, H - 20);
+      function paintHover() {
       // voorbeeld van wat je doet
       const hv = E.hover, D = E.drag;
       if (D && D.kind === 'wall' && D.n > 0) { for (const [i, j, d] of segsBetween(D.a, D.d, D.n)) wallLine(wallKey(i, j, d), { m: E.wmat, o: '' }, false); }
@@ -298,8 +320,31 @@
         else if (E.tool === 'roof' || E.tool === 'room') { if (inArea(x, z)) { const [q, r] = cellAt(x, z), c = mv2CellXZ(q, r); hexPath(c[0], c[1], R - 0.3); ctx.stroke(); } }
         else if (E.tool === 'object') { const S4 = toS(Math.round(x * 4) / 4, Math.round(z * 4) / 4); ctx.beginPath(); ctx.arc(S4[0], S4[1], Math.max(8, 0.5 * s), 0, Math.PI * 2); ctx.stroke(); }
       }
-      // schaalbalk
-      ctx.fillStyle = css('--muted'); ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillRect(W - 12 - 10 * s, H - 16, 10 * s, 2); ctx.fillText('10 m', W - 12 - 10 * s, H - 20);
+      }
+      // Hoogtemeter op het noorden: een paal met een streep per verdieping (3 m); waar je tekent is oranje
+      function heightMeter() {
+        const ext = R * (1 + 2 * k) + 3, top = Math.max(E.m.lv.length, E.lv + 1) + 1, px = 0, pz = -ext;
+        ctx.save(); ctx.font = '600 12px system-ui, sans-serif'; ctx.textBaseline = 'middle';
+        if (in3) {
+          const B = toS(px, pz, 0), T = toS(px, pz, top * MV2.LV_H);
+          ctx.strokeStyle = 'rgba(233,236,223,0.8)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(B[0], B[1]); ctx.lineTo(T[0], T[1]); ctx.stroke();
+          for (let l = 0; l <= top; l++) {
+            const y = l * MV2.LV_H, A = toS(px, pz, y), C = toS(px + 1.6, pz, y), cur = l === E.lv;
+            ctx.strokeStyle = cur ? '#f2b233' : 'rgba(233,236,223,0.8)'; ctx.lineWidth = cur ? 4 : 2; ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(C[0], C[1]); ctx.stroke();
+            if (l < top) { ctx.fillStyle = cur ? '#f2b233' : 'rgba(233,236,223,0.85)'; ctx.textAlign = 'left'; ctx.fillText((l === 0 ? 'BG' : l + 'e') + ' · ' + y + ' m', C[0] + 6, C[1]); }
+          }
+          // lijn van de paal naar de rand van het gebied op de huidige hoogte, en een N
+          const A = toS(px, pz, lvY()), Z = toS(0, -(R * (1 + 2 * k) - 1), lvY()); ctx.setLineDash([4, 4]); ctx.strokeStyle = 'rgba(242,178,51,0.8)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(Z[0], Z[1]); ctx.stroke(); ctx.setLineDash([]);
+          const N = toS(px, pz - 3, 0); ctx.fillStyle = '#e9ecdf'; ctx.font = '800 16px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('N', N[0], N[1]);
+        } else {
+          // bovenaanzicht: een ladder boven het gebied (noorden is boven)
+          const S0 = toS(px, pz), x0 = S0[0], y0 = Math.max(70, S0[1]) - 6, step = 13;
+          ctx.textAlign = 'center'; ctx.fillStyle = '#e9ecdf'; ctx.font = '800 14px system-ui, sans-serif'; ctx.fillText('N', x0, y0 - top * step - 12); ctx.font = '600 11px system-ui, sans-serif';
+          for (let l = 0; l < top; l++) { const cur = l === E.lv, yy = y0 - l * step; ctx.fillStyle = cur ? '#f2b233' : 'rgba(233,236,223,0.25)'; ctx.fillRect(x0 - 14, yy - 5, 28, 10); ctx.fillStyle = cur ? '#1d1a10' : '#e9ecdf'; ctx.fillText(l === 0 ? 'BG' : String(l), x0, yy); }
+          ctx.textAlign = 'left'; ctx.fillStyle = '#f2b233'; ctx.fillText((E.lv === 0 ? 'begane grond' : E.lv + 'e verdieping') + ' · ' + E.lv * MV2.LV_H + ' m', x0 + 20, y0 - E.lv * step);
+        }
+        ctx.restore();
+      }
     }
     // ---------- 3D-weergave ----------
     let rnd = null, scn = null, grp = null, t3 = 0, cam = null, sun = null, base = null;
@@ -310,17 +355,23 @@
       cam = new THREE.PerspectiveCamera(40, 1, 0.5, 2000);
       base = new THREE.Mesh(new THREE.CircleGeometry(200, 48).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#2b3324' })); base.position.y = -0.02; base.receiveShadow = true; scn.add(base);
     }
-    function dirty3() { if (E.vm !== '3d') return; clearTimeout(t3); t3 = setTimeout(render3, 60); }
-    function render3() {
+    // camera volgt E.view (midden en zoom) en E.th / E.ph (draaien); het doel ligt op de verdieping waar je tekent
+    function camSync() {
+      if (!cam) return; const d = Math.max(12, (H / 2) / (E.view.s * Math.tan(cam.fov * Math.PI / 360))), cy = E.lv * MV2.LV_H;
+      cam.aspect = W / H; cam.position.set(E.view.x + d * Math.sin(E.ph) * Math.sin(E.th), cy + d * Math.cos(E.ph), E.view.z + d * Math.sin(E.ph) * Math.cos(E.th)); cam.lookAt(E.view.x, cy, E.view.z); cam.updateProjectionMatrix(); cam.updateMatrixWorld();
+    }
+    // dirty3: het model is veranderd (opnieuw bouwen, iets later); camera bewogen: alleen opnieuw tekenen (volgende frame)
+    let rq3 = false;
+    function dirty3() { if (E.vm !== '3d') return; if (!rq3) { rq3 = true; requestAnimationFrame(() => { rq3 = false; render3(); draw(); }); } }
+    function rebuild3() { if (E.vm !== '3d') return; clearTimeout(t3); t3 = setTimeout(() => { buildGrp(); render3(); }, 40); }
+    function render3() { if (app.hidden || E.vm !== '3d') return; ensure3(); if (!grp) buildGrp(); camSync(); rnd.render(scn, cam); }
+    function buildGrp() {
       if (app.hidden || E.vm !== '3d') return; ensure3();
       if (grp) { grp.traverse(o => { if (o.isMesh && o.userData.own) o.geometry.dispose(); }); scn.remove(grp); grp = null; }
       const mm = E.upto ? Object.assign({}, E.m, { lv: E.m.lv.slice(0, E.lv + 1) }) : E.m;
       try { grp = mv2Build(mm, (x, z) => [x, z]).group; scn.add(grp); } catch (e) { say('3D kan niet: ' + e.message, 3000); }
       // gebied als zeshoeken op de grond
       const k = E.m.k || 0; const area = new THREE.Group(); for (let q = -k; q <= k; q++) for (let r = -k; r <= k; r++) if (mv2HexDist(q, r) <= k) { const c = mv2CellXZ(q, r), h = new THREE.Mesh(new THREE.CylinderGeometry(R - 0.15, R - 0.15, 0.06, 6), new THREE.MeshStandardMaterial({ color: '#4d5a3e' })); h.position.set(c[0], 0.0, c[1]); h.receiveShadow = true; h.userData.own = true; area.add(h); } if (grp) grp.add(area); else scn.add(area);
-      const d = Math.max(12, (H / 2) / (E.view.s * Math.tan(cam.fov * Math.PI / 360))), cy = (E.lv + 0.5) * 1.5;
-      cam.aspect = W / H; cam.position.set(E.view.x + d * Math.sin(E.ph) * Math.sin(E.th), cy + d * Math.cos(E.ph), E.view.z + d * Math.sin(E.ph) * Math.cos(E.th)); cam.lookAt(E.view.x, cy, E.view.z); cam.updateProjectionMatrix();
-      rnd.render(scn, cam);
     }
     // ---------- module: laden, bewaren, bibliotheek ----------
     const catSel = $('cat'); for (const c of MV2.cats) { const o = document.createElement('option'); o.value = c; o.textContent = c; catSel.appendChild(o); }
@@ -333,7 +384,7 @@
       E.dirty = false; saveMods(); renderStrip(); renderLib(); if (!asCopy) say('"' + m.name + '" bewaard'); else say('Kopie bewaard als "' + m.name + '"');
     }
     $('bSave').onclick = () => save(false); $('bDup').onclick = () => { $('name').value = ($('name').value || E.m.name) + ' (kopie)'; save(true); };
-    $('bNew').onclick = () => { if (E.dirty && !confirm('Niet-bewaarde wijzigingen weggooien?')) return; newModule(); };
+    $('bNew').onclick = () => { if (E.dirty && !sure('new', 'Niet-bewaarde wijzigingen weggooien?')) return; newModule(); };
     $('name').addEventListener('input', () => { E.dirty = true; });
     catSel.addEventListener('change', () => { E.m.cat = catSel.value; E.dirty = true; });
     $('area').addEventListener('change', () => { snap(); E.m.k = +$('area').value; fit(); changed(); });
@@ -356,11 +407,11 @@
       $('libN').textContent = list.length + (list.length === modules.length ? '' : ' van ' + modules.length);
       for (const [m, i] of list) {
         const d = document.createElement('div'); d.className = 'mod'; d.setAttribute('aria-current', String(i === E.editing));
-        const c = modThumb(m, 0, 18); d.appendChild(c);
+        const c = m.v === 2 ? mv2Thumb(m, 0, 18) : modThumb(m, 0, 18); d.appendChild(c);
         const sp = document.createElement('span'); sp.innerHTML = `${m.name}<small>${m.v === 2 ? (m.cat || 'Overig') + ' · ' + m.lv.length + (m.lv.length === 1 ? ' laag' : ' lagen') : 'oude schets'}</small>`; d.appendChild(sp);
-        const del = document.createElement('button'); del.type = 'button'; del.textContent = '×'; del.title = 'Verwijderen'; del.addEventListener('click', ev => { ev.stopPropagation(); if (!confirm('"' + m.name + '" verwijderen? Geplaatste exemplaren gaan ook weg.')) return; dropModule(m); modules.splice(i, 1); if (E.editing === i) { E.editing = -1; } else if (E.editing > i) E.editing--; saveMods(); renderStrip(); renderLib(); });
+        const del = document.createElement('button'); del.type = 'button'; del.textContent = '×'; del.title = 'Verwijderen'; del.addEventListener('click', ev => { ev.stopPropagation(); if (!sure('del' + m.id, '"' + m.name + '" verwijderen? Geplaatste exemplaren gaan ook weg')) { del.textContent = 'Zeker?'; del.classList.add('warn'); return; } say('"' + m.name + '" verwijderd'); dropModule(m); modules.splice(i, 1); if (E.editing === i) { E.editing = -1; } else if (E.editing > i) E.editing--; saveMods(); renderStrip(); renderLib(); });
         d.appendChild(del);
-        d.addEventListener('click', () => { if (m.v !== 2) { app.hidden = true; openSchetsOld(); return; } if (E.dirty && !confirm('Niet-bewaarde wijzigingen weggooien?')) return; loadModule(m, i); });
+        d.addEventListener('click', () => { if (m.v !== 2) { say('Een oude schets-module kun je hier niet bewerken; wel plaatsen of verwijderen', 3000); return; } if (E.dirty && !sure('load' + m.id, 'Niet-bewaarde wijzigingen weggooien?')) return; loadModule(m, i); });
         el.appendChild(d);
       }
     }
@@ -373,14 +424,13 @@
     $('bExport').onclick = () => { const m = E.m; download((m.name || 'module').replace(/[^\w\-]+/g, '_') + '.json', JSON.stringify(m)); };
     $('bExportAll').onclick = () => download('hexstad-modules.json', JSON.stringify(modules));
     $('bFile').onchange = e => { const f = e.target.files && e.target.files[0]; if (!f) return; f.text().then(t => { try { const o = JSON.parse(t), list = Array.isArray(o) ? o : [o]; let n = 0; for (const m of list) { if (!m || typeof m !== 'object') continue; if (m.v === 2) mv2Fix(m); else if (!Array.isArray(m.edges)) continue; m.id = uid(); modules.push(m); n++; } saveMods(); renderStrip(); renderLib(); say(n + ' module(s) geladen'); } catch (err) { say('Geen geldig bestand'); } e.target.value = ''; }); };
-    $('bOld').onclick = () => { app.hidden = true; openSchetsOld(); };
-    $('bStd').onclick = () => { if (!confirm('De standaardmodules terugzetten? Aangepaste standaardmodules worden overschreven; je eigen modules blijven staan.')) return; const n = libInstall(true); for (const m of modules) if (m.v === 2) syncModule(m); renderStrip(); renderLib(); say(n + ' standaardmodules teruggezet'); };
-    $('bClose').onclick = () => { if (E.dirty && !confirm('Niet-bewaarde wijzigingen weggooien?')) return; app.hidden = true; renderStrip(); };
+        $('bStd').onclick = () => { if (!sure('std', 'Standaardmodules terugzetten? Aangepaste standaardmodules worden overschreven; je eigen modules blijven staan')) return; const n = libInstall(true); for (const m of modules) if (m.v === 2) syncModule(m); renderStrip(); renderLib(); say(n + ' standaardmodules teruggezet'); };
+    $('bClose').onclick = () => { if (E.dirty && !sure('close', 'Niet-bewaarde wijzigingen weggooien?')) return; app.hidden = true; renderStrip(); };
     // ---------- openen ----------
     openMakerFn = (m) => {
       app.hidden = false; resize();
       if (m && m.v === 2) loadModule(m, modules.indexOf(m)); else if (!E.m) newModule(); else { renderLib(); changed(); }
       setTool(E.tool); setView(E.vm); renderCtx(); fit();
     };
-    bUpto.setAttribute('aria-pressed', 'false');
+    bUpto.setAttribute('aria-pressed', String(E.upto));
   })();

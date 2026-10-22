@@ -469,3 +469,4 @@ body.coarse .keysbtn { display: none; }
 .sw-vfiets { background: linear-gradient(90deg, #6aa84a 0 30%, #a54a3c 30% 70%, #6aa84a 70%); position: relative; }
 .sw-vfiets::after { content: ''; position: absolute; left: 49%; top: 10%; width: 2px; height: 80%; background: repeating-linear-gradient(180deg, #f1efe6 0 4px, transparent 4px 8px); }
 .sw-vrot { background: radial-gradient(circle, #6aa84a 0 22%, #9b5a45 22% 30%, #3c4045 30% 58%, #c3beb1 58% 70%, transparent 70%), #d9e6c3; }
+.tool.modcard.warn, #mmApp .mod button.warn { outline: 2px solid #c8472f; color: #ffb3a6; }

@@ -37,6 +37,10 @@
       const sp = document.createElement('span'); sp.className = 'nm'; sp.textContent = m.name; b.appendChild(sp);
       b.addEventListener('click', () => { moduleSel = i; moduleGhostKey = ''; selectTool('module'); renderModCards(); });
       if (m.v === 2) b.addEventListener('dblclick', () => openSchets(m));
+      b.title += ' · rechtermuisknop: verwijderen';
+      let delArm = 0;   // rechtermuisknop: verwijderen (tweede keer binnen 4 s bevestigt)
+      b.addEventListener('contextmenu', ev => { ev.preventDefault(); const now = performance.now(); if (now - delArm > 4000) { delArm = now; b.classList.add('warn'); toast('"' + m.name + '" verwijderen? Nog eens rechtermuisknop om te bevestigen (geplaatste exemplaren gaan ook weg)', 4000); return; }
+        dropModule(m); const i2 = modules.indexOf(m); if (i2 >= 0) modules.splice(i2, 1); if (moduleSel === i2) moduleSel = modules.length ? 0 : null; else if (moduleSel > i2) moduleSel--; saveMods(); renderModCards(); toast('"' + m.name + '" verwijderd', 1500); });
       toolScroll.appendChild(b);
     });
     const tick = () => { const t0 = performance.now(); while (queue.length && performance.now() - t0 < 12) queue.shift()(); if (queue.length) setTimeout(tick, 0); }; tick();

@@ -11,6 +11,7 @@ async def main():
         pg.on('pageerror',lambda e:errs.append(str(e)))
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
         await pg.evaluate("()=>{const S=window.__SC(); S.openSchets();}"); await pg.wait_for_timeout(1200)
+        await pg.keyboard.press('2'); await pg.wait_for_timeout(400)
         for k in ['0','1']:
             await pg.evaluate("k=>{const e=document.getElementById('mm_area'); e.value=k; e.dispatchEvent(new Event('change'));}", k); await pg.wait_for_timeout(800)
             import base64

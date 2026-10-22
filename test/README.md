@@ -25,6 +25,8 @@ Eerst bouwen: `node build.js` in de hoofdmap. Daarna, vanuit `test/`:
 | `python lucht.py` | lucht en wolken op vijf tijden van de dag |
 | `python v2test.py` | module v2: een proefhuis bouwen, plaatsen, trap op lopen, muur blokkeert |
 | `python mm_raster.py` | module maker: het raster vult het hele gebied (1 en 7 vakken), plaatje van het tekenvlak |
+| `python mm_3d.py` | module maker in 3D: standaardweergave, muur tekenen op een verdieping, verwijderen met twee klikken |
+| `python mm_gevels.py` | toren met per verdieping een andere moderne gevel en vloer; schermafbeelding |
 | `python mk_test.py` | de module maker: vloer, muren, deur, raam, trap, dak, opslaan, plaatsen |
 | `python lib_test.py` | de honderd standaardmodules bouwen en plaatsen (screenshots in `out/`) |
 | `python perf.py` / `prof.py` | tijd per geplaatst blok in een grote stad, profiel |
