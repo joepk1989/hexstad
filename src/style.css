@@ -462,3 +462,10 @@ body.coarse .keysbtn { display: none; }
 .seg button { border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 13px; padding: 7px 10px; border-radius: 8px; cursor: pointer; min-width: 44px; }
 .seg button[aria-pressed="true"] { background: var(--accent, #f2b233); color: #1d1d1b; font-weight: 700; }
 @media (max-width: 420px) { .set-row { flex-direction: column; align-items: stretch; } .seg { justify-content: stretch; } .seg button { flex: 1; } }
+/* nieuwe wegen */
+.sw-vsnel { background: linear-gradient(90deg, #6aa84a 0 8%, #3c4045 8% 46%, #c9c7c0 46% 54%, #3c4045 54% 92%, #6aa84a 92%); position: relative; }
+.sw-vsnel::after { content: ''; position: absolute; left: 26%; top: 10%; width: 2px; height: 80%; background: repeating-linear-gradient(180deg, #f1efe6 0 6px, transparent 6px 12px); box-shadow: 13px 0 0 0 transparent; }
+.sw-vklink { background: linear-gradient(90deg, #c3beb1 0 20%, transparent 20% 80%, #c3beb1 80%), repeating-linear-gradient(0deg, #9b5a45 0 4px, #7e4636 4px 5px), #9b5a45; }
+.sw-vfiets { background: linear-gradient(90deg, #6aa84a 0 30%, #a54a3c 30% 70%, #6aa84a 70%); position: relative; }
+.sw-vfiets::after { content: ''; position: absolute; left: 49%; top: 10%; width: 2px; height: 80%; background: repeating-linear-gradient(180deg, #f1efe6 0 4px, transparent 4px 8px); }
+.sw-vrot { background: radial-gradient(circle, #6aa84a 0 22%, #9b5a45 22% 30%, #3c4045 30% 58%, #c3beb1 58% 70%, transparent 70%), #d9e6c3; }

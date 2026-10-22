@@ -14,9 +14,10 @@ Eerst bouwen: `node build.js` in de hoofdmap. Daarna, vanuit `test/`:
 
 | Script | Wat |
 |---|---|
-| `python sim3.py recht kruis T Y bocht60 laan kort` | verkeer en voetgangers op losse wegvormen: botsingen, vastlopers, NaN, vallende mensen |
+| `python sim3.py recht kruis T Y bocht60 laan kort lus acht rotonde snelweg klinker` | verkeer en voetgangers op losse wegvormen: botsingen, vastlopers, NaN, vallende mensen |
 | `python simcity.py sample ring` | idem op de voorbeeldstad en de ringstad |
 | `python all.py` | laadt een stad met álle bouwonderdelen, controleert materialen, lopen en foutmeldingen |
+| `python wegen_beeld.py lus P acht blok rot snel snelx klinker kruis` | wegvormen: graaf (knopen/takken) en schermafbeeldingen (`DICHT=1` ook van dichtbij) |
 | `python boetseer.py` | terrein boetseren met de muis (ophogen, Shift, helling, gladstrijken) en een weg erdoor; schermafbeeldingen |
 | `python terr_bouw.py` | oude verhogingen worden terrein, een huis op een heuvel staat op de juiste hoogte, sokkels |
 | `python terr_perf.py` | tijd van één boetseerstap (19 vakken) in een willekeurige stad |

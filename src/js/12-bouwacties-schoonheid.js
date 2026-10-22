@@ -154,6 +154,7 @@
       if (!list.length) return toast('Hier kan het terrein niet ' + (tool === 'heuvel' ? 'hoger' : 'lager'));
       rebuildMany(list); terrainChanged(list); changed(); toast((tool === 'heuvel' ? 'Verhoogd: ' : 'Verlaagd: ') + list.length + ' vakken', 900); return;
     }
+    if (tool === 'vrot') return placeRot(q, r);
     if (VEC_TOOLS.has(tool)) { toast('Sleep van vak naar vak om een ' + TYPES[tool].name.toLowerCase() + ' te trekken', 1600); return; }
     if (tool === 'module') { const a = anchorOf(lastPickRes) || [q, r]; return placeModule(a[0], a[1]); }
     if (EDGE_TOOLS.has(tool)) return placeEdgeAt(lastPickRes);
@@ -354,7 +355,7 @@
     edgeGhost.visible = false; moduleGhost.visible = false;
     if (terrHover(res, cx, cy)) { previewActive = false; ghost.visible = false; ghostEdges.visible = false; return; }
     if (!res || (mode === 'walk' && hand !== 'bouwen')) { ghost.visible = false; ghostEdges.visible = false; return; }
-    if (VEC_TOOLS.has(tool)) { previewActive = false; ghost.visible = false; ghostEdges.visible = false; return; }
+    if (VEC_TOOLS.has(tool) || tool === 'vrot') { previewActive = false; ghost.visible = false; ghostEdges.visible = false; return; }
     if (tool === 'module') { previewActive = false; ghost.visible = false; ghostEdges.visible = false; if (res.place) { const a = anchorOf(res); showModuleGhost(a[0], a[1]); } return; }
     if (EDGE_TOOLS.has(tool)) {
       previewActive = false; ghost.visible = false; ghostEdges.visible = false;

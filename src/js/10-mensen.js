@@ -55,7 +55,9 @@
     // Getekende wegen: knopen op kruisingen en uiteinden, stoepen ertussen (nog los van het hexnetwerk)
     const G = cars.vecGraph();
     const vn = G.nodes.map((N, vi) => { const r = N.z / (1.5 * R); return { vi, key: 'v' + Math.round(N.x * 2) / 2 + ',' + Math.round(N.z * 2) / 2, q: N.x / (R * SQ3) - r / 2, r, y: PW_H + (N.y || 0), x: N.x, z: N.z, kind: { b: 'vec' }, edges: new Map() }; });
+    const noWalk = e => e.t === 'ring' || e.t === 'snel';   // geen stoep: rotonde-rijbaan en snelweg
     for (const e of G.edges.values()) {
+      if (noWalk(e)) continue;
       const A = vn[e.a], B = vn[e.b];
       A.edges.set(B.key, { to: B, side: -1, climb: false, vec: e, dir: 0 });
       B.edges.set(A.key, { to: A, side: -1, climb: false, vec: e, dir: 1 });
@@ -65,6 +67,7 @@
     // uiteinden van die tak. De stoep is de zijde van de weg die naar de deur toe ligt.
     const walkSides = [];
     for (const e of G.edges.values()) {
+      if (noWalk(e)) continue;
       const def = PATH_DEF[e.t], off = def.hw + def.walk / 2;
       for (const sg of [1, -1]) { const pts = vecWalkPts(G, e, 0, sg * off); if (pts.length) walkSides.push({ e, sg, pts, reach: e.len }); }
     }

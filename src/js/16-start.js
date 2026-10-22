@@ -44,6 +44,7 @@
 
   let last = performance.now(), frameNo = 0;
   function frame(now) {
+    frameMs += (Math.min(1000, now - last) - frameMs) * 0.1;   // gemiddelde beeldtijd (trage computer: langer stilhouden voor een hoekpunt)
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
     previewGroup.visible = previewActive && ghost.visible && !(mode === 'walk' && previewKey.endsWith('false|walk'));
     crosshairEl.classList.toggle('bad', mode === 'walk' && ghost.visible && previewActive && previewKey.endsWith('false|walk'));

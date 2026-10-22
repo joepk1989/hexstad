@@ -196,8 +196,9 @@
   // Elk vak waar je overheen sleept wordt weg (ook als je snel beweegt: de vakken ertussen worden ingevuld).
   // Waar geen weg mag komen wordt stil overgeslagen; bestaande wegen blijven gewoon liggen.
   // Alles wat een lijn vormt kun je trekken: wegen, paden, looppaden, tunnels en grachten
-  const DRAG_TOOLS = new Set(['pad', 'fietspad', 'kuil', 'heuvel', 'looppad', 'tunnel', 'water', 'vweg', 'vbrd', 'vlaan']);
+  const DRAG_TOOLS = new Set(['pad', 'fietspad', 'kuil', 'heuvel', 'looppad', 'tunnel', 'water', 'vweg', 'vbrd', 'vlaan', 'vsnel', 'vklink', 'vfiets']);
   const roadDrag = { on: false, last: null, count: 0, tool: 'weg' };
+  let frameMs = 16;
   let dakHintShown = false, padHintShown = false;
   // Waar wijs je naar op de grond? Ook op een heuvel: eerst het terrein (en wegen), anders het grondvlak
   function groundHit(cx, cy) {
@@ -311,7 +312,8 @@
     clearTimeout(D.vtimer);
     const arm = ms => { D.vtimer = setTimeout(() => {
       const still = performance.now() - (D.vmoveT || 0);
-      if (still < 600) { arm(600 - still); return; }   // de muis bewoog nog (bijvoorbeeld een trage weergave): nog even wachten
+      const need = Math.min(2000, 600 + Math.max(0, frameMs - 20) * 8);   // bij een trage weergave komen muisbewegingen later binnen
+      if (still < need) { arm(need - still); return; }   // de muis bewoog nog (bijvoorbeeld een trage weergave): nog even wachten
       if (D.on && D.vp && D.vend && !(D.vend[0] === D.vfrom()[0] && D.vend[1] === D.vfrom()[1])) { D.vcorners.push(D.vend); D.voffs.push(D.voff); D.last = null; vecPaintTo(D.vend); toast('Hoekpunt · sleep verder voor de bocht', 1200); }
     }, ms); };
     arm(650);

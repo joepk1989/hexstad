@@ -40,13 +40,15 @@
     vweg: { name: 'Weg', h: 0 },        // alleen als gereedschap: getekende weg (vrije lijn, sleep van vak naar vak)
     vbrd: { name: 'Brede weg', h: 0 },  // idem, vier rijstroken
     vlaan: { name: 'Laan', h: 0 },      // idem, met middenberm en bomen
+    vsnel: { name: 'Snelweg', h: 0 }, vklink: { name: 'Klinkerstraat', h: 0 }, vfiets: { name: 'Fietspad', h: 0 },   // idem
+    vrot: { name: 'Rotonde', h: 0 },    // klik op een vak: rotonde; wegen die erin uitkomen sluiten erop aan
     tophoog: { name: 'Ophogen', h: 0 }, tafgraaf: { name: 'Afgraven', h: 0 }, tvlak: { name: 'Egaliseren', h: 0 },   // terrein boetseren (zie 14b)
     tglad: { name: 'Gladstrijken', h: 0 }, thelling: { name: 'Helling trekken', h: 0 },
     module: { name: 'Module', h: 0 },   // alleen als gereedschap: een bewaarde schets plaatsen   // alleen als gereedschap: bewaard als breed pad (pad32)
   };
   // Het palet is in groepen verdeeld; het scrollwiel loopt ze allemaal door
   const CATS = [
-    { name: 'Wegen', tools: ['vweg', 'vbrd', 'vlaan'], todo: ['Rotonde', 'Spoor', 'Parkeren'] },   // getekende wegen; de oude vakwegen zijn uit het palet (bestaande steden tonen ze nog)
+    { name: 'Wegen', tools: ['vweg', 'vbrd', 'vlaan', 'vsnel', 'vklink', 'vfiets', 'vrot'], todo: ['Spoor', 'Parkeren'] },   // getekende wegen; de oude vakwegen zijn uit het palet (bestaande steden tonen ze nog)
     { name: 'Paden', tools: ['pad', 'fietspad', 'looppad', 'randpad', 'trap', 'trappad'], todo: ['Brugpad', 'Plein'] },
     { name: 'Gebouwen', tools: ['woning', 'kantoor', 'dak'], todo: ['Winkel', 'School', 'Fabriek'] },
     { name: 'Groen en water', tools: ['park', 'water'], todo: ['Bomen', 'Hagen', 'Vijver', 'Fontein'] },
@@ -54,7 +56,7 @@
     { name: 'Modules', tools: ['module'], todo: ['Brug', 'Poort', 'Toren'] },   // blok, muur, tunnel, tribune, zuilen en hof zijn modules geworden (zie 08b); bestaande steden tonen ze nog
   ];
   const TOOLS = [...CATS.flatMap(c => c.tools), 'gum'];
-  const VEC_TOOLS = new Set(['vweg', 'vbrd', 'vlaan']), VEC_T = { vweg: 'weg', vbrd: 'brd', vlaan: 'laan' };   // getekende wegen: lijnen, geen vakken
+  const VEC_TOOLS = new Set(['vweg', 'vbrd', 'vlaan', 'vsnel', 'vklink', 'vfiets']), VEC_T = { vweg: 'weg', vbrd: 'brd', vlaan: 'laan', vsnel: 'snel', vklink: 'klink', vfiets: 'fiets' };   // getekende wegen: lijnen, geen vakken
   const TOOL_LABEL = {};
   const DIRECTIONAL = new Set(['trap', 'helling', 'muur', 'trappad', 'tribune', 'hofhelling']);   // met een richting, bewaard als trap0…5 enz.
   const dirOf = t => +t.replace(/\D/g, '');
@@ -177,7 +179,7 @@
       const obj = JSON.parse(raw);
       const m = new Map();
       if (Array.isArray(obj.__e)) m.edges = new Map(obj.__e.filter(e => Array.isArray(e) && typeof e[0] === 'string' && (e[1] === 'weg' || e[1] === 'brd' || e[1] === 'pad')));
-      if (Array.isArray(obj.__p)) m.paths = obj.__p.filter(p => p && ['weg', 'brd', 'laan', 'pad'].includes(p.t) && Array.isArray(p.p) && p.p.length > 1 && p.p.every(a => Array.isArray(a) && isFinite(a[0]) && isFinite(a[1])));
+      if (Array.isArray(obj.__p)) m.paths = obj.__p.filter(p => p && ['weg', 'brd', 'laan', 'pad', 'snel', 'klink', 'fiets', 'rot'].includes(p.t) && Array.isArray(p.p) && p.p.length > (p.t === 'rot' ? 0 : 1) && p.p.every(a => Array.isArray(a) && isFinite(a[0]) && isFinite(a[1])));
       if (Array.isArray(obj.__i)) m.inst = obj.__i.filter(x => x && x.m && Array.isArray(x.m.edges) && isFinite(x.q) && isFinite(x.r) && isFinite(x.rot));
       if (obj.__g && typeof obj.__g === 'object') { m.terr = {}; for (const k in obj.__g) { const v = +obj.__g[k]; if (/^-?\d+,-?\d+$/.test(k) && isFinite(v) && v > 0) m.terr[k] = Math.min(TERR_TOP, v); } }
       if (Array.isArray(obj.__t)) m.tris = obj.__t.filter(t => t && TRI_STY[t.k] && Array.isArray(t.v) && t.v.length === 6 && t.v.every(isFinite));

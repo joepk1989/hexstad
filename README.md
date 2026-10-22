@@ -37,14 +37,16 @@ Wat er in de bestanden zit:
 
 ## Het wegsysteem
 
-Wegen zijn vrij getekende lijnen (`cells.paths`, typen `weg`, `brd`, `laan`, `pad`). Je sleept recht van beginpunt naar eindpunt (vasthouden = hoekpunt, voor een bocht in één sleep); de punten liggen op zeshoekmiddens.
+Wegen zijn vrij getekende lijnen (`cells.paths`). Typen: `weg` (9 m), `brd` (brede weg, 13 m), `laan` (met middenberm en bomen), `snel` (snelweg 2×2 met vluchtstrook en middenbarrière), `klink` (klinkerstraat, stapvoets, geen lichten), `fiets` (fietspad), `pad`, en `rot` (rotonde: één punt, het midden). Je sleept recht van beginpunt naar eindpunt (vasthouden = hoekpunt, voor een bocht in één sleep); de punten liggen op zeshoekmiddens. Een rotonde zet je met een klik.
 
-- **Graaf** (`vecGraphOf`): de lijnen worden bij kruisingen en T-aansluitingen doorgeknipt tot takken tussen knopen. Knopen binnen 7 m smelten samen.
-- **Kruising, bocht en doodlopend eind** krijgen elk hun eigen vorm: een kruisingsvak (minimaal 7,5 m van de knoop), een afgeronde stoep om een bocht, en een **ronde kop** op een doodlopend eind (`vecHead`). De kop is een halve cirkel met het middelpunt op het midden van het laatste vak; een gewone weg is er 2,1 m breder voor, zodat auto's kunnen keren.
-- **Auto's** rijden rechts op een rijstrook van de tak, kiezen op een knoop een volgende tak, stoppen voor verkeerslichten en keren in de ronde kop (eerst naar buiten zwenken, dan een halve cirkel).
-- **Mensen** lopen over de stoepen en komen binnen via voordeuren die aan de dichtstbijzijnde stoep koppelen.
-- **Vakken** onder een weg krijgen een zandkleur en zijn niet bebouwbaar; een weg stopt vóór gebouwen en water.
-- **Oude steden**: vakwegen, vak-lanen, bruggen en wegen onder een tunnel worden bij het laden omgezet in getekende wegen (`convertCellRoads`). Een brug is nu een vlakke getekende weg over het water, zonder brugdek.
+- **Graaf** (`vecGraphOf`): de lijnen worden bij kruisingen en T-aansluitingen doorgeknipt tot takken tussen knopen. Knopen binnen 7 m smelten samen. Een lijn die **zichzelf** kruist of op zichzelf uitkomt wordt ook geknipt, en een **gesloten lus** (eindpunt = beginpunt) wordt in tweeën gedeeld, met afgeronde hoeken rondom.
+- **Kruising, bocht en doodlopend eind** krijgen elk hun eigen vorm: een kruisingsvak met **ronde stoephoeken** (een boog die aan beide stoepranden raakt), **zebrapaden en stopstrepen** bij verkeerslichten, een afgeronde stoep om een bocht, en een **ronde kop** op een doodlopend eind (`vecHead`).
+- **Rotonde** (`ROT`, `clipCircle`): wegen houden op bij de rijbaan van de rotonde; waar ze de cirkel raken komt een aansluiting. De rijbaan bestaat uit eenrichtingstakken (`ring`, tegen de klok in van boven gezien). Eiland met overrijdbare klinkerrand en een boom, stoep rondom (open bij de wegen), haaientanden bij elke inrit. Auto's op de rotonde hebben voorrang; wie erop wil, wacht bij de haaientanden.
+- **Snelweg**: geen stoep maar een grasberm en vangrail; geen verkeerslichten (een aansluiting is invoegen). Een andere weg die hem **kruist** gaat er altijd met een **viaduct** overheen: 7 m boven de snelweg met opritten van 55 m (`pathProf`), een brugdek zonder wand tot de grond (`roadSpan`), geen dijk onder de overspanning en een pijler op de middenberm. Auto's rijden er 80 km/u.
+- **Auto's** rijden rechts op een rijstrook van de tak, kiezen op een knoop een volgende tak (niet tegen de rijrichting in op een rotonde), stoppen voor verkeerslichten en keren in de ronde kop.
+- **Mensen** lopen over de stoepen (niet langs de snelweg of over de rotonde-rijbaan) en komen binnen via voordeuren die aan de dichtstbijzijnde stoep koppelen.
+- **Vakken** onder een weg zijn niet bebouwbaar; een weg stopt vóór gebouwen en water.
+- **Oude steden**: vakwegen, vak-lanen, bruggen en wegen onder een tunnel worden bij het laden omgezet in getekende wegen (`convertCellRoads`).
 
 
 Bouwen:

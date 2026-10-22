@@ -127,7 +127,7 @@
     function useLeg(c, L) {
       c.q = L.q; c.r = L.r; c.inS = L.inS; c.outS = L.outS; c.path = L.path; c.cx = L.cx; c.cz = L.cz;
       c.vec = !!L.vec; c.u = !!L.u; c.eid = L.eid; c.dir = L.dir; c.lane = L.lane; c.nodeEnd = L.nodeEnd; c.exitPt = L.exitPt; c.exitD = L.exitD;
-      c.kind = L.kind; c.pri = 1;
+      c.kind = L.kind; c.pri = ['ring', 'snel'].includes((VG.edges.get(L.eid) || {}).t) ? 2 : 1;   // op de rotonde en de snelweg heb je voorrang
       c.next = planNext(c);
     }
     // Klopt een (gepland) stuk rijlijn nog na een verbouwing?
@@ -147,7 +147,7 @@
     // T-aansluitingen, takken ertussen. Een auto rijdt op de rechter rijstrook van een tak, kiest op een knoop een
     // volgende tak (liefst rechtdoor) en keert aan een dood eind om de kop van de weg.
     let VG = { nodes: [], edges: new Map(), totalLen: 0, ver: 0 };
-    const VLANE = { weg: [1.25], brd: [1.1, 3.4], laan: [3.125] };   // afstand van de rijstrook tot het midden van de weg
+    const VLANE = { weg: [1.25], brd: [1.1, 3.4], laan: [3.125], snel: [2.65, 6.15], klink: [1.3], ring: [0] };   // afstand van de rijstrook tot het midden van de weg
     function vecGraph() { if (vecDirty) { vecDirty = false; VG = vecGraphOf(cells.paths, VG.ver + 1); } return VG; }
     const nodeTrim = n => { const H = vecHead(VG, n); return H ? H.trimLane : (vecJunctionTrim(VG, n) || vecBendTrim(VG, n, 2.0)); };   // voor een kruising: het kruisingsvak; op een doodlopend eind: de ronde keerkop
     const lanePts = (e, dir, off) => offsetPts(dir ? e.pts.slice().reverse() : e.pts, off);   // rijstrook: rechts van het midden
@@ -177,7 +177,7 @@
       const from = { pt: c.exitPt, d: c.exitD };
       if (c.u) return vecLeg(e, c.dir ? 0 : 1, c.lane, from);
       const nEnd = c.dir ? e.a : e.b;   // uit de tak zelf halen: knoopnummers verschuiven als de graaf opnieuw gebouwd is
-      const N = VG.nodes[nEnd], opts = N.edges.filter(id => id !== c.eid).map(id => VG.edges.get(id));
+      const N = VG.nodes[nEnd], opts = N.edges.filter(id => id !== c.eid).map(id => VG.edges.get(id)).filter(o => !o.oneway || o.a === nEnd);   // eenrichting (rotonde): alleen in de rijrichting
       if (!opts.length) return vecULeg(e, c.dir, c.lane, from);
       const sc = opts.map(o => { const od = o.a === nEnd ? 0 : 1; let d0 = dirAt(o.pts, od ? o.pts.length - 1 : 0); if (od) d0 = [-d0[0], -d0[1]]; return { o, od, cos: d0[0] * from.d[0] + d0[1] * from.d[1] }; });
       const straight = sc.filter(x => x.cos > 0.8), ch = straight.length && Math.random() < 0.55 ? pick(straight) : pick(sc);
@@ -187,7 +187,7 @@
       let x = Math.random() * VG.totalLen, e = null;
       for (const E of VG.edges.values()) { e = E; x -= E.len; if (x <= 0) break; }
       if (!e) return false;
-      c.prev = null; useLeg(c, vecLeg(e, Math.random() < 0.5 ? 0 : 1, laneFor(e, 99), null)); return true;
+      c.prev = null; useLeg(c, vecLeg(e, e.oneway || Math.random() < 0.5 ? 0 : 1, laneFor(e, 99), null)); return true;
     }
     // Licht bij het binnenrijden van een stuk rijlijn
     function entryLight(L, t) {
@@ -460,7 +460,7 @@
           if (c.crash) { crashStep(c, dt, peds, lying); continue; }
           const ch = Math.cos(c.h), sh = Math.sin(c.h);
           // gewenste snelheid: 30 km/u, langzamer in bochten en bij het keren (roekeloos: 75 km/u en bochten op de rand)
-          let want = reckless ? 21 : 8.3; c.why = ''; c.yieldTo = -1;
+          let want = reckless ? 21 : ({ snel: 22, klink: 4.5, ring: 6.5 }[(VG.edges.get(c.eid) || {}).t] ?? 8.3); c.why = ''; c.yieldTo = -1;   // snelweg 80 km/u, klinkers stapvoets, rotonde rustig
           const [, , hAhead] = posOn(c, c.s + Math.max(7, c.v * 1.4));
           let dh = hAhead - c.h; dh = Math.abs(Math.atan2(Math.sin(dh), Math.cos(dh)));
           const straightNow = c.outS === (c.inS + 3) % 6 && dh < 0.15;   // rechtdoor, en er komt nog geen bocht
@@ -482,6 +482,15 @@
                 const w = gap < 0.3 ? 0 : brakeTo(gap);
                 if (w < want) { want = w; held = true; c.why = 'light'; }
               }
+            }
+          }
+          // de rotonde of de snelweg op: voorrang geven aan wie daar al rijdt en naar deze aansluiting toe komt
+          const tNext = c.next && (VG.edges.get(c.next.eid) || {}).t, tNow2 = (VG.edges.get(c.eid) || {}).t;
+          if (!reckless && (tNext === 'ring' || tNext === 'snel') && tNow2 !== tNext) {
+            const N = VG.nodes[c.next.dir ? VG.edges.get(c.next.eid).b : VG.edges.get(c.next.eid).a], gap = c.path.len - c.s - 0.8, reach = tNext === 'snel' ? 45 : 13;
+            if (N && gap > -0.6 && gap < 25) {
+              const coming = list.some(o => o !== c && !o.crash && (VG.edges.get(o.eid) || {}).t === tNext && Math.hypot(o.x - N.x, o.z - N.z) < reach && ((N.x - o.x) * Math.cos(o.h) + (N.z - o.z) * Math.sin(o.h)) > -1.5);
+              if (coming) { const w = gap < 0.3 ? 0 : brakeTo(gap); if (w < want) { want = w; held = true; c.why = 'voorrang'; } }
             }
           }
           // een keerlus is maar breed genoeg voor één auto tegelijk: wachten tot hij vrij is

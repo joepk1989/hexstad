@@ -106,6 +106,8 @@
     try { refreshOpt(); } catch (e) { /* optiebalk bestaat nog niet tijdens het opstarten */ }
     pendingKey = null; if (coarse && mode === 'build') { ghost.visible = false; ghostArrow.visible = false; }
     if (mode === 'build') updateGhost();
+    if (t === 'vrot') toast((coarse ? 'Tik' : 'Klik') + ' op een vak voor een rotonde · trek daarna wegen naar het midden', 2600);
+    if (t === 'vsnel') toast('Snelweg: wegen die hem kruisen gaan er vanzelf met een viaduct overheen', 2600);
     if (t === 'dak' && !dakHintShown) { dakHintShown = true; toast((coarse ? 'Tik' : 'Klik') + ' op een dak voor een dakkapel · nog eens voor voor en achter · nog eens voor zonder', 3600); }
     if (t === 'pad' && !padHintShown) { padHintShown = true; toast((coarse ? 'Pad: vasthouden en slepen trekt een pad · tik' : 'Pad: ingedrukt houden en slepen trekt een pad · klik') + ' op een pad voor bomen of een andere richting', 4200); }
   }
