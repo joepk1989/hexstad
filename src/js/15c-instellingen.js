@@ -3,7 +3,7 @@
   // beeldscherpte, wolken) en de opties die ook in de balk staan (raster, tijd, mensen, auto's, geluid).
   // Beeld en prestaties worden bewaard in localStorage 'hexstad-set'.
   const SET_KEY = 'hexstad-set';
-  const setState = (() => { try { return Object.assign({ terr: 'normaal', shadow: 'zacht', res: 'scherp', clouds: true, contour: true }, JSON.parse(localStorage.getItem(SET_KEY) || '{}')); } catch (e) { return { terr: 'normaal', shadow: 'zacht', res: 'scherp', clouds: true, contour: true }; } })();
+  const setState = (() => { const d = { terr: 'laag', shadow: 'zacht', res: 'scherp', clouds: true, contour: true }; try { const o = Object.assign(d, JSON.parse(localStorage.getItem(SET_KEY) || '{}')); if (!o.tv) { o.terr = 'laag'; o.tv = 1; } return o; } catch (e) { return d; } })();   // low poly is de standaard; tv = opgeslagen na die wissel
   const saveSet = () => { try { localStorage.setItem(SET_KEY, JSON.stringify(setState)); } catch (e) { /* geen opslag */ } };
   function applyShadow(v) {
     sun.castShadow = v !== 'uit';
