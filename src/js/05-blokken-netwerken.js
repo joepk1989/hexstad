@@ -735,9 +735,13 @@
         const f = FRAMES[k], d = INNER - best, u = Math.max(-R / 2, Math.min(R / 2, x * f.tx + z * f.tz));
         const [cA, cB] = EDGE_C[k], b = u < 0 ? cv[cA] + (mid[k] - cv[cA]) * (u + R / 2) / (R / 2) : mid[k] + (cv[cB] - mid[k]) * u / (R / 2);
         const diff = Math.abs(b - own); if (diff < 1e-3) return own;
-        const band = soft && nb[k].terr ? INNER * 0.98 : Math.min(INNER * 0.97, Math.max(TERR_BAND, 2.2 + diff * 0.75));   // tussen twee heuvelvakken glooiend; naar vlakke grond een rand met plateau
+        // Tussen twee heuvelvakken: een rechte helling over het hele vak, zodat de helling zonder knik doorloopt in
+        // het volgende vak. Naar vlakke grond: zacht beginnen en zacht eindigen (geen knik bij de grond), over bijna
+        // het hele vak; alleen als er iets op het vak staat blijft er een plateau in het midden.
+        if (soft && nb[k].terr) { const band = INNER * 0.99; return d >= band ? own : own + (b - own) * (1 - d / band); }
+        const band = soft ? INNER * 0.92 : Math.min(INNER * 0.97, Math.max(TERR_BAND, 2.2 + diff * 0.75));
         if (d >= band) return own;
-        return own + (b - own) * smooth01(1 - d / band);
+        const t = 1 - d / band; return own + (b - own) * t * t * t * (t * (t * 6 - 15) + 10);   // smootherstep
       };
       fn.key = key;
       if (terrFnCache.size > 4000) terrFnCache.clear();
@@ -746,9 +750,38 @@
     return fn;
   }
   // hoogte van het maaiveld (zonder wegen) op een punt in de wereld: heuvels; elders 0
+  const tfCache = new Map(); let tfVer = -1;
   function terrainHeightAt(x, z) {
-    const [q, r] = worldToCell(x, z), fn = terrFieldAbs(q, r); if (!fn) return 0;
-    const c = cellToWorld(q, r); return fn(x - c.x, z - c.z);
+    if (tfVer !== terrVer) { tfCache.clear(); tfVer = terrVer; }
+    const [q, r] = worldToCell(x, z), k = q + ',' + r;
+    let e = tfCache.get(k); if (!e) { const fn = terrFieldAbs(q, r), c = cellToWorld(q, r); e = { fn, cx: c.x, cz: c.z }; tfCache.set(k, e); }
+    return e.fn ? e.fn(x - e.cx, z - e.cz) : 0;
+  }
+  // Naar vlakke grond (een vak zonder heuvel) loopt het terrein in 3 m zacht naar 0: geen randje bij de grond
+  function terrMask(X, Z) {
+    const [q, r] = worldToCell(X, Z); let m = 1;
+    for (const [dq, dr] of [[0, 0], ...NEIGH]) {
+      const nq = q + dq, nr = r + dr; if (terrN(nq, nr)) continue;
+      const c = cellToWorld(nq, nr); let d = -1e9; for (const f of FRAMES) d = Math.max(d, (X - c.x) * f.nx + (Z - c.z) * f.nz - INNER);
+      if (d <= 0) return 0; m = Math.min(m, smooth01(d / 3));
+    }
+    return m;
+  }
+  // Glad terrein: het ruwe hoogteveld bemonsterd op een vast wereldrooster (0,75 m) rond het vak en vervaagd met een
+  // gaussische kern (σ ≈ 1,9 m). Omdat het rooster aan de wereld vastzit, rekenen twee buurvakken op hun gedeelde rand
+  // precies hetzelfde uit: geen naden, geen piramidevlakken. Geeft een functie (x, z lokaal) → hoogte, en normalen.
+  const TG = 0.75, TB = 5;   // roosterafstand, halve kernbreedte in roostercellen
+  const TK = (() => { const k = []; let s = 0; for (let i = -TB; i <= TB; i++) { const w = Math.exp(-((i * TG) ** 2) / (2 * 1.9 * 1.9)); k.push(w); s += w; } return k.map(w => w / s); })();
+  function smoothTerrain(cx, cz) {
+    const ext = R + 1 + TB * TG, i0 = Math.floor((cx - ext) / TG), i1 = Math.ceil((cx + ext) / TG), j0 = Math.floor((cz - ext) / TG), j1 = Math.ceil((cz + ext) / TG);
+    const W = i1 - i0 + 1, H = j1 - j0 + 1, raw = new Float32Array(W * H), tmp = new Float32Array(W * H), out = new Float32Array(W * H);
+    for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) raw[j * W + i] = terrainHeightAt((i0 + i) * TG, (j0 + j) * TG);
+    for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { let v = 0; for (let k = -TB; k <= TB; k++) { const ii = Math.min(W - 1, Math.max(0, i + k)); v += raw[j * W + ii] * TK[k + TB]; } tmp[j * W + i] = v; }
+    for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { let v = 0; for (let k = -TB; k <= TB; k++) { const jj = Math.min(H - 1, Math.max(0, j + k)); v += tmp[jj * W + i] * TK[k + TB]; } out[j * W + i] = v; }
+    const at = (X, Z) => { const fx = X / TG - i0, fz = Z / TG - j0, i = Math.max(0, Math.min(W - 2, Math.floor(fx))), j = Math.max(0, Math.min(H - 2, Math.floor(fz))), u = fx - i, v = fz - j; return (out[j * W + i] * (1 - u) + out[j * W + i + 1] * u) * (1 - v) + (out[(j + 1) * W + i] * (1 - u) + out[(j + 1) * W + i + 1] * u) * v; };
+    const fn = (x, z) => at(cx + x, cz + z) * terrMask(cx + x, cz + z);
+    fn.normal = (x, z) => { const e = 0.5, dx = (fn(x + e, z) - fn(x - e, z)) / (2 * e), dz = (fn(x, z + e) - fn(x, z - e)) / (2 * e), l = Math.hypot(dx, 1, dz); return [-dx / l, 1 / l, -dz / l]; };
+    return fn;
   }
   function fieldFn(own, tg, band = BAND) {
     return (x, z) => {
