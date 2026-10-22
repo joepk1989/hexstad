@@ -9,7 +9,7 @@
   // Het landschap is in stukken van 32 × 32 m opgedeeld; een bewerking tekent alleen de stukken opnieuw die het raakt.
   // Detail (instelling): roosterafstand 1 m (hoog), 2 m (normaal) of 4 m met platte vlakken (low poly, snelst)
   const TERR_TOP = 30, TSZ = 32, TSIG = 3, TPLAT = 3, TREACH = 2 * INNER + 9;
-  const TQ = { hoog: { st: 1, flat: false }, normaal: { st: 2, flat: false }, laag: { st: 4, flat: true } };
+  const TQ = { hoog: { st: 1, flat: false }, normaal: { st: 2, flat: false }, laag: { st: 4, flat: true } };   // laag: driehoeken van het raster (zie lpMesh)
   let TST = 2, TBL = 4, TN = TSZ / 2 + 3, TK1 = [], terrQ = 'normaal';
   function terrSetup(q) {
     terrQ = TQ[q] ? q : 'normaal'; TST = TQ[terrQ].st; TBL = Math.ceil(2.7 * TSIG / TST); TN = TSZ / TST + 3;   // punten per rij: −1 … n+1
@@ -71,8 +71,98 @@
     }
     return wBest > 0 ? v + (tBest - v) * wBest : v;
   }
+
+  // ---------- Low poly: het terrein op het driehoeksrooster van de vakken ----------
+  // Elk vak is zes driehoeken: het midden op de hoogte van het vak, elk hoekpunt op de laagste van de drie vakken
+  // die daar samenkomen. Eén verhoogd vak is zo een puntje; een groep wordt een plateau met schuine randen
+  // (een dijk). Een hoekpunt of midden binnen het bereik van een weg komt op de hoogte van de weg: de driehoeken
+  // onder en naast de weg liggen dan in het vlak van de weg en de flank begint precies aan de rand.
+  const lpOn = () => terrQ === 'laag';
+  const LPC = new Map(), LPV = new Map(), LPR = new Map();
+  const lpClear = () => { LPC.clear(); LPV.clear(); LPR.clear(); };
+  const LPA = [0, 1, 2, 3, 4, 5].map(i => { const a = (30 + 60 * i) * Math.PI / 180; return [Math.cos(a), Math.sin(a)]; });
+  function lpCell(q, r) { const k = q + ',' + r; let v = LPC.get(k); if (!v) LPC.set(k, v = { g: gH(q, r), occ: terrOcc(q, r), cut: terrCut(q, r) }); return v; }
+  function lpCorner(x, z, i) {   // basishoogte van hoekpunt i van het vak waarvan (x, z) het hoekpunt is
+    const k = Math.round(x * 4) + ',' + Math.round(z * 4); let v = LPV.get(k);
+    if (v === undefined) {
+      v = 1e9; const [ax, az] = LPA[i];
+      for (const t of [Math.PI, Math.PI / 3, -Math.PI / 3]) { const ca = Math.cos(t), sa = Math.sin(t), dx = ax * ca - az * sa, dz = ax * sa + az * ca, [q, r] = worldToCell(x + dx * 2, z + dz * 2); v = Math.min(v, lpCell(q, r).g); }
+      LPV.set(k, v);
+    }
+    return v;
+  }
+  // Wegvak: een vak dat de weg (met stoep) raakt. Al zijn hoekpunten en zijn midden komen op weghoogte.
+  function lpRoadCell(q, r) {
+    const C = lpCell(q, r); if (C.rc !== undefined) return C.rc;
+    C.rc = false; const c = cellToWorld(q, r), P = [[c.x, c.z]];
+    for (let i = 0; i < 6; i++) { const [ax, az] = LPA[i], [bx, bz] = LPA[(i + 1) % 6]; P.push([c.x + ax * R, c.z + az * R], [c.x + (ax + bx) * R / 2, c.z + (az + bz) * R / 2]); }
+    for (const s of tRoadSegs) {
+      const m = s[8] + R;
+      if (c.x < Math.min(s[0], s[2]) - m || c.x > Math.max(s[0], s[2]) + m || c.z < Math.min(s[1], s[3]) - m || c.z > Math.max(s[1], s[3]) + m) continue;
+      const dx = s[2] - s[0], dz = s[3] - s[1], l2 = dx * dx + dz * dz || 1e-9;
+      for (const [x, z] of P) { const f = Math.max(0, Math.min(1, ((x - s[0]) * dx + (z - s[1]) * dz) / l2)); if (Math.hypot(s[0] + dx * f - x, s[1] + dz * f - z) < s[8] + 0.3) { C.rc = true; return true; } }
+    }
+    return false;
+  }
+  function lpRoad(x, z) {   // hoogte van de dichtstbijzijnde weg bij dit punt
+    const k = Math.round(x * 4) + ',' + Math.round(z * 4); let v = LPR.get(k);
+    if (v !== undefined) return v;
+    v = null; let dB = 1e9;
+    for (const s of tRoadSegs) {
+      const m = s[8] + 2 * R;
+      if (x < Math.min(s[0], s[2]) - m || x > Math.max(s[0], s[2]) + m || z < Math.min(s[1], s[3]) - m || z > Math.max(s[1], s[3]) + m) continue;
+      const dx = s[2] - s[0], dz = s[3] - s[1], l2 = dx * dx + dz * dz || 1e-9, f = Math.max(0, Math.min(1, ((x - s[0]) * dx + (z - s[1]) * dz) / l2));
+      const d = Math.hypot(s[0] + dx * f - x, s[1] + dz * f - z); if (d >= dB) continue;
+      dB = d; v = Math.max(0, s[4] + (s[5] - s[4]) * f - 0.15);
+    }
+    LPR.set(k, v); return v;
+  }
+  // de vakken rond hoekpunt i van een vak (dat vak zelf en de twee buren)
+  const lpAround = (x, z, i) => { const [ax, az] = LPA[i]; return [Math.PI, Math.PI / 3, -Math.PI / 3].map(t => { const ca = Math.cos(t), sa = Math.sin(t); return worldToCell(x + (ax * ca - az * sa) * 2, z + (ax * sa + az * ca) * 2); }); };
+  // de drie hoekpunten (x, z, h) van de driehoek van vak (q, r) waarin (x, z) ligt; roads: met de wegvakken
+  function lpTri(q, r, x, z, roads) {
+    const c = cellToWorld(q, r), C = lpCell(q, r);
+    let a = Math.atan2(z - c.z, x - c.x) * 180 / Math.PI - 30; a = ((a % 360) + 360) % 360; const i = Math.min(5, Math.floor(a / 60)), j = (i + 1) % 6;
+    const road = (px, pz, b, around) => { if (roads && around.some(([q2, r2]) => lpRoadCell(q2, r2))) { const h = lpRoad(px, pz); if (h !== null) return h; } return b; };
+    const corner = k => { const px = c.x + LPA[k][0] * R, pz = c.z + LPA[k][1] * R; return [px, pz, road(px, pz, C.occ ? C.g : lpCorner(px, pz, k), lpAround(px, pz, k))]; };
+    return [[c.x, c.z, road(c.x, c.z, C.g, [[q, r]])], corner(i), corner(j)];
+  }
+  function lpHeight(x, z, roads) {
+    const [q, r] = worldToCell(x, z), C = lpCell(q, r);
+    if (C.cut) return 0;
+    if (C.occ && (!roads || C.g > 0.01)) return C.g;
+    const [A, B, D] = lpTri(q, r, x, z, roads), det = (B[1] - D[1]) * (A[0] - D[0]) + (D[0] - B[0]) * (A[1] - D[1]);
+    const l1 = ((B[1] - D[1]) * (x - D[0]) + (D[0] - B[0]) * (z - D[1])) / det, l2 = ((D[1] - A[1]) * (x - D[0]) + (A[0] - D[0]) * (z - D[1])) / det;
+    return Math.max(0, A[2] * l1 + B[2] * l2 + D[2] * (1 - l1 - l2));
+  }
+  function lpMesh(c, ci, cj) {
+    const pos = [], col = [], cc = new THREE.Color(), x0 = ci * TSZ, z0 = cj * TSZ;
+    const r0 = Math.floor(z0 / (1.5 * R)) - 1, r1 = Math.ceil((z0 + TSZ) / (1.5 * R)) + 1;
+    for (let r = r0; r <= r1; r++) {
+      const q0 = Math.floor(x0 / (R * SQ3) - r / 2) - 1, q1 = Math.ceil((x0 + TSZ) / (R * SQ3) - r / 2) + 1;
+      for (let q = q0; q <= q1; q++) {
+        const w = cellToWorld(q, r); if (w.x < x0 || w.x >= x0 + TSZ || w.z < z0 || w.z >= z0 + TSZ) continue;
+        const C = lpCell(q, r); if (C.cut || (C.occ && C.g > 0.01)) continue;
+        for (let i = 0; i < 6; i++) {
+          const a = (30 + 60 * i + 30) * Math.PI / 180, [A, B, D] = lpTri(q, r, w.x + Math.cos(a), w.z + Math.sin(a), true);
+          const hm = Math.max(A[2], B[2], D[2]); if (hm < 0.03) continue;
+          const ux = B[0] - A[0], uy = B[2] - A[2], uz = B[1] - A[1], vx = D[0] - A[0], vy = D[2] - A[2], vz = D[1] - A[1];
+          const ny = uz * vx - ux * vz, nx = uy * vz - uz * vy, nz = ux * vy - uy * vx, up = Math.abs(ny) / Math.hypot(nx, ny, nz);
+          const h = (A[2] + B[2] + D[2]) / 3, steep = smooth01((1 - up - 0.3) / 0.25), sh = 0.97 + (hash(q, r, i) % 7) * 0.01;
+          cc.copy(TC0).lerp(TC1, smooth01(h / 5)).lerp(TC3, smooth01((h - 16) / 12) * 0.6).lerp(TC2, steep * 0.75).multiplyScalar(sh);
+          for (const P of (ny > 0 ? [A, B, D] : [A, D, B])) { pos.push(P[0], P[2], P[1]); col.push(cc.r, cc.g, cc.b); }
+        }
+      }
+    }
+    if (!pos.length) return;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    g.computeVertexNormals(); g.computeBoundingSphere();
+    const m = new THREE.Mesh(g, terrMat); m.receiveShadow = true; m.castShadow = true; m.userData.terr = true; m.matrixAutoUpdate = false;
+    terrGroup.add(m); c.mesh = m;
+  }
   function terrRoadsChanged() {   // na het (her)bouwen van de wegen: welke stukken veranderen mee?
-    const old = tRoadSegs; tRoadSegs = [];
+    const old = tRoadSegs; tRoadSegs = []; lpClear();
     for (const p of cells.paths || []) {
       if (p.t === 'rot' && p.p && p.p.length) { const P = pathProf(p), c = p.p[0], edge = ROT.Ro + 2.9; tRoadSegs.push([c[0], c[1], c[0] + 0.01, c[1], P.h[0], P.h[0], P.flat, edge + 18.5, edge]); continue; }   // rotonde: rond vlak
       const def = PATH_DEF[p.t]; if (!def || !p.p || p.p.length < 2) continue;
@@ -85,11 +175,12 @@
   }
   function chunkOf(ci, cj) {
     const k = ci + ',' + cj; let c = tChunks.get(k); if (!c) tChunks.set(k, c = { dirty: true });
-    if (c.base === undefined) c.base = chunkBase(ci, cj);
+    if (c.base === undefined) c.base = lpOn() ? null : chunkBase(ci, cj);
     return c;
   }
   // hoogte van het maaiveld zonder wegen (de wegen volgen dit veld)
   function terrainHeightAt(x, z) {
+    if (lpOn()) return lpHeight(x, z, false);
     const ci = Math.floor(x / TSZ), cj = Math.floor(z / TSZ), c = chunkOf(ci, cj); if (!c.base) return 0;
     const fx = (x - ci * TSZ) / TST + 1, fz = (z - cj * TSZ) / TST + 1, i = Math.min(TN - 2, Math.floor(fx)), j = Math.min(TN - 2, Math.floor(fz)), u = fx - i, v = fz - j, B = c.base;
     return (B[j * TN + i] * (1 - u) + B[j * TN + i + 1] * u) * (1 - v) + (B[(j + 1) * TN + i] * (1 - u) + B[(j + 1) * TN + i + 1] * u) * v;
@@ -104,6 +195,7 @@
   }
   // hoogte van het getekende maaiveld (met wegen): om op te lopen
   function terrGround(x, z) {
+    if (lpOn()) { const ci = Math.floor(x / TSZ), cj = Math.floor(z / TSZ), c = tChunks.get(ci + ',' + cj); return c && c.mesh ? lpHeight(x, z, true) : 0; }
     const ci = Math.floor(x / TSZ), cj = Math.floor(z / TSZ), c = tChunks.get(ci + ',' + cj); if (!c || !c.fin) return 0;
     const fx = (x - ci * TSZ) / TST + 1, fz = (z - cj * TSZ) / TST + 1, i = Math.min(TN - 2, Math.max(0, Math.floor(fx))), j = Math.min(TN - 2, Math.max(0, Math.floor(fz))), u = fx - i, v = fz - j, F = c.fin;
     return (F[j * TN + i] * (1 - u) + F[j * TN + i + 1] * u) * (1 - v) + (F[(j + 1) * TN + i] * (1 - u) + F[(j + 1) * TN + i + 1] * u) * v;
@@ -125,6 +217,7 @@
   function chunkMesh(c, ci, cj) {
     if (c.mesh) { terrGroup.remove(c.mesh); c.mesh.geometry.dispose(); c.mesh = null; }
     c.dirty = false;
+    if (lpOn()) return lpMesh(c, ci, cj);
     const F = chunkFin(c, ci, cj); if (!F) return;
     const n = TSZ / TST, N = n + 1, pos = new Float32Array(N * N * 3), nor = new Float32Array(N * N * 3), col = new Float32Array(N * N * 3), cc = new THREE.Color(), idx = [];
     const at = (i, j) => F[(j + 1) * TN + i + 1];
@@ -155,7 +248,7 @@
   }
   // Vakken veranderd: de stukken eromheen opnieuw (veld en tekening)
   function terrDirty(list) {
-    const seen = new Set();
+    const seen = new Set(); lpClear();
     for (const [q, r] of list) {
       const c = cellToWorld(q, r);
       for (let i = Math.floor((c.x - TREACH) / TSZ); i <= Math.floor((c.x + TREACH) / TSZ); i++) for (let j = Math.floor((c.z - TREACH) / TSZ); j <= Math.floor((c.z + TREACH) / TSZ); j++) {
@@ -177,7 +270,7 @@
   // Alles opnieuw (nieuwe stad): oude verhogingen omzetten, dan alle stukken met terrein of een opgehoogde weg
   function terrRebuildAll() {
     for (const c of tChunks.values()) if (c.mesh) { terrGroup.remove(c.mesh); c.mesh.geometry.dispose(); }
-    tChunks.clear();
+    tChunks.clear(); lpClear();
     if (cells.terr) for (const k in cells.terr) { if (!(cells.terr[k] > 0)) { delete cells.terr[k]; continue; } const [q, r] = k.split(',').map(Number); terrDirty([[q, r]]); }
   }
   function terrMigrate() {   // opgestapelde verhogingen (3 m elk) → terreinhoogte van het vak

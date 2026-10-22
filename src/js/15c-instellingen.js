@@ -18,7 +18,7 @@
   applyShadow(setState.shadow); if (setState.res !== 'scherp') applyRes(setState.res); clouds.setOn(setState.clouds);
   const SET_ROWS = [
     { sub: 'Beeld en prestaties' },
-    { id: 'terr', name: 'Terrein', note: 'Low poly: grove vlakken, veel sneller bij boetseren', opts: [['hoog', 'Hoog'], ['normaal', 'Normaal'], ['laag', 'Low poly']], get: () => setState.terr, set: v => { setState.terr = v; terrQuality(v); } },
+    { id: 'terr', name: 'Terrein', note: 'Low poly: de driehoeken van het raster, strak en het snelst', opts: [['hoog', 'Hoog'], ['normaal', 'Normaal'], ['laag', 'Low poly']], get: () => setState.terr, set: v => { setState.terr = v; terrQuality(v); } },
     { id: 'shadow', name: 'Schaduwen', opts: [['zacht', 'Zacht'], ['eenvoudig', 'Eenvoudig'], ['uit', 'Uit']], get: () => setState.shadow, set: v => { setState.shadow = v; applyShadow(v); } },
     { id: 'res', name: 'Beeldscherpte', note: 'Snel tekent minder pixels', opts: [['scherp', 'Scherp'], ['normaal', 'Normaal'], ['snel', 'Snel']], get: () => setState.res, set: v => { setState.res = v; applyRes(v); } },
     { id: 'clouds', name: 'Wolken', opts: [[true, 'Aan'], [false, 'Uit']], get: () => setState.clouds, set: v => { setState.clouds = v; clouds.setOn(v); } },
