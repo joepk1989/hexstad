@@ -15,11 +15,13 @@ async def main():
         # schermafbeelding van binnen van boven (dak weg: alleen begane grond + 1 laag)
         await pg.evaluate("()=>{const S=window.__SC(); S.setCells({'0,0':['woning','woning'],'0,1':['pad']}); S.orbit.target.set(0,1.5,0); S.orbit.phi=0.75; S.orbit.dist=32; S.orbit.theta=2.4; S.applyOrbit();}")
         await pg.wait_for_timeout(1500); await pg.screenshot(path='bordes_buiten.png')
-        await pg.evaluate("()=>{const S=window.__SC(); S.setCells({'0,0':['woning','woning','woning'],'0,1':['pad']}); S.renderer.clippingPlanes=[new THREE.Plane(new THREE.Vector3(-1,0,0),1.7)]; S.orbit.target.set(0,4,0); S.orbit.phi=1.05; S.orbit.dist=34; S.orbit.theta=1.35; S.applyOrbit();}")
+        await pg.evaluate("()=>{const S=window.__SC(); S.setCells({'0,0':['woning','woning','woning'],'0,1':['pad']}); S.renderer.clippingPlanes=[new THREE.Plane(new THREE.Vector3(0,-1,0),2.95)]; S.orbit.target.set(0,0,0); S.orbit.phi=0.35; S.orbit.dist=30; S.orbit.theta=0.0; S.applyOrbit();}")
         await pg.wait_for_timeout(2000); await pg.screenshot(path='bordes_doorsnede.png')
+        await pg.evaluate("()=>{const S=window.__SC(); S.orbit.phi=0.95; S.orbit.dist=26; S.orbit.theta=2.2; S.applyOrbit();}")
+        await pg.wait_for_timeout(2000); await pg.screenshot(path='bordes_doorsnede2.png')
         await pg.evaluate("()=>{const S=window.__SC(); S.renderer.clippingPlanes=[];}")
         await pg.evaluate("()=>document.getElementById('modeBtn').click()"); await pg.wait_for_timeout(500)
-        for nm,pos in [('bordes_binnen1',[4.0,0.25,7.0,0.45,-0.05]),('bordes_binnen2',[3.5,3.25,6.5,0.3,-0.45])]:
+        for nm,pos in [('bordes_binnen1',[2.0,0.25,-3.0,-2.3,0.05]),('bordes_binnen2',[1.5,3.25,-2.0,-2.4,-0.5])]:
             await pg.evaluate("(a)=>{const p=window.__SC().player; p.x=a[0]; p.y=a[1]; p.z=a[2]; p.yaw=a[3]; p.pitch=a[4]; p.vy=0;}",pos)
             await pg.wait_for_timeout(1500); await pg.screenshot(path=nm+'.png')
         await pg.evaluate("()=>document.getElementById('modeBtn').click()"); await pg.wait_for_timeout(500)
@@ -32,7 +34,9 @@ async def main():
                 await pg.wait_for_timeout(300); tr.append(await pg.evaluate("()=>{const p=window.__SC().player; return [+p.x.toFixed(1),+p.z.toFixed(1),+p.y.toFixed(2)]}"))
             await pg.keyboard.up('w'); return tr
         import math
-        t1=await walk(-0.6, 7.2, 0.0, 22, 0.25); print('steek 1', t1)
-        t2=await walk(0.6, t1[-1][1], math.pi, 22); print('steek 2', t2)
+        tx,tz,nx,nz=0.866,0.5,-0.5,0.866   # zijde 4: t langs de muur, n naar de muur
+        P=lambda u,p:(tx*u+nx*p, tz*u+nz*p)
+        x,z=P(-3.6,5.65); t1=await walk(x,z,math.atan2(-tx,-tz),12,0.25); print('binnenste steek', t1)
+        x,z=P(2.6,6.93); t2=await walk(x,z,math.atan2(tx,tz),12); print('buitenste steek', t2)
         print('fouten:',errs[:3]); await b.close()
 asyncio.run(main())

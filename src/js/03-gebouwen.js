@@ -15,21 +15,15 @@
     }
     return j % 2 ? (STAIR + 3) % 6 : STAIR;
   }
-  // ---------- Trap van hoek naar hoek (zigzag door het hele gebouw) ----------
-  // De trap loopt schuin door het vak langs de lange diagonaal: één steek per verdieping, van de ene hoek naar de
-  // tegenoverliggende hoek, 3 m omhoog over 12 m. Bovenaan kom je uit op de vloer in die hoek (het bordes is gewoon
-  // vloer), en daar begint de volgende steek, op de strook ernaast, terug naar de andere hoek. In de vloer erboven zit
-  // een sleuf waar de steek doorheen komt. Assen: u langs de diagonaal, p dwars; even verdiepingen op p 0…1,25
-  // (van +u naar −u), oneven op p −1,25…0 (van −u naar +u).
-  const SW = { uE: 6.0, w: 1.25, hw: 1.32, steps: 16, A: 1 };
-  const swPar = (q, r, baseY) => stairSide(q, r, baseY) === STAIR ? 0 : 1;
-  function stairFrame(a) {
-    const th = -(a * 60 + 30) * Math.PI / 180, ux = -Math.cos(th), uz = -Math.sin(th);
-    return { tx: ux, tz: uz, nx: -uz, nz: ux, rot: Math.atan2(-uz, ux), a };
-  }
-  const swF = () => stairFrame(SW.A);
-  const swEnds = par => par ? [-SW.uE, SW.uE] : [SW.uE, -SW.uE];   // [begin (onder), eind (boven)] langs u
-  const swHole = par => { const f = swF(), sg = par ? -1 : 1; return [[-SW.uE - 0.05, 0], [SW.uE + 0.05, 0], [SW.uE + 0.05, sg * SW.hw], [-SW.uE - 0.05, sg * SW.hw]].map(([u, p]) => local(f, u, p)); };
+  // ---------- Bordestrap langs een muur (zoals in de schets) ----------
+  // Twee steken naast elkaar langs de binnenkant van één muur, met een bordes in de hoek: je loopt de binnenste steek
+  // op (van links naar rechts, 1,5 m), keert op het bordes in de hoek, en loopt de buitenste steek langs de muur terug
+  // omhoog naar de verdieping, waar je links uitkomt. Per verdieping ligt de trap tegen de overkant (zijde 4, 1, 4, …).
+  // Assen per trap: zijde k van het gebouw; u langs de muur, p van het midden naar de muur (binnenkant muur 7,54).
+  const UT = { u0: -3.0, u1: 2.0, pi0: 5.05, pi1: 6.25, po0: 6.33, po1: 7.53, steps: 10 };
+  const utMax = p => (INNER - WALL_T - p / 2) / (SQ3 / 2);   // tot hier reikt de ruimte bij de hoek (rechts), op diepte p
+  const utHole = k => { const f = FRAMES[k]; return [[UT.u0, UT.pi0 - 0.1], [utMax(UT.pi0 - 0.1) + 0.05, UT.pi0 - 0.1], [utMax(INNER - 0.15) + 0.05, INNER - 0.15], [UT.u0, INNER - 0.15]].map(([u, p]) => local(f, u, p)); };
+  const utLanding = k => { const f = FRAMES[k]; return [[UT.u1, UT.pi0], [utMax(UT.pi0) - 0.05, UT.pi0], [utMax(UT.po1) - 0.05, UT.po1], [UT.u1, UT.po1]].map(([u, p]) => local(f, u, p)); };
   const DOOR = { w: 1.1, y0: FLOOR_T, y1: FLOOR_T + 2.2 };
   const PASS = { w: 1.6, y0: FLOOR_T, y1: FLOOR_T + 2.4 };
   const ST = { u0: -2.08, u1: 2.08, p0: INNER - WALL_T - 1.026, p1: INNER - WALL_T - 0.026, steps: 16 };   // 16 treden van 18,75 cm, 1 m breed
@@ -65,7 +59,8 @@
   // Voordeur: naar een pad of straat op dezelfde hoogte, anders naar een open terras of (op maaiveld) het gras
   function doorFace(q, r, baseY) {
     const nb = NEIGH.map(([dq, dr]) => [q + dq, r + dr]);
-    const cand = [0, 1, 2, 3, 4, 5].filter(k => !buildingAt(nb[k][0], nb[k][1], baseY));   // de trap staat midden in het vak: elke muur kan
+    const ss = stairSide(q, r, baseY);   // niet in de muur waar de trap tegenaan staat
+    const cand = [0, 1, 2, 3, 4, 5].filter(k => k !== ss && !buildingAt(nb[k][0], nb[k][1], baseY));
     let d = cand.find(k => walkableAtLevel(nb[k][0], nb[k][1], baseY) === 2);
     if (d === undefined) d = cand.find(k => walkableAtLevel(nb[k][0], nb[k][1], baseY) === 1);
     if (d === undefined && baseY <= 0.41) d = cand.find(k => columnTop(nb[k][0], nb[k][1]) <= 0.3 && baseOf(stackOf(nb[k][0], nb[k][1])[0]) !== 'water');
@@ -88,7 +83,7 @@
     const g = new THREE.ShapeGeometry(s); geoCache.set(k, g); return g;
   }
   function hexPlane(rad, withHole, up) {
-    const k = 'h' + rad + (withHole && typeof withHole === 'object' ? 'sw' + withHole.par : withHole) + up;
+    const k = 'h' + rad + (withHole && typeof withHole === 'object' ? 'ut' + withHole.side : withHole) + up;
     if (geoCache.has(k)) return geoCache.get(k);
     const sg = up ? -1 : 1;
     const s = new THREE.Shape();
@@ -98,7 +93,7 @@
     }
     s.closePath();
     if (withHole && typeof withHole === 'object') {   // trapgat van de bordestrap
-      const path = new THREE.Path(); swHole(withHole.par).forEach(([x, z], j) => j ? path.lineTo(x, sg * z) : path.moveTo(x, sg * z)); path.closePath(); s.holes.push(path);
+      const path = new THREE.Path(); utHole(withHole.side).forEach(([x, z], j) => j ? path.lineTo(x, sg * z) : path.moveTo(x, sg * z)); path.closePath(); s.holes.push(path);
     } else if (withHole !== false && withHole !== undefined && withHole !== null) {
       const f = FRAMES[withHole === true ? STAIR : withHole], path = new THREE.Path();
       [[HOLE.u0, HOLE.p0], [HOLE.u1, HOLE.p0], [HOLE.u1, HOLE.p1], [HOLE.u0, HOLE.p1]].forEach(([u, p], j) => {
@@ -149,9 +144,10 @@
 
     // Welke zijden krijgen een opening?
     const nb = NEIGH.map(([dq, dr]) => [q + dq, r + dr]);
-    const sPar = swPar(q, r, baseY), hPar = holeHere ? swPar(q, r, baseY - 3) : 0;   // trap naar boven / sleuf van de trap eronder
-    const passage = nb.map(([nq, nr], k) => buildingAt(nq, nr, baseY));
+    const sSide = stairSide(q, r, baseY), hSide = (sSide + 3) % 6;   // trap naar boven / trapgat van de trap eronder
+    const passage = nb.map(([nq, nr], k) => k !== STAIR && k !== (STAIR + 3) % 6 && buildingAt(nq, nr, baseY));
     const door = doorFace(q, r, baseY);
+    const behindStair = (k, c) => { if (!stairUp) return false; const [x, z] = local(FRAMES[k], c, INNER - 0.3), f = FRAMES[sSide]; return x * f.nx + z * f.nz > UT.pi0 - 0.5 && x * f.tx + z * f.tz > UT.u0 - 0.8; };   // raam achter de trap of het bordes
 
     // Muren
     const lin = 2 * (INNER - WALL_T) / SQ3, pc = INNER - WALL_T / 2, ue = pc / SQ3;
@@ -166,12 +162,13 @@
         for (let c = -3.75; c <= 3.76; c += 1.5) {
           let a = c - 0.7, b = c + 0.7;
           a = Math.max(a, -4.12); b = Math.min(b, 4.12);
+          if (behindStair(k, a) || behindStair(k, b)) continue;
           if (hole && a < hole.w / 2 + 0.25 && b > -hole.w / 2 - 0.25) continue;
           out.push({ u: (a + b) / 2, w: b - a, y0: 0.55, y1: 2.72 });
         }
       } else {
         for (const c of [-3, 0, 3]) {
-          if (c === 0 && hole) continue;
+          if ((c === 0 && hole) || behindStair(k, c - 0.6) || behindStair(k, c + 0.6)) continue;
           out.push({ u: c, w: 1.2, y0: 0.9, y1: 2.3 });
         }
       }
@@ -221,9 +218,9 @@
     }
 
     // Vloer, plafond en (als er niets bovenop staat) een plat dak
-    put(office ? M.floorOffice : M.floorWood, placed(hexPlane(R - 0.01, holeHere ? { par: hPar } : false, true), 0, 0, FLOOR_T, 0));
-    col.surfaces.push({ kind: 'hex', cx, cz, top: baseY + FLOOR_T, bottom: baseY, hole: false, holePoly: holeHere ? swHole(hPar) : null });
-    put(M.ceiling, placed(hexPlane(R - 0.01, stairUp ? { par: sPar } : false, false), 0, 0, 2.999, 0));
+    put(office ? M.floorOffice : M.floorWood, placed(hexPlane(R - 0.01, holeHere ? { side: hSide } : false, true), 0, 0, FLOOR_T, 0));
+    col.surfaces.push({ kind: 'hex', cx, cz, top: baseY + FLOOR_T, bottom: baseY, hole: false, holePoly: holeHere ? utHole(hSide) : null });
+    put(M.ceiling, placed(hexPlane(R - 0.01, stairUp ? { side: sSide } : false, false), 0, 0, 2.999, 0));
     if (!stairUp && !isBuilding(st[i + 1])) {
       put(M.roofFlat, placed(hexPlane(R, false, true), 0, 0, 3, 0));
       col.surfaces.push({ kind: 'hex', cx, cz, top: baseY + 3, bottom: baseY + 2.95, hole: false });
@@ -237,20 +234,29 @@
       for (const q of F) for (const i of [q[0], q[1], q[2], q[0], q[2], q[3]]) pos.push(...v[i]);
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(new Array(pos.length / 3 * 2).fill(0), 2)); g.computeVertexNormals(); return g;
     };
-    if (stairUp) {   // één steek van hoek naar hoek, 3 m omhoog
-      const f = swF(), sg = sPar ? -1 : 1, [s0, s1] = swEnds(sPar), n = SW.steps, du = (s1 - s0) / n, rise = 3 / n, pm = sg * (SW.w / 2 + 0.03), y0 = FLOOR_T, yE = 3 + FLOOR_T;
-      for (let j = 0; j < n; j++) { const t = y0 + (j + 1) * rise, b = Math.max(y0, t - rise - 0.15); put(M.stairWood, box(f, s0 + (j + 0.5) * du, pm, (b + t) / 2, Math.abs(du), t - b, SW.w - 0.06)); }
-      put(M.concrete, slab(f, s0, s1, pm, y0 - 0.3, yE - 0.42, y0, yE - 0.12, SW.w - 0.06));   // schuine plaat onder de treden
-      for (const pp of [sg * 0.03, sg * (SW.w + 0.05)]) { put(M.trim, slab(f, s0, s1, pp, y0, yE, y0 + 1.0, yE + 1.0, 0.05)); wallSeg(f, s0, pp, s1, pp, y0 + 0.3, 3, 0.05); }   // leuningen aan beide kanten
-      const lo = Math.min(s0, s1), hi = Math.max(s0, s1);
-      col.surfaces.push({ kind: 'slopeU', cx, cz, tx: f.tx, tz: f.tz, nx: f.nx, nz: f.nz, u0: lo, u1: hi, p0: sg > 0 ? 0 : -SW.w, p1: sg > 0 ? SW.w : 0, y0: baseY + (lo === s0 ? y0 : yE), y1: baseY + (hi === s0 ? y0 : yE), bottom: baseY });
+    if (stairUp) {   // bordestrap langs muur sSide (zie UT)
+      const f = FRAMES[sSide], n = UT.steps, L = UT.u1 - UT.u0, run = L / n, rise = 1.5 / n, y0 = FLOOR_T, yL = FLOOR_T + 1.5, yE = 3 + FLOOR_T;
+      const pI = (UT.pi0 + UT.pi1) / 2, wI = UT.pi1 - UT.pi0, pO = (UT.po0 + UT.po1) / 2, wO = UT.po1 - UT.po0;
+      for (let j = 0; j < n; j++) {
+        const t1 = y0 + (j + 1) * rise; put(M.stairWood, box(f, UT.u0 + (j + 0.5) * run, pI, (y0 + t1) / 2, run, t1 - y0, wI));   // binnenste steek: dicht tot de vloer
+        const t2 = yL + (j + 1) * rise; put(M.stairWood, box(f, UT.u1 - (j + 0.5) * run, pO, t2 - (rise + 0.15) / 2, run, rise + 0.15, wO));   // buitenste steek: treden op een schuine plaat
+      }
+      put(M.concrete, slab(f, UT.u1, UT.u0, pO, yL - 0.42, yE - 0.42, yL - 0.12, yE - 0.12, wO));
+      { const sh = new THREE.Shape(); utLanding(sSide).forEach(([x, z], j) => j ? sh.lineTo(x, z) : sh.moveTo(x, z)); sh.closePath();   // bordes in de hoek
+        const g = new THREE.ExtrudeGeometry(sh, { depth: 0.3, bevelEnabled: false }); g.rotateX(Math.PI / 2); g.translate(0, yL, 0); put(M.stairWood, g); }
+      // leuningen: langs de binnenste steek (kant van de kamer), tussen de steken, langs de open rand van het bordes
+      put(M.trim, slab(f, UT.u0, UT.u1, UT.pi0 - 0.03, y0, yL, y0 + 1.0, yL + 1.0, 0.05)); wallSeg(f, UT.u0 + 0.4, UT.pi0 - 0.03, UT.u1, UT.pi0 - 0.03, y0 + 0.3, 3, 0.05);
+      put(M.trim, slab(f, UT.u0, UT.u1, (UT.pi1 + UT.po0) / 2, y0, yL, yE + 0.9, yL + 1.0, 0.06)); wallSeg(f, UT.u0, (UT.pi1 + UT.po0) / 2, UT.u1, (UT.pi1 + UT.po0) / 2, y0, 3, 0.05);
+      { const um = utMax(UT.pi0) - 0.05; put(M.trim, slab(f, UT.u1, um, UT.pi0 - 0.03, yL, yL, yL + 1.0, yL + 1.0, 0.05)); wallSeg(f, UT.u1, UT.pi0 - 0.03, um, UT.pi0 - 0.03, yL - 0.3, yL + 1.0, 0.05); }
+      col.surfaces.push({ kind: 'slopeU', cx, cz, tx: f.tx, tz: f.tz, nx: f.nx, nz: f.nz, u0: UT.u0, u1: UT.u1, p0: UT.pi0, p1: UT.pi1, y0: baseY + y0, y1: baseY + yL, bottom: baseY });
+      col.surfaces.push({ kind: 'slopeU', cx, cz, tx: f.tx, tz: f.tz, nx: f.nx, nz: f.nz, u0: UT.u0, u1: UT.u1, p0: UT.po0, p1: UT.po1 + 0.1, y0: baseY + yE, y1: baseY + yL, bottom: baseY });
+      col.surfaces.push({ kind: 'poly', cx, cz, pts: utLanding(sSide), top: baseY + yL, bottom: baseY + yL - 0.3 });
     }
-    // Sleuf in de vloer (van de steek eronder) met een balustrade van 1 m, behalve aan de kant waar je boven uitkomt
+    // Trapgat (van de trap eronder) met een balustrade van 1 m, behalve aan de kant waar je boven uitkomt (langs de muur)
     if (holeHere) {
-      const f = swF(), sg = hPar ? -1 : 1, [b0] = swEnds(hPar), hy = FLOOR_T, top = FLOOR_T + 1.0;
-      const rail = (u0, p0, u1, p1) => { put(M.trim, slab(f, u0, u1, (p0 + p1) / 2, hy, hy, top, top, 0.06)); wallSeg(f, u0, p0, u1, p1, hy, top, 0.05); };
-      rail(-SW.uE, 0.03 * sg, SW.uE, 0.03 * sg); rail(-SW.uE, sg * (SW.hw - 0.03), SW.uE, sg * (SW.hw - 0.03));
-      { const g = new THREE.BoxGeometry(0.06, top - hy, SW.hw); const d = local(f, 1, 0), [x, z] = local(f, b0, sg * SW.hw / 2); g.rotateY(Math.atan2(-d[1], d[0])); g.translate(x, (hy + top) / 2, z); put(M.trim, g); wallSeg(f, b0, 0, b0, sg * SW.hw, hy, top, 0.05); }   // boven het begin van de steek eronder
+      const f = FRAMES[hSide], hy = FLOOR_T, top = FLOOR_T + 1.0, pe = UT.pi0 - 0.1, um = utMax(pe);
+      put(M.trim, slab(f, UT.u0, um, pe, hy, hy, top, top, 0.06)); wallSeg(f, UT.u0, pe, um, pe, hy, top, 0.05);
+      put(M.trim, slab(f, UT.u0, UT.u0 + 0.06, (pe + UT.pi1 + 0.04) / 2, hy, hy, top, top, UT.pi1 + 0.04 - pe)); wallSeg(f, UT.u0, pe, UT.u0, UT.pi1 + 0.04, hy, top, 0.05);   // boven het begin van de binnenste steek
     }
 
     for (const [mat, list] of parts) {

@@ -190,7 +190,25 @@
         const D = MV2.DIR6[S.d] || MV2.DIR6[0], a = mv2P(S.a[0], S.a[1], ts), len = (S.n || 2) * ts, w = S.w || 2;
         const dx = D[0] * ts * SQ3 / 2, dz = D[0] * ts / 2 + D[1] * ts, dl = Math.hypot(dx, dz) || 1, ux = dx / dl, uz = dz / dl, nx = -uz, nz = ux;
         const rise = S.h || LH, at = (al, lat) => [a[0] + ux * al + nx * lat, a[1] + uz * al + nz * lat];
-        if (S.k === 'ramp') {
+        if (S.k === 'u') {   // bordestrap: steek 1 (1,5 m) vooruit, bordes, steek 2 ernaast terug naar boven
+          const sd = S.side || 1, h1 = rise / 2, N = Math.max(2, Math.round(len / 0.28)), run = len / N, rs = h1 / N, c2 = sd * w;
+          for (let s = 0; s < N; s++) {
+            const t1 = y0 + (s + 1) * rs; wallBox(Mt.step, at(s * run, 0), at((s + 1) * run, 0), y0, t1, w);
+            pushWalk(at(s * run, -w / 2), at((s + 1) * run, w / 2), at(s * run, w / 2), t1, t1, t1); pushWalk(at(s * run, -w / 2), at((s + 1) * run, -w / 2), at((s + 1) * run, w / 2), t1, t1, t1);
+            const t2 = y0 + h1 + (s + 1) * rs, ua = len - s * run, ub = len - (s + 1) * run; wallBox(Mt.step, at(ua, c2), at(ub, c2), t2 - rs - 0.15, t2, w);
+            pushWalk(at(ua, c2 - w / 2), at(ub, c2 + w / 2), at(ua, c2 + w / 2), t2, t2, t2); pushWalk(at(ua, c2 - w / 2), at(ub, c2 - w / 2), at(ub, c2 + w / 2), t2, t2, t2);
+          }
+          const l0 = Math.min(-w / 2, c2 - w / 2), l1 = Math.max(w / 2, c2 + w / 2), yl = y0 + h1;
+          wallBox(Mt.step, at(len + w / 2, l0), at(len + w / 2, l1), yl - 0.25, yl, w);   // bordes
+          pushWalk(at(len, l0), at(len + w, l1), at(len, l1), yl, yl, yl); pushWalk(at(len, l0), at(len + w, l0), at(len + w, l1), yl, yl, yl);
+          // leuningen (schuine stang op palen): buitenkant steek 1, tussen de steken, buitenkant steek 2, rand van het bordes
+          const bar = (A, ya, B, yb) => { const pa = tfp(A), pb = tfp(B), va = new THREE.Vector3(pa[0], ya, pa[1]), vb = new THREE.Vector3(pb[0], yb, pb[1]), L2 = va.distanceTo(vb); if (L2 < 0.01) return; const g = new THREE.BoxGeometry(0.05, 0.05, L2); g.applyMatrix4(new THREE.Matrix4().lookAt(va, vb, new THREE.Vector3(0, 1, 0))); g.translate((va.x + vb.x) / 2, (ya + yb) / 2, (va.z + vb.z) / 2); put(Mt.metal, g); };
+          const post = (A, yb, yt) => { const p2 = tfp(A), g = new THREE.CylinderGeometry(0.03, 0.03, yt - yb, 6); g.translate(p2[0], (yb + yt) / 2, p2[1]); put(Mt.metal, g); };
+          const out1 = -sd * (w / 2 - 0.05), mid = sd * w / 2, out2 = c2 + sd * (w / 2 - 0.05);
+          bar(at(0, out1), y0 + 0.95, at(len, out1), yl + 0.95); bar(at(0, mid), y0 + rise + 0.95, at(len, mid), yl + 0.95); bar(at(0, out2), y0 + rise + 0.95, at(len, out2), yl + 0.95); bar(at(len + w - 0.05, l0), yl + 0.95, at(len + w - 0.05, l1), yl + 0.95);
+          for (const f of [0, 0.5, 1]) { post(at(f * len, out1), y0 + f * h1, y0 + f * h1 + 0.95); post(at(f * len, out2), yl + (1 - f) * h1, yl + (1 - f) * h1 + 0.95); }
+          addWall(at(0, out1), at(len, out1), y0, yl + 0.95, 0.05); addWall(at(0, mid), at(len, mid), y0, y0 + rise + 0.9, 0.05); addWall(at(0, out2), at(len, out2), y0 + 0.3, y0 + rise + 0.95, 0.05); addWall(at(len + w - 0.05, l0), at(len + w - 0.05, l1), yl - 0.3, yl + 0.95, 0.05);
+        } else if (S.k === 'ramp') {
           const g = new THREE.BufferGeometry(), P = [at(0, -w / 2), at(0, w / 2), at(len, w / 2), at(len, -w / 2)].map(tfp), yb = y0 + 0.05, yt = y0 + rise;
           const pos = [P[0][0], yb, P[0][1], P[2][0], yt, P[2][1], P[1][0], yb, P[1][1], P[0][0], yb, P[0][1], P[3][0], yt, P[3][1], P[2][0], yt, P[2][1]];
           // zijkanten en onderkant: dichte wig

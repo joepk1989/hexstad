@@ -25,6 +25,7 @@
       open: '<path d="M3 12h3M9 12h2M14 12h2M19 12h2M3 6v12M21 6v12" stroke-dasharray="none"/>',
       close: '<path d="M3 12h18M3 7v10M21 7v10"/>',
       stair: '<path d="M3 20h4v-4h4v-4h4V8h4V4"/>',
+      ustair: '<path d="M4 21V5h7v16M13 21V5h7v16M4 5h16"/><path d="M4 9h7M4 13h7M4 17h7M13 9h7M13 13h7M13 17h7" opacity=".55"/>',
       ramp: '<path d="M3 20h18L21 6zM3 20V14"/>',
       roof: '<path d="M3 12l9-8 9 8M6 10v10h12V10"/>',
       object: '<path d="M12 21v-5M12 16c-4 0-6-2.5-6-5.5S9 5 12 3c3 2 6 4.5 6 7.5S16 16 12 16z"/>',
@@ -48,7 +49,7 @@
       ['select', 'Kiezen en verschuiven (V): sleep om te schuiven', 'V'], ['hand', 'Schuiven (H)', 'H'],
       ['floor', 'Vloer (F): schilder driehoeken; rechtermuisknop wist', 'F'], ['fill', 'Vullen (G): vult een ruimte tot aan de muren met vloer; rechtermuisknop maakt leeg', 'G'], ['wall', 'Muur (W): sleep van punt naar punt langs het raster', 'W'], ['room', 'Kamer (M): muren rondom een heel vak', 'M'],
       ['door', 'Deur (D): klik op een muur', 'D'], ['window', 'Raam (R): klik op een muur', 'R'], ['gate', 'Poort (P): klik op een muur', 'P'], ['open', 'Open doorgang (O): klik op een muur', 'O'], ['close', 'Dicht (C): klik op een muur om de opening weg te halen', 'C'],
-      ['stair', 'Trap (T): sleep van onderaan omhoog, in een van zes richtingen', 'T'], ['ramp', 'Helling (L): sleep van onderaan omhoog', 'L'],
+      ['stair', 'Trap (T): sleep van onderaan omhoog, in een van zes richtingen', 'T'], ['ustair', 'Bordestrap (U): sleep de eerste steek; op het bordes keer je en loopt de tweede steek ernaast terug omhoog', 'U'], ['ramp', 'Helling (L): sleep van onderaan omhoog', 'L'],
       ['roof', 'Dak (K): klik op een vak; nog eens voor een plat dak, nog eens om weg te halen', 'K'], ['object', 'Voorwerp (B): klik om neer te zetten; klik erop om te draaien', 'B'],
       ['erase', 'Gum (X): haalt weg wat eronder ligt', 'X'],
     ];
@@ -106,6 +107,7 @@
     function stairGeom(S) {
       const D = MV2.DIR6[S.d] || MV2.DIR6[0], a = P(S.a[0], S.a[1]), t = ts(), dx = D[0] * t * SQ3 / 2, dz = D[0] * t / 2 + D[1] * t, dl = Math.hypot(dx, dz) || 1, ux = dx / dl, uz = dz / dl, nx = -uz, nz = ux, len = (S.n || 1) * t, w = S.w || 1.2;
       const at = (al, lat) => [a[0] + ux * al + nx * lat, a[1] + uz * al + nz * lat];
+      if (S.k === 'u') { const sd = S.side || 1, l0 = sd > 0 ? -w / 2 : -1.5 * w, l1 = sd > 0 ? 1.5 * w : w / 2; return { a, ux, uz, nx, nz, len, w, at, sd, poly: [at(0, l0), at(0, l1), at(len + w, l1), at(len + w, l0)] }; }   // bordestrap: twee steken naast elkaar plus het bordes
       return { a, ux, uz, nx, nz, len, w, at, poly: [at(0, -w / 2), at(0, w / 2), at(len, w / 2), at(len, -w / 2)] };
     }
     function objectAt(x, z, r = 0.9) { const L = lvl(); let best = -1, bd = r; L.o.forEach((o, i) => { const d = Math.hypot(o.x - x, o.z - z); if (d < bd) { bd = d; best = i; } }); return best; }
@@ -135,6 +137,7 @@
       else if (E.tool === 'room') { title.textContent = 'Kamer'; mk(MV2.walls, E.wmat, k => { E.wmat = k; }); hint.textContent = 'Klik op een vak: er komen muren op alle zes zijden. Bestaande muren blijven staan.'; }
       else if (E.tool === 'wall') { title.textContent = 'Muur'; mk(MV2.walls, E.wmat, k => { E.wmat = k; }); hint.textContent = 'Sleep van rasterpunt naar rasterpunt. Haag en hek zijn laag; glas is een glaswand. Een muur op een bestaande muur wisselt het materiaal.'; }
       else if (['door', 'window', 'gate', 'open', 'close'].includes(E.tool)) { title.textContent = MV2.openings[E.tool === 'close' ? '' : E.tool]; hint.textContent = E.tool === 'close' ? 'Klik op een muur om de opening dicht te maken.' : 'Klik op een muur. Deur 1,2 m breed en 2,2 m hoog; raam vanaf 0,9 m; poort tot 2,8 m; open laat alleen een latei staan.'; }
+      else if (E.tool === 'ustair') { title.textContent = 'Bordestrap'; mk({ 1.2: 'Smal 1,2 m', 2: 'Breed 2 m' }, String(E.sw || 1.2), k => { E.sw = +k; }); mk({ 1: 'Keert naar links', '-1': 'Keert naar rechts' }, String(E.usd || 1), k => { E.usd = +k; }); hint.textContent = 'Sleep de eerste steek, van onderaan in de looprichting. Aan het eind komt een bordes (halverwege, 1,5 m); de tweede steek loopt ernaast terug en komt boven uit naast waar je begon. Laat daar een gat in de vloer van de verdieping erboven.'; }
       else if (E.tool === 'stair' || E.tool === 'ramp') { title.textContent = E.tool === 'stair' ? 'Trap' : 'Helling'; mk({ 1.2: 'Smal 1,2 m', 2: 'Breed 2 m', 3: 'Extra breed 3 m' }, String(E.sw || 1.2), k => { E.sw = +k; }); hint.textContent = 'Sleep van het laagste punt omhoog. De trap stijgt 3 m naar de volgende verdieping; laat daar een gat in de vloer. Hoe langer, hoe flauwer.'; }
       else if (E.tool === 'roof') { title.textContent = 'Dak'; hint.textContent = 'Klik op een vak: puntdak, nog eens: plat dak, nog eens: weg. Het dak ligt bovenop deze verdieping.'; }
       else if (E.tool === 'object') { title.textContent = 'Voorwerp'; mk(MV2.objects, E.obj, k => { E.obj = k; }, OBJ_GLYPH); hint.textContent = 'Klik om neer te zetten. Klik op een voorwerp om het 60° te draaien; rechtermuisknop haalt het weg.'; }
@@ -206,7 +209,7 @@
       if (E.tool === 'room') { snap(); const n = roomAt(x, z); changed(); say(n ? n + ' muurdelen' : 'Klik binnen het gebied', 900); return; }
       if (E.tool === 'wall') { if (right) { const w = nearestWall(x, z); if (w) { snap(); delete lvl().w[w.id]; changed(); } return; } E.drag = { kind: 'wall', a: vertexAt(x, z), d: 0, n: 0 }; draw(); return; }
       if (['door', 'window', 'gate', 'open', 'close'].includes(E.tool)) { const before = JSON.stringify(E.m); if (setOpening(x, z, E.tool === 'close' ? '' : E.tool)) { E.undo.push(before); E.redo = []; E.dirty = true; changed(); } return; }
-      if (E.tool === 'stair' || E.tool === 'ramp') { if (right) { const si = stairAt(x, z); if (si >= 0) { snap(); lvl().s.splice(si, 1); changed(); } return; } E.drag = { kind: 'stair', a: vertexAt(x, z), d: 0, n: 0 }; draw(); return; }
+      if (E.tool === 'stair' || E.tool === 'ramp' || E.tool === 'ustair') { if (right) { const si = stairAt(x, z); if (si >= 0) { snap(); lvl().s.splice(si, 1); changed(); } return; } E.drag = { kind: 'stair', a: vertexAt(x, z), d: 0, n: 0 }; draw(); return; }
       if (E.tool === 'roof') { if (!inArea(x, z)) return; const [q, r] = cellAt(x, z), k = q + ',' + r, L = lvl(); snap(); L.r[k] = right ? undefined : L.r[k] === 'hip' ? 'flat' : L.r[k] === 'flat' ? undefined : 'hip'; if (!L.r[k]) delete L.r[k]; changed(); return; }
       if (E.tool === 'object') { const L = lvl(), oi = objectAt(x, z, 0.8); snap(); if (oi >= 0) { if (right) L.o.splice(oi, 1); else L.o[oi].rot = ((L.o[oi].rot || 0) + Math.PI / 3) % (Math.PI * 2); } else if (!right && inArea(x, z)) L.o.push({ t: E.obj, x: Math.round(x * 4) / 4, z: Math.round(z * 4) / 4, rot: 0 }); changed(); return; }
       if (E.tool === 'erase') { snap(); const what = eraseAt(x, z); E.drag = { kind: 'erase' }; changed(); if (what) say(what + ' weggehaald', 700); return; }
@@ -235,7 +238,7 @@
       if (E.pan) { if (!ptr.size) { E.pan = null; cv.style.cursor = E.tool === 'hand' || E.tool === 'select' ? 'grab' : 'crosshair'; } return; }
       const D = E.drag; E.drag = null; if (!D) return;
       if (D.kind === 'wall' && D.n > 0) { snap(); const n = addWalls(D.a, D.d, D.n); if (n) say(n + (n === 1 ? ' muurdeel' : ' muurdelen'), 800); changed(); }
-      else if (D.kind === 'stair' && D.n > 0) { snap(); lvl().s.push({ a: D.a, d: D.d, n: D.n, w: E.sw || 1.2, k: E.tool === 'ramp' ? 'ramp' : 'stair' }); changed(); }
+      else if (D.kind === 'stair' && D.n > 0) { snap(); lvl().s.push(Object.assign({ a: D.a, d: D.d, n: D.n, w: E.sw || 1.2, k: E.tool === 'ramp' ? 'ramp' : E.tool === 'ustair' ? 'u' : 'stair' }, E.tool === 'ustair' ? { side: E.usd || 1 } : {})); changed(); }
       else draw();
     };
     cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
@@ -291,6 +294,10 @@
         const g = stairGeom(S), pts = g.poly.map(p => toS(p[0], p[1]));
         ctx.beginPath(); pts.forEach((p, n) => n ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath();
         ctx.fillStyle = ghost ? 'rgba(242,178,51,0.25)' : (S.k === 'ramp' ? 'rgba(170,140,100,0.55)' : 'rgba(190,180,165,0.6)'); ctx.fill(); ctx.strokeStyle = ghost ? '#f2b233' : '#e9ecdf'; ctx.lineWidth = 1.2; ctx.stroke();
+        if (S.k === 'u') {   // twee steken met treden en pijlen: heen en, ernaast, terug
+          const N = Math.max(2, Math.round(g.len / 0.28)); ctx.beginPath(); for (const c of [0, g.sd * g.w]) for (let n = 1; n <= N; n++) { const a = toS(...g.at(n * g.len / N, c - g.w / 2)), b = toS(...g.at(n * g.len / N, c + g.w / 2)); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); } ctx.strokeStyle = 'rgba(40,40,30,0.5)'; ctx.lineWidth = 1; ctx.stroke();
+          ctx.strokeStyle = '#f2b233'; ctx.lineWidth = 2; ctx.beginPath(); const p0 = toS(...g.at(g.len * 0.1, 0)), p1 = toS(...g.at(g.len + g.w / 2, 0)), p2 = toS(...g.at(g.len + g.w / 2, g.sd * g.w)), p3 = toS(...g.at(g.len * 0.1, g.sd * g.w)); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]); ctx.lineTo(p3[0], p3[1]); ctx.stroke(); return;
+        }
         if (S.k !== 'ramp') { const N = Math.max(2, Math.round(g.len / 0.28)); ctx.beginPath(); for (let n = 1; n < N; n++) { const a = toS(...g.at(n * g.len / N, -g.w / 2)), b = toS(...g.at(n * g.len / N, g.w / 2)); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); } ctx.strokeStyle = 'rgba(40,40,30,0.5)'; ctx.lineWidth = 1; ctx.stroke(); }
         const a0 = toS(...g.at(g.len * 0.15, 0)), a1 = toS(...g.at(g.len * 0.9, 0)); ctx.strokeStyle = '#f2b233'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(a0[0], a0[1]); ctx.lineTo(a1[0], a1[1]); ctx.stroke();
         const ang = Math.atan2(a1[1] - a0[1], a1[0] - a0[0]); ctx.beginPath(); ctx.moveTo(a1[0], a1[1]); ctx.lineTo(a1[0] - 8 * Math.cos(ang - 0.5), a1[1] - 8 * Math.sin(ang - 0.5)); ctx.moveTo(a1[0], a1[1]); ctx.lineTo(a1[0] - 8 * Math.cos(ang + 0.5), a1[1] - 8 * Math.sin(ang + 0.5)); ctx.stroke();
@@ -313,11 +320,11 @@
       // voorbeeld van wat je doet
       const hv = E.hover, D = E.drag;
       if (D && D.kind === 'wall' && D.n > 0) { for (const [i, j, d] of segsBetween(D.a, D.d, D.n)) wallLine(wallKey(i, j, d), { m: E.wmat, o: '' }, false); }
-      else if (D && D.kind === 'stair' && D.n > 0) stairDraw({ a: D.a, d: D.d, n: D.n, w: E.sw || 1.2, k: E.tool === 'ramp' ? 'ramp' : 'stair' }, true);
+      else if (D && D.kind === 'stair' && D.n > 0) stairDraw({ a: D.a, d: D.d, n: D.n, w: E.sw || 1.2, k: E.tool === 'ramp' ? 'ramp' : E.tool === 'ustair' ? 'u' : 'stair', side: E.usd || 1 }, true);
       else if (hv && !E.pan) {
         const [x, z] = hv; ctx.strokeStyle = '#f2b233'; ctx.lineWidth = 2;
         if (E.tool === 'floor') { for (const id of (E.brush === 'hex' ? around(...vertexAt(x, z)) : [triAt(x, z)]).filter(okTri)) { const v = mv2TriVerts(id[0], id[1], id[2], t); ctx.beginPath(); v.forEach((p, n) => { const S3 = toS(p[0], p[1]); n ? ctx.lineTo(S3[0], S3[1]) : ctx.moveTo(S3[0], S3[1]); }); ctx.closePath(); ctx.stroke(); } }
-        else if (E.tool === 'wall' || E.tool === 'stair' || E.tool === 'ramp') { const v = vertexAt(x, z), p = toS(...P(v[0], v[1])); ctx.beginPath(); ctx.arc(p[0], p[1], 5, 0, Math.PI * 2); ctx.stroke(); }
+        else if (E.tool === 'wall' || E.tool === 'stair' || E.tool === 'ramp' || E.tool === 'ustair') { const v = vertexAt(x, z), p = toS(...P(v[0], v[1])); ctx.beginPath(); ctx.arc(p[0], p[1], 5, 0, Math.PI * 2); ctx.stroke(); }
         else if (['door', 'window', 'gate', 'open', 'close', 'erase'].includes(E.tool)) { const w = nearestWall(x, z); if (w) { const [i, j, d] = w.id.split(',').map(Number), [a, b] = segOf(i, j, d), A = toS(a[0], a[1]), B = toS(b[0], b[1]); ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke(); } }
         else if (E.tool === 'roof' || E.tool === 'room') { if (inArea(x, z)) { const [q, r] = cellAt(x, z), c = mv2CellXZ(q, r); hexPath(c[0], c[1], R - 0.3); ctx.stroke(); } }
         else if (E.tool === 'object') { const S4 = toS(Math.round(x * 4) / 4, Math.round(z * 4) / 4); ctx.beginPath(); ctx.arc(S4[0], S4[1], Math.max(8, 0.5 * s), 0, Math.PI * 2); ctx.stroke(); }

@@ -30,6 +30,8 @@ Eerst bouwen: `node build.js` in de hoofdmap. Daarna, vanuit `test/`:
 | `python mm_hoek.py [naam.png]` | muren die onder een hoek aansluiten, van dichtbij en van boven |
 | `python bordes_test.py` | trap van hoek naar hoek in een woning: twee verdiepingen op lopen; doorsnede en beelden van binnen |
 | `python mm_haaks.py` | module maker: muren onder 90° (rechthoekige kamer) |
+| `python mm_bordes.py` | module maker: bordestrap (U) tekenen met trapgat erboven, 3D-beeld |
+| `python bordes_test.py` | huis: de bordestrap op lopen, bordes op 1,7 m en bovenverdieping op 3,2 m |
 | `python mk_test.py` | de module maker: vloer, muren, deur, raam, trap, dak, opslaan, plaatsen |
 | `python lib_test.py` | de honderd standaardmodules bouwen en plaatsen (screenshots in `out/`) |
 | `python perf.py` / `prof.py` | tijd per geplaatst blok in een grote stad, profiel |
