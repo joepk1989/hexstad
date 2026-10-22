@@ -57,7 +57,7 @@
   }
   // ---------- Bladeren door de modules: zoeken, categorieën, maat, recent ----------
   // Volgorde: categorie (vaste volgorde), dan naam (natuurlijk: 2L voor 10L). Zoeken kijkt in naam en categorie;
-  // meerdere woorden moeten allemaal voorkomen ("rij hout", "glas 7").
+  // elk zoekwoord moet het begin van een woord zijn ("rij hout", "glas 7", "plein 7v").
   const modBar = document.createElement('div'); modBar.className = 'modbar'; modBar.hidden = true; paletteEl.insertBefore(modBar, palRow);
   let modQuery = '', modSize = 0, modStack = false;   // modSize: 0 alle, 1 één vak, 7 zeven vakken
   let modRecent = []; try { modRecent = JSON.parse(localStorage.getItem('hexstad-modrecent') || '[]'); } catch (e) { /* geen opslag */ }
@@ -71,7 +71,7 @@
     const M = modMeta(m);
     if (modSize && M.n !== modSize) return false;
     if (modStack && !M.stack) return false;
-    if (modQuery) { const hay = (m.name + ' ' + modCatOf(m)).toLowerCase(); if (!modQuery.toLowerCase().split(/\s+/).every(w => hay.includes(w))) return false; }
+    if (modQuery) { const words = (m.name + ' ' + modCatOf(m)).toLowerCase().split(/[\s·()]+/).filter(Boolean); if (!modQuery.toLowerCase().split(/\s+/).every(w => words.some(x => x.startsWith(w)))) return false; }   // elk zoekwoord is het begin van een woord in de naam
     return true;
   }
   function modVisible() {

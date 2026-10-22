@@ -83,7 +83,7 @@ Elke module heet **soort · variant (· bijzonderheid) · lagen · maat**, bijvo
 - `deur` / `weg`: hoeveel randen een deur of weg hebben.
 
 In het palet (tab Modules) staat boven de kaartjes een balk:
-- een zoekveld (`/`; meerdere woorden moeten allemaal voorkomen, Enter kiest de eerste);
+- een zoekveld (`/`; elk woord zoekt op het begin van een woord in de naam, Enter kiest de eerste);
 - knoppen per categorie met aantallen, plus **Recent** (de laatst geplaatste);
 - filters **1 vak**, **7 vakken** en **Plat dak**.
 
