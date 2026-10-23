@@ -189,6 +189,11 @@ textarea { width: 100%; resize: vertical; min-height: 64px; line-height: 1.4; }
 .teller { display: grid; gap: 6px; justify-items: start; }
 .tag { position: absolute; left: 0; top: -18px; font-size: 10px; font-weight: 700; color: var(--signal-ink); background: var(--signal); border-radius: 4px; padding: 1px 5px; white-space: nowrap; display: none; }
 .arrange .m:hover .tag, .m.picked .tag { display: block; }
+.tip { position: fixed; z-index: 30; max-width: 260px; background: #0b0f12; color: var(--ink); border: 1px solid rgba(242,178,51,0.55); border-radius: 9px; padding: 8px 10px; font-size: 12.5px; line-height: 1.45; pointer-events: none; box-shadow: 0 8px 24px rgba(0,0,0,0.45); }
+.tip b { display: block; color: var(--signal); margin-bottom: 2px; }
+.comphead { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 0 9px 4px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-dim); }
+.comphead .vh { display: flex; gap: 3px; }
+.comphead .vh span { width: 30px; text-align: center; letter-spacing: 0; text-transform: none; font-size: 10.5px; }
 .toast-lab { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--signal); color: var(--signal-ink); font-weight: 700; padding: 8px 14px; border-radius: 10px; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 20; }
 .toast-lab.show { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .toast-lab { transition: none; } }
@@ -199,7 +204,7 @@ textarea { width: 100%; resize: vertical; min-height: 64px; line-height: 1.4; }
     <div class="brand"><span class="hex" aria-hidden="true"></span><div><h1>Interfacelab</h1><small>Hexstad · schik de bediening voor bouwen en lopen</small></div></div>
     <p class="lede">Kies een voorbeeld, wissel tussen bouwen en lopen, sleep onderdelen naar een andere plek en zet ze aan of uit. Sla je ontwerp op; daarna bouw ik het precies zo in het spel.</p>
 
-    <div class="tabs" role="tablist">
+    <div class="tabs" role="tablist" data-tip="Tabbladen|Ontwerp: schikken. Onderzoek: wat andere bouwgames doen. Opslaan: je ontwerp bewaren zodat Claude het kan bouwen.">
       <button type="button" role="tab" aria-selected="true" data-tab="ontwerp">Ontwerp</button>
       <button type="button" role="tab" aria-selected="false" data-tab="onderzoek">Onderzoek</button>
       <button type="button" role="tab" aria-selected="false" data-tab="opslaan">Opslaan</button>
@@ -213,7 +218,8 @@ textarea { width: 100%; resize: vertical; min-height: 64px; line-height: 1.4; }
       <div class="meters" id="meters"></div>
       <div>
         <h2>Onderdelen</h2>
-        <p class="note" style="margin-bottom:8px">B = zichtbaar bij bouwen, L = bij lopen. Klik een onderdeel om plek, vorm en volgorde te kiezen, of sleep het op het scherm.</p>
+        <p class="note" style="margin-bottom:8px">Klik een onderdeel om plek, vorm en volgorde te kiezen, of sleep het op het scherm. Beweeg over iets voor uitleg.</p>
+        <div class="comphead"><span>Onderdeel</span><span class="vh"><span data-tip="Bouwen|Aan: dit onderdeel staat in beeld als je bovenaf bouwt.">Bouw</span><span data-tip="Lopen|Aan: dit onderdeel staat in beeld als je zelf rondloopt.">Loop</span></span></div>
         <div class="comps" id="comps"></div>
       </div>
     </section>
@@ -234,7 +240,7 @@ textarea { width: 100%; resize: vertical; min-height: 64px; line-height: 1.4; }
         <input type="text" id="dName" placeholder="Bijvoorbeeld: Snelbalk onderaan">
         <label for="dNotes" class="lbl">Opmerkingen voor Claude</label>
         <textarea id="dNotes" placeholder="Wat moet anders, wat vind je mooi?"></textarea>
-        <div class="row"><button type="button" class="btn-main" id="saveBtn">Ontwerp opslaan</button><button type="button" class="small-btn" id="copyBtn">Kopieer als JSON</button></div>
+        <div class="row"><button type="button" class="btn-main" id="saveBtn" data-tip="Opslaan|Bewaart dit ontwerp met naam en opmerkingen. Claude kan opgeslagen ontwerpen uitlezen en precies zo in het spel bouwen.">Ontwerp opslaan</button><button type="button" class="small-btn" id="copyBtn" data-tip="Kopieer als JSON|Het ontwerp als tekst op je klembord, om in de chat te plakken als opslaan niet lukt.">Kopieer als JSON</button></div>
         <p class="note" id="saveNote"></p>
       </div>
       <div>
@@ -246,9 +252,9 @@ textarea { width: 100%; resize: vertical; min-height: 64px; line-height: 1.4; }
 
   <main class="stagewrap">
     <div class="stagebar">
-      <div class="seg" role="group" aria-label="Modus" id="modeSeg"><button type="button" data-mode="bouwen" aria-pressed="true">Bouwen</button><button type="button" data-mode="lopen" aria-pressed="false">Lopen</button></div>
-      <div class="seg" role="group" aria-label="Scherm" id="devSeg"><button type="button" data-dev="laptop" aria-pressed="true">Laptop</button><button type="button" data-dev="tablet" aria-pressed="false">Tablet</button><button type="button" data-dev="liggend" aria-pressed="false">Telefoon liggend</button><button type="button" data-dev="staand" aria-pressed="false">Telefoon staand</button></div>
-      <label class="check"><input type="checkbox" id="arrangeChk" checked> Schikken (slepen)</label>
+      <div class="seg" role="group" aria-label="Modus" id="modeSeg" data-tip="Modus|Bekijk het scherm zoals bij bouwen (bovenaf) of bij lopen (zelf in de stad). Onderdelen kunnen per modus aan of uit staan."><button type="button" data-mode="bouwen" aria-pressed="true">Bouwen</button><button type="button" data-mode="lopen" aria-pressed="false">Lopen</button></div>
+      <div class="seg" role="group" aria-label="Scherm" id="devSeg" data-tip="Scherm|Hoe het eruitziet op een laptop, tablet of telefoon. De onderdelen hebben overal dezelfde grootte, dus op een telefoon is het voller."><button type="button" data-dev="laptop" aria-pressed="true">Laptop</button><button type="button" data-dev="tablet" aria-pressed="false">Tablet</button><button type="button" data-dev="liggend" aria-pressed="false">Telefoon liggend</button><button type="button" data-dev="staand" aria-pressed="false">Telefoon staand</button></div>
+      <label class="check" data-tip="Schikken|Aan: sleep een onderdeel op het scherm naar een andere plek; klik om het te selecteren. Uit: alleen kijken."><input type="checkbox" id="arrangeChk" checked> Schikken (slepen)</label>
     </div>
     <div class="fit" id="fit">
       <div class="screen arrange" id="screen" aria-label="Voorbeeld van het spelscherm"></div>
@@ -423,7 +429,7 @@ textarea { width: 100%; resize: vertical; min-height: 64px; line-height: 1.4; }
     for (const z in ZONES) zones[z] = [];
     for (const id of st.order[st.mode]) { const C = st.c[id], p = C[key(st.mode)]; if (!p[1]) continue; zones[p[0]].push(id); }
     for (const z in ZONES) {
-      html += `<div class="zone z-${z}">` + zones[z].map(id => `<div class="m ${st.sel === id ? 'picked' : ''}" data-id="${id}"><span class="tag">${COMPS[id].naam}</span>${render(id, st.c[id].v, st.mode)}</div>`).join('') + '</div>';
+      html += `<div class="zone z-${z}">` + zones[z].map(id => `<div class="m ${st.sel === id ? 'picked' : ''}" data-id="${id}" data-tip="${COMPS[id].naam}|${COMPS[id].uitleg}. Nu: ${ZONES[z].toLowerCase()}. Sleep om te verplaatsen, klik om te selecteren."><span class="tag">${COMPS[id].naam}</span>${render(id, st.c[id].v, st.mode)}</div>`).join('') + '</div>';
     }
     const dz = { tl: [0, 0], tc: [1, 0], tr: [2, 0], ml: [0, 1], c: [1, 1], mr: [2, 1], bl: [0, 2], bc: [1, 2], br: [2, 2] };
     for (const z in dz) html += `<div class="drop" data-zone="${z}" style="left:${dz[z][0] * 33.333}%;top:${dz[z][1] * 33.333}%;width:33.333%;height:33.333%">${ZONES[z]}</div>`;
@@ -448,24 +454,24 @@ textarea { width: 100%; resize: vertical; min-height: 64px; line-height: 1.4; }
     screen.querySelectorAll('.m').forEach(m => { if (m.dataset.id === 'vizier') return; const r = m.getBoundingClientRect(); area += r.width * r.height; });
     const cover = Math.round(area / (sr.width * sr.height) * 100);
     document.getElementById('meters').innerHTML = `
-      <div class="meter ${cons >= 85 ? 'good' : cons < 60 ? 'warn' : ''}"><b>${cons}%</b><span>van de onderdelen die je bij bouwen én lopen ziet, staat op dezelfde plek</span></div>
-      <div class="meter ${cover <= 12 ? 'good' : cover > 22 ? 'warn' : ''}"><b>${cover}%</b><span>van het beeld (${st.mode}) is bedekt door bediening</span></div>`;
+      <div class="meter ${cons >= 85 ? 'good' : cons < 60 ? 'warn' : ''}" data-tip="Zelfde plek|Van alle onderdelen die je zowel bij bouwen als bij lopen ziet: hoeveel blijven op dezelfde plek staan. Hoe hoger, hoe minder je hoeft te zoeken als je wisselt. Groen vanaf 85%."><b>${cons}%</b><span>van de onderdelen die je bij bouwen én lopen ziet, staat op dezelfde plek</span></div>
+      <div class="meter ${cover <= 12 ? 'good' : cover > 22 ? 'warn' : ''}" data-tip="Bedekt beeld|Hoeveel van het scherm achter knoppen en panelen verdwijnt in deze modus. Minder is meer stad. Groen tot 12%, rood boven 22%."><b>${cover}%</b><span>van het beeld (${st.mode}) is bedekt door bediening</span></div>`;
     void s;
   }
 
   // ---------- werkbank ----------
   const presetsEl = document.getElementById('presets'), compsEl = document.getElementById('comps');
   function paintBench() {
-    presetsEl.innerHTML = Object.entries(PRESETS).map(([k, p]) => `<button type="button" class="preset" data-preset="${k}" aria-pressed="${st.preset === k}"><b>${p.naam}</b><span>${p.uitleg}</span></button>`).join('');
+    presetsEl.innerHTML = Object.entries(PRESETS).map(([k, p]) => `<button type="button" class="preset" data-preset="${k}" aria-pressed="${st.preset === k}" data-tip="Voorbeeld laden|Zet alle onderdelen zoals in &quot;${p.naam}&quot;. Daarna kun je alles nog aanpassen."><b>${p.naam}</b><span>${p.uitleg}</span></button>`).join('');
     const ord = st.order[st.mode];
     compsEl.innerHTML = Object.keys(COMPS).map(id => {
       const C = st.c[id], D = COMPS[id], p = C[key(st.mode)];
-      const zsel = `<select data-act="zone" aria-label="Plek bij ${st.mode}">${Object.entries(ZONES).map(([z, n]) => `<option value="${z}" ${p[0] === z ? 'selected' : ''}>${n}</option>`).join('')}</select>`;
-      const vsel = Object.keys(D.v).length > 1 ? `<select data-act="variant" aria-label="Vorm">${Object.entries(D.v).map(([v, n]) => `<option value="${v}" ${C.v === v ? 'selected' : ''}>${n}</option>`).join('')}</select>` : '';
+      const zsel = `<select data-act="zone" aria-label="Plek bij ${st.mode}" data-tip="Plek|Waar het onderdeel staat bij ${st.mode}. Met het vinkje 'ook bij …' verhuist het in de andere modus mee.">${Object.entries(ZONES).map(([z, n]) => `<option value="${z}" ${p[0] === z ? 'selected' : ''}>${n}</option>`).join('')}</select>`;
+      const vsel = Object.keys(D.v).length > 1 ? `<select data-act="variant" aria-label="Vorm" data-tip="Vorm|Hoe het onderdeel eruitziet, bijvoorbeeld een grote kaart of een compacte versie.">${Object.entries(D.v).map(([v, n]) => `<option value="${v}" ${C.v === v ? 'selected' : ''}>${n}</option>`).join('')}</select>` : '';
       return `<div class="comp ${st.sel === id ? 'sel' : ''}" data-id="${id}">
-        <div class="nm">${D.naam}<small>${D.uitleg} · ${ZONES[p[0]].toLowerCase()}</small></div>
-        <div class="vis"><button type="button" data-act="b" aria-pressed="${!!C.b[1]}" aria-label="Zichtbaar bij bouwen">B</button><button type="button" data-act="l" aria-pressed="${!!C.l[1]}" aria-label="Zichtbaar bij lopen">L</button></div>
-        <div class="ctl">${zsel}${vsel}<button type="button" class="small-btn" data-act="up" aria-label="Eerder in de zone">↑</button><button type="button" class="small-btn" data-act="down" aria-label="Later in de zone">↓</button><label class="check"><input type="checkbox" data-act="link" ${st.link ? 'checked' : ''}> ook bij ${st.mode === 'bouwen' ? 'lopen' : 'bouwen'}</label></div>
+        <div class="nm" data-tip="${D.naam}|${D.uitleg}. Klik om plek, vorm en volgorde te kiezen.">${D.naam}<small>${D.uitleg} · ${ZONES[p[0]].toLowerCase()}</small></div>
+        <div class="vis"><button type="button" data-act="b" aria-pressed="${!!C.b[1]}" aria-label="Zichtbaar bij bouwen" data-tip="Bouwen|${D.naam} staat ${C.b[1] ? 'in beeld' : 'niet in beeld'} als je bovenaf bouwt. Klik om te wisselen.">B</button><button type="button" data-act="l" aria-pressed="${!!C.l[1]}" aria-label="Zichtbaar bij lopen" data-tip="Lopen|${D.naam} staat ${C.l[1] ? 'in beeld' : 'niet in beeld'} als je zelf rondloopt. Klik om te wisselen.">L</button></div>
+        <div class="ctl">${zsel}${vsel}<button type="button" class="small-btn" data-act="up" aria-label="Eerder in de zone" data-tip="Volgorde|Een plek eerder in deze zone: dichter bij de rand van het scherm.">↑</button><button type="button" class="small-btn" data-act="down" aria-label="Later in de zone" data-tip="Volgorde|Een plek later in deze zone: verder van de rand.">↓</button><label class="check" data-tip="Beide modi|Aan: als je de plek verandert, verhuist het onderdeel bij bouwen en lopen allebei. Zo blijft alles op dezelfde plek."><input type="checkbox" data-act="link" ${st.link ? 'checked' : ''}> ook bij ${st.mode === 'bouwen' ? 'lopen' : 'bouwen'}</label></div>
       </div>`;
     }).join('');
     void ord;
@@ -552,6 +558,24 @@ textarea { width: 100%; resize: vertical; min-height: 64px; line-height: 1.4; }
     if (!db) { savedEl.innerHTML = '<p class="note">Opgeslagen ontwerpen zijn hier niet beschikbaar. "Kopieer als JSON" werkt wel.</p>'; return; }
     db.collection('ontwerpen').orderBy('bijgewerkt', 'desc').limit(50).onSnapshot(s => paintSaved(s.docs), () => { savedEl.innerHTML = '<p class="note">De lijst kon niet laden.</p>'; });
   });
+
+  // ---------- uitleg bij hover: elk element met data-tip="Titel|Tekst" ----------
+  const tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; tip.setAttribute('role', 'tooltip'); document.body.appendChild(tip);
+  let tipEl = null;
+  document.addEventListener('pointerover', e => {
+    if (e.pointerType === 'touch' || drag) return;
+    const el = e.target.closest('[data-tip]'); if (el === tipEl) return; tipEl = el;
+    if (!el) { tip.hidden = true; return; }
+    const [t, b] = el.dataset.tip.split('|'); tip.innerHTML = ''; const h = document.createElement('b'); h.textContent = t; const p = document.createElement('span'); p.textContent = b || ''; tip.append(h, p); tip.hidden = false;
+  });
+  document.addEventListener('pointermove', e => {
+    if (tip.hidden) return;
+    const w = tip.offsetWidth, h = tip.offsetHeight; let x = e.clientX + 14, y = e.clientY + 16;
+    if (x + w > window.innerWidth - 8) x = e.clientX - w - 12; if (y + h > window.innerHeight - 8) y = e.clientY - h - 12;
+    tip.style.left = Math.max(8, x) + 'px'; tip.style.top = Math.max(8, y) + 'px';
+  });
+  document.addEventListener('pointerdown', () => { tip.hidden = true; tipEl = null; });
+  document.addEventListener('pointerleave', () => { tip.hidden = true; tipEl = null; });
 
   // ---------- melding ----------
   const toastEl = document.getElementById('toast'); let tt = 0;
