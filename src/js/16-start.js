@@ -54,7 +54,7 @@
     updateLights(now / 1000);
     DN.update(dt); clouds.update(dt, camera.position); sculptUpdate(dt);
     people.update(dt);
-    cars.update(dt);
+    cars.update(dt); hulk.update(dt);
     if (mode === 'walk') {
       updateWalk(dt);
       if (roadDrag.on) { const res = pick(window.innerWidth / 2, window.innerHeight / 2); if (res) roadPaintTo(res.place); }

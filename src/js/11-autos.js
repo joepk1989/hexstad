@@ -292,6 +292,7 @@
         WHEELS.forEach(([wx, wz], j) => {
           // wielen staan op hun eigen stukje grond, los van de kanteling van de carrosserie
           const [wxW, wzW] = wheelWorld(c, wx, wz);
+          if (c.fly || Math.abs(c.roll || 0) > 0.5) { W.copy(M).multiply(Q.makeTranslation(wx, WR - 0.6, wz)); W.multiply(Q.makeRotationZ(-c.spin)); meshes.tire.setMatrixAt(i * 4 + j, W); meshes.holes.setMatrixAt(i * 4 + j, W); meshes.rim.setMatrixAt(i * 4 + j, W); const side = wz > 0 ? 1 : -1; Q.makeTranslation(0, 0, side * 0.128); meshes.hub.setMatrixAt(i * 8 + j * 2, W.clone().multiply(Q)); Q.makeTranslation(0, 0, -side * 0.128); meshes.hub.setMatrixAt(i * 8 + j * 2 + 1, W.clone().multiply(Q)); col.set(c.accent); meshes.hub.setColorAt(i * 8 + j * 2, col); meshes.hub.setColorAt(i * 8 + j * 2 + 1, col); return; }   // in de lucht of op zijn kop: de wielen zitten aan de auto
           W.makeRotationY(-c.h).setPosition(wxW, (c.g ? c.g[j] : ASPH_H) + WR, wzW);
           if (wx > 0) W.multiply(Q.makeRotationY(-(c.steer || 0)));   // naar de binnenkant van de bocht
           W.multiply(Q.makeRotationZ(-c.spin));                         // bovenkant draait naar voren
@@ -370,6 +371,22 @@
         sound.carHit(Math.min(1, impact / 9), (A.x + B.x) / 2, 0.7, (A.z + B.z) / 2, true);
       }
     }
+    // Weggeslingerd (door de Hulk): een boog door de lucht, tollend; bij de landing nog even glijden, daarna
+    // ergens anders opnieuw beginnen
+    function toss(c, dx, dz, up) {
+      const l = Math.hypot(dx, dz) || 1; c.fly = { vx: dx / l * 7, vz: dz / l * 7, vy: up || 7, y: 0, t: 0, wr: 5 + Math.random() * 3, wp: (Math.random() - 0.5) * 2 }; c.crash = null; c.v = 0; c.held = false; c.ghost = 0; c.stuck = 0;
+      c.fly.g0 = c.sy ?? ASPH_H;
+    }
+    function flyStep(c, dt) {
+      const F = c.fly; F.t += dt; F.vy -= 9.81 * dt; F.y += F.vy * dt; c.x += F.vx * dt; c.z += F.vz * dt;
+      c.roll = (c.roll || 0) + F.wr * dt; c.pitch = (c.pitch || 0) + F.wp * dt; c.sy = F.g0 + F.y + 0.6;
+      if (F.y <= 0 && F.vy < 0) {   // landing: een klap, daarna op zijn kop of op zijn wielen blijven liggen en opnieuw beginnen
+        sound.impact(1, c.x, 0.6, c.z, false); sound.carHit(0.8, c.x, 0.7, c.z, true);
+        c.fly = null; c.roll = Math.round((c.roll || 0) / Math.PI) * Math.PI; c.pitch = 0; c.sy = F.g0 + (Math.abs(Math.cos(c.roll)) < 0.5 ? 0.5 : Math.abs(Math.round(c.roll / Math.PI)) % 2 ? 0.9 : 0);
+        c.crash = { t: 9, still: 0 }; c.cvx = F.vx * 0.3; c.cvz = F.vz * 0.3; c.w = 0;
+        if (typeof people !== 'undefined') for (const a of people.agents) if ((a.state === 'walk' || a.state === 'pause') && Math.hypot(a.x - c.x, a.z - c.z) < 3.5) people.hit(a, F.vx * 0.5, F.vz * 0.5);
+      }
+    }
     function crashStep(c, dt, peds, lying) {
       const C = c.crash; C.t += dt;
       // banden glijden over de weg: afremmen met ~0,6 g, tollen dempt uit
@@ -390,7 +407,7 @@
       hitPeople(c, dt, peds, lying, c.cvx, c.cvz);
       C.still = sp < 0.3 && Math.abs(c.w) < 0.25 ? C.still + dt : 0;
       if (C.still > 2.5 || C.t > 12) {   // weer verder: terug naar de rijbaan (of ergens anders opnieuw)
-        c.crash = null; c.v = 0; c.w = 0; c.rx = undefined;
+        c.crash = null; c.v = 0; c.w = 0; c.rx = undefined; c.roll = 0; c.pitch = 0;
         const [px, pz] = posOn(c, c.s);
         if (Math.hypot(px - c.x, pz - c.z) > 6) spawn(c); else c.ease = 2.5;
       }
@@ -407,7 +424,13 @@
       vecWalk: (e, dir, off) => vecWalkPts(VG, e, dir, off),
       // meetpunten voor de simulatietest: auto's naast de weg, vastgelopen, ongeldige posities
       setForce(n) { forceN = n; carsDirty = true; },
-      crashLog,
+      crashLog, toss,
+      // files: groepjes auto's die al een tijd stilstaan (voor de Hulk)
+      jams() {
+        const slow = list.filter(c => c.path && !c.crash && !c.fly && c.v < 0.4 && (c.wait || 0) + (c.stuck || 0) > 5), out = [], used = new Set();
+        for (const c of slow) { if (used.has(c)) continue; const grp = [c]; used.add(c); for (let i = 0; i < grp.length; i++) for (const o of slow) if (!used.has(o) && Math.hypot(o.x - grp[i].x, o.z - grp[i].z) < 22) { used.add(o); grp.push(o); } if (grp.length >= 5) out.push({ cars: grp, x: grp.reduce((s, o) => s + o.x, 0) / grp.length, z: grp.reduce((s, o) => s + o.z, 0) / grp.length }); }
+        return out.sort((a, b) => b.cars.length - a.cars.length);
+      },
       vecStats: () => {
         const G = vecGraph(); let off = 0, stuck = 0, nan = 0, crash = 0, slow = 0, n = 0, stuckL = null;
         const dist = (x, z) => { let d = 1e9; for (const e of G.edges.values()) for (let i = 0; i < e.pts.length - 1; i++) d = Math.min(d, distSeg(x, z, e.pts[i], e.pts[i + 1])); return d; };
@@ -457,6 +480,8 @@
         const tNow = performance.now() / 1000;
         for (const c of list) {
           if (!c.path) continue;   // kon nergens beginnen: wacht op de volgende herbouw
+          if (c.fly) { flyStep(c, dt); continue; }
+          if (c.hulkHold) { c.v = 0; c.wait = (c.wait || 0) + dt; continue; }   // de Hulk komt eraan: blijven staan
           if (c.crash) { crashStep(c, dt, peds, lying); continue; }
           const ch = Math.cos(c.h), sh = Math.sin(c.h);
           // gewenste snelheid: 30 km/u, langzamer in bochten en bij het keren (roekeloos: 75 km/u en bochten op de rand)

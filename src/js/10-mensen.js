@@ -189,10 +189,12 @@
   const people = (() => {
     const MAX = 160;
     // ---------- Lichaamsvormen ----------
-    // Vloeiende vormen uit draaiprofielen (lathe): ledematen met ronde uiteinden en spierbolling, een romp
-    // met borst, taille en heupen, een hoofd met kaak, neus en oren. Maten in meters, volwassene ~1,78 m.
+    // Low poly: draaiprofielen (lathe) met weinig segmenten en platte vlakken (geen gedeelde normalen), zoals de
+    // rest van de stad. Ledematen met spierbolling, een romp met borst, taille en heupen, een hoofd met kaak, neus,
+    // oren, ogen, wenkbrauwen en mond; sommigen met bril of baard. Maten in meters, volwassene ~1,78 m.
     const V2 = (x, y) => new THREE.Vector2(x, y);
-    const lathe = (pts, seg = 12) => new THREE.LatheGeometry(pts, seg);
+    const lathe = (pts, seg = 7) => new THREE.LatheGeometry(pts, Math.min(seg, 8));
+    const flat = g => { const n = g.index ? g.toNonIndexed() : g; n.computeVertexNormals(); return n; };   // platte vlakken
     function limb(len, rt, rb, bulge = 0, bulgeAt = 0.35, seg = 12) {   // van y=0 (gewricht) naar y=-len, met ronde doppen
       const pts = [V2(0, rt * 0.9)];
       for (let i = 1; i <= 4; i++) { const a = Math.PI / 2 * (1 - i / 4); pts.push(V2(rt * Math.cos(a), rt * Math.sin(a) * 0.9)); }
@@ -204,7 +206,7 @@
       pts[pts.length - 1].x = 0;
       return lathe(pts.reverse(), seg);
     }
-    const sphere = (r, sx, sy, sz, x, y, z, ws = 12, hs = 9) => new THREE.SphereGeometry(r, ws, hs).scale(sx, sy, sz).translate(x, y, z);
+    const sphere = (r, sx, sy, sz, x, y, z, ws = 8, hs = 6) => new THREE.SphereGeometry(r, Math.min(ws, 9), Math.min(hs, 7)).scale(sx, sy, sz).translate(x, y, z);
     const colored = (g, hex) => {   // vertex-kleur voor onderdelen met meerdere kleuren (ogen, mond)
       const n = (g.index ? g.toNonIndexed() : g), c = new THREE.Color(hex), arr = new Float32Array(n.attributes.position.count * 3);
       for (let i = 0; i < arr.length; i += 3) { arr[i] = c.r; arr[i + 1] = c.g; arr[i + 2] = c.b; }
@@ -227,7 +229,7 @@
     const skirtGeo = lathe([V2(0.14, 0.05), V2(0.165, -0.05), V2(0.2, -0.2), V2(0.25, -0.36), V2(0.27, -0.46)], 16).scale(1, 1, 0.78);
     // Hoofd: schedel, kaak en kin, neus en oren in één vorm
     // Eén vloeiende hoofdvorm: een bol die onderaan smaller wordt (kaak) en een kin naar voren krijgt
-    const skull = new THREE.SphereGeometry(0.105, 22, 18), sp = skull.attributes.position;
+    const skull = new THREE.SphereGeometry(0.105, 10, 8), sp = skull.attributes.position;
     for (let i = 0; i < sp.count; i++) {
       let x = sp.getX(i), y = sp.getY(i), z = sp.getZ(i);
       const low = Math.max(0, -y / 0.105);                       // 0 boven, 1 bij de kin
@@ -242,12 +244,18 @@
     const headGeo = mergeGeos([skull, sphere(0.016, 0.85, 1.35, 1.25, 0, -0.012, 0.108, 8, 6),
       sphere(0.013, 0.65, 1.8, 1.3, -0.102, 0.0, -0.006, 8, 6), sphere(0.013, 0.65, 1.8, 1.3, 0.102, 0.0, -0.006, 8, 6)]);
     // Ogen (wit + iris) en mond, met vertex-kleuren
-    const faceGeo = mergeC([colored(sphere(0.017, 1.1, 0.8, 0.6, -0.037, 0.02, 0.094, 10, 8), '#f4f1ea'), colored(sphere(0.017, 1.1, 0.8, 0.6, 0.037, 0.02, 0.094, 10, 8), '#f4f1ea'),
-      colored(sphere(0.0085, 1, 1, 0.5, -0.037, 0.02, 0.104, 8, 6), '#2a1d14'), colored(sphere(0.0085, 1, 1, 0.5, 0.037, 0.02, 0.104, 8, 6), '#2a1d14'),
-      colored(sphere(0.02, 1.2, 0.22, 0.4, 0, -0.058, 0.098, 8, 4), '#8a4b45')]);
+    const faceGeo = mergeC([colored(sphere(0.017, 1.1, 0.8, 0.6, -0.037, 0.02, 0.094, 8, 6), '#f4f1ea'), colored(sphere(0.017, 1.1, 0.8, 0.6, 0.037, 0.02, 0.094, 8, 6), '#f4f1ea'),
+      colored(sphere(0.0085, 1, 1, 0.5, -0.037, 0.02, 0.104, 6, 5), '#2a1d14'), colored(sphere(0.0085, 1, 1, 0.5, 0.037, 0.02, 0.104, 6, 5), '#2a1d14'),
+      colored(sphere(0.02, 1.2, 0.22, 0.4, 0, -0.058, 0.098, 8, 4), '#8a4b45'),
+      colored(sphere(0.006, 1, 1, 0.6, -0.03, 0.028, 0.103, 5, 4), '#ffffff'), colored(sphere(0.006, 1, 1, 0.6, 0.044, 0.028, 0.103, 5, 4), '#ffffff'),   // glimlichtjes
+      colored(sphere(0.012, 1.3, 0.6, 0.5, -0.058, -0.02, 0.085, 6, 4), '#d9927f'), colored(sphere(0.012, 1.3, 0.6, 0.5, 0.058, -0.02, 0.085, 6, 4), '#d9927f')]);   // wangen
+    // lachende mond (apart: alleen bij wie groet of kletst), bril en baard
+    const smileGeo = mergeC([colored(new THREE.TorusGeometry(0.024, 0.006, 5, 10, Math.PI).rotateZ(Math.PI).translate(0, -0.05, 0.098), '#8a4b45'), colored(new THREE.BoxGeometry(0.03, 0.006, 0.006).translate(0, -0.054, 0.1), '#f4f1ea')]);
+    const glassesGeo = mergeGeos([new THREE.TorusGeometry(0.02, 0.0035, 5, 10).translate(-0.037, 0.02, 0.106), new THREE.TorusGeometry(0.02, 0.0035, 5, 10).translate(0.037, 0.02, 0.106), new THREE.BoxGeometry(0.034, 0.004, 0.004).translate(0, 0.022, 0.106), new THREE.BoxGeometry(0.004, 0.004, 0.1).translate(-0.058, 0.02, 0.055), new THREE.BoxGeometry(0.004, 0.004, 0.1).translate(0.058, 0.02, 0.055)]);
+    const beardGeo = lathe([V2(0, -0.01), V2(0.07, -0.01), V2(0.085, -0.05), V2(0.06, -0.095), V2(0, -0.1)], 8).scale(1.05, 1, 0.72).translate(0, -0.04, 0.03);
     const browGeo = mergeGeos([new THREE.BoxGeometry(0.038, 0.008, 0.012).rotateZ(0.12).translate(-0.038, 0.048, 0.1), new THREE.BoxGeometry(0.038, 0.008, 0.012).rotateZ(-0.12).translate(0.038, 0.048, 0.1)]);
     // Kapsels (allemaal ten opzichte van het hoofd)
-    const cap = (r = 0.112) => new THREE.SphereGeometry(r, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.5).scale(1.02, 1.12, 1.08).rotateX(-0.42).translate(0, 0.02, -0.006);
+    const cap = (r = 0.112) => new THREE.SphereGeometry(r, 9, 6, 0, Math.PI * 2, 0, Math.PI * 0.5).scale(1.02, 1.12, 1.08).rotateX(-0.42).translate(0, 0.02, -0.006);
     const HAIRS = {
       short: cap(),
       long: mergeGeos([cap(), lathe([V2(0.1, 0.02), V2(0.112, -0.06), V2(0.105, -0.17), V2(0.085, -0.24), V2(0, -0.245)], 14).scale(1.05, 1, 0.7).translate(0, 0, -0.04)]),
@@ -279,6 +287,10 @@
       // paraplu: een achtkantig scherm met een stok; het handvat zit ongeveer bij de hand
       umbrella: { geo: mergeGeos([new THREE.ConeGeometry(0.56, 0.24, 8, 1, true).translate(0, 0.12, 0), new THREE.CylinderGeometry(0.012, 0.012, 0.95, 5).translate(0, -0.35, 0), new THREE.SphereGeometry(0.03, 5, 3).translate(0, 0.26, 0)]), per: 1 },
     };
+    PARTS.smile = { geo: smileGeo, per: 1, vc: true, noShadow: true };
+    PARTS.glasses = { geo: glassesGeo, per: 1, noShadow: true };
+    PARTS.beard = { geo: beardGeo, per: 1 };
+    for (const k in PARTS) PARTS[k].geo = flat(PARTS[k].geo);
     const mat = new THREE.MeshLambertMaterial({ color: '#ffffff', side: THREE.DoubleSide });
     const matV = new THREE.MeshLambertMaterial({ color: '#ffffff', vertexColors: true });
     const meshes = {};
@@ -486,6 +498,40 @@
       a.sway += (sw - a.sway) * Math.min(1, dt * 7);
     }
     // ---------- Elkaar ontwijken ----------
+    // ---------- Sociaal: groeten, een praatje, schrikken ----------
+    // Wie elkaar tegemoet loopt, zwaait soms even (en glimlacht); af en toe blijven twee mensen staan voor een praatje.
+    // Loop je er zelf langs, dan word je gegroet. Wordt iemand aangereden, dan schrikken de omstanders: ze stoppen even
+    // met de handen omhoog en kijken ernaar.
+    function startle(x, z, rad, who) {
+      for (const o of agents) { if (o === who || (o.state !== 'walk' && o.state !== 'pause')) continue; const d = Math.hypot(o.x - x, o.z - z); if (d > rad || Math.abs(o.y - (who ? who.y : o.y)) > 2) continue; o.startleT = 1.6; o.lookAt = [x, z]; o.waveT = 0; o.chatT = 0; if (o.state === 'pause') o.timer = Math.max(o.timer, 1.6); }
+    }
+    function social(a, grid, dt) {
+      if (a.waveT > 0) a.waveT -= dt; if (a.smileT > 0) a.smileT -= dt; if (a.chatT > 0) a.chatT -= dt; if (a.startleT > 0) a.startleT -= dt;
+      a.socT = (a.socT || 0) - dt; if (a.socT > 0) return; a.socT = 0.4;
+      if (a.greetCool > 0) a.greetCool -= 0.4;
+      if (a.startleT > 0 || a.greetCool > 0 || a.state !== 'walk') return;
+      const rain = WXK.rain > 0.3;
+      // de speler die langsloopt
+      if (mode === 'walk' && a.friendly) { const d = Math.hypot(player.x - a.x, player.z - a.z); if (d < 2.6 && Math.abs(player.y - a.y) < 1.5) { a.waveT = 1.4; a.smileT = 2.5; a.lookAt = [player.x, player.z]; a.greetCool = 25; return; } }
+      const gx = Math.floor(a.x / 2), gz = Math.floor(a.z / 2);
+      for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+        const list = grid.get((gx + i) + ',' + (gz + j)); if (!list) continue;
+        for (const o of list) {
+          if (o === a || !o.id || o.state !== 'walk' || o.greetCool > 0 || Math.abs(o.y - a.y) > 1) continue;
+          const d = Math.hypot(o.x - a.x, o.z - a.z); if (d > 2.2 || d < 0.4) continue;
+          const facing = Math.cos(o.heading - a.heading) < -0.2;   // tegemoet
+          if (!facing) continue;
+          const r = Math.random();
+          if (!rain && a.friendly && o.friendly && !a.wetHurry && r < 0.12 && !a.umb && !o.umb) {   // praatje: allebei even staan
+            const t = 3 + Math.random() * 5;
+            for (const [p, q] of [[a, o], [o, a]]) { p.state = 'pause'; p.timer = t; p.chatT = t; p.smileT = t; p.lookAt = [q.x, q.z]; p.greetCool = 40 + Math.random() * 30; p.waveT = 0.9; }
+            return;
+          }
+          if (r < 0.55) { for (const [p, q] of [[a, o], [o, a]]) { p.waveT = 1.4; p.smileT = 2.5; p.lookAt = [q.x, q.z]; p.greetCool = 18 + Math.random() * 20; } return; }
+          a.greetCool = 6; return;
+        }
+      }
+    }
     function separate(a, grid) {   // nooit door elkaar heen lopen
       const gx = Math.floor(a.x / 2), gz = Math.floor(a.z / 2);
       for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
@@ -534,6 +580,7 @@
       const height = kid ? 1.15 + r() * 0.25 : female ? 1.6 + r() * 0.14 : 1.72 + r() * 0.17;
       const a = {
         id: ++agentId, kid, old, female, dress, coat,
+        glasses: !kid && r() < (old ? 0.45 : 0.18), beard: !female && !kid && r() < 0.3, friendly: r() < 0.55,
         scale: height / 1.78,
         build: (female ? 0.94 : 1.03) + (r() - 0.5) * 0.12,   // smal of breed
         speed: kid ? 1.25 + r() * 0.35 : old ? 0.8 + r() * 0.2 : 1.1 + r() * 0.4,
@@ -703,10 +750,21 @@
         pose.foreArm[si].copy(pose.upperArm[si]).multiply(tr(0, -0.29, 0)).multiply(B.makeRotationX(-0.16 - Math.max(0, -armRot) * 0.7));
         pose.hand[si].copy(pose.foreArm[si]).multiply(tr(0, -0.265, 0)).multiply(B.makeRotationY(side * 0.4));
       }
-      // hoofd blijft rustig: compenseert de borstdraai en kijkt af en toe om zich heen
-      const look = Math.sin(a.lookPhase * 0.31) * Math.sin(a.lookPhase * 0.17) * (0.25 + 0.45 * idle);
+      // zwaaien (groet): rechterarm omhoog met een wuivende hand; schrik: beide handen omhoog, iets achterover
+      if (a.waveT > 0) { const k = Math.min(1, a.waveT * 3) * Math.min(1, (1.4 - a.waveT) * 3), wig = Math.sin(a.t * 14) * 0.35;
+        pose.upperArm[1].copy(CH).multiply(tr(0.2, 0.495, -0.005)).multiply(B.makeScale(1 / a.build, 1, 1)).multiply(B.makeRotationZ(0.09 + 2.6 * k)).multiply(B.makeRotationX(-0.3 * k));
+        pose.foreArm[1].copy(pose.upperArm[1]).multiply(tr(0, -0.29, 0)).multiply(B.makeRotationZ(wig * k)).multiply(B.makeRotationX(-0.5 * k));
+        pose.hand[1].copy(pose.foreArm[1]).multiply(tr(0, -0.265, 0)).multiply(B.makeRotationY(0.4)); }
+      if (a.startleT > 0) { const k = Math.min(1, a.startleT * 4) * Math.min(1, (1.6 - a.startleT) * 2);
+        for (let si = 0; si < 2; si++) { const side = si ? 1 : -1;
+          pose.upperArm[si].copy(CH).multiply(tr(side * 0.2, 0.495, -0.005)).multiply(B.makeScale(1 / a.build, 1, 1)).multiply(B.makeRotationZ(side * (0.09 + 1.9 * k))).multiply(B.makeRotationX(-1.2 * k));
+          pose.foreArm[si].copy(pose.upperArm[si]).multiply(tr(0, -0.29, 0)).multiply(B.makeRotationX(-1.6 * k));
+          pose.hand[si].copy(pose.foreArm[si]).multiply(tr(0, -0.265, 0)); } }
+      // hoofd blijft rustig: compenseert de borstdraai en kijkt af en toe om zich heen; bij een groet of een praatje kijk je de ander aan
+      let look = Math.sin(a.lookPhase * 0.31) * Math.sin(a.lookPhase * 0.17) * (0.25 + 0.45 * idle);
+      if (a.lookAt && (a.waveT > 0 || a.chatT > 0 || a.startleT > 0)) { let d = Math.atan2(a.lookAt[0] - a.x, a.lookAt[1] - a.z) - a.heading; d = Math.atan2(Math.sin(d), Math.cos(d)); look = Math.max(-1.1, Math.min(1.1, d)); }
       pose.neck.copy(CH).multiply(B.makeScale(1 / a.build, 1, 1)).multiply(tr(0, 0.545, 0.005)).multiply(B.makeRotationX(-a.lean * 0.7));
-      pose.head.copy(pose.neck).multiply(tr(0, 0.165, 0.012)).multiply(B.makeRotationY(-ld * 0.2 + look)).multiply(B.makeRotationX(0.04 * w));
+      pose.head.copy(pose.neck).multiply(tr(0, 0.165, 0.012)).multiply(B.makeRotationY(-ld * 0.2 + look)).multiply(B.makeRotationX(0.04 * w + (a.chatT > 0 ? Math.sin(a.t * 5) * 0.06 : 0) - (a.startleT > 0 ? 0.25 : 0)));
       if (a.kid) pose.head.multiply(B.makeScale(1.16, 1.16, 1.16));   // kinderen hebben naar verhouding een groter hoofd
     }
     function emit(a) {
@@ -729,6 +787,9 @@
       put('head', pose.head, a.skin);
       put('face', pose.head, '#ffffff');
       put('brows', pose.head, a.old ? a.hair : a.hair);
+      if (a.glasses) put('glasses', pose.head, '#2b2b2b');
+      if (a.beard) put('beard', pose.head, a.hair);
+      if (a.smileT > 0) put('smile', pose.head, '#ffffff');
       if (a.hairStyle) put('hair' + a.hairStyle[0].toUpperCase() + a.hairStyle.slice(1), pose.head, a.hair);
       if (a.umb && a.state !== 'rag' && a.state !== 'getup') {   // paraplu boven het hoofd, iets voor je uit en schuin tegen de wind
         const e = pose.head.elements, fx = Math.sin(a.heading), fz = Math.cos(a.heading), sc = a.scale || 1;
@@ -965,7 +1026,7 @@
       vecStats: () => { let n = 0, nan = 0, fall = 0, idle = 0; for (const a of agents) { if (!a.vedges) continue; n++; if (!isFinite(a.x) || !isFinite(a.z)) nan++; if (a.state === 'rag') fall++; if (a.state === 'walk' && a.spd < 0.05 && (a.idleT = (a.idleT || 0) + 1) > 60) idle++; } return { n, nan, fall, idle }; },
       agents,
       // Door een auto geraakt
-      hit(a, vx, vz) { a.ragWhy = 'car'; if (a.state === 'walk' || a.state === 'pause') startRagdoll(a, vx, 2.2 + Math.hypot(vx, vz) * 0.25, vz, 0.05); },
+      hit(a, vx, vz) { a.ragWhy = 'car'; if (a.state === 'walk' || a.state === 'pause') { startRagdoll(a, vx, 2.2 + Math.hypot(vx, vz) * 0.25, vz, 0.05); startle(a.x, a.z, 14, a); } },
       kick,
       // bekken van iemand die ligt of aan het opstaan is (voor auto's die moeten remmen)
       lying() { return agents.filter(a => (a.state === 'rag' || a.state === 'getup') && a.rag); },
@@ -1044,7 +1105,9 @@
             }
           }
           if (a.state === 'pause') {
+            social(a, grid, dt);
             a.timer -= dt; a.spd = Math.max(0, a.spd - dt * 3); a.walkAmt = Math.max(0, a.walkAmt - dt * 3);
+            if (a.chatT > 0 && a.lookAt) { let d = Math.atan2(a.lookAt[0] - a.x, a.lookAt[1] - a.z) - a.heading; d = Math.atan2(Math.sin(d), Math.cos(d)); a.heading += d * Math.min(1, dt * 3); }   // naar elkaar toe draaien
             { const fy = floorFor(a.x, a.z, a.y); if (a.y - fy > 0.8) { a.ragWhy = 'pausefloor'; startRagdoll(a, 0, 0, 0); continue; } a.y += (fy - a.y) * Math.min(1, dt * 14); }
             stepFeet(a, dt);
             if (a.timer <= 0) a.state = 'walk';
@@ -1059,6 +1122,7 @@
           }
           // Vloeiend sturen: vooruitkijken naar het volgende punt, afremmen in scherpe bochten, op de plek draaien
           if (a.fade > 0.5) separate(a, grid);
+          social(a, grid, dt);
           let [tx, tz] = a.wps[0];
           const d0 = Math.hypot(tx - a.x, tz - a.z);
           // geen vooruitgang (staat er iemand op dat punt?) → punt overslaan en doorlopen
@@ -1073,7 +1137,7 @@
           a.heading = Math.atan2(Math.sin(a.heading), Math.cos(a.heading));
           const align = Math.cos(Math.min(Math.abs(err), Math.PI / 2));
           if ((a.umbT = (a.umbT || Math.random()) - dt) <= 0) { a.umbT = 0.8; umbCheck(a); }
-          const want = a.speed * Math.max(0, (align - 0.35) / 0.65) * (a.follow || 1) * (a.precise ? 0.85 : 1) * (a.wetHurry ? 1.3 : 1) * (WXK.snow > 0.3 ? 0.85 : 1);
+          const want = a.startleT > 0 ? 0 : a.speed * Math.max(0, (align - 0.35) / 0.65) * (a.follow || 1) * (a.precise ? 0.85 : 1) * (a.wetHurry ? 1.3 : 1) * (WXK.snow > 0.3 ? 0.85 : 1) * (a.waveT > 0 ? 0.75 : 1);
           a.spd += (want - a.spd) * Math.min(1, dt * (want > a.spd ? 2.5 : 5));
           const step = Math.min(d, a.spd * dt), [fx, fz] = fwdOf(a.heading);
           // oversteken: niet de rijbaan op als er een auto aankomt

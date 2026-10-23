@@ -21,7 +21,7 @@
   // water of buiten de wereld: het dichtstbijzijnde vrije vak, zoals vroeger.
   function dropPlayer() {
     // recht onder de camera: je valt verticaal naar wat daar ligt (dak, galerij, straat) en kijkt dezelfde kant op
-    const x = camera.position.x, z = camera.position.z, d = Math.hypot(x, z); if (d > 205) return false;
+    const x = camera.position.x, z = camera.position.z, d = Math.hypot(x, z); if (d > 440) return false;
     const rc = new THREE.Raycaster(new THREE.Vector3(x, camera.position.y + 1, z), new THREE.Vector3(0, -1, 0));
     const hits = rc.intersectObjects([ground, terrGroup, blocks, ...[...modGroups.values()].map(e => e.group)], true);
     const h = hits.find(x2 => x2.object.visible !== false && !(x2.object.material && x2.object.material.transparent && x2.object.material.opacity < 0.6));   // door glas heen
@@ -89,7 +89,7 @@
     const running = speed > 3, pb = (x, z) => (!running && !people.blocks(player.x, player.z, player.y) && people.blocks(x, z, player.y)) || (!cars.blocks(player.x, player.z, player.y) && cars.blocks(x, z, player.y));
     const nx = player.x + vx * dt; if (stuck || !(blockedAt(nx, player.z, player.y) || pb(nx, player.z))) player.x = nx;
     const nz = player.z + vz * dt; if (stuck || !(blockedAt(player.x, nz, player.y) || pb(player.x, nz))) player.z = nz;
-    const d = Math.hypot(player.x, player.z); if (d > 210) { player.x *= 210 / d; player.z *= 210 / d; }
+    const d = Math.hypot(player.x, player.z); if (d > 450) { player.x *= 450 / d; player.z *= 450 / d; }   // de loopwereld: tot ruim buiten de ringweg
     const floor = floorAt(player.x, player.z, player.y);
     player.vy -= 9.81 * dt; player.y += player.vy * dt;
     if (player.y <= floor) { if (player.dropping) { player.dropping = false; player.landT = 0.35; sound.walked(1.2, floor < 0.02, true); } player.y = floor; player.vy = 0; player.grounded = true; } else player.grounded = false;
