@@ -113,12 +113,12 @@ De familie **Winkelcentrum** (categorie, `08e`) bouwt de tien bouwstenen uit `he
 | space | `· dakpaviljoen` | teruggezette opbouw van ¾ met een terras van 1,95 m rondom (hek, tafels) |
 | ring | `· galerij` | vloerring rond een vide met balustrade: zet hem op een winkel en je kijkt erin |
 | trapring | `· galerij · trap` (gespiegeld geplaatst voor de andere kant) | onderaan alleen de trap (de vloer is het dak eronder), erboven de galerijring; trap van 1,95 m in de band langs één zijde |
-| 2× trapzijde | `· trap · breed` | brede trap van 3,9 m langs de rand van het vak, met een bordes naar de galerij ernaast |
+| trapzijde | `· trap` | trap van 1,95 m langs de rand van het vak met het bordes uit de schets naar de galerij ernaast; twee stuks gespiegeld tegen elkaar geven de brede trap |
 
 De schansflanken (`schans_zijde`) staan tussen de vakken en zijn weggelaten. **Menu → Winkelcentrum (hex-modules)** laadt het winkelcentrum precies zoals getekend (`MALL` in `08e`, uit de Collada-export gelezen): elke bouwsteen op zijn eigen vak, laag en draaiing. Alleen de winkels zijn gedraaid (een zeshoekig blok ziet er rondom hetzelfde uit), zodat hun pui naar de hal, de straat op de tweede verdieping of naar buiten kijkt; blokken die de schets in een blok laat staan (`space` binnen een `variable`) vallen weg. De indeling:
 - **begane grond**: een dichte kern van winkels en een magazijn, met twee **opritten** aan de westkant;
 - **eerste verdieping**: de opritten komen via twee **tunnels** (doorgangen) uit in de **entreehal**, die diagonaal door het centrum loopt en open is naar de lucht; de halve en afgesneden blokken geven de hal zijn schuine wanden;
-- **trappen** naar de tweede verdieping: twee galerijen met trap (`trapring`, één gespiegeld) en een **brede trap** van 3,9 m tussen de twee halve blokken (de twee `trapzijde`-delen), met het bordes uit de schets naar de galerij van het buurvak;
+- **trappen** naar de tweede verdieping: twee galerijen met trap (`trapring`, één gespiegeld) en een **brede trap** tussen de twee halve blokken: twee keer de module trap, elk in zijn eigen vak, de tweede gespiegeld, met het bordes uit de schets naar de galerij van het buurvak;
 - **tweede verdieping**: een overdekte straat over de daken van de eerste verdieping, met dakpaviljoens (`space`) en een galerij rond een vide;
 - **derde verdieping**: een laag winkels als dak over die straat (in de schets dragen die op de buren; in het voorbeeld zweven ze daar dus).
 

@@ -258,9 +258,10 @@
       const b = libBuilder(nm, WC); b.m.lv[0].s.push(S);
       b.where(1, (x, z) => !inCore(x, z), 'polished'); b.hole(1, S); b.ring(1, 0, 0, CORE, 'fence'); b.obj(1, 'planter', S.off > 0 ? -6.8 : 6.8, 0).obj(1, 'bench', 0, 6.9, 0); add(b);
     }
-    { // brede trap (de twee trapzijdes uit de schets): 3,9 m breed langs de rand van het vak, van de hal naar de straat erboven
-      const b = libBuilder('Winkelcentrum · trap · breed', WC); b.m.lv[0].s.push({ a: [0.5, -4], d: 0, n: 3, w: 3.9, k: 'stair' });
-      // bordes bovenaan (uit de schets): een strook langs de rand naar de galerij van het buurvak
+    { // trap (trapzijde uit de schets): 1,95 m breed langs de rand van het vak, van de hal naar de straat erboven,
+      // met het bordes uit de schets: een strook langs de rand naar de galerij van het buurvak. Twee stuks gespiegeld
+      // tegen elkaar (F) geven de brede trap tussen de twee halve blokken.
+      const b = libBuilder('Winkelcentrum · trap', WC); b.m.lv[0].s.push({ a: [0.5, -4], d: 0, n: 3, w: 1.95, k: 'stair', off: 0.975 });
       const LAND = [[[6.819, -5.062], [7.794, 4.5], [7.794, -4.5]], [[7.794, 4.5], [6.819, -5.062], [5.845, 3.375]], [[5.845, 3.375], [6.819, -5.062], [5.845, -3.375]]];
       const inT = (x, z, T) => { const s1 = (T[1][0] - T[0][0]) * (z - T[0][1]) - (T[1][1] - T[0][1]) * (x - T[0][0]), s2 = (T[2][0] - T[1][0]) * (z - T[1][1]) - (T[2][1] - T[1][1]) * (x - T[1][0]), s3 = (T[0][0] - T[2][0]) * (z - T[2][1]) - (T[0][1] - T[2][1]) * (x - T[2][0]); return (s1 >= -0.3 && s2 >= -0.3 && s3 >= -0.3) || (s1 <= 0.3 && s2 <= 0.3 && s3 <= 0.3); };
       b.where(1, (x, z) => LAND.some(T => inT(x, z, T)), 'polished'); add(b); }
@@ -268,8 +269,8 @@
   }
   // ---------- Voorbeeld: het winkelcentrum uit de SketchUp-schets (hex_mall), precies zoals getekend ----------
   // [module, q, r, laag, draaiing]; de bouwstenen staan op elkaar, de passage loopt diagonaal door de bovenlagen
-  const MALL_NAMES = ["Winkelcentrum · café · half", "Winkelcentrum · dakpaviljoen", "Winkelcentrum · doorgang", "Winkelcentrum · galerij", "Winkelcentrum · galerij · trap", "Winkelcentrum · horeca", "Winkelcentrum · magazijn", "Winkelcentrum · oprit", "Winkelcentrum · trap · breed", "Winkelcentrum · winkel", "Winkelcentrum · winkel · afgesneden", "Winkelcentrum · winkel · boeken"];
-  const MALL = [[7,-1,-3,0,5],[9,0,-3,0,1],[9,1,-3,0,0],[5,-2,-2,0,2],[11,-1,-2,0,0],[11,0,-2,0,0],[9,1,-2,0,1],[9,2,-2,0,2],[7,-3,-1,0,0],[6,-2,-1,0,3],[9,-1,-1,0,0],[5,0,-1,0,0],[5,1,-1,0,0],[11,2,-1,0,1],[11,3,-1,0,2],[9,-3,0,0,4],[9,-2,0,0,0],[9,-1,0,0,0],[9,0,0,0,0],[9,1,0,0,0],[9,2,0,0,0],[5,3,0,0,1],[5,-3,1,0,5],[11,-2,1,0,4],[11,-1,1,0,0],[9,0,1,0,0],[9,1,1,0,0],[9,2,1,0,0],[9,3,1,0,1],[9,-2,2,0,3],[5,-1,2,0,4],[5,0,2,0,0],[11,1,2,0,0],[11,2,2,0,5],[9,-1,3,0,3],[9,0,3,0,4],[9,1,3,0,4],[11,0,-3,1,5],[9,1,-3,1,4],[9,-2,-2,1,1],[2,-1,-2,1,5],[4,0,-2,1,3,1],[5,1,-2,1,3],[11,2,-2,1,2],[2,-2,-1,1,0],[10,0,-1,1,3],[9,1,-1,1,4],[9,2,-1,1,1],[5,3,-1,1,2],[5,-3,0,1,0],[4,-2,0,1,2],[10,-1,0,1,0],[0,1,0,1,3],[9,2,0,1,4],[9,3,0,1,1],[9,-3,1,1,1],[9,-2,1,1,2],[5,-1,1,1,0],[0,0,1,1,0],[8,0,1,1,0],[11,2,1,1,3],[9,3,1,1,1],[9,-2,2,1,3],[9,-1,2,1,1],[9,0,2,1,2],[9,1,2,1,2],[5,2,2,1,5],[9,-1,3,1,3],[9,0,3,1,4],[9,1,3,1,4],[5,0,-3,2,5],[5,1,-3,2,4],[9,-2,-2,2,1],[1,-1,-2,2,0],[9,1,-2,2,3],[1,2,-2,2,4],[1,-2,-1,2,5],[9,2,-1,2,4],[1,3,-1,2,4],[9,-3,0,2,0],[9,3,0,2,3],[9,-3,1,2,1],[9,-2,1,2,1],[3,1,1,2,0],[5,3,1,2,3],[1,-2,2,2,1],[9,-1,2,2,1],[9,2,2,2,3],[1,-1,3,2,1],[11,0,3,2,2],[11,1,3,2,2],[9,0,-3,3,5],[9,1,-3,3,4],[11,-2,-2,3,1],[11,-1,-2,3,5],[9,1,-2,3,3],[9,2,-2,3,2],[9,-2,-1,3,0],[10,0,-1,3,3],[11,1,-1,3,4],[11,2,-1,3,1],[9,3,-1,3,2],[9,-3,0,3,0],[10,-1,0,3,0],[0,1,0,3,3],[5,2,0,3,4],[5,3,0,3,1],[11,-3,1,3,1],[11,-2,1,3,2],[9,-1,1,3,1],[0,0,1,3,0],[9,2,1,3,3],[9,3,1,3,1],[5,-2,2,3,3],[5,-1,2,3,4],[11,0,2,3,1],[11,1,2,3,2],[9,2,2,3,5],[9,-1,3,3,3],[9,0,3,3,4],[5,1,3,3,4]];
+  const MALL_NAMES = ["Winkelcentrum · café · half", "Winkelcentrum · dakpaviljoen", "Winkelcentrum · doorgang", "Winkelcentrum · galerij", "Winkelcentrum · galerij · trap", "Winkelcentrum · horeca", "Winkelcentrum · magazijn", "Winkelcentrum · oprit", "Winkelcentrum · trap", "Winkelcentrum · winkel", "Winkelcentrum · winkel · afgesneden", "Winkelcentrum · winkel · boeken"];
+  const MALL = [[7,-1,-3,0,5],[9,0,-3,0,1],[9,1,-3,0,0],[5,-2,-2,0,2],[11,-1,-2,0,0],[11,0,-2,0,0],[9,1,-2,0,1],[9,2,-2,0,2],[7,-3,-1,0,0],[6,-2,-1,0,3],[9,-1,-1,0,0],[5,0,-1,0,0],[5,1,-1,0,0],[11,2,-1,0,1],[11,3,-1,0,2],[9,-3,0,0,4],[9,-2,0,0,0],[9,-1,0,0,0],[9,0,0,0,0],[9,1,0,0,0],[9,2,0,0,0],[5,3,0,0,1],[5,-3,1,0,5],[11,-2,1,0,4],[11,-1,1,0,0],[9,0,1,0,0],[9,1,1,0,0],[9,2,1,0,0],[9,3,1,0,1],[9,-2,2,0,3],[5,-1,2,0,4],[5,0,2,0,0],[11,1,2,0,0],[11,2,2,0,5],[9,-1,3,0,3],[9,0,3,0,4],[9,1,3,0,4],[11,0,-3,1,5],[9,1,-3,1,4],[9,-2,-2,1,1],[2,-1,-2,1,5],[4,0,-2,1,3,1],[5,1,-2,1,3],[11,2,-2,1,2],[2,-2,-1,1,0],[10,0,-1,1,3],[9,1,-1,1,5],[9,2,-1,1,4],[5,3,-1,1,2],[5,-3,0,1,0],[4,-2,0,1,2],[10,-1,0,1,0],[0,1,0,1,3],[8,1,0,1,5,1],[9,2,0,1,3],[9,3,0,1,1],[9,-3,1,1,1],[9,-2,1,1,2],[5,-1,1,1,0],[0,0,1,1,0],[8,0,1,1,0],[11,2,1,1,3],[9,3,1,1,1],[9,-2,2,1,3],[9,-1,2,1,1],[9,0,2,1,2],[9,1,2,1,2],[5,2,2,1,5],[9,-1,3,1,3],[9,0,3,1,4],[9,1,3,1,4],[5,0,-3,2,5],[5,1,-3,2,4],[9,-2,-2,2,1],[1,-1,-2,2,0],[9,1,-2,2,3],[1,2,-2,2,4],[1,-2,-1,2,5],[9,2,-1,2,4],[1,3,-1,2,4],[9,-3,0,2,0],[9,3,0,2,3],[9,-3,1,2,1],[9,-2,1,2,1],[3,1,1,2,0],[5,3,1,2,3],[1,-2,2,2,1],[9,-1,2,2,1],[9,2,2,2,3],[1,-1,3,2,1],[11,0,3,2,2],[11,1,3,2,2],[9,0,-3,3,5],[9,1,-3,3,4],[11,-2,-2,3,1],[11,-1,-2,3,5],[9,1,-2,3,3],[9,2,-2,3,2],[9,-2,-1,3,0],[10,0,-1,3,3],[11,1,-1,3,4],[11,2,-1,3,1],[9,3,-1,3,2],[9,-3,0,3,0],[10,-1,0,3,0],[0,1,0,3,3],[5,2,0,3,4],[5,3,0,3,1],[11,-3,1,3,1],[11,-2,1,3,2],[9,-1,1,3,1],[0,0,1,3,0],[9,2,1,3,3],[9,3,1,3,1],[5,-2,2,3,3],[5,-1,2,3,4],[11,0,2,3,1],[11,1,2,3,2],[9,2,2,3,5],[9,-1,3,3,3],[9,0,3,3,4],[5,1,3,3,4]];
   function mallCity() {
     const base = n => (n || '').replace(/( · \d+[Lv])+$/, ''), std = new Map(libStandard().map(m => [base(m.name), m])), byName = new Map(modules.map(m => [base(m.name), m]));   // zonder lagen/maat-achtervoegsel
     const c = new Map(); c.inst = [];
@@ -304,10 +305,10 @@
   // lib5: de Winkelcentrum-familie volgens de schets (galerij met trap zonder winkel eronder, gespiegeld, brede trap):
   // die standaardmodules worden vervangen (zelfde id, zodat geplaatste exemplaren meegaan), de rest blijft staan
   try {
-    if (!localStorage.getItem('hexstad-lib8')) {
+    if (!localStorage.getItem('hexstad-lib9')) {
       const base = n => (n || '').replace(/( · \d+[Lv])+$/, '');
-      { const i = modules.findIndex(x => base(x.name) === 'Winkelcentrum · galerij · trap · gespiegeld'); if (i >= 0) modules.splice(i, 1); }   // vervangen door spiegelen
+      for (const old of ['Winkelcentrum · galerij · trap · gespiegeld', 'Winkelcentrum · trap · breed']) { const i = modules.findIndex(x => base(x.name) === old); if (i >= 0) modules.splice(i, 1); }   // vervangen door spiegelen
       for (const m of libStandard()) { if (m.cat !== 'Winkelcentrum') continue; const i = modules.findIndex(x => base(x.name) === base(m.name)); if (i >= 0) { m.id = modules[i].id; modules[i] = m; } else modules.push(m); }
-      saveMods(); localStorage.setItem('hexstad-lib8', '1');
+      saveMods(); localStorage.setItem('hexstad-lib9', '1');
     }
   } catch (e) { /* geen opslag */ }
