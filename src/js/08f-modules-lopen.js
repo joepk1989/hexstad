@@ -5,6 +5,7 @@
   // open doorgang (dan loopt het pad door het midden van die opening). Trappen, hellingen en de schans verbinden de
   // verdiepingen. Een opening in de buitenrand op de begane grond is een ingang (knoop 'mdoor'), die in 10-mensen aan
   // de stoep wordt gekoppeld zoals een voordeur.
+  const modWalkDbg = {};   // voor tests: de muren zoals het loopnetwerk ze ziet
   function modWalkAdd(nodes, lk) {
     const insts = (cells.inst || []).filter(I => I.m && I.m.v === 2 && Number.isInteger(I.q) && Number.isInteger(I.r));
     if (!insts.length) return;
@@ -12,12 +13,14 @@
     const wallsAt = new Map();   // laag (wereld, geheel) → [{a, b, pass, mid}] met vak-sleutels voor snel zoeken
     const addWallIdx = (lv, w) => { const k = lv + '|' + worldToCell((w.a[0] + w.b[0]) / 2, (w.a[1] + w.b[1]) / 2).join(','); let L = wallsAt.get(k); if (!L) wallsAt.set(k, L = []); L.push(w); };
     const wallsNear = (lv, x, z) => { const [q, r] = worldToCell(x, z), out = []; for (const [dq, dr] of [[0, 0], ...NEIGH]) { const L = wallsAt.get(lv + '|' + (q + dq) + ',' + (r + dr)); if (L) out.push(...L); } return out; };
+    modWalkDbg.wallsNear = wallsNear;
     const sectorOf = (c, x, z) => { const ang = Math.atan2(z - c.z, x - c.x); return ((Math.round(-ang / (Math.PI / 3)) % 6) + 6) % 6; };   // zijde k heeft zijn normaal op −k·60°
     const cross = (p, q, a, b) => { const d = (q[0] - p[0]) * (b[1] - a[1]) - (q[1] - p[1]) * (b[0] - a[0]); if (Math.abs(d) < 1e-9) return null; const t = ((a[0] - p[0]) * (b[1] - a[1]) - (a[1] - p[1]) * (b[0] - a[0])) / d, u = ((a[0] - p[0]) * (q[1] - p[1]) - (a[1] - p[1]) * (q[0] - p[0])) / d; return t > 0.02 && t < 0.98 && u > -0.02 && u < 1.02 ? t : null; };
     // kan je van p naar q (zelfde laag)? geeft de tussenpunten (openingen) terug, of null
     function passage(lv, p, q) {
       const via = [];
-      for (const w of wallsNear(lv, (p[0] + q[0]) / 2, (p[1] + q[1]) / 2)) { const t = cross(p, q, w.a, w.b); if (t === null) continue; if (!w.pass) return null; via.push([t, w.mid]); }
+      for (const w of wallsNear(lv, (p[0] + q[0]) / 2, (p[1] + q[1]) / 2)) {
+        const t = cross(p, q, w.a, w.b); if (t === null) continue; if (!w.pass) return null; via.push([t, w.mid]); }
       via.sort((x, y) => x[0] - y[0]); const out = []; for (const [, m] of via) if (!out.length || Math.hypot(out[out.length - 1][0] - m[0], out[out.length - 1][1] - m[1]) > 0.3) out.push(m);
       return out;
     }
@@ -45,7 +48,7 @@
         for (const id in L.f) { const [i, j, t] = id.split(',').map(Number), v = mv2TriVerts(i, j, t, ts), cx = (v[0][0] + v[1][0] + v[2][0]) / 3, cz = (v[0][1] + v[1][1] + v[2][1]) / 3; if (!mv2InArea(m, cx, cz)) continue; if (roofLayer && mask) { const Wc = tf(cx, cz), c = mask(Wc[0], Wc[1]); if (c === 2) continue; } const W = v.map(p => tf(p[0], p[1])); tris.push(W); }
         if (roofLayer && !tris.length) continue;
         const skip = (modGroups.get(I) || {}).skip;
-        for (const id in L.w) { const Wd = L.w[id]; if (!Wd) continue; const [i, j, d] = id.split(',').map(Number), D = MV2.DIRW[d]; if (!D) continue; const a = mv2P(i, j, ts), b = mv2P(i + D[0], j + D[1], ts); if (!mv2NearArea(m, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2)) continue; const A = tf(a[0], a[1]), B = tf(b[0], b[1]); if (skip && skip.has(wallKeyW(lvW, (A[0] + B[0]) / 2, (A[1] + B[1]) / 2))) continue; addWallIdx(lvW, { a: A, b: B, pass: PASS.has(Wd.o || ''), mid: [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2], o: Wd.o || '', outer: true }); }
+        for (const id in L.w) { const Wd = L.w[id]; if (!Wd) continue; const [i, j, d] = id.split(',').map(Number), D = MV2.DIRW[d]; if (!D) continue; const a = mv2P(i, j, ts), b = mv2P(i + D[0], j + D[1], ts); if (!mv2NearArea(m, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2)) continue; const A = tf(a[0], a[1]), B = tf(b[0], b[1]); if (skip && skip.has(wallKeyW(lvW, (A[0] + B[0]) / 2, (A[1] + B[1]) / 2))) continue; addWallIdx(lvW, { a: A, b: B, pass: PASS.has(Wd.o || ''), mid: [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2], o: Wd.o || '', outer: true, from: (m.name || '') + ' @' + I.q + ',' + I.r }); }
         // inrichting als hindernis: langwerpig (stelling, toonbank, bank, fietsenrek) als lijnstuk, rond als kruis
         { const OLEN = { shelf: 2.4, counter: 2.2, bench: 1.8, bike: 2.4 }, ORAD = { fountain: 1.9, table: 0.9, planter: 0.75, pillar: 0.35, tree: 0.3, bin: 0.25 }, eg = modGroups.get(I) || {};
           for (const O0 of L.o || []) {
@@ -91,8 +94,14 @@
           let via = route(Ly.lvW, [A.x, A.z], [B.x, B.z]);
           if (!via && dk === 1) {   // op een ring (galerij, terras): om de hoek van de kern heen, niet dwars door de balustrade
             const ra = Math.hypot(A.x - cc.x, A.z - cc.z), rb = Math.hypot(B.x - cc.x, B.z - cc.z), am = Math.atan2(A.z - cc.z, A.x - cc.x), bm = Math.atan2(B.z - cc.z, B.x - cc.x); let d = bm - am; d = Math.atan2(Math.sin(d), Math.cos(d));
-            const mid = am + d / 2, rr = (ra + rb) / 2, P = [cc.x + Math.cos(mid) * rr, cc.z + Math.sin(mid) * rr], v1 = passage(Ly.lvW, [A.x, A.z], P), v2 = passage(Ly.lvW, P, [B.x, B.z]);
-            if (v1 && v2 && floored(Ly.lvW, [[A.x, A.z], ...v1, P, ...v2, [B.x, B.z]])) via = [...v1, P, ...v2];
+            // het hoekpunt op de ring, niet op of tegen een dichte muur: anders iets verder naar binnen of naar buiten
+            const mid = am + d / 2, rr0 = (ra + rb) / 2;
+            for (const dr of [0, -0.5, 0.5, -0.9, 0.9]) {
+              const rr = rr0 + dr, P = [cc.x + Math.cos(mid) * rr, cc.z + Math.sin(mid) * rr];
+              if (wallsNear(Ly.lvW, P[0], P[1]).some(w => !w.pass && distSeg(P, w.a, w.b) <= 0.3)) continue;
+              const v1 = passage(Ly.lvW, [A.x, A.z], P), v2 = passage(Ly.lvW, P, [B.x, B.z]);
+              if (v1 && v2 && floored(Ly.lvW, [[A.x, A.z], ...v1, P, ...v2, [B.x, B.z]])) { via = [...v1, P, ...v2]; break; }
+            }
           }
           if (via) conn(A, B, via, false);
         }

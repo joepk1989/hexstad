@@ -40,6 +40,7 @@ Eerst bouwen: `node build.js` in de hoofdmap. Daarna, vanuit `test/`:
 | `python mall_mensen.py` | voetgangers door het winkelcentrum: knopen, ingangen aan de stoep, mensen per laag, geen valpartijen |
 | `python dbg_graph.py` / `dbg4.py` / `dbg8.py` | loopnetwerk: componenten per laag, trapknopen, valpartijen met plek |
 | `python teller.py [sec]` | ongelukjes-teller: winkelcentrum en voorbeeldstad laten lopen, tellers en laatste meldingen, knop en lijst (`out/teller.png`) |
+| `python sim.py [sec] [v]` | voetgangers snel doorrekenen zonder te tekenen: tellers na bijv. 150 s en wie vaststaat (met `v` details) |
 | `python vast.py` | lopen mensen door: hoeveel staan er lang stil, verdeling over de lagen |
 | `python mall.py` | winkelcentrum laden (129 modules, 4 lagen), stapelen via klik op een dak, vloerhoogte galerij |
 | `python wc_mods.py [namen]` | elke Winkelcentrum-module apart dichtbij, plus winkel met galerij erop |
