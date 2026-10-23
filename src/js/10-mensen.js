@@ -52,6 +52,7 @@
       if (n.kind.level === 'low') link(n, nodes.get(lk(n.q, n.r, n.y + 3)), -1, true);   // trap of helling op
     }
     for (const n of nodes.values()) { n.yr = n.y; n.y += gH(n.q, n.r); }   // hoogte in de wereld: op het terrein van het vak
+    modWalkAdd(nodes, lk);   // modules: winkels, galerijen, trappen (zie 08f)
     // Getekende wegen: knopen op kruisingen en uiteinden, stoepen ertussen (nog los van het hexnetwerk)
     const G = cars.vecGraph();
     const vn = G.nodes.map((N, vi) => { const r = N.z / (1.5 * R); return { vi, key: 'v' + Math.round(N.x * 2) / 2 + ',' + Math.round(N.z * 2) / 2, q: N.x / (R * SQ3) - r / 2, r, y: PW_H + (N.y || 0), x: N.x, z: N.z, kind: { b: 'vec' }, edges: new Map() }; });
@@ -72,21 +73,33 @@
       for (const sg of [1, -1]) { const pts = vecWalkPts(G, e, 0, sg * off); if (pts.length) walkSides.push({ e, sg, pts, reach: e.len }); }
     }
     for (const n of nodes.values()) {
-      if (n.kind.b !== 'door' || n.yr > 0.41) continue;
-      const c = cellToWorld(n.q, n.r), fd = FRAMES[n.kind.d], dx = c.x + fd.nx * (INNER - 1.5), dz = c.z + fd.nz * (INNER - 1.5);
+      const isM = n.kind.b === 'mdoor';
+      if (!isM && (n.kind.b !== 'door' || n.yr > 0.41)) continue;
+      if (isM && n.yr > 0.41) continue;
+      const c = cellToWorld(n.q, n.r), fd = FRAMES[n.kind.d], dx = isM ? n.kind.outside[0] : c.x + fd.nx * (INNER - 1.5), dz = isM ? n.kind.outside[1] : c.z + fd.nz * (INNER - 1.5);
       let best = null;
       for (const W of walkSides) {   // de stoeppunten per tak zijn één keer uitgerekend (niet per voordeur opnieuw)
         if (Math.abs(W.pts[0][0] - dx) > W.reach + 14 || Math.abs(W.pts[0][1] - dz) > W.reach + 14) continue;
-        for (let i = 0; i < W.pts.length; i++) { const d = Math.hypot(W.pts[i][0] - dx, W.pts[i][1] - dz); if (d < 14 && (!best || d < best.d)) best = { e: W.e, sg: W.sg, d, pt: W.pts[i] }; }
+        for (let i = 0; i < W.pts.length - 1; i++) {   // dichtstbijzijnde punt op de stoep (ook midden op een lang recht stuk)
+          const A = W.pts[i], B = W.pts[i + 1], ex = B[0] - A[0], ez = B[1] - A[1], l2 = ex * ex + ez * ez || 1e-9, t = Math.max(0, Math.min(1, ((dx - A[0]) * ex + (dz - A[1]) * ez) / l2)), px = A[0] + ex * t, pz = A[1] + ez * t, d = Math.hypot(px - dx, pz - dz);
+          if (d < 14 && (!best || d < best.d)) best = { e: W.e, sg: W.sg, d, pt: [px, pz] };
+        }
       }
       if (!best) continue;
       for (const [vnode, dir] of [[vn[best.e.b], 0], [vn[best.e.a], 1]]) {   // dir: looprichting van de deur naar dat uiteinde
-        const link = { e: best.e, sg: best.sg, pt: best.pt, door: [dx, dz] };
+        const link = { e: best.e, sg: best.sg, pt: best.pt, door: [dx, dz], mod: isM };
         n.edges.set(vnode.key, { to: vnode, side: -1, climb: false, vecDoor: link, dir });
         vnode.edges.set(n.key, { to: n, side: -1, climb: false, vecDoor: link, dir: dir ? 0 : 1 });
       }
     }
     for (const [k, n] of nodes) if (!n.edges.size) nodes.delete(k);
+    // Afgesloten stukken (een winkel waar je niet uit kunt): wel in het netwerk, maar daar begint niemand
+    { const seen = new Set();
+      for (const n0 of nodes.values()) {
+        if (seen.has(n0.key)) continue; const comp = [n0]; seen.add(n0.key); let exit = false;
+        for (let i = 0; i < comp.length; i++) { const n = comp[i]; if (n.kind.b !== 'mod' && n.kind.b !== 'mdoor') exit = true; for (const e of n.edges.values()) if (!seen.has(e.to.key)) { seen.add(e.to.key); comp.push(e.to); } }
+        if (!exit) for (const n of comp) n.dead = true;
+      } }
     return nodes;
   }
 
@@ -237,7 +250,8 @@
     }
     const vecEdgesAround = (...ns) => { const out = []; for (const n of ns) if (n) for (const e of n.edges.values()) if (e.vec && !out.includes(e.vec)) out.push(e.vec); return out; };
     function centerOf(n, f, a) {
-      const c = cellC(n), K = n.kind;
+      const K = n.kind; if (K.b === 'mod' || K.b === 'mdoor') return [n.x, n.z];
+      const c = cellC(n);
       if (K.b === 'vec') { const e = [...n.edges.values()][0]; if (e && e.vec) { a.vedges = vecEdgesAround(n); return cars.vecWalk(e.vec, e.dir, vecOff(e.vec, a))[0]; } return [n.x, n.z]; }
       const [rx, rz] = f ? right(f) : [0, 0];
       if (K.b === 'hof') return [c.x + rx * a.walkSide * 2.9, c.z + rz * a.walkSide * 2.9];
@@ -461,6 +475,7 @@
         let v = 1;
         if (e.to.kind.b === 'door') v = 0.25;
         if (e.climb) v = 1.6;
+        if (e.to.kind.b === 'mdoor') v = 0.7;
         if (inSide !== undefined && e.side === inSide) v *= 3;   // liefst rechtdoor
         total += v; return v;
       });
@@ -474,11 +489,16 @@
       if (e.vec) { a.precise = false; a.vedges = vecEdgesAround(from, to); a.wps = cars.vecWalk(e.vec, e.dir, vecOff(e.vec, a)); if (from.kind.b === 'vec') a.wps = junctionRoute(from, a, a.wps[0]).concat(a.wps); return; }
       if (e.vecDoor) {   // van een voordeur de getekende stoep op, of andersom
         const L = e.vecDoor, def = PATH_DEF[L.e.t], off = (e.dir ? -L.sg : L.sg) * (def.hw + def.walk / 2 + a.lane * 0.5);
-        const pts = cars.vecWalk(L.e, e.dir, off); let bi = 0, bd = 1e9; pts.forEach((p, i) => { const d = Math.hypot(p[0] - L.pt[0], p[1] - L.pt[1]); if (d < bd) { bd = d; bi = i; } });
-        a.precise = false; a.vedges = [L.e, ...vecEdgesAround(from.kind.b === 'door' ? to : from)];
-        if (from.kind.b === 'door') a.wps = [L.door, ...pts.slice(bi)];
-        else { a.wps = [...pts.slice(0, bi + 1), L.door, centerOf(to, null, a)]; a.goingIn = true; }
+        const pts = cars.vecWalk(L.e, e.dir, off); let bi = 0, bd = 1e9; for (let i = 0; i < pts.length - 1; i++) { const d = distSeg(L.pt[0], L.pt[1], pts[i], pts[i + 1]); if (d < bd) { bd = d; bi = i; } }   // het stoepstuk waar de deur op uitkomt
+        const join = (() => { const A = pts[bi], B = pts[bi + 1] || A, ex = B[0] - A[0], ez = B[1] - A[1], l2 = ex * ex + ez * ez || 1e-9, t = Math.max(0, Math.min(1, ((L.pt[0] - A[0]) * ex + (L.pt[1] - A[1]) * ez) / l2)); return [A[0] + ex * t, A[1] + ez * t]; })();
+        a.precise = false; a.vedges = [L.e, ...vecEdgesAround(from.kind.b === 'door' || from.kind.b === 'mdoor' ? to : from)];
+        if (from.kind.b === 'door' || from.kind.b === 'mdoor') a.wps = [L.door, join, ...pts.slice(bi + 1)];
+        else { a.wps = [...pts.slice(0, bi + 1), join, L.door, centerOf(to, null, a)]; a.goingIn = !L.mod; }
         return;
+      }
+      if (e.mod) {   // door een module: via de openingen naar de volgende knoop; trappen en ingangen precies volgen
+        a.vedges = null; a.precise = e.climb || from.kind.b === 'mdoor' || to.kind.b === 'mdoor' || !!(from.kind.stair || to.kind.stair);
+        a.wps = [...(e.via || []), [to.x, to.z]]; return;
       }
       a.vedges = null;
       a.precise = e.climb || to.kind.b === 'door' || from.kind.b === 'door' || !!to.kind.level || !!from.kind.level;   // deuren en trappen: precies volgen
@@ -510,12 +530,13 @@
       const wholeNew = !peopleLocalEdit;
       peopleLocalEdit = false;
       graph = buildWalkGraph();
-      nodeList = [...graph.values()];
+      nodeList = [...graph.values()].filter(n => !n.dead);
       doorList = nodeList.filter(n => n.kind.b === 'door');
       // bewoners en werkers: hoe meer huizen en kantoren, hoe drukker op straat (plus een paar wandelaars)
       const pop = cityCounts();
       const vLen = cars.vecGraph().totalLen;   // getekende wegen tellen mee per lengte
-      const want = Math.min(8, nodeList.length * 0.05 + vLen / 40) + pop.homes * 1.6 + pop.offices * 1.2;
+      const shops = (cells.inst || []).filter(I => I.m && I.m.v === 2 && /^(Winkel|Horeca)/.test(I.m.cat || '')).length;   // winkels en winkelcentra trekken bezoekers
+      const want = Math.min(8, nodeList.length * 0.05 + vLen / 40) + pop.homes * 1.6 + pop.offices * 1.2 + shops * 0.9;
       const target = on ? Math.min(MAX, Math.round(Math.min(want, nodeList.length * 0.8 + vLen / 20))) : 0;
       for (const a of agents) {   // wie op een verdwenen plek stond (of: een hele nieuwe stad), begint ergens anders opnieuw
         const n = a.node && graph.get(a.node.key);
@@ -846,6 +867,7 @@
       lying() { return agents.filter(a => (a.state === 'rag' || a.state === 'getup') && a.rag); },
       get on() { return on; },
       get count() { return agents.length; },
+      get agents() { return agents; }, graph() { return graph; },   // voor tests
       setOn(v) { on = v; label(); try { localStorage.setItem('hexstad-mensen', on ? '1' : '0'); } catch (e) {} peopleDirty = true; },
       // Staat er iemand in de weg? (de speler loopt niet door mensen heen, behalve als je rent: dan val je ze omver)
       blocks(x, z, y) {
@@ -926,7 +948,7 @@
           if (!a.wps.length) {
             if (a.goingIn) { a.state = 'inside'; a.timer = 4 + Math.random() * 10; a.goingIn = false; continue; }
             const k = a.node.kind;
-            if ((k.b === 'hof' || (k.b === 'looppad' && a.node.edges.size >= 3) || k.level === 'high') && Math.random() < 0.18) { a.state = 'pause'; a.timer = 2 + Math.random() * 5; }
+            if ((k.b === 'hof' || (k.b === 'looppad' && a.node.edges.size >= 3) || k.level === 'high' || (k.b === 'mod' && k.open)) && Math.random() < 0.18) { a.state = 'pause'; a.timer = 2 + Math.random() * 5; }
             go(a, chooseNext(a));
             continue;
           }

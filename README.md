@@ -80,6 +80,12 @@ Een geplaatst exemplaar heeft een laag `lv` (0 = op de grond, 1 = op 3 m, enzovo
 
 Een gestapelde module krijgt een plafond onder zijn begane grond (`stacked`). Lopen en botsing werken per laag (`modCols`, `shiftCol`). Buren voor de randcodes zijn alleen modules op dezelfde laag. De gum haalt het exemplaar weg waar je op klikt (het bovenste).
 
+## Voetgangers door modules
+
+Het loopnetwerk van de voetgangers (`buildWalkGraph` in `10`) krijgt uit `08f` knopen voor elke module: per exemplaar, per verdieping en per vak zes knopen, één per zijde (sector), op het zwaartepunt van de vloer in die sector. Op een galerij loopt iemand zo netjes rondom, door een winkel langs de muren. Twee knopen zijn verbonden als de rechte lijn ertussen geen muur kruist, of alleen muren met een deur, poort of open doorgang; dan loopt het pad door het midden van die opening (`route`). Hek en haag tellen als muur. Er moet overal vloer onder het pad liggen (geen vide, trapgat of weggehaalde lichtkap). Trappen, hellingen en de schans verbinden de verdiepingen; een plat dak waar niets op staat is beloopbaar (dakterras, passage over de daken). Een opening in de buitenrand op de begane grond is een ingang (`mdoor`), die net als een voordeur aan de dichtstbijzijnde stoep wordt gekoppeld (ook midden op een lang recht stuk straat). Stukken netwerk waar je niet uit kunt (een winkel zonder deur naar buiten) tellen niet mee als startplek. Winkels trekken bezoekers: per winkelmodule komen er mensen bij.
+
+De modules in de familie Winkelcentrum hebben daarom twee achterdeuren tegenover de voorkant (die bij rug-aan-rug winkels op elkaar vallen), het dakpaviljoen een open terras aan de voorkant, en de doorgang open kiosken naar de buren. In het voorbeeld-winkelcentrum zijn de winkels zo gedraaid dat zoveel mogelijk vakken vanaf de straat bereikbaar zijn (voorkant naar een gang, galerij of dek), op de begane grond zijn ingesloten blokken om de andere rij een doorgang, en elf galerijen met trap verbinden de lagen.
+
 ## Winkelcentrum: de hex-modules uit de SketchUp-schets
 
 De familie **Winkelcentrum** (categorie, `08e`) bouwt de tien bouwstenen uit `hex_mall.dae` na, elk met een functie; zijde +x is de voorkant of passagekant, de "kern" is de zeshoek van ¾ (straal 6,75 m) met een rand van 1,95 m eromheen:
@@ -177,7 +183,7 @@ Nog te doen:
 - Parkeerstroken met geparkeerde auto's, keerlus aan het eind van een laan, zebrapaden
 - Voetpad als getekende lijn
 - Plaatsvervangers in het menu: Rotonde, Spoor, Parkeren, Winkel, School, Fabriek, Bomen, Hagen, Vijver, Fontein, Klif, Strand, Brug, Poort, Toren
-- Mensen die modules in lopen (deuren en trappen in het loopnetwerk); auto's die een parkeergarage in rijden
+- Auto's die een parkeergarage in rijden
 - Module maker: muren met eigen hoogte, schuine daken over een vrije vorm, hellende vloeren, teksten en bordjes
 
 ## Testen
