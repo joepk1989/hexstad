@@ -119,6 +119,7 @@
       const W = tf(mx, mz), W2 = tf(mx + dx / l, mz + dz / l), ang = Math.atan2(-(W2[1] - W[1]), W2[0] - W[0]);
       g.rotateY(ang); g.translate(W[0], (y0 + y1) / 2, W[1]); put(mat, g);
     };
+    const doorsOut = [];   // deurbladen (09b), in wereld-xz, y nog zonder de hoogte van het exemplaar
     const addWall = (a, b, y0, y1, half = MV2.WALL_T / 2) => { const A = tfp(a), B = tfp(b); walls.push({ ax: A[0], az: A[1], bx: B[0], bz: B[1], y0, y1, half }); };
     const lerp = (a, b, f) => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
     // vlakke driehoeken (wereld) in een BufferGeometry met uv in meters
@@ -190,7 +191,9 @@
         if (oy1 < LH - 0.01) { wallBox(mat, p0, p1, y0 + oy1, y0 + LH, T); addWall(p0, p1, y0 + oy1, y0 + LH); }
         if (oy0 > 0.01) { wallBox(mat, p0, p1, y0, y0 + oy0, T); addWall(p0, p1, y0, y0 + oy0); }
         if (o === 'window') { wallBox(Mt.frame, p0, p1, y0 + oy0 - 0.04, y0 + oy0 + 0.04, T + 0.1); wallBox(Mt.frame, p0, p1, y0 + oy1 - 0.04, y0 + oy1 + 0.04, T); for (const p of [p0, p1]) wallBox(Mt.frame, p, lerp(p, p === p0 ? p1 : p0, 0.04 / ow), y0 + oy0, y0 + oy1, T); wallBox(M.pane, p0, p1, y0 + oy0, y0 + oy1, 0.02); }
-        if (o === 'door') { wallBox(Mt.trim, p0, p1, y0 + oy1 - 0.06, y0 + oy1, T + 0.08); for (const p of [p0, p1]) wallBox(Mt.trim, p, lerp(p, p === p0 ? p1 : p0, 0.06 / ow), y0, y0 + oy1, T + 0.08); }
+        if (o === 'door') { const A = tfp(p0), B = tfp(p1), tl = Math.hypot(B[0] - A[0], B[1] - A[1]) || 1, O = tf(0, 0), nx = -(B[1] - A[1]) / tl, nz = (B[0] - A[0]) / tl, inw = ((O[0] - A[0]) * nx + (O[1] - A[1]) * nz) >= 0 ? 1 : -1;
+          doorsOut.push({ hx: A[0], hz: A[1], y: y0, w: tl, h: oy1, tx: (B[0] - A[0]) / tl, tz: (B[1] - A[1]) / tl, inx: nx * inw, inz: nz * inw, col: W.m === 'glass' || W.m === 'curtain' ? '#2b3a44' : W.m === 'wood' || W.m === 'slats' ? '#4a2e18' : '#5a3a22' });
+          wallBox(Mt.trim, p0, p1, y0 + oy1 - 0.06, y0 + oy1, T + 0.08); for (const p of [p0, p1]) wallBox(Mt.trim, p, lerp(p, p === p0 ? p1 : p0, 0.06 / ow), y0, y0 + oy1, T + 0.08); }
         if (o === 'gate') { wallBox(Mt.trim, p0, p1, y0 + oy1 - 0.1, y0 + oy1, T + 0.1); }
       }
       // --- trappen en hellingen ---
@@ -308,7 +311,7 @@
       }
     }
     for (const [mat, list] of bags) { const mesh = new THREE.Mesh(mergeGeos(list), mat); mesh.castShadow = true; mesh.receiveShadow = true; mesh.userData.own = true; group.add(mesh); }
-    return { group, surfaces, walls };
+    return { group, surfaces, walls, doors: doorsOut };
   }
   // ---------- In de stad ----------
   const mv2Tf = (rot, q0, r0) => { const th = -rot * Math.PI / 3, c = Math.cos(th), s = Math.sin(th), o = cellToWorld(q0, r0); return (x, z) => [o.x + x * c - z * s, o.z + x * s + z * c]; };
@@ -369,7 +372,7 @@
   function buildModNet() {
     const live = new Set((cells.inst || []).filter(I => I.m && I.m.v === 2));
     let touched = false;
-    for (const [I, e] of modGroups) if (!live.has(I)) { e.group.traverse(o => { if (o.isMesh && o.userData.own) o.geometry.dispose(); }); scene.remove(e.group); modGroups.delete(I); touched = true; }
+    for (const [I, e] of modGroups) if (!live.has(I)) { e.group.traverse(o => { if (o.isMesh && o.userData.own) o.geometry.dispose(); }); scene.remove(e.group); modGroups.delete(I); doors.clear(I); touched = true; }
     const before = new Set(modCellSet);
     modCols.clear(); modCellSet.clear(); modTop.clear();
     for (const I of live) for (const [q, r] of mv2Area(I)) { const k = q + ',' + r, t = instTopLv(I), e = modTop.get(k); if (!e || t > e.top || (t === e.top && instLv(I) > instLv(e.inst))) modTop.set(k, { top: t, inst: I, kap: modMeta(I.m).top === 'kap' }); }
@@ -380,7 +383,7 @@
       if (e && e.sig === sig) { /* ongewijzigd */ } else {
         if (e) { e.group.traverse(o => { if (o.isMesh && o.userData.own) o.geometry.dispose(); }); scene.remove(e.group); }
         const o = cellToWorld(I.q, I.r), G = gH(I.q, I.r) + instLv(I) * MV2.LV_H, b = mv2Build(I.m, mv2Tf(I.rot, I.q, I.r), [o.x, o.z], { stacked: instLv(I) > 0, roofMask: cov.mask, roofStyle: cov.style, skip, baseLv: instLv(I) });
-        b.group.position.y += G; b.group.userData.inst = I; e = { group: b.group, col: shiftCol({ surfaces: b.surfaces, walls: b.walls }, G), sig, roofed: !!cov.mask, mask: cov.mask, skip, style: cov.style }; scene.add(e.group); modGroups.set(I, e); touched = true;
+        b.group.position.y += G; b.group.userData.inst = I; doors.clear(I); for (const d of b.doors) { d.y += G; doors.add(I, d); } e = { group: b.group, col: shiftCol({ surfaces: b.surfaces, walls: b.walls }, G), sig, roofed: !!cov.mask, mask: cov.mask, skip, style: cov.style }; scene.add(e.group); modGroups.set(I, e); touched = true;
       }
       e.col.tag = (I.m.name || '') + ' @' + I.q + ',' + I.r + ' lv' + instLv(I) + ' rot' + I.rot + (I.mir ? ' mir' : '');
       for (const [q, r] of mv2Area(I)) { const k = q + ',' + r; if (!instLv(I)) modCellSet.add(k); let L = modCols.get(k); if (!L) modCols.set(k, L = []); L.push(e.col); }

@@ -204,6 +204,10 @@
       put(outMat, placed(wallShape(R, holes), f.rot, f.nx * INNER, 0, f.nz * INNER));
       put(inMat, placed(wallShape(lin, holes), f.rot + Math.PI, f.nx * (INNER - WALL_T), 0, f.nz * (INNER - WALL_T)));
       for (const wnd of wins) addWindow(f, wnd);
+      if (hole === DOOR) {   // deurblad (zie 09b): scharnier aan de linkerkant gezien van buiten, zwaait naar binnen
+        const tx = -f.nz, tz = f.nx, dx = f.nx * (INNER - WALL_T * 0.5), dz = f.nz * (INNER - WALL_T * 0.5);
+        doors.add(key(q, r), { hx: cx + dx - tx * hole.w / 2, hz: cz + dz - tz * hole.w / 2, y: baseY + hole.y0, w: hole.w, h: hole.y1 - hole.y0, tx, tz, inx: -f.nx, inz: -f.nz, col: office ? '#2b3a44' : ['#5a3a22', '#3b4a2c', '#6e2b22', '#2f2f33'][v] });
+      }
       if (hole) {
         const hh = hole.y1 - hole.y0, cy = (hole.y0 + hole.y1) / 2;
         put(M.trim, box(f, -hole.w / 2 - 0.01, pc, cy, 0.02, hh, WALL_T));

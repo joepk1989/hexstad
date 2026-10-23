@@ -53,7 +53,7 @@
     const k = key(q, r);
     const old = groups.get(k);
     if (old) { disposeGroup(old); blocks.remove(old); groups.delete(k); }
-    colMap.delete(k);
+    colMap.delete(k); doors.clear(k);
     const st = cells.get(k);
     if (!st || !st.length) return;
     const { x, z } = cellToWorld(q, r);
@@ -103,7 +103,7 @@
     terrMigrate(); terrHold = true; terrRebuildAll();   // oude verhogingen worden terreinhoogte
     terrVer++; roadCols = new Map();
     for (const g of groups.values()) { disposeGroup(g); blocks.remove(g); }
-    groups.clear(); colMap.clear();
+    groups.clear(); colMap.clear(); doors.clearCells();
     { const res = computePathLinks(); pathLinks = res.masks; pathIfs = res.ifs; pathCorners = res.corners; cornerVia = res.via; }
     LOD.on = cells.size > 1800;
     if (LOD.on) { LOD.fx = mode === 'walk' ? player.x : orbit.target.x; LOD.fz = mode === 'walk' ? player.z : orbit.target.z; }

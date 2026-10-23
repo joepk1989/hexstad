@@ -94,6 +94,8 @@ De modules in de familie Winkelcentrum hebben daarom twee achterdeuren tegenover
 
 **Menu → Hexstad** laadt de ene voorbeeldstad met alles erin (`08g-hexstad-stad.js`, vast, geen toeval): een rotonde in het midden, zes wegen recht naar buiten (twee brede), een binnenring, de ringweg (laan met bomen, straal 270 m), een fietsring erbuiten en een snelweg langs de oostkant waar de weg met een viaduct overheen gaat. Binnen de binnenring het centrum met hoogbouw en pleinen; daaromheen zes buurten, één per taartpunt: het winkelcentrum (de SketchUp-schets, 120° gedraaid zodat hij langs de ring past) met parkeren en markt; de woonwijk met rijhuizen, villa's, een woonerf en een hofje; openbaar (school, bibliotheek, gemeentehuis, kerk, ziekenhuis, museum, station, stadsplein); park en water met een meer waar de weg als brug overheen gaat, voetpaden en een voetbrug; terrein met een dijk waar de weg overheen klimt en villa's en tuinen ernaast; werken met fabriek, hallen, parkeergarage en de oude bouwblokken (looppaden, tunnel, tribune, zuilen, hof). Modules uit de bibliotheek staan met de deur naar de dichtstbijzijnde straat (`toRoad`), een module van 7 vakken alleen waar al die vakken vrij zijn. De losse voorbeeldsteden (ringstad, dorpjes, blokkenstad …) zijn uit het menu; de code en `doAct('sample')` enzovoort bestaan nog voor de tests. De loopwereld voor de speler reikt tot 450 m van het midden.
 
+**Menu → Filestad** (`08h-filestad.js`) is een klein stadje waar het verkeer vastloopt: drie rechte wegen kruisen elkaar in het midden (één kruising met zes takken, dus drie lichtgroepen en twee derde van de tijd rood), een kleine ringweg eromheen stuurt alles steeds weer naar die kruising, dicht bebouwd met woningen en kantoren. Het verkeer is er twee keer zo druk als normaal: `cells.druk = 2` (bewaard als `__d`) vermenigvuldigt in `cars.rebuild` zowel het gewenste aantal auto's als het plafond per meter weg. Na een halve minuut staat er een file, en dan komt de Hulk.
+
 ## Bediening (v100)
 
 Ontworpen in het interfacelab (`lab/interface/`, voorbeeld "Voorstel voor Hexstad"): bij bouwen en lopen staat alles op dezelfde plek (`15d-bediening.js`, HTML in `index.html`, stijlen onderaan `style.css`).
@@ -132,7 +134,11 @@ De mensen zijn low poly (weinig segmenten, platte vlakken) met meer gezicht: oge
 
 ## De Hulk
 
-Staat er een file (vijf of meer auto's die bij elkaar al een tijd stilstaan, `cars.jams()`), dan komt een reus van 4,5 m aangelopen (`11b-hulk.js`), tilt de auto's één voor één op en slingert ze weg (`cars.toss`: een boog door de lucht, tollend, de wielen blijven eraan; na de landing glijdt de auto nog even en begint ergens anders opnieuw). De omstanders schrikken, de file is opgelost, de Hulk loopt weer weg. Hooguit één keer per anderhalve minuut; `__hulk.summon()` roept hem voor een test.
+Staat er een file (vijf of meer auto's die bij elkaar al een tijd stilstaan, `cars.jams()`), dan komt een reus van 4,5 m aangelopen (`11b-hulk.js`), tilt de auto's één voor één op en slingert ze weg (`cars.toss`: een boog door de lucht, tollend, de wielen blijven eraan; na de landing glijdt de auto nog even en begint ergens anders opnieuw). De omstanders schrikken, de file is opgelost, de Hulk loopt weer weg. Hooguit één keer per anderhalve minuut; `__hulk.summon()` roept hem voor een test. Een file is: vijf of meer auto's binnen 22 m van elkaar die elk al meer dan 6 s stilstaan (`c.still`, om welke reden ook: rood licht, voorrang, een keerlus, iemand ervoor).
+
+## Deuren
+
+Elke voordeur (huizen en kantoren uit `03-gebouwen.js`, deuropeningen van modules uit `08c`) heeft een deurblad dat naar binnen openzwaait zodra jij of een voetganger binnen 2,2 m komt, en weer dichtgaat als iedereen weg is (`09b-deuren.js`, één `InstancedMesh` voor alle bladen, `window.__doors`). Het scharnier zit links gezien van buiten; de deur blokkeert niet, de opening in de muur blijft vrij. Deuren horen bij een eigenaar (een vak of een module-exemplaar) en gaan weg als die herbouwd wordt. Binnen onder een dak valt geen zonlicht, dus het blad licht zichzelf zacht bij in zijn eigen kleur (eigen `onBeforeCompile` bovenop de weer-shader). Let op in r128: `setColorAt` maakt de kleurbuffer zo groot als `count`, dus die buffer wordt zelf aangemaakt.
 
 ## Ongelukjes en door iets heen lopen
 

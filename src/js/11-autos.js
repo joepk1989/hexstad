@@ -226,9 +226,9 @@
     function rebuild() {
       vecGraph();
       // hoe meer huizen en kantoren, hoe meer verkeer; nooit voller dan de wegen aankunnen
-      const pop = cityCounts(), nRoad = VG.totalLen / 15.6;
-      const want = Math.round(nRoad / 14 + pop.homes * 0.3 + pop.offices * 0.2);
-      let target = on && nRoad >= 3 ? Math.min(MAX, Math.max(1, Math.min(want, Math.floor(nRoad / 2.5)))) : 0;
+      const pop = cityCounts(), nRoad = VG.totalLen / 15.6, druk = cells.druk || 1;   // druk: extra verkeer (Filestad)
+      const want = Math.round((nRoad / 14 + pop.homes * 0.3 + pop.offices * 0.2) * druk);
+      let target = on && nRoad >= 3 ? Math.min(MAX, Math.max(1, Math.min(want, Math.floor(nRoad / 2.5 * druk)))) : 0;
       if (forceN) target = Math.min(MAX, forceN);   // alleen voor de simulatietest
       while (list.length > target) list.pop();
       for (const c of list) { if (!validLeg(c)) spawn(c); else c.next = planNext(c); }
@@ -427,7 +427,7 @@
       crashLog, toss,
       // files: groepjes auto's die al een tijd stilstaan (voor de Hulk)
       jams() {
-        const slow = list.filter(c => c.path && !c.crash && !c.fly && c.v < 0.4 && (c.wait || 0) + (c.stuck || 0) > 5), out = [], used = new Set();
+        const slow = list.filter(c => c.path && !c.crash && !c.fly && c.v < 0.4 && (c.still || 0) > 6), out = [], used = new Set();
         for (const c of slow) { if (used.has(c)) continue; const grp = [c]; used.add(c); for (let i = 0; i < grp.length; i++) for (const o of slow) if (!used.has(o) && Math.hypot(o.x - grp[i].x, o.z - grp[i].z) < 22) { used.add(o); grp.push(o); } if (grp.length >= 5) out.push({ cars: grp, x: grp.reduce((s, o) => s + o.x, 0) / grp.length, z: grp.reduce((s, o) => s + o.z, 0) / grp.length }); }
         return out.sort((a, b) => b.cars.length - a.cars.length);
       },
@@ -599,6 +599,7 @@
             else c.youWait = 0;
           }
           c.wait = c.v < 0.2 && want < 0.5 && !held ? c.wait + dt : Math.max(0, c.wait - dt * 2);
+          c.still = c.v < 0.3 ? (c.still || 0) + dt : 0;   // hoe lang hij al stilstaat, om welke reden ook (voor de file-teller en de Hulk)
           // Vangnet: wie heel lang muurvast staat (niet voor een rood licht), schuift er stapvoets even doorheen
           // (wie in een gewone rij staat voor een licht, een vrije plek of een gat in het verkeer, wacht gewoon)
           let legit = c.why === 'light' || c.why === 'space' || held;

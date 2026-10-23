@@ -44,6 +44,8 @@ Eerst bouwen: `node build.js` in de hoofdmap. Daarna, vanuit `test/`:
 | `python terrein2.py` | terrein: voorbeeld, links/rechts, egaliseren, hellinglijn, sneeuw |
 | `python mensen2.py` | low-poly mensen, groeten, praatjes, schrikken (`out/mensen_groet.png`) |
 | `python hulk.py` | de Hulk bij een file (`out/hulk_*.png`) |
+| `python file.py` | Filestad: aantallen, file en de Hulk binnen 3 minuten gesimuleerd (`out/file_*.png`) |
+| `python deuren.py` | deuren: aantal, open bij de speler, dicht erna, close-ups (`out/deur_*.png`) |
 | `python bediening.py` | bediening v100: snelbalk, catalogus, ongedaan maken, lopen, laagkiezer op het winkelcentrum, telefoon (`out/bed_*.png`) |
 | `python weer.py [typen]` | elk weertype in de voorbeeldstad en het winkelcentrum (`out/weer_*.png`), shaderfouten, wisselend weer, instellingen |
 | `python weer_lopen.py` | regen tijdens het lopen: straat, hal, galerij, paraplu's |
