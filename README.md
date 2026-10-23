@@ -80,6 +80,10 @@ Een geplaatst exemplaar heeft een laag `lv` (0 = op de grond, 1 = op 3 m, enzovo
 
 Een gestapelde module krijgt een plafond onder zijn begane grond (`stacked`). Lopen en botsing werken per laag (`modCols`, `shiftCol`). Buren voor de randcodes zijn alleen modules op dezelfde laag. De gum haalt het exemplaar weg waar je op klikt (het bovenste).
 
+## Van bouwen naar lopen: vallen
+
+Wissel je naar lopen, dan val je uit de lucht (16 m) op de plek waar het midden van het bouwscherm naar kijkt: een dak, een galerij, de straat (`dropPlayer` in `13`). Doorzichtig glas telt niet als raakpunt. Na de landing kijk je rustig weer vooruit. Kijk je naar water of naar niets, dan kom je zoals vroeger op het dichtstbijzijnde vrije vak terecht.
+
 ## Voetgangers door modules
 
 Het loopnetwerk van de voetgangers (`buildWalkGraph` in `10`) krijgt uit `08f` knopen voor elke module: per exemplaar, per verdieping en per vak zes knopen, één per zijde (sector), op het zwaartepunt van de vloer in die sector. Op een galerij loopt iemand zo netjes rondom, door een winkel langs de muren. Twee knopen zijn verbonden als de rechte lijn ertussen geen muur kruist, of alleen muren met een deur, poort of open doorgang; dan loopt het pad door het midden van die opening (`route`). Hek en haag tellen als muur. Er moet overal vloer onder het pad liggen (geen vide, trapgat of weggehaalde lichtkap). Trappen, hellingen en de schans verbinden de verdiepingen; een plat dak waar niets op staat is beloopbaar (dakterras, passage over de daken). Een opening in de buitenrand op de begane grond is een ingang (`mdoor`), die net als een voordeur aan de dichtstbijzijnde stoep wordt gekoppeld (ook midden op een lang recht stuk straat). Langwerpige voorwerpen (stelling, toonbank, bank, fietsenrek) botsen als een lijnstuk langs hun lengte, niet als een grote cirkel die een deur dichtzet. Stukken netwerk waar je niet uit kunt (een winkel zonder deur naar buiten) tellen niet mee als startplek. Winkels trekken bezoekers: per winkelmodule komen er mensen bij.

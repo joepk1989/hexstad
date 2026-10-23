@@ -17,7 +17,21 @@
   const player = { x: 0, y: 0, z: 0, vy: 0, yaw: 0, pitch: 0, grounded: true };
   const keys = Object.create(null);
   const joyVec = { x: 0, y: 0 };
+  // Van bouwen naar lopen: je valt uit de lucht op de plek waar het midden van het bouwscherm naar kijkt (een dak,
+  // een galerij, de straat). Water of niets geraakt: het dichtstbijzijnde vrije vak, zoals vroeger.
+  function dropPlayer() {
+    const rc = new THREE.Raycaster(); rc.setFromCamera(new THREE.Vector2(0, 0), camera);
+    const hits = rc.intersectObjects([ground, terrGroup, blocks, ...[...modGroups.values()].map(e => e.group)], true);
+    const h = hits.find(x => x.object.visible !== false && !(x.object.material && x.object.material.transparent && x.object.material.opacity < 0.6));   // door glas heen
+    if (!h) return false;
+    const [q, r] = worldToCell(h.point.x, h.point.z);
+    if (baseOf(stackOf(q, r)[0]) === 'water' && h.point.y < 0.5) return false;
+    const x = h.point.x, z = h.point.z, top = floorAt(x, z, h.point.y + 0.5);
+    Object.assign(player, { x, z, y: Math.max(top, h.point.y) + 16, vy: 0, yaw: orbit.theta, pitch: -0.55, grounded: false, dropping: true });
+    return true;
+  }
   function spawnPlayer() {
+    if (dropPlayer()) return;
     const [cq, cr] = worldToCell(orbit.target.x, orbit.target.z);
     let found = [cq, cr];
     outer: for (let ring = 0; ring <= 22; ring++) {
@@ -77,7 +91,8 @@
     const d = Math.hypot(player.x, player.z); if (d > 210) { player.x *= 210 / d; player.z *= 210 / d; }
     const floor = floorAt(player.x, player.z, player.y);
     player.vy -= 9.81 * dt; player.y += player.vy * dt;
-    if (player.y <= floor) { player.y = floor; player.vy = 0; player.grounded = true; } else player.grounded = false;
+    if (player.y <= floor) { if (player.dropping) { player.dropping = false; player.landT = 0.35; sound.walked(1.2, floor < 0.02, true); } player.y = floor; player.vy = 0; player.grounded = true; } else player.grounded = false;
+    if (player.landT > 0) { player.landT = Math.max(0, player.landT - dt); player.pitch += (-0.05 - player.pitch) * Math.min(1, dt * 5); }   // na de landing rustig weer vooruit kijken
     if (player.grounded) sound.walked(Math.hypot(vx, vz) * dt, floor < 0.02, speed > 3);
     updateHand(dt, Math.hypot(vx, vz) > 0.1);
     camera.position.set(player.x, player.y + EYE, player.z);
