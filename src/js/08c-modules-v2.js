@@ -272,20 +272,22 @@
         const col = (mat, rt, rb, h, x, y, z, n = 8) => place(mat, new THREE.CylinderGeometry(rt, rb, h, n).translate(x, y + h / 2, z));
         const hj = (Math.round(O.x * 7) * 31 + Math.round(O.z * 13) * 17) & 1023;
         const solid = (r, h) => walls.push({ ax: W[0], az: W[1], bx: W[0], bz: W[1], y0, y1: y0 + h, half: r });
+        // langwerpig voorwerp (stelling, toonbank, bank): een lijnstuk langs de lengte, niet een grote cirkel die de doorgang dichtzet
+        const solidLen = (len, half, h) => { const ux = Math.cos(ang) * len / 2, uz = -Math.sin(ang) * len / 2; walls.push({ ax: W[0] - ux, az: W[1] - uz, bx: W[0] + ux, bz: W[1] + uz, y0, y1: y0 + h, half }); };
         switch (O.t) {
           case 'tree': { const sc = 0.8 + (hj % 4) * 0.08; col(Mt.trunk, 0.18, 0.26, 2.8, 0, 0, 0, 6); place(Mt.leaf[hj % 3], new THREE.IcosahedronGeometry(2.1 * sc, 0).translate(0, 2.8 + 1.6 * sc, 0)); solid(0.3, 3); break; }
           case 'bush': place(Mt.leaf[(hj + 1) % 3], new THREE.IcosahedronGeometry(0.9, 0).scale(1, 0.8, 1).translate(0, 0.7, 0)); solid(0.6, 1.3); break;
-          case 'bench': box(Mt.bench, 1.8, 0.06, 0.45, 0, 0.45, 0); box(Mt.bench, 1.8, 0.45, 0.06, 0, 0.72, -0.22); box(Mt.metal, 0.06, 0.45, 0.4, -0.8, 0.22, 0); box(Mt.metal, 0.06, 0.45, 0.4, 0.8, 0.22, 0); solid(0.5, 0.9); break;
+          case 'bench': box(Mt.bench, 1.8, 0.06, 0.45, 0, 0.45, 0); box(Mt.bench, 1.8, 0.45, 0.06, 0, 0.72, -0.22); box(Mt.metal, 0.06, 0.45, 0.4, -0.8, 0.22, 0); box(Mt.metal, 0.06, 0.45, 0.4, 0.8, 0.22, 0); solidLen(1.8, 0.25, 0.9); break;
           case 'lamp': col(Mt.lamp, 0.05, 0.08, 4, 0, 0, 0); place(Mt.lampGlow, new THREE.SphereGeometry(0.22, 8, 6).translate(0, 4.05, 0)); solid(0.15, 4); break;
           case 'pillar': col(Mt.wl.stone, 0.3, 0.35, LH, 0, 0, 0, 10); box(Mt.wl.stone, 0.9, 0.12, 0.9, 0, LH - 0.06, 0); solid(0.35, LH); break;
           case 'table': col(Mt.metal, 0.04, 0.06, 0.72, 0, 0, 0, 6); col(Mt.bench, 0.6, 0.6, 0.04, 0, 0.72, 0, 12); for (let i = 0; i < 3; i++) { const a = i * 2.1, x = Math.cos(a) * 0.9, z = Math.sin(a) * 0.9; col(Mt.metal, 0.2, 0.2, 0.45, x, 0, z, 8); } solid(0.9, 0.8); break;
           case 'planter': col(Mt.slab, 0.75, 0.65, 0.5, 0, 0, 0, 8); place(Mt.leaf[2], new THREE.IcosahedronGeometry(0.55, 0).scale(1.2, 0.7, 1.2).translate(0, 0.75, 0)); for (let i = 0; i < 5; i++) { const a = i * 1.26, c = ['#e64a3c', '#f2b233', '#e9e6dc', '#d05a9a', '#f28c33'][i]; place(new THREE.MeshBasicMaterial({ color: c }), new THREE.SphereGeometry(0.09, 5, 4).translate(Math.cos(a) * 0.4, 0.95, Math.sin(a) * 0.4)); } solid(0.75, 1); break;
           case 'fountain': col(Mt.wl.stone, 1.8, 1.9, 0.5, 0, 0, 0, 12); col(Mt.water, 1.6, 1.6, 0.1, 0, 0.42, 0, 12); col(Mt.wl.stone, 0.12, 0.18, 1.3, 0, 0.4, 0, 8); col(Mt.wl.stone, 0.6, 0.5, 0.12, 0, 1.6, 0, 10); solid(1.9, 0.6); break;
           case 'bin': col(Mt.bin, 0.25, 0.22, 0.9, 0, 0, 0, 8); solid(0.25, 0.9); break;
-          case 'shelf': { box(Mt.wl.panel, 2.4, 1.9, 0.5, 0, 0.95, 0); for (const y of [0.45, 0.95, 1.45]) box(Mt.slab, 2.3, 0.04, 0.46, 0, y, 0.02); for (let i = 0; i < 6; i++) { const k = (hj + i * 37) % 5; box(new THREE.MeshStandardMaterial({ color: ['#d94b3a', '#3a7fd9', '#e9c04a', '#48a35a', '#e6e1d8'][k], roughness: 0.8 }), 0.32, 0.26, 0.3, -1 + i * 0.4, 0.45 + 0.5 * (i % 3) + 0.13, 0.04); } solid(1.2, 1.9); break; }
-          case 'counter': box(Mt.wl.slats, 2.2, 1.0, 0.7, 0, 0.5, 0); box(Mt.slab, 2.3, 0.05, 0.8, 0, 1.02, 0); box(Mt.metal, 0.35, 0.3, 0.3, 0.6, 1.2, 0); solid(1.1, 1.05); break;
+          case 'shelf': { box(Mt.wl.panel, 2.4, 1.9, 0.5, 0, 0.95, 0); for (const y of [0.45, 0.95, 1.45]) box(Mt.slab, 2.3, 0.04, 0.46, 0, y, 0.02); for (let i = 0; i < 6; i++) { const k = (hj + i * 37) % 5; box(new THREE.MeshStandardMaterial({ color: ['#d94b3a', '#3a7fd9', '#e9c04a', '#48a35a', '#e6e1d8'][k], roughness: 0.8 }), 0.32, 0.26, 0.3, -1 + i * 0.4, 0.45 + 0.5 * (i % 3) + 0.13, 0.04); } solidLen(2.4, 0.27, 1.9); break; }
+          case 'counter': box(Mt.wl.slats, 2.2, 1.0, 0.7, 0, 0.5, 0); box(Mt.slab, 2.3, 0.05, 0.8, 0, 1.02, 0); box(Mt.metal, 0.35, 0.3, 0.3, 0.6, 1.2, 0); solidLen(2.2, 0.37, 1.05); break;
           case 'sign': { col(Mt.metal, 0.05, 0.06, 2.6, 0, 0, 0, 6); box(Mt.metal, 1.6, 0.6, 0.08, 0, 2.6, 0); box(new THREE.MeshBasicMaterial({ color: ['#ff4f6d', '#39b6ff', '#ffd23f', '#5de07a'][hj % 4] }), 1.5, 0.5, 0.1, 0, 2.6, 0); solid(0.1, 2.9); break; }
-          case 'bike': for (let i = -2; i <= 2; i++) { box(Mt.metal, 0.04, 0.6, 0.6, i * 0.5, 0.3, 0); } box(Mt.metal, 2.3, 0.04, 0.04, 0, 0.6, 0.28); box(Mt.metal, 2.3, 0.04, 0.04, 0, 0.6, -0.28); solid(1.2, 0.7); break;
+          case 'bike': for (let i = -2; i <= 2; i++) { box(Mt.metal, 0.04, 0.6, 0.6, i * 0.5, 0.3, 0); } box(Mt.metal, 2.3, 0.04, 0.04, 0, 0.6, 0.28); box(Mt.metal, 2.3, 0.04, 0.04, 0, 0.6, -0.28); solidLen(2.4, 0.32, 0.7); break;
         }
       }
       if (walkPos.length) {

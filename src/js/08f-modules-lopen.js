@@ -116,7 +116,7 @@
       for (const [q, r] of area) {
         const C = byCell.get('0|' + q + ',' + r); if (!C) continue;
         for (let k = 0; k < 6; k++) {
-          const nq = q + NEIGH[k][0], nr = r + NEIGH[k][1]; if (inArea(nq, nr) || !C[k]) continue;
+          const nq = q + NEIGH[k][0], nr = r + NEIGH[k][1]; if (inArea(nq, nr) || !C[k] || modCellOccupied(nq, nr)) continue;   // tegen een andere module: die verbinding loopt via de sectorknopen
           if (stackOf(nq, nr).length && baseOf(stackOf(nq, nr)[0]) === 'water') continue;
           const c = cellToWorld(q, r), f = FRAMES[k], mx = c.x + f.nx * INNER, mz = c.z + f.nz * INNER, inside = [c.x + f.nx * (INNER - 1.3), c.z + f.nz * (INNER - 1.3)], outside = [c.x + f.nx * (INNER + 1.3), c.z + f.nz * (INNER + 1.3)];
           // de rand: welke muurstukken liggen op deze zijde, en is er één met een opening (of geen muur)?

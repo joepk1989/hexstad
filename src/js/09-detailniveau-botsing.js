@@ -197,6 +197,14 @@
     }
     return false;
   }
+  function whyBlocked(x, z, feet) {   // voor tests: wat blokkeert hier?
+    const out = [];
+    for (const c of nearby(x, z)) {
+      for (const s of c.surfaces) { if (surfBottom(s) >= feet + TORSO) continue; for (const [ox, oz] of SAMPLES) { const t = surfTop(s, x + ox, z + oz); if (t !== null && t > feet + STEP) { out.push({ surf: s.kind, top: +t.toFixed(2), bottom: surfBottom(s) }); break; } } }
+      for (const w of c.walls) { if (w.y0 >= feet + TORSO || w.y1 <= feet + STEP) continue; const d = segDist(x, z, w); if (d < PR + w.half) out.push({ wall: [+w.ax.toFixed(2), +w.az.toFixed(2), +w.bx.toFixed(2), +w.bz.toFixed(2)], y: [+w.y0.toFixed(2), +w.y1.toFixed(2)], half: w.half, d: +d.toFixed(2) }); }
+    }
+    return out;
+  }
   function floorAt(x, z, feet) {
     let best = Math.max(0, terrGround(x, z));   // het maaiveld (terrein), daarboven wat er gebouwd is
     const cols = nearby(x, z);
