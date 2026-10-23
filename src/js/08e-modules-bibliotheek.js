@@ -253,8 +253,8 @@
     { // galerij: vloerring van 1,95 m rond een vide, met balustrade aan de binnenkant
       const b = libBuilder('Winkelcentrum · galerij', WC); b.where(0, (x, z) => !inCore(x, z), 'polished'); b.ring(0, 0, 0, CORE, 'fence'); b.obj(0, 'planter', 6.8, 0).obj(0, 'planter', -6.8, 0).obj(0, 'bench', 0, 6.9, 0).obj(0, 'bin', 0, -6.9); add(b); }
     // galerij met trap (trapring uit de schets): onderaan alleen de trap (de vloer is het dak eronder), erboven de
-    // galerijring; de trap van 1,95 m ligt in de band langs één zijde. Ook gespiegeld (trap aan de andere kant).
-    for (const [nm, S] of [['Winkelcentrum · galerij · trap', { a: [-3, 3], d: 4, n: 3, w: 1.95, k: 'stair', off: -0.975 }], ['Winkelcentrum · galerij · trap · gespiegeld', { a: [3, 0], d: 4, n: 3, w: 1.95, k: 'stair', off: 0.975 }]]) {
+    // galerijring; de trap van 1,95 m ligt in de band langs één zijde. Gespiegeld plaatsen (F) geeft de trap aan de andere kant.
+    for (const [nm, S] of [['Winkelcentrum · galerij · trap', { a: [-3, 3], d: 4, n: 3, w: 1.95, k: 'stair', off: -0.975 }]]) {   // gespiegeld: plaatsen met F
       const b = libBuilder(nm, WC); b.m.lv[0].s.push(S);
       b.where(1, (x, z) => !inCore(x, z), 'polished'); b.hole(1, S); b.ring(1, 0, 0, CORE, 'fence'); b.obj(1, 'planter', S.off > 0 ? -6.8 : 6.8, 0).obj(1, 'bench', 0, 6.9, 0); add(b);
     }
@@ -268,14 +268,14 @@
   }
   // ---------- Voorbeeld: het winkelcentrum uit de SketchUp-schets (hex_mall), precies zoals getekend ----------
   // [module, q, r, laag, draaiing]; de bouwstenen staan op elkaar, de passage loopt diagonaal door de bovenlagen
-  const MALL_NAMES = ["Winkelcentrum · café · half", "Winkelcentrum · dakpaviljoen", "Winkelcentrum · doorgang", "Winkelcentrum · galerij", "Winkelcentrum · galerij · trap", "Winkelcentrum · galerij · trap · gespiegeld", "Winkelcentrum · horeca", "Winkelcentrum · magazijn", "Winkelcentrum · oprit", "Winkelcentrum · trap · breed", "Winkelcentrum · winkel", "Winkelcentrum · winkel · afgesneden", "Winkelcentrum · winkel · boeken"];
-  const MALL = [[8,-1,-3,0,5],[10,0,-3,0,1],[10,1,-3,0,0],[6,-2,-2,0,2],[12,-1,-2,0,0],[12,0,-2,0,0],[10,1,-2,0,1],[10,2,-2,0,2],[8,-3,-1,0,0],[7,-2,-1,0,3],[10,-1,-1,0,0],[6,0,-1,0,0],[6,1,-1,0,0],[12,2,-1,0,1],[12,3,-1,0,2],[10,-3,0,0,4],[10,-2,0,0,0],[10,-1,0,0,0],[10,0,0,0,0],[10,1,0,0,0],[10,2,0,0,0],[6,3,0,0,1],[6,-3,1,0,5],[12,-2,1,0,4],[12,-1,1,0,0],[10,0,1,0,0],[10,1,1,0,0],[10,2,1,0,0],[10,3,1,0,1],[10,-2,2,0,3],[6,-1,2,0,4],[6,0,2,0,0],[12,1,2,0,0],[12,2,2,0,5],[10,-1,3,0,3],[10,0,3,0,4],[10,1,3,0,4],[12,0,-3,1,5],[10,1,-3,1,4],[10,-2,-2,1,1],[2,-1,-2,1,5],[5,0,-2,1,0],[6,1,-2,1,3],[12,2,-2,1,2],[2,-2,-1,1,0],[11,0,-1,1,3],[10,1,-1,1,4],[10,2,-1,1,1],[6,3,-1,1,2],[6,-3,0,1,0],[4,-2,0,1,2],[11,-1,0,1,0],[0,1,0,1,3],[10,2,0,1,4],[10,3,0,1,1],[10,-3,1,1,1],[10,-2,1,1,2],[6,-1,1,1,0],[0,0,1,1,0],[9,0,1,1,0],[12,2,1,1,3],[10,3,1,1,1],[10,-2,2,1,3],[10,-1,2,1,1],[10,0,2,1,2],[10,1,2,1,2],[6,2,2,1,5],[10,-1,3,1,3],[10,0,3,1,4],[10,1,3,1,4],[6,0,-3,2,5],[6,1,-3,2,4],[10,-2,-2,2,1],[1,-1,-2,2,0],[10,1,-2,2,3],[1,2,-2,2,4],[1,-2,-1,2,5],[10,2,-1,2,4],[1,3,-1,2,4],[10,-3,0,2,0],[10,3,0,2,3],[10,-3,1,2,1],[10,-2,1,2,1],[3,1,1,2,0],[6,3,1,2,3],[1,-2,2,2,1],[10,-1,2,2,1],[10,2,2,2,3],[1,-1,3,2,1],[12,0,3,2,2],[12,1,3,2,2],[10,0,-3,3,5],[10,1,-3,3,4],[12,-2,-2,3,1],[12,-1,-2,3,5],[10,1,-2,3,3],[10,2,-2,3,2],[10,-2,-1,3,0],[11,0,-1,3,3],[12,1,-1,3,4],[12,2,-1,3,1],[10,3,-1,3,2],[10,-3,0,3,0],[11,-1,0,3,0],[0,1,0,3,3],[6,2,0,3,4],[6,3,0,3,1],[12,-3,1,3,1],[12,-2,1,3,2],[10,-1,1,3,1],[0,0,1,3,0],[10,2,1,3,3],[10,3,1,3,1],[6,-2,2,3,3],[6,-1,2,3,4],[12,0,2,3,1],[12,1,2,3,2],[10,2,2,3,5],[10,-1,3,3,3],[10,0,3,3,4],[6,1,3,3,4]];
+  const MALL_NAMES = ["Winkelcentrum · café · half", "Winkelcentrum · dakpaviljoen", "Winkelcentrum · doorgang", "Winkelcentrum · galerij", "Winkelcentrum · galerij · trap", "Winkelcentrum · horeca", "Winkelcentrum · magazijn", "Winkelcentrum · oprit", "Winkelcentrum · trap · breed", "Winkelcentrum · winkel", "Winkelcentrum · winkel · afgesneden", "Winkelcentrum · winkel · boeken"];
+  const MALL = [[7,-1,-3,0,5],[9,0,-3,0,1],[9,1,-3,0,0],[5,-2,-2,0,2],[11,-1,-2,0,0],[11,0,-2,0,0],[9,1,-2,0,1],[9,2,-2,0,2],[7,-3,-1,0,0],[6,-2,-1,0,3],[9,-1,-1,0,0],[5,0,-1,0,0],[5,1,-1,0,0],[11,2,-1,0,1],[11,3,-1,0,2],[9,-3,0,0,4],[9,-2,0,0,0],[9,-1,0,0,0],[9,0,0,0,0],[9,1,0,0,0],[9,2,0,0,0],[5,3,0,0,1],[5,-3,1,0,5],[11,-2,1,0,4],[11,-1,1,0,0],[9,0,1,0,0],[9,1,1,0,0],[9,2,1,0,0],[9,3,1,0,1],[9,-2,2,0,3],[5,-1,2,0,4],[5,0,2,0,0],[11,1,2,0,0],[11,2,2,0,5],[9,-1,3,0,3],[9,0,3,0,4],[9,1,3,0,4],[11,0,-3,1,5],[9,1,-3,1,4],[9,-2,-2,1,1],[2,-1,-2,1,5],[4,0,-2,1,3,1],[5,1,-2,1,3],[11,2,-2,1,2],[2,-2,-1,1,0],[10,0,-1,1,3],[9,1,-1,1,4],[9,2,-1,1,1],[5,3,-1,1,2],[5,-3,0,1,0],[4,-2,0,1,2],[10,-1,0,1,0],[0,1,0,1,3],[9,2,0,1,4],[9,3,0,1,1],[9,-3,1,1,1],[9,-2,1,1,2],[5,-1,1,1,0],[0,0,1,1,0],[8,0,1,1,0],[11,2,1,1,3],[9,3,1,1,1],[9,-2,2,1,3],[9,-1,2,1,1],[9,0,2,1,2],[9,1,2,1,2],[5,2,2,1,5],[9,-1,3,1,3],[9,0,3,1,4],[9,1,3,1,4],[5,0,-3,2,5],[5,1,-3,2,4],[9,-2,-2,2,1],[1,-1,-2,2,0],[9,1,-2,2,3],[1,2,-2,2,4],[1,-2,-1,2,5],[9,2,-1,2,4],[1,3,-1,2,4],[9,-3,0,2,0],[9,3,0,2,3],[9,-3,1,2,1],[9,-2,1,2,1],[3,1,1,2,0],[5,3,1,2,3],[1,-2,2,2,1],[9,-1,2,2,1],[9,2,2,2,3],[1,-1,3,2,1],[11,0,3,2,2],[11,1,3,2,2],[9,0,-3,3,5],[9,1,-3,3,4],[11,-2,-2,3,1],[11,-1,-2,3,5],[9,1,-2,3,3],[9,2,-2,3,2],[9,-2,-1,3,0],[10,0,-1,3,3],[11,1,-1,3,4],[11,2,-1,3,1],[9,3,-1,3,2],[9,-3,0,3,0],[10,-1,0,3,0],[0,1,0,3,3],[5,2,0,3,4],[5,3,0,3,1],[11,-3,1,3,1],[11,-2,1,3,2],[9,-1,1,3,1],[0,0,1,3,0],[9,2,1,3,3],[9,3,1,3,1],[5,-2,2,3,3],[5,-1,2,3,4],[11,0,2,3,1],[11,1,2,3,2],[9,2,2,3,5],[9,-1,3,3,3],[9,0,3,3,4],[5,1,3,3,4]];
   function mallCity() {
     const base = n => (n || '').replace(/( · \d+[Lv])+$/, ''), std = new Map(libStandard().map(m => [base(m.name), m])), byName = new Map(modules.map(m => [base(m.name), m]));   // zonder lagen/maat-achtervoegsel
     const c = new Map(); c.inst = [];
-    for (const [ni, q, r, lv, rot] of MALL) {
+    for (const [ni, q, r, lv, rot, mir] of MALL) {
       const name = MALL_NAMES[ni], lib = byName.get(name) || std.get(name); if (!lib) continue;
-      c.inst.push(Object.assign({ mid: lib.id, m: JSON.parse(JSON.stringify(lib)), q, r, rot }, lv ? { lv } : {}));
+      c.inst.push(Object.assign({ mid: lib.id, m: instData(lib, !!mir), q, r, rot }, lv ? { lv } : {}, mir ? { mir: true } : {}));
     }
     return c;
   }
@@ -304,9 +304,10 @@
   // lib5: de Winkelcentrum-familie volgens de schets (galerij met trap zonder winkel eronder, gespiegeld, brede trap):
   // die standaardmodules worden vervangen (zelfde id, zodat geplaatste exemplaren meegaan), de rest blijft staan
   try {
-    if (!localStorage.getItem('hexstad-lib7')) {
+    if (!localStorage.getItem('hexstad-lib8')) {
       const base = n => (n || '').replace(/( · \d+[Lv])+$/, '');
+      { const i = modules.findIndex(x => base(x.name) === 'Winkelcentrum · galerij · trap · gespiegeld'); if (i >= 0) modules.splice(i, 1); }   // vervangen door spiegelen
       for (const m of libStandard()) { if (m.cat !== 'Winkelcentrum') continue; const i = modules.findIndex(x => base(x.name) === base(m.name)); if (i >= 0) { m.id = modules[i].id; modules[i] = m; } else modules.push(m); }
-      saveMods(); localStorage.setItem('hexstad-lib7', '1');
+      saveMods(); localStorage.setItem('hexstad-lib8', '1');
     }
   } catch (e) { /* geen opslag */ }

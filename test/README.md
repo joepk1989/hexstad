@@ -30,6 +30,9 @@ Eerst bouwen: `node build.js` in de hoofdmap. Daarna, vanuit `test/`:
 | `python mm_hoek.py [naam.png]` | muren die onder een hoek aansluiten, van dichtbij en van boven |
 | `python bordes_test.py` | trap van hoek naar hoek in een woning: twee verdiepingen op lopen; doorsnede en beelden van binnen |
 | `python mm_haaks.py` | module maker: muren onder 90° (rechthoekige kamer) |
+| `python spiegel.py` | module gespiegeld plaatsen met F (trap aan de andere kant) |
+| `python oog.py` | op ooghoogte onderaan elke trap en oprit kijken (oog_alle.png) |
+| `python close.py` | close-ups van trappen, oprit en galerij in het winkelcentrum |
 | `python vallen.py` | van bouwen naar lopen: vallen op het midden van het scherm (midden van het centrum, dak, straat) |
 | `python ingang.py` | zelf naar binnen: elke ingang van de begane grond langs een lijn op blokkades testen (met de reden) |
 | `python doorgang.py` | door elke doorgang heen lopen (ook bovenaan de oprit), met de reden van een blokkade |

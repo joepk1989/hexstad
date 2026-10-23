@@ -14,7 +14,7 @@ async def main():
           // elke trap: van de onderste knoop naar de bovenste, en het stuk ervoor/erna
           const lows=[...G.values()].filter(n=>n.kind.stair==='low');
           for(const lo of lows){ const hi=[...lo.edges.values()].find(e=>e.climb).to; const nb=[...lo.edges.values()].find(e=>!e.climb); const nb2=[...hi.edges.values()].find(e=>!e.climb);
-            const pts=[]; if(nb) pts.push([nb.to.x,nb.to.z]); pts.push([lo.x,lo.z],[hi.x,hi.z]); if(nb2) pts.push([nb2.to.x,nb2.to.z]);
+            const pts=[]; if(nb){ pts.push([nb.to.x,nb.to.z]); const back=[...nb.to.edges.values()].find(e=>e.to===lo); if(back&&back.via) pts.push(...back.via); } pts.push([lo.x,lo.z],[hi.x,hi.z]); if(nb2){ if(nb2.via) pts.push(...nb2.via); pts.push([nb2.to.x,nb2.to.z]); }
             let feet=lo.y-0.0, x=pts[0][0], z=pts[0][1]; feet=D.floorAt(x,z,(nb?nb.to.y:lo.y)+0.3); let ok=true, why=null, maxY=feet;
             for(let i=0;i<pts.length-1;i++){ const [ax,az]=pts[i],[bx,bz]=pts[i+1], L=Math.hypot(bx-ax,bz-az), n=Math.max(1,Math.ceil(L/0.15)); for(let j=1;j<=n;j++){ const nx=ax+(bx-ax)*j/n, nz=az+(bz-az)*j/n; if(D.blockedAt(nx,nz,feet)){ ok=false; why={at:[+nx.toFixed(1),+nz.toFixed(1),+feet.toFixed(2)], w:D.whyBlocked(nx,nz,feet)}; break;} const f=D.floorAt(nx,nz,feet); if(feet-f>0.8){ ok=false; why={val:[+nx.toFixed(1),+nz.toFixed(1),+feet.toFixed(2),+f.toFixed(2)]}; break;} feet=f; maxY=Math.max(maxY,feet);} if(!ok) break; }
             res.push({trap:lo.key, van:+lo.y.toFixed(1), naar:+hi.y.toFixed(1), ok, eind:+feet.toFixed(2), why}); }

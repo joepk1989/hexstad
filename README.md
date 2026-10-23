@@ -90,6 +90,14 @@ Het loopnetwerk van de voetgangers (`buildWalkGraph` in `10`) krijgt uit `08f` k
 
 De modules in de familie Winkelcentrum hebben daarom twee achterdeuren tegenover de voorkant (die bij rug-aan-rug winkels op elkaar vallen), het dakpaviljoen een open terras aan de voorkant, en de doorgang open kiosken naar de buren. In het voorbeeld-winkelcentrum lopen voetgangers van de straat de opritten op, door de tunnels de entreehal in en via de trappen naar de straat op de tweede verdieping. De dichte kern op de begane grond is (zoals in de schets) niet van buiten te bereiken.
 
+## Spiegelen, nette aansluitingen en balustrades
+
+- **Spiegelen** (toets F of de knop Spiegel naast Draai): een module wordt in spiegelbeeld geplaatst. De moduledata zelf wordt gespiegeld (`mv2Mirror` in `08c`: vloeren, muren, trappen, schans, daken en voorwerpen), zodat bouw, botsing en loopnetwerk vanzelf kloppen; het exemplaar onthoudt `mir`. Zo is één galerij-met-trap genoeg: gespiegeld staat de trap aan de andere kant.
+- **Eén muur per rand**: hebben twee modules een muur op dezelfde rand, dan blijft er één over (`wallSkips`): een deur, poort of open doorgang wint van een raam, een raam van een dichte muur, verder de eerst geplaatste. Ook dubbele hoekposten verdwijnen. Dat voorkomt flikkerende, overlappende texturen en zorgt dat een deur tussen twee buren echt open is (ook voor de voetgangers).
+- **Balustrades** (`buildRails`): langs elke buitenrand van een loopvlak (vloer of zichtbaar dak) boven de grond komt een hek van 1,05 m met botsing, tenzij er een muur staat of je er op dezelfde hoogte verder loopt (vloer, trap, helling). De oprit heeft een zichtbare leuning langs de zijranden.
+- **Groen binnen**: een dak waar naast op die hoogte andere modules staan (een hal) krijgt een fontein en een klein groen eiland in een plein; een overdekt dak (straat met een laag erboven) een plantenbak. Bovenop blijft het groene dak met boom.
+- Trappen sluiten in het loopnetwerk alleen aan de voor- en achterkant aan, niet opzij door de leuning.
+
 ## Winkelcentrum: de hex-modules uit de SketchUp-schets
 
 De familie **Winkelcentrum** (categorie, `08e`) bouwt de tien bouwstenen uit `hex_mall.dae` na, elk met een functie; zijde +x is de voorkant of passagekant, de "kern" is de zeshoek van ¾ (straal 6,75 m) met een rand van 1,95 m eromheen:
@@ -104,7 +112,7 @@ De familie **Winkelcentrum** (categorie, `08e`) bouwt de tien bouwstenen uit `he
 | schans | `· oprit` | het hele vak is een helling naar de verdieping erboven (zie Schans in de maker) |
 | space | `· dakpaviljoen` | teruggezette opbouw van ¾ met een terras van 1,95 m rondom (hek, tafels) |
 | ring | `· galerij` | vloerring rond een vide met balustrade: zet hem op een winkel en je kijkt erin |
-| trapring | `· galerij · trap` (en `· gespiegeld`) | onderaan alleen de trap (de vloer is het dak eronder), erboven de galerijring; trap van 1,95 m in de band langs één zijde |
+| trapring | `· galerij · trap` (gespiegeld geplaatst voor de andere kant) | onderaan alleen de trap (de vloer is het dak eronder), erboven de galerijring; trap van 1,95 m in de band langs één zijde |
 | 2× trapzijde | `· trap · breed` | brede trap van 3,9 m langs de rand van het vak, met een bordes naar de galerij ernaast |
 
 De schansflanken (`schans_zijde`) staan tussen de vakken en zijn weggelaten. **Menu → Winkelcentrum (hex-modules)** laadt het winkelcentrum precies zoals getekend (`MALL` in `08e`, uit de Collada-export gelezen): elke bouwsteen op zijn eigen vak, laag en draaiing. Alleen de winkels zijn gedraaid (een zeshoekig blok ziet er rondom hetzelfde uit), zodat hun pui naar de hal, de straat op de tweede verdieping of naar buiten kijkt; blokken die de schets in een blok laat staan (`space` binnen een `variable`) vallen weg. De indeling:

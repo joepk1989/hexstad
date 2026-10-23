@@ -171,6 +171,7 @@
     if (roadDrag.on && roadDrag.vp && ['KeyE', 'KeyQ', 'PageUp', 'PageDown', 'Equal', 'Minus', 'NumpadAdd', 'NumpadSubtract'].includes(e.code)) { e.preventDefault(); roadHeightStep(['KeyE', 'PageUp', 'Equal', 'NumpadAdd'].includes(e.code) ? 1 : -1); return; }
     if (mode === 'walk' && e.code === 'KeyQ') { const H = ['kijken', 'bouwen', 'hamer']; setHand(H[(H.indexOf(hand) + 1) % 3]); toast(hand === 'kijken' ? 'Kijken' : hand === 'bouwen' ? 'Bouwen: ' + (TYPES[toolBase(tool)] ? TYPES[toolBase(tool)].name : tool) : 'Hamer: klik om te slopen', 1200); return; }
     if (e.code === 'KeyR') { e.shiftKey ? resetRotation() : rotateDir(); return; }
+    if (e.code === 'KeyF' && mode === 'build' && tool === 'module') { toggleMirror(); return; }
     const inCat = CATS[catIdx].tools;
     if (n >= 1 && n <= inCat.length) selectTool(inCat[n - 1]);
   });

@@ -134,6 +134,13 @@
   rotBtn.title = 'Draai 60° (R) · lang indrukken of Shift+R: weer automatisch';
   rotBtn.innerHTML = '<span class="sw sw-rot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg></span><span id="rotLbl">Draai</span>';
   palRow.insertBefore(rotBtn, toolBtns.gum);
+  // Spiegelknop: een module in spiegelbeeld plaatsen (toets F)
+  const mirBtn = document.createElement('button');
+  mirBtn.type = 'button'; mirBtn.className = 'tool rot'; mirBtn.id = 'mirBtn'; mirBtn.hidden = true; mirBtn.title = 'Spiegelen (F): de module in spiegelbeeld plaatsen';
+  mirBtn.innerHTML = '<span class="sw sw-rot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18" stroke-dasharray="2 2.5"/><path d="M9 7L4 17h5zM15 7l5 10h-5z"/></svg></span><span>Spiegel</span>';
+  palRow.insertBefore(mirBtn, toolBtns.gum);
+  function toggleMirror() { if (tool !== 'module') return; moduleMir = !moduleMir; mirBtn.setAttribute('aria-pressed', String(moduleMir)); moduleGhostKey = ''; toast(moduleMir ? 'Gespiegeld' : 'Niet gespiegeld', 900); if (mode === 'build') updateGhost(); }
+  mirBtn.addEventListener('click', toggleMirror);
   let rotHold = 0, rotLong = false;
   rotBtn.addEventListener('pointerdown', () => { rotLong = false; rotHold = setTimeout(() => { rotLong = true; resetRotation(); }, 550); });
   rotBtn.addEventListener('pointerup', () => clearTimeout(rotHold));
@@ -170,7 +177,7 @@
     if (t !== 'gum' && catOf(t) !== catIdx) setCat(catOf(t));
     for (const k in toolBtns) toolBtns[k].setAttribute('aria-pressed', String(k === t));
     placeBtn.textContent = t === 'gum' ? 'Weg' : 'Bouw';
-    rotBtn.hidden = !DIRECTIONAL.has(t) && t !== 'module';
+    rotBtn.hidden = !DIRECTIONAL.has(t) && t !== 'module'; mirBtn.hidden = t !== 'module'; mirBtn.setAttribute('aria-pressed', String(moduleMir));
     if (t === 'module' && moduleSel === null) { if (modules.length) moduleSel = 0; else openSchets(); }
     if (t === 'module' && CATS[catIdx].name === 'Modules') renderModCards();
     try { refreshOpt(); } catch (e) { /* optiebalk bestaat nog niet tijdens het opstarten */ }

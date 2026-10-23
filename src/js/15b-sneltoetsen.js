@@ -8,7 +8,7 @@
     ['Kaart', null], [K('W', 'A', 'S', 'D'), 'schuiven (of pijltjes)'], [K('Q', 'E'), 'draaien'], [K('+', '−'), 'in- en uitzoomen'],
     ['Bouwen', null], [K('1') + '…' + K('9'), 'blok in deze categorie'], [K('Tab'), 'volgende categorie (Shift: vorige)'], [K('R'), 'draaien (Shift+R: terug)'],
     [K('Del'), 'gum aan/uit'], [K('[', ']'), 'penseel: 1, 7, 19 of 37 vakken'], [K('Shift') + '+wiel', 'ander blok'],
-    ['Modules', null], [K(',', '.'), 'vorige / volgende module'], [K('/'), 'zoek een module (Enter kiest de eerste)'],
+    ['Modules', null], [K(',', '.'), 'vorige / volgende module'], [K('F'), 'module spiegelen'], [K('/'), 'zoek een module (Enter kiest de eerste)'],
     ['Terrein', null], ['slepen', 'boetseren (ingedrukt houden)'], [K('Shift') + '+slepen', 'andersom (ophogen ↔ afgraven)'], [K('1') + '…' + K('5'), 'ophogen · afgraven · egaliseren · glad · helling'],
     ['Weg slepen', null], [K('E', 'Q'), 'hoger / lager (ook Page Up/Down, wiel)'], ['stilhouden', 'hoekpunt: bocht in één sleep'],
     ['Overig', null], [K('G'), 'raster aan/uit'], [K('P'), 'tijd pauze / verder'], [K('L'), 'lopen'], [K('M'), 'menu'], [K('?'), 'dit overzicht'],

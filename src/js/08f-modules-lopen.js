@@ -44,7 +44,8 @@
         const L = m.lv[li], lvW = (I.lv || 0) + li, y = base + li * LH + 0.02, tris = [], stairs = [];
         for (const id in L.f) { const [i, j, t] = id.split(',').map(Number), v = mv2TriVerts(i, j, t, ts), cx = (v[0][0] + v[1][0] + v[2][0]) / 3, cz = (v[0][1] + v[1][1] + v[2][1]) / 3; if (!mv2InArea(m, cx, cz)) continue; if (roofLayer && mask) { const Wc = tf(cx, cz), c = mask(Wc[0], Wc[1]); if (c === 2) continue; } const W = v.map(p => tf(p[0], p[1])); tris.push(W); }
         if (roofLayer && !tris.length) continue;
-        for (const id in L.w) { const Wd = L.w[id]; if (!Wd) continue; const [i, j, d] = id.split(',').map(Number), D = MV2.DIRW[d]; if (!D) continue; const a = mv2P(i, j, ts), b = mv2P(i + D[0], j + D[1], ts); if (!mv2NearArea(m, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2)) continue; const A = tf(a[0], a[1]), B = tf(b[0], b[1]); addWallIdx(lvW, { a: A, b: B, pass: PASS.has(Wd.o || ''), mid: [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2], o: Wd.o || '', outer: true }); }
+        const skip = (modGroups.get(I) || {}).skip;
+        for (const id in L.w) { const Wd = L.w[id]; if (!Wd) continue; const [i, j, d] = id.split(',').map(Number), D = MV2.DIRW[d]; if (!D) continue; const a = mv2P(i, j, ts), b = mv2P(i + D[0], j + D[1], ts); if (!mv2NearArea(m, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2)) continue; const A = tf(a[0], a[1]), B = tf(b[0], b[1]); if (skip && skip.has(wallKeyW(lvW, (A[0] + B[0]) / 2, (A[1] + B[1]) / 2))) continue; addWallIdx(lvW, { a: A, b: B, pass: PASS.has(Wd.o || ''), mid: [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2], o: Wd.o || '', outer: true }); }
         for (const S of L.s || []) {
           if (S.k === 'hexramp') { const c = mv2CellXZ(S.q || 0, S.r || 0), f = FRAMES[(S.side || 0) % 6], ex = -f.nx, ez = -f.nz; const lo = tf(c[0] - ex * (INNER - 1.2), c[1] - ez * (INNER - 1.2)), hi = tf(c[0] + ex * (INNER - 1.2), c[1] + ez * (INNER - 1.2)); stairs.push({ lo, hi, q: S.q || 0, r: S.r || 0, ramp: true, side: ((S.side || 0) + (I.rot || 0)) % 6 }); continue; }   // zijde in de wereld: plus de draaiing
           const D = MV2.DIR6[S.d] || MV2.DIR6[0], a = mv2P(S.a[0], S.a[1], ts), len = (S.n || 2) * ts, w = S.w || 1.2, dx = D[0] * ts * SQ3 / 2, dz = D[0] * ts / 2 + D[1] * ts, dl = Math.hypot(dx, dz) || 1, ux = dx / dl, uz = dz / dl, nx = -uz, nz = ux, off = S.off || 0;
@@ -93,7 +94,8 @@
       for (let k = 0; k < 6; k++) { const A = C[k]; if (!A) continue; const f = FRAMES[k], nq = q + NEIGH[k][0], nr = r + NEIGH[k][1]; void f; const NB = byCell.get(lvW + '|' + nq + ',' + nr); const B = NB && NB[(k + 3) % 6]; if (!B || A.edges.has(B.key)) continue; const via = route(+lvW, [A.x, A.z], [B.x, B.z]); if (via) conn(A, B, via, false); }
     }
     // trappen, hellingen, schans: onderste knoop op de laag zelf, bovenste op de laag erboven; beide aan de dichtstbijzijnde sectorknoop
-    const nearest = (lvW, x, z, q, r) => { let best = null, bd = 1e9; for (const [dq, dr] of [[0, 0], ...NEIGH]) { const C = byCell.get(lvW + '|' + (q + dq) + ',' + (r + dr)); if (!C) continue; for (const k in C) { const n = C[k], d = Math.hypot(n.x - x, n.z - z); if (d < bd && route(lvW, [x, z], [n.x, n.z])) { bd = d; best = n; } } } return best; };
+    // dichtstbijzijnde sectorknoop vóór (sg −1) of ná (sg +1) de trap in de looprichting u: niet opzij, door de leuning
+    const nearest = (lvW, x, z, q, r, u, sg) => { let best = null, bd = 1e9; for (const [dq, dr] of [[0, 0], ...NEIGH]) { const C = byCell.get(lvW + '|' + (q + dq) + ',' + (r + dr)); if (!C) continue; for (const k in C) { const n = C[k], d = Math.hypot(n.x - x, n.z - z), al = ((n.x - x) * u[0] + (n.z - z) * u[1]) * sg; if (al < 0.6 * d - 0.3) continue; if (d < bd && route(lvW, [x, z], [n.x, n.z])) { bd = d; best = n; } } } return best; };
     let si = 0;
     for (const rec of data) for (const Ly of rec.layers) for (const S of Ly.stairs) {
       const up = Ly.lvW + 1, yHi = Ly.y + LH, [lq, lr] = worldToCell(S.lo[0], S.lo[1]), [hq, hr] = worldToCell(S.hi[0], S.hi[1]);
@@ -106,7 +108,7 @@
         if (!A && !H0 && Ly.lvW === 0) { const f2 = FRAMES[S.side], ent = mk('mde' + si, lo.x, lo.z, Ly.y, { b: 'mdoor', d: S.side, outside: [lo.x + f2.nx * 2.6, lo.z + f2.nz * 2.6] }); conn(ent, lo, null, false); }   // instap vanaf de straat
         continue;
       }
-      const A = nearest(Ly.lvW, lo.x, lo.z, lq, lr), B = nearest(up, hi.x, hi.z, hq, hr); if (A) conn(lo, A, route(Ly.lvW, [lo.x, lo.z], [A.x, A.z]), false); if (B) conn(hi, B, route(up, [hi.x, hi.z], [B.x, B.z]), false);
+      const ul = Math.hypot(hi.x - lo.x, hi.z - lo.z) || 1, u = [(hi.x - lo.x) / ul, (hi.z - lo.z) / ul], A = nearest(Ly.lvW, lo.x, lo.z, lq, lr, u, -1), B = nearest(up, hi.x, hi.z, hq, hr, u, 1); if (A) conn(lo, A, route(Ly.lvW, [lo.x, lo.z], [A.x, A.z]), false); if (B) conn(hi, B, route(up, [hi.x, hi.z], [B.x, B.z]), false);
     }
     // ingangen: een opening (of geen muur) in de buitenrand van het gebied op de begane grond → knoop 'mdoor' net binnen,
     // gekoppeld aan de sectorknoop en aan oude bouwblokken ernaast (de stoep volgt in 10-mensen)

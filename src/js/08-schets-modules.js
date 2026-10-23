@@ -10,7 +10,7 @@
   let modsReset = false;
   try { if (!localStorage.getItem('hexstad-mods-reset1')) { modules = []; localStorage.setItem(MODS_KEY, '[]'); localStorage.setItem('hexstad-mods-reset1', '1'); modsReset = true; } } catch (e) { /* geen opslag */ }
   const saveMods = () => { ensureIds(); try { localStorage.setItem(MODS_KEY, JSON.stringify(modules)); } catch (e) { /* geen opslag */ } };
-  let moduleSel = null, moduleRot = 0;
+  let moduleSel = null, moduleRot = 0, moduleMir = false;   // moduleMir: gespiegeld plaatsen (toets F)
   function rotKey(id, n) {   // draai een rand of doorgang n x 60° (tegen de klok in) rond vak 0,0
     let [q, r, k] = id.split(',').map(Number);
     for (let i = 0; i < n; i++) { [q, r] = [q + r, -q]; k = k >= 6 ? 6 + ((k - 5) % 3) : (k + 1) % 6; }
@@ -61,7 +61,8 @@
     if (lastPickRes && lastPickRes.inst && lastPickRes.side) { const i = cells.inst.indexOf(lastPickRes.inst); if (i >= 0 && swapInst(i)) return true; }   // op de gevel van een geplaatste module: wisselen
     const { n, skip } = placeCore(mod, moduleRot, q0, r0, lv);
     if (n) modUsed(mod);
-    if (n) (cells.inst || (cells.inst = [])).push(Object.assign({ mid: mod.id, m: JSON.parse(JSON.stringify(mod)), q: q0, r: r0, rot: moduleRot }, lv ? { lv } : {}));
+    const mir = moduleMir && mod.v === 2;
+    if (n) (cells.inst || (cells.inst = [])).push(Object.assign({ mid: mod.id, m: instData(mod, mir), q: q0, r: r0, rot: moduleRot }, lv ? { lv } : {}, mir ? { mir: true } : {}));
     if (n && lv && mod.v === 2) { buildModNet(); changed(); toast('"' + mod.name + '" geplaatst op laag ' + lv + ' (' + lv * MV2.LV_H + ' m)', 2200); return true; }
     if (n && mod.v === 2 && Number.isInteger(q0) && Number.isInteger(r0)) { const G0 = gH(q0, r0); terrSet(mv2Area({ m: mod, rot: moduleRot, q: q0, r: r0 }).map(([q, r]) => [q, r, G0])); }   // de module staat vlak: het terrein eronder op één hoogte
     buildTriNet(); buildPathNet(); buildEdgeNet(); buildModNet(); changed();
@@ -163,7 +164,7 @@
     const next = list[(cur + 1) % list.length], m = modules[next.mi];
     cells.inst.splice(i, 1); removeInst(I);
     const { n } = placeCore(m, next.rot, I.q, I.r, I.lv || 0);
-    if (n) cells.inst.push(Object.assign({ mid: m.id, m: JSON.parse(JSON.stringify(m)), q: I.q, r: I.r, rot: next.rot }, I.lv ? { lv: I.lv } : {}));
+    if (n) cells.inst.push(Object.assign({ mid: m.id, m: instData(m, I.mir), q: I.q, r: I.r, rot: next.rot }, I.lv ? { lv: I.lv } : {}, I.mir ? { mir: true } : {}));
     buildTriNet(); buildPathNet(); buildEdgeNet(); buildModNet(); changed();
     toast('"' + m.name + '"' + (next.rot ? ' · gedraaid' : '') + (next.bad ? ' · ' + next.bad + ' rand(en) sluiten niet aan' : ' · sluit aan') + ' (' + ((cur + 1) % list.length + 1) + '/' + list.length + ')', 2000);
     return true;
@@ -172,7 +173,7 @@
   const instOf = mod => (cells.inst || []).filter(I => I.mid ? I.mid === mod.id : I.m.name === mod.name);
   function syncModule(mod) {
     const L = instOf(mod); if (!L.length) return 0;
-    for (const I of L.filter(x => !x.tw)) { removeInst(I); const r = placeCore(mod, I.rot, I.q, I.r, I.lv || 0); I.m = JSON.parse(JSON.stringify(mod)); I.mid = mod.id; if (!r.n) cells.inst.splice(cells.inst.indexOf(I), 1); }
+    for (const I of L.filter(x => !x.tw)) { removeInst(I); const r = placeCore(mod, I.rot, I.q, I.r, I.lv || 0); I.m = instData(mod, I.mir); I.mid = mod.id; if (!r.n) cells.inst.splice(cells.inst.indexOf(I), 1); }
     buildTriNet(); buildPathNet(); buildEdgeNet(); buildModNet(); changed(); return L.length;
   }
   function dropModule(mod) {
@@ -213,7 +214,7 @@
   }
   const moduleGhost = new THREE.Group(); scene.add(moduleGhost); let moduleGhostKey = '';
   function showModuleGhost(q0, r0, lv = 0) {
-    const mod = modules[moduleSel], kk = mod ? moduleSel + ':' + moduleRot + ':' + q0 + ',' + r0 + ':' + lv + ':' + mod.edges.length + ':' + (mod.cells || []).length + ':' + (mod.paths || []).length + ':' + (mod.tris || []).length : '';
+    const mod0 = modules[moduleSel], mod = mod0 && moduleMir && mod0.v === 2 ? (showModuleGhost.mc && showModuleGhost.mc.src === mod0 && showModuleGhost.mc.sig === mod0._sig ? showModuleGhost.mc.m : (showModuleGhost.mc = { src: mod0, sig: mod0._sig, m: mv2Mirror(mod0) }).m) : mod0, kk = mod ? moduleSel + ':' + moduleRot + ':' + (moduleMir ? 'm' : '') + ':' + q0 + ',' + r0 + ':' + lv + ':' + mod.edges.length + ':' + (mod.cells || []).length + ':' + (mod.paths || []).length + ':' + (mod.tris || []).length : '';
     if (kk === moduleGhostKey) { moduleGhost.visible = !!mod; return; }
     moduleGhostKey = kk;
     while (moduleGhost.children.length) { const c = moduleGhost.children.pop(); c.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material.dispose) o.material.dispose(); }); }
