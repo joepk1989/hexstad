@@ -17,19 +17,20 @@
   const player = { x: 0, y: 0, z: 0, vy: 0, yaw: 0, pitch: 0, grounded: true };
   const keys = Object.create(null);
   const joyVec = { x: 0, y: 0 };
-  // Van bouwen naar lopen: je valt uit de lucht op de plek waar het midden van het bouwscherm naar kijkt (een dak,
-  // een galerij, de straat). Water of niets geraakt: het dichtstbijzijnde vrije vak, zoals vroeger.
+  // Van bouwen naar lopen: je valt recht naar beneden vanaf de camera (hoogstens 30 m) op wat daar ligt. Boven
+  // water of buiten de wereld: het dichtstbijzijnde vrije vak, zoals vroeger.
   function dropPlayer() {
-    const rc = new THREE.Raycaster(); rc.setFromCamera(new THREE.Vector2(0, 0), camera);
+    // recht onder de camera: je valt verticaal naar wat daar ligt (dak, galerij, straat) en kijkt dezelfde kant op
+    const x = camera.position.x, z = camera.position.z, d = Math.hypot(x, z); if (d > 205) return false;
+    const rc = new THREE.Raycaster(new THREE.Vector3(x, camera.position.y + 1, z), new THREE.Vector3(0, -1, 0));
     const hits = rc.intersectObjects([ground, terrGroup, blocks, ...[...modGroups.values()].map(e => e.group)], true);
-    const h = hits.find(x => x.object.visible !== false && !(x.object.material && x.object.material.transparent && x.object.material.opacity < 0.6));   // door glas heen
-    if (!h) return false;
-    const [q, r] = worldToCell(h.point.x, h.point.z);
-    if (baseOf(stackOf(q, r)[0]) === 'water' && h.point.y < 0.5) return false;
-    const x = h.point.x, z = h.point.z, top = floorAt(x, z, h.point.y + 0.5);
-    Object.assign(player, { x, z, y: Math.max(top, h.point.y) + 16, vy: 0, yaw: orbit.theta, pitch: -0.55, grounded: false, dropping: true });
+    const h = hits.find(x2 => x2.object.visible !== false && !(x2.object.material && x2.object.material.transparent && x2.object.material.opacity < 0.6));   // door glas heen
+    const gy = h ? h.point.y : 0, [q, r] = worldToCell(x, z);
+    if (baseOf(stackOf(q, r)[0]) === 'water' && gy < 0.5) return false;
+    Object.assign(player, { x, z, y: Math.min(camera.position.y, gy + 30), vy: 0, yaw: orbit.theta, pitch: -0.55, grounded: false, dropping: true });
     return true;
   }
+  // (vroeger: op de plek waar het midden van het scherm naar keek)
   function spawnPlayer() {
     if (dropPlayer()) return;
     const [cq, cr] = worldToCell(orbit.target.x, orbit.target.z);

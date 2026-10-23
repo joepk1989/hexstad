@@ -380,7 +380,7 @@
       if (e && e.sig === sig) { /* ongewijzigd */ } else {
         if (e) { e.group.traverse(o => { if (o.isMesh && o.userData.own) o.geometry.dispose(); }); scene.remove(e.group); }
         const o = cellToWorld(I.q, I.r), G = gH(I.q, I.r) + instLv(I) * MV2.LV_H, b = mv2Build(I.m, mv2Tf(I.rot, I.q, I.r), [o.x, o.z], { stacked: instLv(I) > 0, roofMask: cov.mask, roofStyle: cov.style, skip, baseLv: instLv(I) });
-        b.group.position.y += G; b.group.userData.inst = I; e = { group: b.group, col: shiftCol({ surfaces: b.surfaces, walls: b.walls }, G), sig, roofed: !!cov.mask, mask: cov.mask, skip }; scene.add(e.group); modGroups.set(I, e); touched = true;
+        b.group.position.y += G; b.group.userData.inst = I; e = { group: b.group, col: shiftCol({ surfaces: b.surfaces, walls: b.walls }, G), sig, roofed: !!cov.mask, mask: cov.mask, skip, style: cov.style }; scene.add(e.group); modGroups.set(I, e); touched = true;
       }
       for (const [q, r] of mv2Area(I)) { const k = q + ',' + r; if (!instLv(I)) modCellSet.add(k); let L = modCols.get(k); if (!L) modCols.set(k, L = []); L.push(e.col); }
     }

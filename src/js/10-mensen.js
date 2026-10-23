@@ -82,12 +82,21 @@
         if (Math.abs(W.pts[0][0] - dx) > W.reach + 14 || Math.abs(W.pts[0][1] - dz) > W.reach + 14) continue;
         for (let i = 0; i < W.pts.length - 1; i++) {   // dichtstbijzijnde punt op de stoep (ook midden op een lang recht stuk)
           const A = W.pts[i], B = W.pts[i + 1], ex = B[0] - A[0], ez = B[1] - A[1], l2 = ex * ex + ez * ez || 1e-9, t = Math.max(0, Math.min(1, ((dx - A[0]) * ex + (dz - A[1]) * ez) / l2)), px = A[0] + ex * t, pz = A[1] + ez * t, d = Math.hypot(px - dx, pz - dz);
-          if (d < 14 && (!best || d < best.d)) best = { e: W.e, sg: W.sg, d, pt: [px, pz] };
+          const back = isM ? 0 : (px - dx) * fd.nx + (pz - dz) * fd.nz < 0 ? 6 : 0;   /* stoep achter het gebouw: liever een stoep vóór de deur */
+          if (d < 14 && (!best || d + back < best.d + best.back)) best = { e: W.e, sg: W.sg, d, back, pt: [px, pz] };
         }
       }
       if (!best) continue;
       for (const [vnode, dir] of [[vn[best.e.b], 0], [vn[best.e.a], 1]]) {   // dir: looprichting van de deur naar dat uiteinde
-        const link = { e: best.e, sg: best.sg, pt: best.pt, door: [dx, dz], mod: isM };
+        // buiten de gevel eerst een stap naar voren; ligt de stoep opzij of erachter, dan om de hoek van het eigen gebouw heen
+        let out = null;
+        if (!isM) {
+          const ox = c.x + fd.nx * (INNER + 1.3), oz = c.z + fd.nz * (INNER + 1.3), tx = -fd.nz, tz = fd.nx, f = (best.pt[0] - ox) * fd.nx + (best.pt[1] - oz) * fd.nz;
+          out = [[ox, oz]];
+          if (f < 1) { const sd = (best.pt[0] - ox) * tx + (best.pt[1] - oz) * tz >= 0 ? 1 : -1, cx = c.x + fd.nx * INNER + tx * sd * R * 0.5, cz = c.z + fd.nz * INNER + tz * sd * R * 0.5, k = 1.3 / Math.hypot(cx - c.x, cz - c.z);
+            out.push([cx + (cx - c.x) * k, cz + (cz - c.z) * k]); }
+        }
+        const link = { e: best.e, sg: best.sg, pt: best.pt, door: [dx, dz], out, mod: isM };
         n.edges.set(vnode.key, { to: vnode, side: -1, climb: false, vecDoor: link, dir });
         vnode.edges.set(n.key, { to: n, side: -1, climb: false, vecDoor: link, dir: dir ? 0 : 1 });
       }
@@ -103,6 +112,77 @@
     return nodes;
   }
 
+  // ---------- Ongelukjes en door-iets-heen-lopen: een teller met de laatste gebeurtenissen ----------
+  // Soorten: auto (aangereden), val (geen vloer meer), speler (omver gerend), blok (blok erop gezet), muur (door een
+  // muur heen gelopen), voorwerp (door een voorwerp heen). Elke gebeurtenis onthoudt de plek, zodat je erheen kunt.
+  const INC = { counts: { auto: 0, val: 0, speler: 0, blok: 0, muur: 0, voorwerp: 0 }, list: [], t0: performance.now() };
+  const INC_NAME = { auto: 'aangereden', val: 'gevallen', speler: 'omver gerend', blok: 'blok erop', muur: 'door een muur', voorwerp: 'door een voorwerp' };
+  function incident(kind, x, y, z, detail) {
+    INC.counts[kind] = (INC.counts[kind] || 0) + 1;
+    INC.list.unshift({ kind, x, y, z, detail, t: (performance.now() - INC.t0) / 1000 }); if (INC.list.length > 40) INC.list.pop();
+    incUI();
+  }
+  // per voetganger elke paar stappen: kruist de afgelegde lijn een muur op lichaamshoogte, of staat hij ineens
+  // midden in een voorwerp? (een opening in een muur is geen muur: daar mag je door)
+  function incSegX(ax, az, bx, bz, cx, cz, dx, dz) { const d = (bx - ax) * (dz - cz) - (bz - az) * (dx - cx); if (Math.abs(d) < 1e-9) return false; const t = ((cx - ax) * (dz - cz) - (cz - az) * (dx - cx)) / d, u = ((cx - ax) * (bz - az) - (cz - az) * (bx - ax)) / d; return t > 0 && t < 1 && u > 0.02 && u < 0.98; }
+  // niet door muren of inrichting heen sturen (uitwijken, bocht afsnijden en duwen kunnen een pad net over een rand trekken):
+  // een stap die een muur op lichaamshoogte zou kruisen glijdt langs die muur, en anders blijf je staan
+  function wallStep(a, nx, nz) {
+    let bx = nx, bz = nz;
+    for (let pass = 0; pass < 2; pass++) {
+      let hit = null;
+      for (const col of nearby(a.x, a.z)) { for (const w of col.walls) {
+        if (w.y0 > a.y + 1.2 || w.y1 < a.y + 0.6) continue;
+        if (w.ax === w.bx && w.az === w.bz) { if (w.half > 0.25) { const r = w.half * 0.7, d1 = Math.hypot(bx - w.ax, bz - w.az); if (d1 < r && d1 < Math.hypot(a.x - w.ax, a.z - w.az)) { hit = w; break; } } continue; }
+        if (incSegX(a.x, a.z, bx, bz, w.ax, w.az, w.bx, w.bz)) { hit = w; break; }
+      } if (hit) break; }
+      if (!hit) { if (INC.dbg) a.lastWS = pass ? 'slide' : ''; return [bx, bz]; }
+      if (pass) { if (INC.dbg) a.lastWS = 'stop'; return [a.x, a.z]; }
+      let tx, tz;
+      if (hit.ax === hit.bx && hit.az === hit.bz) { const ox = a.x - hit.ax, oz = a.z - hit.az, ol = Math.hypot(ox, oz) || 1; tx = -oz / ol; tz = ox / ol; }
+      else { const l = Math.hypot(hit.bx - hit.ax, hit.bz - hit.az) || 1; tx = (hit.bx - hit.ax) / l; tz = (hit.bz - hit.az) / l; }
+      const m = (nx - a.x) * tx + (nz - a.z) * tz; bx = a.x + tx * m; bz = a.z + tz * m;
+    }
+    return [a.x, a.z];
+  }
+  function throughCheck(a) {
+    const c = a.chk || (a.chk = { x: a.x, z: a.z, n: 0, cool: 0 });
+    if (INC.dbg) { (a.trail || (a.trail = [])).push([+a.x.toFixed(3), +a.z.toFixed(3), a.state, a.precise ? 1 : 0, a.lastWS || '']); if (a.trail.length > 8) a.trail.shift(); }
+    if (++c.n < 4) return; c.n = 0;
+    const jump = Math.hypot(a.x - c.x, a.z - c.z); if (performance.now() < c.cool || jump < 0.05 || jump > 3 || Math.abs(a.y - (c.y ?? a.y)) > 1.5) { c.x = a.x; c.z = a.z; c.y = a.y; return; }   // opnieuw neergezet (uit een winkel, nieuwe stad): geen lijn trekken
+    const y = a.y;
+    outer: for (const col of nearby(a.x, a.z)) for (const w of col.walls) {
+      if (w.y0 > y + 1.2 || w.y1 < y + 0.6) continue;   // niet op lichaamshoogte (drempel, latei, leuning onder de knie)
+      if (w.ax === w.bx && w.az === w.bz) { if (w.half > 0.25 && Math.hypot(a.x - w.ax, a.z - w.az) < w.half * 0.7 && Math.hypot(c.x - w.ax, c.z - w.az) >= w.half * 0.7) { incident('voorwerp', a.x, y, a.z, ''); c.cool = performance.now() + 3000; break outer; } continue; }
+      const wl = Math.hypot(w.bx - w.ax, w.bz - w.az), e = wl > 0.5 ? 0.2 / wl : 0, ex = (w.bx - w.ax) * e, ez = (w.bz - w.az) * e;   /* om het uiteinde heen lopen telt niet */
+      if (incSegX(c.x, c.z, a.x, a.z, w.ax + ex, w.az + ez, w.bx - ex, w.bz - ez)) { incident('muur', a.x, y, a.z, ((a.prev && a.prev.key) || '') + ' → ' + ((a.node && a.node.key) || '') + ' | pad ' + [c.x, c.z, a.x, a.z, c.y ?? a.y, a.y].map(v => +v.toFixed(2)).join(',') + (INC.dbg ? ' | trail ' + JSON.stringify(a.trail) : '') + ' | muur ' + [w.ax, w.az, w.bx, w.bz, w.y0, w.y1, w.half].map(v => +v.toFixed(2)).join(',')); c.cool = performance.now() + 3000; break outer; }
+    }
+    c.x = a.x; c.z = a.z; c.y = a.y;
+  }
+  // knop met de tellers; een klik toont de laatste gebeurtenissen, met 'toon' vlieg je erheen (rode markering)
+  const incBtn = document.getElementById('incBtn'), incPanel = document.getElementById('incPanel');
+  const incMarker = new THREE.Mesh(new THREE.TorusGeometry(1.1, 0.12, 8, 24).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#ff3b2f', depthTest: false, transparent: true }));
+  incMarker.renderOrder = 9; incMarker.visible = false; scene.add(incMarker); let incMarkT = 0;
+  function incUI() {
+    if (!incBtn) return;
+    const C = INC.counts, acc = C.auto + C.val + C.speler + C.blok, thr = C.muur + C.voorwerp;
+    incBtn.innerHTML = `<span>Ongelukjes <b>${acc}</b></span><span class="inc-sep">·</span><span>Door iets heen <b>${thr}</b></span>`;
+    incBtn.classList.toggle('warn', thr > 0);
+    if (!incPanel.hidden) incList();
+  }
+  function incList() {
+    const C = INC.counts;
+    incPanel.innerHTML = `<div class="inc-head"><b>Voetgangers</b><button type="button" class="btn" id="incReset">Op nul</button><button type="button" class="btn" id="incClose" aria-label="Sluiten">×</button></div>
+      <div class="inc-sum">${Object.keys(INC_NAME).map(k => `<span class="inc-k inc-${k}">${INC_NAME[k]} <b>${C[k] || 0}</b></span>`).join('')}</div>
+      <ol class="inc-list">${INC.list.length ? INC.list.map((e, i) => `<li><span class="inc-dot inc-${e.kind}"></span>${INC_NAME[e.kind]} <small>${Math.floor(e.t / 60)}:${String(Math.floor(e.t % 60)).padStart(2, '0')} · ${e.y.toFixed(1)} m hoog</small><button type="button" class="btn" data-i="${i}">toon</button></li>`).join('') : '<li class="inc-none">Nog niets gebeurd</li>'}</ol>`;
+    incPanel.querySelector('#incReset').onclick = () => { for (const k in INC.counts) INC.counts[k] = 0; INC.list = []; incUI(); incList(); };
+    incPanel.querySelector('#incClose').onclick = () => { incPanel.hidden = true; };
+    incPanel.querySelectorAll('[data-i]').forEach(b => b.onclick = () => { const e = INC.list[+b.dataset.i]; if (!e) return; incMarker.position.set(e.x, e.y + 0.1, e.z); incMarker.visible = true; incMarkT = performance.now() + 8000; if (mode === 'build') { orbit.target.set(e.x, e.y, e.z); orbit.dist = Math.min(orbit.dist, 40); applyOrbit(); } toast(INC_NAME[e.kind] + ' · hier', 1500); });
+  }
+  if (incBtn) incBtn.addEventListener('click', () => { incPanel.hidden = !incPanel.hidden; if (!incPanel.hidden) incList(); });
+  function incTick() { if (incMarker.visible) { const k = (incMarkT - performance.now()) / 8000; if (k <= 0) incMarker.visible = false; else { incMarker.material.opacity = 0.5 + 0.5 * Math.abs(Math.sin(performance.now() / 200)); incMarker.scale.setScalar(1 + 0.15 * Math.sin(performance.now() / 300)); } } }
+  incUI();
+  window.__INC = INC;
   const people = (() => {
     const MAX = 160;
     // ---------- Lichaamsvormen ----------
@@ -281,7 +361,7 @@
     }
     function place(a, n, fromDoor) {
       curA = a;
-      a.node = n; a.prev = null; a.wps = []; a.state = 'walk'; a.timer = 0;
+      a.node = n; a.prev = null; a.wps = []; a.state = 'walk'; a.timer = 0; a.chk = null;
       const [x, z] = centerOf(n, null, a);
       a.x = x; a.z = z; a.y = n.y; a.goingIn = false;
       a.fade = fromDoor ? 0 : 1;
@@ -408,7 +488,7 @@
           const ox = o.x - a.x, oz = o.z - a.z, d = Math.hypot(ox, oz);
           if (d < 0.5) {
             const ux = d > 1e-4 ? ox / d : Math.cos(a.id), uz = d > 1e-4 ? oz / d : Math.sin(a.id), push = Math.min((0.5 - d) * 0.5, 0.05);
-            a.x -= ux * push; a.z -= uz * push;
+            const [px, pz] = wallStep(a, a.x - ux * push, a.z - uz * push); a.x = px; a.z = pz;
           }
         }
       }
@@ -492,8 +572,9 @@
         const pts = cars.vecWalk(L.e, e.dir, off); let bi = 0, bd = 1e9; for (let i = 0; i < pts.length - 1; i++) { const d = distSeg(L.pt[0], L.pt[1], pts[i], pts[i + 1]); if (d < bd) { bd = d; bi = i; } }   // het stoepstuk waar de deur op uitkomt
         const join = (() => { const A = pts[bi], B = pts[bi + 1] || A, ex = B[0] - A[0], ez = B[1] - A[1], l2 = ex * ex + ez * ez || 1e-9, t = Math.max(0, Math.min(1, ((L.pt[0] - A[0]) * ex + (L.pt[1] - A[1]) * ez) / l2)); return [A[0] + ex * t, A[1] + ez * t]; })();
         a.precise = false; a.vedges = [L.e, ...vecEdgesAround(from.kind.b === 'door' || from.kind.b === 'mdoor' ? to : from)];
-        if (from.kind.b === 'door' || from.kind.b === 'mdoor') a.wps = [L.door, join, ...pts.slice(bi + 1)];
-        else { a.wps = [...pts.slice(0, bi + 1), join, L.door, centerOf(to, null, a)]; a.goingIn = !L.mod; }
+        const out = L.out || [];
+        if (from.kind.b === 'door' || from.kind.b === 'mdoor') a.wps = [L.door, ...out, join, ...pts.slice(bi + 1)];
+        else { a.wps = [...pts.slice(0, bi + 1), join, ...[...out].reverse(), L.door, centerOf(to, null, a)]; a.goingIn = !L.mod; }
         return;
       }
       if (e.mod) {   // door een module: via de openingen naar de volgende knoop; trappen en ingangen precies volgen
@@ -672,6 +753,7 @@
       return false;
     }
     function startRagdoll(a, vx, vy, vz, lift = 0) {
+      incident(a.ragWhy === 'car' ? 'auto' : a.ragWhy === 'player' ? 'speler' : a.ragWhy === 'block' ? 'blok' : 'val', a.x, a.y, a.z, (a.ragWhy || '') + (INC.dbg ? ' | ' + ((a.prev && a.prev.key) || '') + ' → ' + ((a.node && a.node.key) || '') + ' | wps ' + JSON.stringify((a.wps || []).map(p => p.map(v => +v.toFixed(2)))) + ' | trail ' + JSON.stringify(a.trail) : ''));
       // Te veel tegelijk aan het vallen? Dan bevriest de oudste waar hij ligt (hij blijft gewoon liggen)
       const ragging = agents.filter(o => o.state === 'rag' && !o.rag.frozen);
       if (ragging.length >= MAX_RAG) ragging.sort((p1, p2) => p2.rag.t - p1.rag.t)[0].rag.frozen = true;
@@ -829,7 +911,7 @@
       const fmx = (p[39] + p[42]) / 2, fmz = (p[41] + p[44]) / 2;
       const hh = Math.atan2(p[0] - fmx, p[2] - fmz);
       a.heading = Number.isFinite(hh) ? hh : (a.heading || 0);
-      a.x = fmx; a.z = fmz; a.y = gy; a.spd = 0; a.walkAmt = 0; a.fade = 1;
+      a.x = fmx; a.z = fmz; a.y = gy; a.spd = 0; a.walkAmt = 0; a.fade = 1; a.chk = null;
       initFeet(a); animPose(a);
       const stand = new Float32Array(NP * 3);
       origin(pose.head, stand, 0); origin(pose.neck, stand, 3); origin(pose.pelvis, stand, 6);
@@ -886,10 +968,11 @@
           const [aq, ar] = worldToCell(a.x, a.z);
           if (aq !== q || ar !== r || a.y < y0 - 0.3 || a.y > y1) continue;
           let dx = a.x - c.x, dz = a.z - c.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d;
-          startRagdoll(a, dx * (4 + Math.random() * 3), 5 + Math.random() * 3, dz * (4 + Math.random() * 3), y1 - a.y + 0.2);
+          a.ragWhy = 'block'; startRagdoll(a, dx * (4 + Math.random() * 3), 5 + Math.random() * 3, dz * (4 + Math.random() * 3), y1 - a.y + 0.2);
         }
       },
       update(dt) {
+        incTick();
         if (peopleDirty) { peopleDirty = false; rebuild(); }
         if (!agents.length) { for (const k in meshes) meshes[k].count = 0; return; }
         dt = Math.min(dt, 0.1);
@@ -929,13 +1012,13 @@
           if (walking) {
             const dx = a.x - player.x, dz = a.z - player.z, d = Math.hypot(dx, dz);
             if (d < 0.6 && Math.abs(a.y - player.y) < 1.2) {
-              if (pSpeed > 3) { startRagdoll(a, pvx * 0.9 + dx / (d || 1) * 0.5, 1.6 + pSpeed * 0.25, pvz * 0.9 + dz / (d || 1) * 0.5); sound.grunt(a.x, 0.9, a.z, Math.min(1, pSpeed / 8)); continue; }
+              if (pSpeed > 3) { a.ragWhy = 'player'; startRagdoll(a, pvx * 0.9 + dx / (d || 1) * 0.5, 1.6 + pSpeed * 0.25, pvz * 0.9 + dz / (d || 1) * 0.5); sound.grunt(a.x, 0.9, a.z, Math.min(1, pSpeed / 8)); continue; }
               // rustig: ze stappen zijwaarts uit je looplijn (rechts of links, wat het dichtst bij is)
               const pl = Math.hypot(pvx, pvz) || 1, lx = -pvz / pl, lz = pvx / pl;
               const sideS = (dx * lx + dz * lz) >= 0 ? 1 : -1;
               const ux = lx * sideS * 0.85 + dx / (d || 1) * 0.35, uz = lz * sideS * 0.85 + dz / (d || 1) * 0.35, ul = Math.hypot(ux, uz) || 1;
               const push = Math.min(0.6 - d + 0.1, dt * 1.6);
-              a.x += ux / ul * push; a.z += uz / ul * push;
+              { const [px, pz] = wallStep(a, a.x + ux / ul * push, a.z + uz / ul * push); a.x = px; a.z = pz; }
             }
           }
           if (a.state === 'pause') {
@@ -979,7 +1062,8 @@
           }
           // niet tegen een auto aan lopen: staat er een vlak voor je (ook op de kruising), dan wacht je even
           if (typeof cars !== 'undefined' && cars.list.length && cars.blocks(a.x + fx * 1.3, a.z + fz * 1.3, a.y)) { a.spd = Math.max(0, a.spd - dt * 8); a.prog = null; stepFeet(a, dt); continue; }
-          a.x += fx * step; a.z += fz * step;
+          { const [mx, mz] = wallStep(a, a.x + fx * step, a.z + fz * step); if (a.y - floorFor(mx, mz, a.y) <= 0.6) { a.x = mx; a.z = mz; } else if (INC.dbg) a.lastWS = 'rand'; }   // niet over de rand van een vloer stappen
+          throughCheck(a);   // door een muur of voorwerp heen gelopen?
           a.walkAmt = Math.min(1, a.spd / 1.0);
           const fy = floorFor(a.x, a.z, a.y);
           if (a.y - fy > 0.8) { a.ragWhy = 'floor'; startRagdoll(a, Math.sin(a.heading) * a.spd, 0, Math.cos(a.heading) * a.spd); continue; }   // geen grond meer onder je: vallen

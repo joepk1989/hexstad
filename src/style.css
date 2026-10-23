@@ -278,6 +278,25 @@ body.walk .walk-hint { top: calc(env(safe-area-inset-top, 0px) + 140px); }
   top: calc(env(safe-area-inset-top, 0px) + 74px); height: 38px; font-size: 13px;
 }
 body.walk .reckless { top: calc(env(safe-area-inset-top, 0px) + 172px); }
+.incbtn { position: fixed; z-index: 5; left: var(--gutter-l); top: calc(env(safe-area-inset-top, 0px) + 118px); height: 34px; font-size: 12.5px; gap: 6px; padding: 0 12px; }
+body.walk .incbtn { top: calc(env(safe-area-inset-top, 0px) + 216px); }
+.incbtn b { font-variant-numeric: tabular-nums; color: var(--signal); }
+.incbtn.warn b:last-child { color: #ff8a6e; }
+.inc-sep { opacity: 0.5; }
+.incpanel { position: fixed; z-index: 6; left: var(--gutter-l); top: calc(env(safe-area-inset-top, 0px) + 158px); width: min(340px, calc(100vw - 32px)); max-height: 46vh; overflow: auto; padding: 10px 12px; border-radius: 14px; background: var(--panel-solid); border: 1px solid var(--line); box-shadow: 0 10px 30px rgba(0,0,0,0.35); font-size: 13px; }
+body.walk .incpanel { top: calc(env(safe-area-inset-top, 0px) + 256px); }
+.inc-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.inc-head b { flex: 1; font-size: 14px; }
+.inc-head .btn { height: 28px; padding: 0 10px; font-size: 12px; border-radius: 8px; }
+.inc-sum { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-bottom: 8px; color: var(--ink-dim); font-size: 12px; }
+.inc-sum b { color: var(--ink); }
+.inc-list { list-style: none; margin: 0; padding: 0; }
+.inc-list li { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-top: 1px solid var(--line); }
+.inc-list li small { flex: 1; color: var(--ink-dim); }
+.inc-list .btn { height: 26px; padding: 0 9px; font-size: 12px; border-radius: 8px; }
+.inc-none { color: var(--ink-dim); }
+.inc-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: #aaa; }
+.inc-dot.inc-auto { background: #e0573e; } .inc-dot.inc-val { background: #f2b233; } .inc-dot.inc-speler { background: #b07de0; } .inc-dot.inc-blok { background: #8fa6bd; } .inc-dot.inc-muur, .inc-dot.inc-voorwerp { background: #ff3b2f; box-shadow: 0 0 0 2px rgba(255,59,47,0.35); }
 .sheet-card a.btn { color: var(--ink); }
 .optbar {
   position: fixed; z-index: 5; left: 50%; transform: translateX(-50%);

@@ -46,6 +46,16 @@
         if (roofLayer && !tris.length) continue;
         const skip = (modGroups.get(I) || {}).skip;
         for (const id in L.w) { const Wd = L.w[id]; if (!Wd) continue; const [i, j, d] = id.split(',').map(Number), D = MV2.DIRW[d]; if (!D) continue; const a = mv2P(i, j, ts), b = mv2P(i + D[0], j + D[1], ts); if (!mv2NearArea(m, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2)) continue; const A = tf(a[0], a[1]), B = tf(b[0], b[1]); if (skip && skip.has(wallKeyW(lvW, (A[0] + B[0]) / 2, (A[1] + B[1]) / 2))) continue; addWallIdx(lvW, { a: A, b: B, pass: PASS.has(Wd.o || ''), mid: [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2], o: Wd.o || '', outer: true }); }
+        // inrichting als hindernis: langwerpig (stelling, toonbank, bank, fietsenrek) als lijnstuk, rond als kruis
+        { const OLEN = { shelf: 2.4, counter: 2.2, bench: 1.8, bike: 2.4 }, ORAD = { fountain: 1.9, table: 0.9, planter: 0.75, pillar: 0.35, tree: 0.3, bin: 0.25 }, eg = modGroups.get(I) || {};
+          for (const O0 of L.o || []) {
+            let t = O0.t; const roofL = li >= fl;
+            if (roofL && eg.mask) { const Wm = tf(O0.x, O0.z); if (eg.mask(Wm[0], Wm[1])) continue; }
+            if (roofL && eg.style && eg.style !== 'top') { if (t === 'bush') continue; if (t === 'tree') t = eg.style === 'hall' ? 'fountain' : 'planter'; }
+            const add = (ax, az, bx, bz) => { const A = tf(ax, az), B = tf(bx, bz); addWallIdx(lvW, { a: A, b: B, pass: false, mid: [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2], o: 'obj' }); };
+            if (OLEN[t]) { const h = OLEN[t] / 2 + 0.25, cx = Math.cos(O0.rot || 0) * h, cz = Math.sin(O0.rot || 0) * h; add(O0.x - cx, O0.z - cz, O0.x + cx, O0.z + cz); }
+            else if (ORAD[t]) { const r = ORAD[t] + 0.25; add(O0.x - r, O0.z, O0.x + r, O0.z); add(O0.x, O0.z - r, O0.x, O0.z + r); }
+          } }
         for (const S of L.s || []) {
           if (S.k === 'hexramp') { const c = mv2CellXZ(S.q || 0, S.r || 0), f = FRAMES[(S.side || 0) % 6], ex = -f.nx, ez = -f.nz; const lo = tf(c[0] - ex * (INNER - 1.2), c[1] - ez * (INNER - 1.2)), hi = tf(c[0] + ex * (INNER - 1.2), c[1] + ez * (INNER - 1.2)); stairs.push({ lo, hi, q: S.q || 0, r: S.r || 0, ramp: true, side: ((S.side || 0) + (I.rot || 0)) % 6 }); continue; }   // zijde in de wereld: plus de draaiing
           const D = MV2.DIR6[S.d] || MV2.DIR6[0], a = mv2P(S.a[0], S.a[1], ts), len = (S.n || 2) * ts, w = S.w || 1.2, dx = D[0] * ts * SQ3 / 2, dz = D[0] * ts / 2 + D[1] * ts, dl = Math.hypot(dx, dz) || 1, ux = dx / dl, uz = dz / dl, nx = -uz, nz = ux, off = S.off || 0;

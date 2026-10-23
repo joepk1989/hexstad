@@ -39,6 +39,8 @@ Eerst bouwen: `node build.js` in de hoofdmap. Daarna, vanuit `test/`:
 | `python klim.py` | zelf de oprit en alle trappen op: vloerhoogte en botsing stap voor stap |
 | `python mall_mensen.py` | voetgangers door het winkelcentrum: knopen, ingangen aan de stoep, mensen per laag, geen valpartijen |
 | `python dbg_graph.py` / `dbg4.py` / `dbg8.py` | loopnetwerk: componenten per laag, trapknopen, valpartijen met plek |
+| `python teller.py [sec]` | ongelukjes-teller: winkelcentrum en voorbeeldstad laten lopen, tellers en laatste meldingen, knop en lijst (`out/teller.png`) |
+| `python vast.py` | lopen mensen door: hoeveel staan er lang stil, verdeling over de lagen |
 | `python mall.py` | winkelcentrum laden (129 modules, 4 lagen), stapelen via klik op een dak, vloerhoogte galerij |
 | `python wc_mods.py [namen]` | elke Winkelcentrum-module apart dichtbij, plus winkel met galerij erop |
 | `python mm_schans.py` | module maker: schans (S), penselen kern/rand, glazen dak, winkelvoorwerpen |
