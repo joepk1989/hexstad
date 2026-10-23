@@ -118,6 +118,7 @@
   const INC = { counts: { auto: 0, val: 0, speler: 0, blok: 0, muur: 0, voorwerp: 0 }, list: [], t0: performance.now() };
   const INC_NAME = { auto: 'aangereden', val: 'gevallen', speler: 'omver gerend', blok: 'blok erop', muur: 'door een muur', voorwerp: 'door een voorwerp' };
   function incident(kind, x, y, z, detail) {
+    if (kind === 'val' && /^rebuild/.test(detail || '')) return;   // de vloer weggehaald of een andere stad geladen: geen ongeluk van de voetganger
     INC.counts[kind] = (INC.counts[kind] || 0) + 1;
     INC.list.unshift({ kind, x, y, z, detail, t: (performance.now() - INC.t0) / 1000 }); if (INC.list.length > 40) INC.list.pop();
     incUI();
@@ -176,13 +177,14 @@
     incPanel.innerHTML = `<div class="inc-head"><b>Voetgangers</b><button type="button" class="btn" id="incReset">Op nul</button><button type="button" class="btn" id="incClose" aria-label="Sluiten">×</button></div>
       <div class="inc-sum">${Object.keys(INC_NAME).map(k => `<span class="inc-k inc-${k}">${INC_NAME[k]} <b>${C[k] || 0}</b></span>`).join('')}</div>
       <ol class="inc-list">${INC.list.length ? INC.list.map((e, i) => `<li><span class="inc-dot inc-${e.kind}"></span>${INC_NAME[e.kind]} <small>${Math.floor(e.t / 60)}:${String(Math.floor(e.t % 60)).padStart(2, '0')} · ${e.y.toFixed(1)} m hoog</small><button type="button" class="btn" data-i="${i}">toon</button></li>`).join('') : '<li class="inc-none">Nog niets gebeurd</li>'}</ol>`;
-    incPanel.querySelector('#incReset').onclick = () => { for (const k in INC.counts) INC.counts[k] = 0; INC.list = []; incUI(); incList(); };
+    incPanel.querySelector('#incReset').onclick = () => { INC.reset(); incList(); };
     incPanel.querySelector('#incClose').onclick = () => { incPanel.hidden = true; };
     incPanel.querySelectorAll('[data-i]').forEach(b => b.onclick = () => { const e = INC.list[+b.dataset.i]; if (!e) return; incMarker.position.set(e.x, e.y + 0.1, e.z); incMarker.visible = true; incMarkT = performance.now() + 8000; if (mode === 'build') { orbit.target.set(e.x, e.y, e.z); orbit.dist = Math.min(orbit.dist, 40); applyOrbit(); } toast(INC_NAME[e.kind] + ' · hier', 1500); });
   }
   if (incBtn) incBtn.addEventListener('click', () => { incPanel.hidden = !incPanel.hidden; if (!incPanel.hidden) incList(); });
   function incTick() { if (incMarker.visible) { const k = (incMarkT - performance.now()) / 8000; if (k <= 0) incMarker.visible = false; else { incMarker.material.opacity = 0.5 + 0.5 * Math.abs(Math.sin(performance.now() / 200)); incMarker.scale.setScalar(1 + 0.15 * Math.sin(performance.now() / 300)); } } }
   incUI();
+  INC.reset = () => { for (const k in INC.counts) INC.counts[k] = 0; INC.list = []; incUI(); };
   window.__INC = INC;
   const people = (() => {
     const MAX = 160;

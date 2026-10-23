@@ -12,7 +12,7 @@ async def main():
         for act in ['mall','sample']:
             await pg.evaluate("(a)=>{const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true; document.getElementById('menuBtn').click(); document.querySelector('[data-act='+a+']').click()}",act); await pg.wait_for_timeout(3000)
             if act=='mall': await pg.evaluate("()=>{const S=window.__SC(), c=S.getCells(); c.paths=[{t:'weg',p:[[-90,-56],[90,-56]]}]; S.buildPathNet();}")
-            await pg.evaluate("()=>{const I=window.__INC; for(const k in I.counts) I.counts[k]=0; I.list.length=0;}")
+            await pg.evaluate("()=>window.__INC.reset()")
             await pg.wait_for_timeout(WAIT*1000)
             r=await pg.evaluate("()=>{const I=window.__INC; return {n:window.__SC().people.agents.length, counts:I.counts, laatste:I.list.slice(0,14).map(e=>[e.kind,+e.x.toFixed(1),+e.y.toFixed(1),+e.z.toFixed(1),e.detail])}}")
             print(act, json.dumps(r))
