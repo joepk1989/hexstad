@@ -7,7 +7,7 @@ async def main():
         pg=await b.new_page(viewport={"width":1100,"height":700}); errs=[]; pg.on('pageerror',lambda e:errs.append(str(e)))
         await pg.add_init_script("try{localStorage.setItem('hexstad-set',JSON.stringify({terr:'laag',shadow:'uit',tv:1}))}catch(e){}")
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
-        await pg.evaluate("()=>{const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true; document.getElementById('menuBtn').click(); document.querySelector('[data-act=mall]').click()}"); await pg.wait_for_timeout(5000)
+        await pg.evaluate("()=>{const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true; window.__SC().doAct('mall')}"); await pg.wait_for_timeout(5000)
         pos=await pg.evaluate("""()=>{const S=window.__SC(), c=S.getCells(); const f=n=>c.inst.filter(I=>I.m.name.startsWith(n)).map(I=>({x:9*Math.sqrt(3)*(I.q+I.r/2), z:13.5*I.r, lv:I.lv||0, rot:I.rot, n:I.m.name})); return {oprit:f('Winkelcentrum · oprit'), trap:f('Winkelcentrum · galerij · trap'), door:f('Winkelcentrum · doorgang'), half:f('Winkelcentrum · café'), afg:f('Winkelcentrum · winkel · afgesneden'), pav:f('Winkelcentrum · dakpaviljoen')}}""")
         print(json.dumps(pos))
         shots={'oprit':(pos['oprit'][0],0.0,1.15,60,'zij'),'trap':(pos['trap'][0],1,1.2,55,'iso'),'doorgang':(pos['door'][0],1,1.1,55,'iso'),'half':(pos['half'][0],1,1.05,70,'iso'),'pav':(pos['pav'][0],2,1.0,70,'iso')}

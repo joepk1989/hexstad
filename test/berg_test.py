@@ -19,7 +19,7 @@ async def main():
         pg=await b.new_page(viewport={"width":1000,"height":640}); errs=[]
         pg.on('pageerror',lambda e:errs.append(str(e)+' '+(e.stack or '')[:300]))
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
-        await pg.evaluate("()=>document.querySelector('[data-act=empty]').click()"); await pg.wait_for_timeout(400)
+        await pg.evaluate("()=>window.__SC().doAct('empty')"); await pg.wait_for_timeout(400)
         await pg.evaluate("([c,P])=>{const S=window.__SC(); S.setCells(c); const m=S.getCells(); m.paths=P; S.buildPathNet(); S.cars.setOn(true); S.cars.setForce(10); S.people.setOn(true);}",[cells,paths])
         await pg.wait_for_timeout(1500)
         print('cols', await pg.evaluate("()=>{const S=window.__SC(); return {roadTopMid: S.roadTop?S.roadTop(0,0,0):null}}"))

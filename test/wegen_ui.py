@@ -10,7 +10,7 @@ async def main():
         pg=await b.new_page(viewport={"width":1000,"height":700}); errs=[]
         pg.on('pageerror',lambda e:errs.append(str(e)))
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
-        await pg.evaluate("()=>{document.querySelector('[data-act=empty]').click(); const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true; const S=window.__SC(); S.orbit.target.set(0,0,0); S.orbit.phi=0.5; S.orbit.dist=230; S.orbit.theta=0; S.applyOrbit();}"); await pg.wait_for_timeout(600)
+        await pg.evaluate("()=>{window.__SC().doAct('empty'); const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true; const S=window.__SC(); S.orbit.target.set(0,0,0); S.orbit.phi=0.5; S.orbit.dist=230; S.orbit.theta=0; S.applyOrbit();}"); await pg.wait_for_timeout(600)
         await pg.click('.pal-tab >> text=Wegen'); await pg.click('#tool-vrot'); await pg.wait_for_timeout(200)
         m=pg.mouse
         await m.click(500,330); await pg.wait_for_timeout(800)

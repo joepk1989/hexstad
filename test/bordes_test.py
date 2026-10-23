@@ -10,7 +10,7 @@ async def main():
         pg=await b.new_page(viewport={"width":900,"height":600}); errs=[]
         pg.on('pageerror',lambda e:errs.append(str(e)))
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
-        await pg.evaluate("()=>{document.querySelector('[data-act=empty]').click(); const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true; const S=window.__SC(); S.setCells({'0,0':['kantoor','woning','woning'],'1,0':['woning','woning'],'0,1':['pad']});}")
+        await pg.evaluate("()=>{window.__SC().doAct('empty'); const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true; const S=window.__SC(); S.setCells({'0,0':['kantoor','woning','woning'],'1,0':['woning','woning'],'0,1':['pad']});}")
         await pg.wait_for_timeout(800)
         # schermafbeelding van binnen van boven (dak weg: alleen begane grond + 1 laag)
         await pg.evaluate("()=>{const S=window.__SC(); S.setCells({'0,0':['woning','woning'],'0,1':['pad']}); S.orbit.target.set(0,1.5,0); S.orbit.phi=0.75; S.orbit.dist=32; S.orbit.theta=2.4; S.applyOrbit();}")

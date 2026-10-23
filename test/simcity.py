@@ -12,7 +12,7 @@ async def main():
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2000)
         await pg.evaluate("()=>{window.__SC().renderer.render=()=>{};}")
         for act in sys.argv[1:]:
-            await pg.evaluate(f"()=>{{document.querySelector('[data-act={act}]').click(); const S=window.__SC(); S.orbit.dist=250; S.orbit.phi=1.3; S.applyOrbit(); S.cars.setOn(true); S.cars.setForce({sys.argv[1]=='sample' and 8 or 40}); S.people.setOn(true);}}"); await pg.wait_for_timeout(1500)
+            await pg.evaluate(f"()=>{{window.__SC().doAct('{act}'); const S=window.__SC(); S.orbit.dist=250; S.orbit.phi=1.3; S.applyOrbit(); S.cars.setOn(true); S.cars.setForce({sys.argv[1]=='sample' and 8 or 40}); S.people.setOn(true);}}"); await pg.wait_for_timeout(1500)
             for k in range(8):
                 await pg.wait_for_timeout(5000)
                 st=await pg.evaluate("()=>{const S=window.__SC(); return {c:S.cars.vecStats(), p:S.people.vecStats()}}")

@@ -11,7 +11,7 @@ async def main():
         pg.on('pageerror',lambda e:errs.append(str(e))); pg.on('console',lambda m: m.type=='error' and errs.append(m.text))
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
         print('start:',errs[:3])
-        await pg.evaluate("()=>{document.querySelector('[data-act=random]')?.click(); const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true;}"); await pg.wait_for_timeout(1500)
+        await pg.evaluate("()=>{window.__SC().doAct('random'); const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true;}"); await pg.wait_for_timeout(1500)
         for tod in [7, 12, 18.8, 20.2, 23]:
             await pg.evaluate("t=>{const S=window.__SC(); S.orbit.phi=1.42; S.orbit.dist=90; S.applyOrbit(); S.camera.position.set(0,60,0); S.camera.lookAt(800,190,-300); window.__DN.set(t);}",tod)
             await pg.wait_for_timeout(1500); await pg.screenshot(path=f'lucht_{tod}.png')

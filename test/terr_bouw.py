@@ -18,7 +18,7 @@ async def main():
         pg=await b.new_page(viewport={"width":1000,"height":700}); errs=[]
         pg.on('pageerror',lambda e:errs.append(str(e)))
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
-        await pg.evaluate("()=>{document.querySelector('[data-act=empty]').click(); const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true;}"); await pg.wait_for_timeout(400)
+        await pg.evaluate("()=>{window.__SC().doAct('empty'); const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true;}"); await pg.wait_for_timeout(400)
         await pg.evaluate("c=>{const S=window.__SC(); S.setCells(c);}",cells); await pg.wait_for_timeout(800)
         r=await pg.evaluate("""()=>{const S=window.__SC(), m=S.getCells(); return {terr:m.terr, st00:m.get('0,0'), st10:m.get('1,0'), g00:S.gH(0,0), ground00:S.terrGround(0,0), ground_mid:S.terrGround(8,0)}}""")
         print(r)

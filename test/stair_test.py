@@ -11,7 +11,7 @@ async def main():
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
         r=await pg.evaluate("()=>{const out={}; for(const m of window.__mods){ if(m.v!==2||m.lv.length<2) continue; const st=m.lv.reduce((a,L)=>a+L.s.length,0); out[m.name]=st+'tr/'+m.lv.length+'lv'; } return out}")
         print(json.dumps(r,ensure_ascii=False))
-        await pg.evaluate("()=>{document.querySelector('[data-act=empty]').click(); const S=window.__SC(); S.renderer.render=()=>{}; document.querySelectorAll('.pal-tab')[5].click(); [...document.querySelectorAll('.modcard')].find(x=>x.title.startsWith('Rijhuis · baksteen · 3L')).click(); S.place(0,0);}")
+        await pg.evaluate("()=>{window.__SC().doAct('empty'); const S=window.__SC(); S.renderer.render=()=>{}; document.querySelectorAll('.pal-tab')[5].click(); [...document.querySelectorAll('.modcard')].find(x=>x.title.startsWith('Rijhuis · baksteen · 3L')).click(); S.place(0,0);}")
         await pg.wait_for_timeout(500)
         await pg.evaluate("()=>document.getElementById('modeBtn').click()"); await pg.wait_for_timeout(500)
         # trap: start P(0,3)=(0,6.75) richting 3 (210°): loop vanaf (0.5,6.75) richting 210°

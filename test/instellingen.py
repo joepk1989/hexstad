@@ -17,7 +17,7 @@ async def main():
         pg=await b.new_page(viewport={"width":1000,"height":700}); errs=[]
         pg.on('pageerror',lambda e:errs.append(str(e)))
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
-        await pg.evaluate("()=>{document.querySelector('[data-act=empty]').click(); const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true;}"); await pg.wait_for_timeout(300)
+        await pg.evaluate("()=>{window.__SC().doAct('empty'); const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true;}"); await pg.wait_for_timeout(300)
         await pg.evaluate("([c,P])=>{const S=window.__SC(); S.setCells(c); const m=S.getCells(); m.paths=P; S.buildPathNet(); S.orbit.target.set(0,4,0); S.orbit.phi=1.0; S.orbit.dist=170; S.orbit.theta=0.6; S.applyOrbit();}",[cells,paths])
         await pg.click('#menuBtn'); await pg.wait_for_timeout(300); await pg.click('#setBtn'); await pg.wait_for_timeout(500)
         await pg.screenshot(path='set_venster.png')

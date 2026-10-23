@@ -9,7 +9,7 @@ async def main():
         pg=await b.new_page(viewport={"width":1100,"height":700}); errs=[]
         pg.on('pageerror',lambda e:errs.append(str(e)+' '+(e.stack or '')[:300]))
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
-        await pg.evaluate("()=>{document.querySelector('[data-act=empty]').click(); const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true;}"); await pg.wait_for_timeout(400)
+        await pg.evaluate("()=>{window.__SC().doAct('empty'); const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true;}"); await pg.wait_for_timeout(400)
         # terreingereedschap: Verhogen, penseel 19 → 7 → 1
         await pg.evaluate("()=>{document.querySelectorAll('.pal-tab')[4].click(); document.getElementById('tool-heuvel').click();}")
         await pg.mouse.move(550,350)

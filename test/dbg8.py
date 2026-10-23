@@ -7,7 +7,7 @@ async def main():
         pg=await b.new_page(viewport={"width":700,"height":500}); errs=[]; pg.on('pageerror',lambda e:errs.append(str(e)))
         await pg.add_init_script("try{localStorage.setItem('hexstad-set',JSON.stringify({terr:'laag',shadow:'uit',tv:1,res:'snel'}))}catch(e){}")
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
-        await pg.evaluate("()=>{document.getElementById('menuBtn').click(); document.querySelector('[data-act=mall]').click()}"); await pg.wait_for_timeout(4000)
+        await pg.evaluate("()=>{window.__SC().doAct('mall')}"); await pg.wait_for_timeout(4000)
         await pg.evaluate("()=>{const S=window.__SC(), c=S.getCells(); c.paths=[{t:'weg',p:[[-90,-56],[90,-56]]}]; S.buildPathNet(); S.people.setOn(true); window.__falls=[]; const P=S.people; const ag=P.agents; setInterval(()=>{ for(const a of ag){ if(a.state==='rag' && !a.__logged){ a.__logged=true; window.__falls.push({why:a.ragWhy, x:+a.x.toFixed(1), y:+a.y.toFixed(2), z:+a.z.toFixed(1), node:a.node&&a.node.key, prev:a.prev&&a.prev.key, wps:a.wps&&a.wps.length}); } } }, 300);}"); 
         await pg.wait_for_timeout(40000)
         r=await pg.evaluate("()=>window.__falls"); print(json.dumps(r))

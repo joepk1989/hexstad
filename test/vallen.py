@@ -8,7 +8,7 @@ async def main():
         pg=await b.new_page(viewport={"width":900,"height":600}); errs=[]; pg.on('pageerror',lambda e:errs.append(str(e)))
         await pg.add_init_script("try{localStorage.setItem('hexstad-set',JSON.stringify({terr:'laag',shadow:'uit',tv:1,res:'snel'}))}catch(e){}")
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
-        await pg.evaluate("()=>{const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true; document.getElementById('menuBtn').click(); document.querySelector('[data-act=mall]').click()}"); await pg.wait_for_timeout(4000)
+        await pg.evaluate("()=>{const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true; window.__SC().doAct('mall')}"); await pg.wait_for_timeout(4000)
         # doelen: midden van het centrum, een dakpaviljoen, de straat ernaast
         for name,(x,y,z) in {'midden':(0,6,0),'paviljoen':(15.59,9,-27),'straat':(80,0,0)}.items():
             await pg.evaluate("([x,y,z])=>{const S=window.__SC(); S.orbit.target.set(x,y,z); S.orbit.dist=30; S.orbit.phi=0.25; S.orbit.theta=0.6; S.applyOrbit();}",[x,y,z]); await pg.wait_for_timeout(1200)

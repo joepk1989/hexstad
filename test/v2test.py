@@ -23,7 +23,7 @@ async def main():
         pg=await b.new_page(viewport={"width":900,"height":560}); errs=[]
         pg.on('pageerror',lambda e:errs.append(str(e)))
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
-        await pg.evaluate("()=>document.querySelector('[data-act=empty]').click()"); await pg.wait_for_timeout(500)
+        await pg.evaluate("()=>window.__SC().doAct('empty')"); await pg.wait_for_timeout(500)
         r=await pg.evaluate("(M)=>{const S=window.__SC(); const m=eval(M); window.__mods.push(m); window.__saveMods(); document.querySelectorAll('.pal-tab')[5].click(); const cs=[...document.querySelectorAll('.modcard')]; const c=cs.find(x=>x.title.startsWith('Testhuis')); c.click(); const ok=S.place(0,0); const c2=S.getCells(); return {ok, inst:(c2.inst||[]).length, walls: window.__modDbg().walls, surf: window.__modDbg().surfaces}}",MOD)
         print(r)
         # loopmodus: speler op (0,-6) naar deur? test floorAt op diverse punten

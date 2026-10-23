@@ -18,7 +18,7 @@ async def main():
         pg=await b.new_page(viewport={"width":1000,"height":640}); errs=[]; cons=[]
         pg.on('pageerror',lambda e:errs.append((len(shots_done),str(e),(getattr(e,'stack','') or '')[:300]))); pg.on('console',lambda m: cons.append(m.text) if m.type=='error' and 'fonts' not in m.text and 'TUNNEL' not in m.text else None)
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
-        await pg.evaluate("()=>document.querySelector('[data-act=empty]').click()"); await pg.wait_for_timeout(500)
+        await pg.evaluate("()=>window.__SC().doAct('empty')"); await pg.wait_for_timeout(500)
         await pg.evaluate("(c)=>window.__SC().setCells(c)",cells); await pg.wait_for_timeout(1500)
         # modules plaatsen
         await pg.evaluate("()=>document.querySelectorAll('.pal-tab')[5].click()"); await pg.wait_for_timeout(200)

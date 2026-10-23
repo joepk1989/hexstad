@@ -16,7 +16,7 @@ async def main():
         pg.on('pageerror',lambda e:errs.append(str(e)))
         await pg.add_init_script("try{localStorage.setItem('hexstad-set',JSON.stringify({terr:'laag'}))}catch(e){}")
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
-        await pg.evaluate("()=>{document.querySelector('[data-act=empty]').click(); const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true;}"); await pg.wait_for_timeout(400)
+        await pg.evaluate("()=>{window.__SC().doAct('empty'); const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true;}"); await pg.wait_for_timeout(400)
         await pg.evaluate("(T)=>{const S=window.__SC(); S.terrSet(T); S.terrFlush();}",T); await pg.wait_for_timeout(300)
         await pg.evaluate("(P)=>{const S=window.__SC(), c=S.getCells(); c.paths=JSON.parse(JSON.stringify(P)); S.buildPathNet();}",PATHS); await pg.wait_for_timeout(1500)
         r=await pg.evaluate("""()=>{const S=window.__SC(), g=(x,z)=>+S.terrGround(x,z).toFixed(2), b=(x,z)=>+S.terrainHeightAt(x,z).toFixed(2);

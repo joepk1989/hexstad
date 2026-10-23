@@ -10,7 +10,7 @@ async def main():
         await pg.add_init_script("try{localStorage.setItem('hexstad-set',JSON.stringify({terr:'laag',shadow:'uit',tv:1,res:'snel'})); localStorage.setItem('hexstad-mensen','1')}catch(e){}")
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
         for act in ['mall','sample']:
-            await pg.evaluate("(a)=>{const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true; document.getElementById('menuBtn').click(); document.querySelector('[data-act='+a+']').click()}",act); await pg.wait_for_timeout(3000)
+            await pg.evaluate("(a)=>{const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true; window.__SC().doAct(a)}",act); await pg.wait_for_timeout(3000)
             if act=='mall': await pg.evaluate("()=>{const S=window.__SC(), c=S.getCells(); c.paths=[{t:'weg',p:[[-90,-56],[90,-56]]}]; S.buildPathNet();}")
             await pg.evaluate("()=>window.__INC.reset()")
             await pg.wait_for_timeout(WAIT*1000)

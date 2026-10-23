@@ -25,7 +25,7 @@ async def main():
         pg=await b.new_page(viewport={"width":900,"height":700}); errs=[]
         pg.on('pageerror',lambda e:errs.append(str(e)))
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
-        await pg.evaluate("()=>{document.querySelector('[data-act=empty]').click(); const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true; document.getElementById('palette').style.display='none'; for (const id of ['optBar','hud']) { const e=document.getElementById(id); if(e) e.style.display='none'; } }")
+        await pg.evaluate("()=>{window.__SC().doAct('empty'); const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true; document.getElementById('palette').style.display='none'; for (const id of ['optBar','hud']) { const e=document.getElementById(id); if(e) e.style.display='none'; } }")
         for name in names:
             await pg.evaluate("(P)=>{const S=window.__SC(), c=S.getCells(); c.paths=JSON.parse(JSON.stringify(P)); S.buildPathNet(); S.cars.setOn(true); S.cars.setForce(10);}", SC[name])
             g=await pg.evaluate("()=>{const d=window.__SC().cars.vecGraph(); return {nodes:d.nodes.map(n=>[Math.round(n.x),Math.round(n.z),n.edges.length]), edges:[...d.edges.values()].map(e=>[e.t,e.a,e.b,Math.round(e.len)])}}")

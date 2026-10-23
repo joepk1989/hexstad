@@ -10,7 +10,7 @@ async def main():
         pg=await b.new_page(viewport={"width":800,"height":600}); errs=[]
         pg.on('pageerror',lambda e:errs.append(str(e)))
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
-        await pg.evaluate("()=>{document.querySelector('[data-act=random]').click();}"); await pg.wait_for_timeout(1500)
+        await pg.evaluate("()=>{window.__SC().doAct('random');}"); await pg.wait_for_timeout(1500)
         r=await pg.evaluate("""()=>{const S=window.__SC(); const t=[]; for(let n=0;n<10;n++){ const L=[]; for(let dq=-2;dq<=2;dq++) for(let dr=-2;dr<=2;dr++) if(Math.abs(dq+dr)<=2) L.push([dq+3,dr-8,S.gH(dq+3,dr-8)+0.3]); const t0=performance.now(); S.terrSet(L); S.terrFlush(); t.push(performance.now()-t0);} return [t.map(x=>x.toFixed(1))]}""")
         print("ms per stap:", r, errs[:3]); await b.close()
 asyncio.run(main())

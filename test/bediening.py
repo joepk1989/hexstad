@@ -8,7 +8,7 @@ async def main():
         pg=await b.new_page(viewport={"width":1280,"height":800}); errs=[]; pg.on('pageerror',lambda e:errs.append(str(e)))
         await pg.add_init_script("try{localStorage.setItem('hexstad-set',JSON.stringify({terr:'laag',shadow:'zacht',tv:1,res:'normaal'})); localStorage.setItem('hexstad-keys-seen','1'); localStorage.setItem('hexstad.tod',JSON.stringify({tod:14,auto:false,speed:1}))}catch(e){}")
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
-        await pg.evaluate("()=>{document.getElementById('menuBtn').click(); document.querySelector('[data-act=sample]').click()}"); await pg.wait_for_timeout(2500)
+        await pg.evaluate("()=>{window.__SC().doAct('sample')}"); await pg.wait_for_timeout(2500)
         await pg.screenshot(path='bed_bouwen.png',timeout=300000)
         # snelbalk: 3 = woning; catalogus open, kantoor kiezen → komt in vak 3
         r=[]
@@ -32,7 +32,7 @@ async def main():
         await pg.screenshot(path='bed_lopen.png',timeout=300000)
         await pg.evaluate("()=>document.getElementById('modeBtn').click()"); await pg.wait_for_timeout(800)
         # winkelcentrum, laag 1
-        await pg.evaluate("()=>{document.getElementById('menuBtn').click(); document.querySelector('[data-act=mall]').click()}"); await pg.wait_for_timeout(3500)
+        await pg.evaluate("()=>{window.__SC().doAct('mall')}"); await pg.wait_for_timeout(3500)
         await pg.evaluate("()=>{const S=window.__SC(); S.orbit.target.set(2,4,4); S.orbit.dist=125; S.orbit.phi=0.85; S.orbit.theta=0.65; S.applyOrbit(); window.__HUD.setLayer(1)}"); await pg.wait_for_timeout(2500)
         await pg.screenshot(path='bed_laag1.png',timeout=300000)
         await pg.evaluate("()=>window.__HUD.setLayer(null,true)")

@@ -8,7 +8,7 @@ async def main():
         pg=await b.new_page(viewport={"width":1100,"height":700}); errs=[]; pg.on('pageerror',lambda e:errs.append(str(e)))
         await pg.add_init_script("try{localStorage.setItem('hexstad-set',JSON.stringify({terr:'laag',shadow:'zacht',tv:1})); localStorage.setItem('hexstad-mensen','0')}catch(e){}")
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
-        await pg.evaluate("()=>{const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true; document.getElementById('menuBtn').click(); document.querySelector('[data-act=mall]').click()}"); await pg.wait_for_timeout(5000)
+        await pg.evaluate("()=>{const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true; window.__SC().doAct('mall')}"); await pg.wait_for_timeout(5000)
         # hal: vak (2,1)−(3,2) → verschoven (−1,−1)…(0,0)
         hx=[ (9*3**0.5*(q+r/2), 13.5*r) for q,r in [(-1,-1),(0,0)] ]
         cx=(hx[0][0]+hx[1][0])/2; cz=(hx[0][1]+hx[1][1])/2

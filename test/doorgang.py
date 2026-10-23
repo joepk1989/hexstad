@@ -8,7 +8,7 @@ async def main():
         pg=await b.new_page(viewport={"width":700,"height":500}); errs=[]; pg.on('pageerror',lambda e:errs.append(str(e)))
         await pg.add_init_script("try{localStorage.setItem('hexstad-set',JSON.stringify({terr:'laag',shadow:'uit',tv:1,res:'snel'})); localStorage.setItem('hexstad-mensen','0')}catch(e){}")
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
-        await pg.evaluate("()=>{document.getElementById('menuBtn').click(); document.querySelector('[data-act=mall]').click()}"); await pg.wait_for_timeout(4000)
+        await pg.evaluate("()=>{window.__SC().doAct('mall')}"); await pg.wait_for_timeout(4000)
         r=await pg.evaluate("""()=>{const S=window.__SC(), D=window.__modDbg(), ins=S.getCells().inst; const out=[];
           ins.forEach(I=>{ if(!I.m.name.startsWith('Winkelcentrum · doorgang')) return; const cx=9*Math.sqrt(3)*(I.q+I.r/2), cz=13.5*I.r, th=-I.rot*Math.PI/3, ux=Math.cos(th), uz=Math.sin(th), y0=(I.lv||0)*3;
             for(const lat of [-2,0,2]){ let feet=y0+0.05; const bl=[]; for(let t=-14;t<=14;t+=0.25){ const x=cx+ux*t-uz*lat, z=cz+uz*t+ux*lat; const f=D.floorAt(x,z,feet+0.3); if(D.blockedAt(x,z,f)){ bl.push(+t.toFixed(2)); } else feet=f; }

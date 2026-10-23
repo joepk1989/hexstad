@@ -6,7 +6,7 @@ async def main():
     async with async_playwright() as p:
         b=await p.chromium.launch(args=['--use-gl=swiftshader','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader'])
         pg=await b.new_page(viewport={"width":900,"height":560}); await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
-        await pg.evaluate("()=>document.querySelector('[data-act=ring]').click()"); await pg.wait_for_timeout(4000)
+        await pg.evaluate("()=>window.__SC().doAct('ring')"); await pg.wait_for_timeout(4000)
         await pg.evaluate("()=>{const S=window.__SC(); S.renderer.render=()=>{}; S.cars.setOn(true); S.people.setOn(true); document.querySelectorAll('.pal-tab')[2].click(); document.getElementById('tool-woning').click();}")
         await pg.wait_for_timeout(5000)
         cdp=await pg.context.new_cdp_session(pg); await cdp.send('Profiler.enable'); await cdp.send('Profiler.start')

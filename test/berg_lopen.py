@@ -21,7 +21,7 @@ async def main():
                 await pg.wait_for_timeout(900); tr.append(await pg.evaluate("()=>{const p=window.__SC().player; return [+p.x.toFixed(0),+p.y.toFixed(1)]}"))
             await pg.keyboard.up('w'); await pg.keyboard.up('ShiftLeft'); print(label,tr)
         r=await pg.evaluate("()=>{const S=window.__SC(); return [-40,-20,0,20].map(x=>[x, +S.terrainHeightAt(x,-1).toFixed(1), S.roadTop(x,-1.2,30)])}"); print(r)
-        await pg.evaluate("()=>{const S=window.__SC(); const t0=performance.now(); document.querySelector('[data-act=ring]').click(); window.__t=performance.now()-t0;}"); await pg.wait_for_timeout(500)
+        await pg.evaluate("()=>{const S=window.__SC(); const t0=performance.now(); window.__SC().doAct('ring'); window.__t=performance.now()-t0;}"); await pg.wait_for_timeout(500)
         print('ringstad ms', round(await pg.evaluate("()=>window.__t")))
         print(errs[:3]); await b.close()
 asyncio.run(main())

@@ -8,7 +8,7 @@ async def main():
         pg=await b.new_page(viewport={"width":700,"height":500}); errs=[]; pg.on('pageerror',lambda e:errs.append(str(e)))
         await pg.add_init_script("try{localStorage.setItem('hexstad-set',JSON.stringify({terr:'laag',shadow:'uit',tv:1,res:'snel'})); localStorage.setItem('hexstad-mensen','0')}catch(e){}")
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
-        await pg.evaluate("()=>{document.getElementById('menuBtn').click(); document.querySelector('[data-act=mall]').click()}"); await pg.wait_for_timeout(4000)
+        await pg.evaluate("()=>{window.__SC().doAct('mall')}"); await pg.wait_for_timeout(4000)
         await pg.evaluate("()=>{window.__SC().people.setOn(true)}"); await pg.wait_for_timeout(2000)
         r=await pg.evaluate("""()=>{const S=window.__SC(), G=S.people.graph(), D=window.__modDbg(); const res=[];
           // elke trap: van de onderste knoop naar de bovenste, en het stuk ervoor/erna

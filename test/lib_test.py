@@ -14,7 +14,7 @@ async def main():
           for(const m of window.__mods){ if(m.v!==2) continue; out.cats[m.cat]=(out.cats[m.cat]||0)+1; try{ const b=D.mv2Build(m,(x,z)=>[x,z]); let tri=0; b.group.traverse(o=>{if(o.isMesh) tri+=o.geometry.attributes.position.count/3}); if(tri<4) out.empty.push(m.name); }catch(e){ out.bad.push([m.name,e.message]); } }
           return out}""")
         print(json.dumps(r,ensure_ascii=False))
-        await pg.evaluate("()=>document.querySelector('[data-act=empty]').click()"); await pg.wait_for_timeout(500)
+        await pg.evaluate("()=>window.__SC().doAct('empty')"); await pg.wait_for_timeout(500)
         t0=await pg.evaluate("()=>performance.now()")
         await pg.evaluate("()=>document.querySelectorAll('.pal-tab')[5].click()"); await pg.wait_for_timeout(4000)
         n=await pg.evaluate("()=>document.querySelectorAll('.modcard').length"); print('cards',n)

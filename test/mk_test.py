@@ -10,7 +10,7 @@ async def main():
         pg=await b.new_page(viewport={"width":1100,"height":700}); errs=[]
         pg.on('pageerror',lambda e:errs.append(str(e)))
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
-        await pg.evaluate("()=>document.querySelector('[data-act=empty]').click()"); await pg.wait_for_timeout(500)
+        await pg.evaluate("()=>window.__SC().doAct('empty')"); await pg.wait_for_timeout(500)
         await pg.evaluate("()=>{document.querySelectorAll('.pal-tab')[5].click(); [...document.querySelectorAll('.modcard')].find(c=>c.classList.contains('add')).click();}")
         await pg.wait_for_timeout(800)
         vis=await pg.evaluate("()=>!document.getElementById('mmApp').hidden"); print('maker open',vis, errs)

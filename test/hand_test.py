@@ -12,7 +12,7 @@ async def main():
         # muren op de rand: alle ringmodules compleet?
         r=await pg.evaluate("""()=>{const out={}; for(const m of window.__mods){ if(m.v!==2) continue; const n=Object.keys(m.lv[0].w).length; if(/^Rijtjeshuis|^Blok$|^Hek rondom|^Supermarkt/.test(m.name)) out[m.name]=n; } return out}""")
         print(r)
-        await pg.evaluate("()=>document.querySelector('[data-act=sample]').click()"); await pg.wait_for_timeout(2500)
+        await pg.evaluate("()=>window.__SC().doAct('sample')"); await pg.wait_for_timeout(2500)
         await pg.evaluate("()=>document.getElementById('modeBtn').click()"); await pg.wait_for_timeout(800)
         st=await pg.evaluate("()=>({hands:[...document.querySelectorAll('#hands button')].map(b=>b.textContent+':'+b.getAttribute('aria-pressed')), cls:document.body.className, cells:window.__SC().getCells().size})"); print(st)
         # hamer kiezen, naar een blok kijken en slaan

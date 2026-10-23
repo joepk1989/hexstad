@@ -9,10 +9,10 @@ async def main():
         ctx=await b.new_context(viewport={"width":900,"height":600}); pg=await ctx.new_page(); errs=[]
         pg.on('pageerror',lambda e:errs.append(str(e)))
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
-        await pg.evaluate("()=>document.querySelector('[data-act=sample]').click()"); await pg.wait_for_timeout(1500)
+        await pg.evaluate("()=>window.__SC().doAct('sample')"); await pg.wait_for_timeout(1500)
         await pg.evaluate("()=>{document.querySelectorAll('.pal-tab')[5].click(); const cs=[...document.querySelectorAll('.modcard')]; cs.find(x=>x.title.startsWith('Villa met tuin')).click(); window.__SC().place(5,5); cs.find(x=>x.title.startsWith('Blok')).click(); window.__SC().place(7,7);}")
         await pg.wait_for_timeout(500)
-        await pg.evaluate("()=>document.querySelector('[data-act=adopt]')?.click()"); await pg.wait_for_timeout(500)
+        await pg.evaluate("()=>window.__SC().doAct('adopt')"); await pg.wait_for_timeout(500)
         st=await pg.evaluate("()=>({cells:window.__SC().getCells().size, inst:(window.__SC().getCells().inst||[]).length, ls:Object.keys(localStorage)})"); print('voor reload',st, errs)
         await pg.reload(); await pg.wait_for_timeout(4000)
         st=await pg.evaluate("()=>({cells:window.__SC().getCells().size, inst:(window.__SC().getCells().inst||[]).length, mods:window.__mods.length, txt:document.getElementById('stats').textContent})"); print('na reload',st, errs)

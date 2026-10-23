@@ -9,7 +9,7 @@ async def main():
         await pg.add_init_script("try{localStorage.setItem('hexstad-set',JSON.stringify({terr:'laag',shadow:'uit',tv:1,res:'snel'})); localStorage.setItem('hexstad-mensen','1')}catch(e){}")
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
         for act in ['mall','sample']:
-            await pg.evaluate("(a)=>{const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true; document.getElementById('menuBtn').click(); document.querySelector('[data-act='+a+']').click()}",act); await pg.wait_for_timeout(15000)
+            await pg.evaluate("(a)=>{const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true; window.__SC().doAct(a)}",act); await pg.wait_for_timeout(15000)
             await pg.evaluate("()=>{window.__P0=new Map(window.__SC().people.agents.map(a=>[a,[a.x,a.z,a.t]]))}")
             await pg.wait_for_timeout(30000)
             r=await pg.evaluate("""()=>{const A=window.__SC().people.agents; let still=0, walkStill=0, lv={}; const ex=[];

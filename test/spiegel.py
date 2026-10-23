@@ -7,7 +7,7 @@ async def main():
         b=await p.chromium.launch(args=['--use-gl=swiftshader','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader'])
         pg=await b.new_page(viewport={"width":900,"height":600}); errs=[]; pg.on('pageerror',lambda e:errs.append(str(e)))
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
-        await pg.evaluate("()=>{const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true; document.querySelector('[data-act=empty]').click(); [...document.querySelectorAll('.pal-tab')].find(t=>t.textContent==='Modules').click()}"); await pg.wait_for_timeout(1500)
+        await pg.evaluate("()=>{const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true; window.__SC().doAct('empty'); [...document.querySelectorAll('.pal-tab')].find(t=>t.textContent==='Modules').click()}"); await pg.wait_for_timeout(1500)
         print('gespiegelde module nog in bibliotheek:', await pg.evaluate("()=>window.__mods.some(m=>/gespiegeld/.test(m.name))"))
         await pg.evaluate("()=>{const i=window.__mods.findIndex(m=>m.name.startsWith('Winkelcentrum · galerij · trap')); document.querySelector('.modcard[data-mi=\"'+i+'\"]').click()}"); await pg.wait_for_timeout(400)
         await pg.mouse.move(450,300); await pg.keyboard.press('KeyF'); await pg.wait_for_timeout(300)

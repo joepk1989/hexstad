@@ -10,7 +10,7 @@ async def main():
         pg=await b.new_page(viewport={"width":1000,"height":700}); errs=[]
         pg.on('pageerror',lambda e:errs.append(str(e)))
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
-        await pg.evaluate("()=>{document.querySelector('[data-act=empty]').click(); const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true;}"); await pg.wait_for_timeout(500)
+        await pg.evaluate("()=>{window.__SC().doAct('empty'); const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true;}"); await pg.wait_for_timeout(500)
         await pg.evaluate("()=>{const S=window.__SC(); S.orbit.target.set(0,0,0); S.orbit.phi=0.95; S.orbit.dist=260; S.orbit.theta=0.5; S.applyOrbit();}")
         await pg.click('.pal-tab >> text=Terrein'); await pg.wait_for_timeout(200); await pg.click('#tool-tophoog'); await pg.wait_for_timeout(300)
         await pg.keyboard.press('BracketRight')

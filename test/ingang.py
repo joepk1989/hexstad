@@ -8,7 +8,7 @@ async def main():
         pg=await b.new_page(viewport={"width":900,"height":600}); errs=[]; pg.on('pageerror',lambda e:errs.append(str(e)))
         await pg.add_init_script("try{localStorage.setItem('hexstad-set',JSON.stringify({terr:'laag',shadow:'uit',tv:1,res:'snel'})); localStorage.setItem('hexstad-mensen','0')}catch(e){}")
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
-        await pg.evaluate("()=>{const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true; document.getElementById('menuBtn').click(); document.querySelector('[data-act=mall]').click()}"); await pg.wait_for_timeout(4000)
+        await pg.evaluate("()=>{const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true; window.__SC().doAct('mall')}"); await pg.wait_for_timeout(4000)
         ents=await pg.evaluate("""()=>{const S=window.__SC(); S.people.setOn(true); return 1}""")
         await pg.wait_for_timeout(2000)
         ents=await pg.evaluate("""()=>{const S=window.__SC(), G=S.people.graph(); return [...G.values()].filter(n=>n.kind.b==='mdoor'&&n.yr<0.5).map(n=>({x:n.x,z:n.z,o:n.kind.outside,k:n.key}))}""")

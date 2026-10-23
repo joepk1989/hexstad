@@ -214,7 +214,7 @@
   todRange.addEventListener('input', () => { DN.set(+todRange.value); ui(); });
   todPanel.querySelectorAll('[data-tod]').forEach(b => b.addEventListener('click', () => { DN.set(+b.dataset.tod); ui(); }));
   todAutoBtn.addEventListener('click', () => { DN.st.auto = !DN.st.auto; DN.set(DN.st.tod); ui(); });
-  DN.apply(); ui(); window.__DN = DN; window.__mods = modules; window.__saveMods = () => { saveMods(); renderModCards(); }; window.__libStandard = libStandard; window.__match = matchingModules; window.__libInstall = libInstall; window.__modDbg = () => { let walls = 0, surfaces = 0; for (const L of modCols.values()) for (const c of L) { walls += c.walls.length; surfaces += c.surfaces.length; } return { walls, surfaces, floorAt, blockedAt, whyBlocked, mv2Build, mv2New, walkWalls: (lv, x, z) => (modWalkDbg.wallsNear ? modWalkDbg.wallsNear(lv, x, z) : []).filter(w => Math.hypot(w.mid[0] - x, w.mid[1] - z) < 1.5).map(w => ({ from: w.from || w.o, o: w.o, pass: w.pass, a: w.a.map(v => +v.toFixed(2)), b: w.b.map(v => +v.toFixed(2)) })) }; }; window.__SC = () => ({ roadTop, terrainHeightAt, terrGround, terrSet, terrFlush, gH, tChunks, tRoadSegs: () => tRoadSegs, pathProf, pathH, player, walkAction, pick, hand: () => hand, getCells: () => cells, cars, people, buildPathNet, openSchets, cover: () => [...vecCover], canPlace, place, scene, renderer, orbit, applyOrbit, camera, edgeMid: k => { const [q, r, kk] = k.split(',').map(Number), [a, b] = edgeEnds(q, r, kk), v = new THREE.Vector3((a[0] + b[0]) / 2, 0, (a[1] + b[1]) / 2).project(camera); return [(v.x + 1) / 2 * window.innerWidth, (1 - v.y) / 2 * window.innerHeight]; }, dbgPick: (x, y) => { const r = pick(x, y); return r && r.point ? { p: [r.point.x, r.point.z], ne: nearestExistingEdge(r.point.x, r.point.z, 4.5), n2: nearestEdge(r.point.x, r.point.z), tool } : r; }, setCells: (o, inst) => { cells = new Map(Object.entries(o)); if (inst) cells.inst = inst; rebuildAll(); }, rebuildAll, buildModNet });
+  DN.apply(); ui(); window.__DN = DN; window.__mods = modules; window.__saveMods = () => { saveMods(); renderModCards(); }; window.__libStandard = libStandard; window.__match = matchingModules; window.__libInstall = libInstall; window.__modDbg = () => { let walls = 0, surfaces = 0; for (const L of modCols.values()) for (const c of L) { walls += c.walls.length; surfaces += c.surfaces.length; } return { walls, surfaces, floorAt, blockedAt, whyBlocked, mv2Build, mv2New, walkWalls: (lv, x, z) => (modWalkDbg.wallsNear ? modWalkDbg.wallsNear(lv, x, z) : []).filter(w => Math.hypot(w.mid[0] - x, w.mid[1] - z) < 1.5).map(w => ({ from: w.from || w.o, o: w.o, pass: w.pass, a: w.a.map(v => +v.toFixed(2)), b: w.b.map(v => +v.toFixed(2)) })) }; }; window.__SC = () => ({ roadTop, terrainHeightAt, terrGround, terrSet, terrFlush, gH, tChunks, tRoadSegs: () => tRoadSegs, pathProf, pathH, player, walkAction, pick, hand: () => hand, getCells: () => cells, cars, people, buildPathNet, openSchets, cover: () => [...vecCover], canPlace, place, scene, renderer, orbit, applyOrbit, camera, edgeMid: k => { const [q, r, kk] = k.split(',').map(Number), [a, b] = edgeEnds(q, r, kk), v = new THREE.Vector3((a[0] + b[0]) / 2, 0, (a[1] + b[1]) / 2).project(camera); return [(v.x + 1) / 2 * window.innerWidth, (1 - v.y) / 2 * window.innerHeight]; }, dbgPick: (x, y) => { const r = pick(x, y); return r && r.point ? { p: [r.point.x, r.point.z], ne: nearestExistingEdge(r.point.x, r.point.z, 4.5), n2: nearestEdge(r.point.x, r.point.z), tool } : r; }, doAct, setCells: (o, inst) => { cells = new Map(Object.entries(o)); if (inst) cells.inst = inst; rebuildAll(); }, rebuildAll, buildModNet });
 
   // ---------- Optiebalk onderaan: opties van het gekozen blok + spelinstellingen ----------
   const optGrid = document.getElementById('optGrid'), optPeople = document.getElementById('optPeople'), optCars = document.getElementById('optCars');
@@ -276,6 +276,9 @@
   sheet.addEventListener('click', e => {
     const act = e.target.closest('[data-act]')?.dataset.act;
     if (!act && e.target !== sheet) return;
+    doAct(act || 'cancel');
+  });
+  function doAct(act) {
     if (act === 'adopt') {
       if (!adoptArmed && hasMine()) { adoptArmed = true; adoptBtn.textContent = 'Tik nog eens: je huidige eigen stad wordt vervangen'; return; }
       slot = 'mijn'; slotName = 'Mijn stad'; changed(); toast('Bewaard als mijn stad'); adoptArmed = false;
@@ -285,12 +288,13 @@
       else toast('Je eigen stad staat al open');
     }
     if (act === 'sketch') { document.getElementById('sheet').hidden = true; openSchets(); return; }
-    if (['sample', 'ring', 'random', 'blocks', 'layers', 'empty', 'dorp1', 'dorp2', 'dorp3', 'dorp4', 'mall'].includes(act)) {
+    if (['sample', 'ring', 'random', 'blocks', 'layers', 'empty', 'dorp1', 'dorp2', 'dorp3', 'dorp4', 'mall', 'stad'].includes(act)) {
       if (slot !== 'mijn' && cells.size) offerUndo();   // je eigen stad hoeft niet terug: die staat veilig apart
       slot = 'klad';
-      slotName = { sample: 'Voorbeeldstad', ring: 'Ringstad', random: 'Willekeurige stad', blocks: 'Blokkenstad', layers: 'Gelaagde stad', empty: 'Lege bouwgrond', dorp1: 'Dorpsstraat', dorp2: 'Dorp met kruising', dorp3: 'Dorp met rotonde', mall: 'Winkelcentrum', dorp4: 'Dorp met brede weg' }[act];
+      slotName = { stad: 'Hexstad', sample: 'Voorbeeldstad', ring: 'Ringstad', random: 'Willekeurige stad', blocks: 'Blokkenstad', layers: 'Gelaagde stad', empty: 'Lege bouwgrond', dorp1: 'Dorpsstraat', dorp2: 'Dorp met kruising', dorp3: 'Dorp met rotonde', mall: 'Winkelcentrum', dorp4: 'Dorp met brede weg' }[act];
     }
     if (act.startsWith('dorp')) { cells = roofHouses(dorp(+act[4])); rebuildAll(); changed(); orbit.target.set(0, 0, 0); orbit.dist = 120; orbit.phi = 0.85; applyOrbit(); toast('Dorpje geladen · je eigen stad staat veilig onder Mijn stad'); }
+    if (act === 'stad') { cells = hexstadCity(); rebuildAll(); changed(); orbit.target.set(0, 0, 0); orbit.dist = 520; orbit.phi = 0.9; orbit.theta = 0.5; applyOrbit(); toast('Hexstad geladen: rotonde in het midden, zes buurten binnen de ringweg · je eigen stad staat veilig onder Mijn stad', 3500); }
     if (act === 'mall') { cells = mallCity(); rebuildAll(); changed(); orbit.target.set(0, 6, 0); orbit.dist = 220; orbit.phi = 0.95; orbit.theta = 0.6; applyOrbit(); toast('Winkelcentrum geladen: hex-modules in vier lagen · klik op een dak om erop te bouwen', 3500); }
     if (act === 'sample') { cells = roofHouses(sampleCity()); rebuildAll(); changed(); toast('Voorbeeldstad geladen · je eigen stad staat veilig onder Mijn stad'); }
     if (act === 'ring') { cells = ringStad(); rebuildAll(); changed(); orbit.target.set(0, 0, 0); orbit.dist = 1500; orbit.phi = 0.9; applyOrbit(); toast('Ringstad geladen · je eigen stad staat veilig onder Mijn stad'); }
@@ -307,5 +311,5 @@
     if (act === 'settings') { sheet.hidden = true; openSettings(); return; }
     if (act === 'people') { people.setOn(!people.on); toast(people.on ? 'Er lopen weer mensen door de stad' : 'Geen mensen meer op straat'); }
     sheet.hidden = true; adoptArmed = false; refreshMineUI();
-  });
+  }
 

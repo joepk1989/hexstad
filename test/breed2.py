@@ -7,7 +7,7 @@ async def main():
         pg=await b.new_page(viewport={"width":900,"height":600}); errs=[]; pg.on('pageerror',lambda e:errs.append(str(e)))
         await pg.add_init_script("try{localStorage.setItem('hexstad-set',JSON.stringify({terr:'laag',shadow:'zacht',tv:1})); localStorage.setItem('hexstad-mensen','0')}catch(e){}")
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
-        await pg.evaluate("()=>{const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true; document.getElementById('menuBtn').click(); document.querySelector('[data-act=mall]').click()}"); await pg.wait_for_timeout(5000)
+        await pg.evaluate("()=>{const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true; window.__SC().doAct('mall')}"); await pg.wait_for_timeout(5000)
         # midden van de trap: lokaal (3.9,-6.75) in vak van 'trap · breed'
         c=await pg.evaluate("()=>{const L=window.__SC().getCells().inst.filter(I=>/^Winkelcentrum · trap( · \\d+L)?$/.test(I.m.name)); const P=L.map(I=>[9*Math.sqrt(3)*(I.q+I.r/2), 13.5*I.r]); return [(P[0][0]+P[1][0])/2,(P[0][1]+P[1][1])/2, L.length]}")
         await pg.evaluate("()=>{const S=window.__SC(); for(const o of S.scene.children) if(o.userData&&o.userData.inst&&(o.userData.inst.lv||0)>=3) o.visible=false;}")

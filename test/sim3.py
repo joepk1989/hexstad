@@ -36,7 +36,7 @@ async def main():
         pg.on('pageerror',lambda e:errs.append(str(e)))
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2000)
         await pg.evaluate("()=>{window.__SC().renderer.render=()=>{};}")
-        await pg.evaluate("()=>{document.querySelector('[data-act=empty]').click(); const S=window.__SC(); S.orbit.dist=300; S.orbit.phi=1.2; S.applyOrbit();}"); await pg.wait_for_timeout(500)
+        await pg.evaluate("()=>{window.__SC().doAct('empty'); const S=window.__SC(); S.orbit.dist=300; S.orbit.phi=1.2; S.applyOrbit();}"); await pg.wait_for_timeout(500)
         for name in names:
             n0=len(errs)
             await pg.evaluate("(P)=>{const S=window.__SC(), c=S.getCells(); c.paths=P; S.buildPathNet(); S.cars.setOn(true); S.cars.setForce(14); S.people.setOn(true);}", SC[name])
@@ -52,6 +52,6 @@ async def main():
             for c in cl: print('  CRASH', c)
             d=await pg.evaluate("()=>{const d=window.__SC().cars.vecDbg(); return [d.nodes.length,d.edges.length]}")
             print(f"{name:9s} nodes/edges {d} cars {last['c']['n']} off(max) {worst} stuck {last['c']['stuck']} nan {last['c']['nan']} crash {last['c']['crash']} slow {last['c']['slow']} why {last['c']['why']} | peds {last['p']} | errs {errs[n0:][:2]}")
-            await pg.evaluate("()=>document.querySelector('[data-act=empty]').click()"); await pg.wait_for_timeout(400)
+            await pg.evaluate("()=>window.__SC().doAct('empty')"); await pg.wait_for_timeout(400)
         await b.close()
 asyncio.run(main())

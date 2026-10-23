@@ -14,7 +14,7 @@ async def main():
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(3000)
         print('start ok, errs', errs)
         for act in ['ring']:
-            await pg.evaluate(f"()=>document.querySelector('[data-act={act}]').click()"); await pg.wait_for_timeout(1500)
+            await pg.evaluate(f"()=>window.__SC().doAct('{act}')"); await pg.wait_for_timeout(1500)
             print(act, 'errs', len(errs))
         await pg.evaluate("()=>{const S=window.__SC(); S.orbit.dist=120; S.orbit.phi=0.8; S.applyOrbit();}")
         W=await pg.evaluate("()=>{const S=window.__SC(); const out={}; for(const [x,z] of [[0,0],[15.6,0],[31.2,0],[7.8,13.5],[-15.6,0],[0,27],[23.4,13.5]]){const v=new S.camera.position.constructor(x,0,z).project(S.camera); out[x+','+z]=[(v.x+1)/2*innerWidth,(1-v.y)/2*innerHeight];} return out;}")

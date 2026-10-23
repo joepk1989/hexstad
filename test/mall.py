@@ -14,7 +14,7 @@ async def main():
         await pg.evaluate("()=>{const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true;}")
         wc=await pg.evaluate("()=>window.__mods.filter(m=>m.cat==='Winkelcentrum').map(m=>m.name)"); print('bibliotheek:', len(wc), wc)
         await pg.evaluate("()=>document.getElementById('menuBtn').click()"); await pg.wait_for_timeout(300)
-        await pg.evaluate("()=>document.querySelector('[data-act=mall]').click()"); await pg.wait_for_timeout(6000)
+        await pg.evaluate("()=>window.__SC().doAct('mall')"); await pg.wait_for_timeout(6000)
         r=await pg.evaluate("""()=>{const S=window.__SC(), c=S.getCells(); const L={}; for(const I of c.inst) L[I.lv||0]=(L[I.lv||0]||0)+1; return {n:c.inst.length, lagen:L, meshes:S.scene.children.filter(o=>o.userData&&o.userData.inst).length}}""")
         print('geladen:', json.dumps(r))
         await pg.screenshot(path='mall_overzicht.png', timeout=300000)
