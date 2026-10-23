@@ -11,12 +11,12 @@
     ['Modules', null], [K(',', '.'), 'vorige / volgende module'], [K('F'), 'module spiegelen'], [K('/'), 'zoek een module (Enter kiest de eerste)'],
     ['Terrein', null], ['slepen', 'boetseren (ingedrukt houden)'], [K('Shift') + '+slepen', 'andersom (ophogen ↔ afgraven)'], [K('1') + '…' + K('5'), 'ophogen · afgraven · egaliseren · glad · helling'],
     ['Weg slepen', null], [K('E', 'Q'), 'hoger / lager (ook Page Up/Down, wiel)'], ['stilhouden', 'hoekpunt: bocht in één sleep'],
-    ['Overig', null], [K('G'), 'raster aan/uit'], [K('P'), 'tijd pauze / verder'], [K('L'), 'lopen'], [K('M'), 'menu'], [K('?'), 'dit overzicht'],
+    ['Overig', null], [K('G'), 'raster aan/uit'], [K('P'), 'tijd pauze / verder'], [K('O'), 'weer: volgende (Shift: vorige)'], [K('L'), 'lopen'], [K('M'), 'menu'], [K('?'), 'dit overzicht'],
   ];
   const KEYS_WALK = [
     ['Lopen', null], [K('W', 'A', 'S', 'D'), 'lopen'], [K('Shift'), 'rennen'], [K('Spatie'), 'springen'], ['muis', 'rondkijken (klik om te vangen)'],
     ['Handen', null], [K('Q'), 'kijken · bouwen · hamer'], ['klik', 'bouwen of slopen (met Bouwen/Hamer)'], ['wiel', 'ander blok'], [K('1') + '…' + K('9'), 'blok in deze categorie'],
-    ['Overig', null], [K('L'), 'terug naar bouwen'], [K('Esc'), 'muis loslaten'], [K('?'), 'dit overzicht'],
+    ['Overig', null], [K('O'), 'ander weer'], [K('L'), 'terug naar bouwen'], [K('Esc'), 'muis loslaten'], [K('?'), 'dit overzicht'],
   ];
   function renderKeys() {
     const L = mode === 'walk' ? KEYS_WALK : KEYS_BUILD;

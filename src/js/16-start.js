@@ -70,6 +70,7 @@
     }
     if (mode === 'walk') { followSun(player.x, player.z, 150); scene.fog.near = 380; scene.fog.far = 1150; }
     else { followSun(orbit.target.x, orbit.target.z, orbit.dist); scene.fog.near = 380 + orbit.dist * 0.6; scene.fog.far = 1150 + orbit.dist * 1.2; }
+    weather.update(dt);   // weer: mist dichter, neerslag, nat en sneeuw (13b)
     if (LOD.on) {
       const want = (mode === 'walk' ? 9 : orbit.dist > 700 ? 4 : orbit.dist > 350 ? 7 : 11) * R * SQ3;
       const chg = want !== LOD.rad; LOD.rad = want;

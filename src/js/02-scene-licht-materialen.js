@@ -6,6 +6,47 @@
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   const scene = new THREE.Scene();
+  // ---------- Weer: gedeelde waarden (de rest staat in 13b) ----------
+  // WXK: hoe bewolkt, mistig, nat enzovoort het nu is (0–1), en een bliksemflits. WXU: uniforms die alle gewone
+  // materialen delen: nat (donkerder, glanzend) en sneeuw (wit) op wat naar boven kijkt en open onder de hemel ligt.
+  // 'Open' komt uit een hoogtekaart van bovenaf (uWxOcc, zie 13b): ligt er iets boven, dan blijft het droog.
+  const WXK = { cloud: 0, fog: 0, flash: 0, rain: 0, snow: 0, storm: 0, wet: 0 };
+  const WXU = { uWxWet: { value: 0 }, uWxSnow: { value: 0 }, uWxSky: { value: new THREE.Color('#dde5e1') }, uWxOcc: { value: null }, uWxOccP: { value: new THREE.Vector4(0, 0, 1, 0) }, uWxOccNF: { value: new THREE.Vector2(1, 700) }, uWxOccOn: { value: 0 } };
+  const WX_OPEN = `float wxOpen(vec3 w) {
+      if (uWxOccOn < 0.5) return 1.0;
+      vec2 uv = vec2((w.x - uWxOccP.x) / uWxOccP.z, (uWxOccP.y - w.z) / uWxOccP.z);
+      if (uv.x <= 0.0 || uv.y <= 0.0 || uv.x >= 1.0 || uv.y >= 1.0) return 1.0;
+      float top = uWxOccP.w - (uWxOccNF.x + unpackRGBAToDepth(texture2D(uWxOcc, uv)) * (uWxOccNF.y - uWxOccNF.x));
+      return smoothstep(-0.7, -0.25, w.y - top);
+    }`;
+  function wxPatch(sh, mat) {
+    if (mat && mat.userData.noWx) return;
+    Object.assign(sh.uniforms, WXU);
+    sh.vertexShader = 'varying vec3 vWxW;\n' + sh.vertexShader.replace('#include <project_vertex>', `#include <project_vertex>
+      { vec4 wxP = vec4(transformed, 1.0);
+      #ifdef USE_INSTANCING
+        wxP = instanceMatrix * wxP;
+      #endif
+      vWxW = (modelMatrix * wxP).xyz; }`);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <lights_physical_fragment>', `
+      {
+        float wxUp = dot(normal, normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz));
+        float wxO = (uWxWet + uWxSnow > 0.001) ? wxOpen(vWxW) : 1.0;
+        float wxN = fract(sin(dot(floor(vWxW.xz * 1.6), vec2(12.9898, 78.233))) * 43758.5453);
+        float wxS = clamp(uWxSnow * 1.6 - wxN * 0.6, 0.0, 1.0) * smoothstep(0.45, 0.8, wxUp) * wxO;
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.92, 0.94, 0.97), wxS);
+        roughnessFactor = mix(roughnessFactor, 0.95, wxS); metalnessFactor *= 1.0 - wxS;
+        float wxW = uWxWet * smoothstep(0.4, 0.85, wxUp) * wxO * (1.0 - wxS);
+        diffuseColor.rgb *= 1.0 - 0.32 * wxW;
+        roughnessFactor = mix(roughnessFactor, 0.3, wxW);
+        float wxF = pow(1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0), 4.0);
+        totalEmissiveRadiance += uWxSky * wxF * wxW * 0.55;   // natte straat: de lucht spiegelt
+      }
+      #include <lights_physical_fragment>`).replace('#include <common>', `#include <common>
+      uniform float uWxWet; uniform float uWxSnow; uniform vec3 uWxSky; uniform sampler2D uWxOcc; uniform vec4 uWxOccP; uniform vec2 uWxOccNF; uniform float uWxOccOn; varying vec3 vWxW;`).replace('#include <packing>', '#include <packing>\n' + WX_OPEN);
+  }
+  THREE.MeshStandardMaterial.prototype.onBeforeCompile = function (sh) { wxPatch(sh, this); };
+  THREE.MeshStandardMaterial.prototype.customProgramCacheKey = function () { return this.userData.noWx ? 'nowx' : 'wx'; };
   const GROUND_COL = '#8eab69';
   const HORIZON = '#dde5e1';
   scene.background = new THREE.Color(HORIZON);
@@ -126,27 +167,33 @@
       const top = mix(mix('#050913', '#3f7bc4', day), '#34457a', dusk * 0.7);
       const mid = mix(mix('#0c1530', '#9cc3e4', day), '#e58e72', dusk * 0.85);
       const hor = mix(mix('#18223d', HORIZON, day), '#f6bf8c', dusk * 0.9);
+      // weer: bewolking maakt de lucht grijs (overdag lichtgrijs, 's nachts bijna zwart), mist vooral de horizon
+      const wc = WXK.cloud, wf = WXK.fog, fl = WXK.flash;
+      top.lerp(mix('#10141c', '#8b959f', day), wc * 0.9); mid.lerp(mix('#141920', '#a5adb4', day), wc * 0.9);
+      hor.lerp(mix('#1a1f27', '#c3c8cb', day), Math.min(1, wc * 0.75 + wf * 0.7));
+      if (fl > 0) { const F = new THREE.Color('#e4e9ff'); top.lerp(F, fl * 0.75); mid.lerp(F, fl * 0.8); hor.lerp(F, fl * 0.55); }
+      WXU.uWxSky.value.copy(hor);
       skyU.top.value.copy(top); skyU.mid.value.copy(mid); skyU.hor.value.copy(hor); scene.background.copy(hor);
-      skyU.sunDir.value.set(Math.cos(a) * -1, elev * 0.8 + 0.1, 0.35); skyU.sunCol.value.copy(mix('#ff7a3a', '#fff2d0', sm(0.0, 0.45, elev))); skyU.glow.value = 0.6 + dusk * 1.6;
+      skyU.sunDir.value.set(Math.cos(a) * -1, elev * 0.8 + 0.1, 0.35); skyU.sunCol.value.copy(mix('#ff7a3a', '#fff2d0', sm(0.0, 0.45, elev))); skyU.glow.value = (0.6 + dusk * 1.6) * (1 - 0.9 * wc);
       // wolken: wit overdag, roze en oranje bij zonsopgang en -ondergang, grijsblauw en zwakker 's nachts
-      clouds.tint(mix(mix('#3b4560', '#ffffff', day), '#ffb08a', dusk * 0.8), 0.92 - night * 0.55);
+      clouds.tint(mix(mix('#3b4560', '#ffffff', day), '#ffb08a', dusk * 0.8).lerp(mix('#20242c', '#9aa1a8', day), wc * 0.75), Math.min(1, 0.92 - night * 0.55 + wc * 0.1));
       scene.fog.color.copy(hor);
       // licht
       SUN_OFS.set(Math.cos(a) * -170 + 55, Math.max(40, elev * 170), 95);
-      sun.intensity = 0.95 * sm(-0.02, 0.3, elev);
+      sun.intensity = 0.95 * sm(-0.02, 0.3, elev) * (1 - 0.85 * wc) * (1 - 0.4 * wf);
       sun.color.copy(mix('#ff9a5a', '#fff0d8', sm(0.0, 0.45, elev)));
-      hemi.intensity = 0.4 + 0.22 * day + 0.12 * dusk;
-      hemi.color.copy(mix(mix('#5a6aa0', '#e9f0f5', day), '#ffc59a', dusk * 0.55)); hemi.groundColor.copy(mix('#1c2230', '#5d6b45', day));
-      moon.color.set('#8fa6ff'); moon.intensity = 0.7 * night;
+      hemi.intensity = (0.4 + 0.22 * day + 0.12 * dusk) * (1 - 0.1 * wc) + fl * 1.4;
+      hemi.color.copy(mix(mix('#5a6aa0', '#e9f0f5', day), '#ffc59a', dusk * 0.55).lerp(mix('#4a5160', '#d3d7da', day), wc * 0.6)); hemi.groundColor.copy(mix('#1c2230', '#5d6b45', day));
+      moon.color.set('#8fa6ff'); moon.intensity = 0.7 * night * (1 - 0.7 * wc);
       moon.position.set(Math.cos(a) * 170 * 1, Math.max(60, -elev * 190), -75);
       // binnenverlichting: lampen gaan aan als het donker wordt
-      const lamp = Math.min(1, night * 1.15 + dusk * 0.3);
+      const lamp = Math.min(1, night * 1.15 + dusk * 0.3 + wc * day * 0.3);   // bij donker weer gaan de lampen eerder aan
       for (const [m, base] of litMats) m.emissiveIntensity = Math.min(1.2, base * (1 + lamp * 3.2));
-      stars.material.opacity = Math.min(1, night * 1.2);
+      stars.material.opacity = Math.min(1, night * 1.2) * (1 - wc);
       // zon en maan aan de hemel
       sunDisc.userData.dir = [Math.cos(a) * -1, Math.max(-0.2, elev * 0.8 + 0.1), 0.35];
       moonDisc.userData.dir = [Math.cos(a), Math.max(-0.2, -elev * 0.8 + 0.1), -0.35];
-      sunDisc.material.opacity = sm(-0.15, 0.05, elev); moonDisc.material.opacity = night;
+      sunDisc.material.opacity = sm(-0.15, 0.05, elev) * (1 - wc) * (1 - wf); moonDisc.material.opacity = night * (1 - wc) * (1 - wf);
       sunDisc.material.color.copy(mix('#ff8a4a', '#fff3c4', sm(0.0, 0.4, elev)));
       document.body.classList.toggle('night', night > 0.55);
     }
@@ -264,7 +311,7 @@
   ];
   const M = {
     sidewalk: std('#bdbcb2'), asphalt: std('#3c4045'), dash: std('#f1efe6'),
-    grass: std('#6fa356'), water: std({ color: '#2d5a66', roughness: 0.12, metalness: 0.3, flatShading: false }),
+    grass: std('#6fa356'), water: std({ color: '#2d5a66', roughness: 0.12, metalness: 0.3, flatShading: false, userData: { noWx: true } }),
     kade: std({ color: '#6a3a2b' }), kadeSteen: std({ color: '#8f8b82' }), brug: std({ color: '#7d4a38' }),
     roofFlat: std('#8d8f8a'), roofTile: std('#8a3b2a'), kapel: std('#ece6da'), kapelDak: std('#3d434a'), concrete: std('#c4c6c2'),
     lampOff: std('#23282d'), tlBody: std({ color: '#1d2226', roughness: 0.6 }),

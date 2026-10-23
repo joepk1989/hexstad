@@ -276,6 +276,8 @@
       hand:     { geo: handGeo, per: 2 },
       skirt:    { geo: skirtGeo, per: 1 },
       pack:     { geo: mergeGeos([new THREE.BoxGeometry(0.28, 0.36, 0.13), sphere(0.06, 2.2, 1, 1, 0, -0.12, 0.05)]), per: 1 },
+      // paraplu: een achtkantig scherm met een stok; het handvat zit ongeveer bij de hand
+      umbrella: { geo: mergeGeos([new THREE.ConeGeometry(0.56, 0.24, 8, 1, true).translate(0, 0.12, 0), new THREE.CylinderGeometry(0.012, 0.012, 0.95, 5).translate(0, -0.35, 0), new THREE.SphereGeometry(0.03, 5, 3).translate(0, 0.26, 0)]), per: 1 },
     };
     const mat = new THREE.MeshLambertMaterial({ color: '#ffffff', side: THREE.DoubleSide });
     const matV = new THREE.MeshLambertMaterial({ color: '#ffffff', vertexColors: true });
@@ -284,7 +286,7 @@
       const n = MAX * pdef.per, m = new THREE.InstancedMesh(pdef.geo, pdef.vc ? matV : mat, n);
       m.frustumCulled = false; m.castShadow = !pdef.noShadow; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       const white = new THREE.Color('#ffffff'); for (let i = 0; i < n; i++) m.setColorAt(i, white);   // kleurbuffer vóór de eerste render
-      m.count = 0; scene.add(m); meshes[name] = m;
+      m.count = 0; m.userData.noOcc = true; scene.add(m); meshes[name] = m;
     }
     const SHIRTS = ['#c8553d', '#2f6690', '#e9b44c', '#3a7d44', '#8e5572', '#f2efe6', '#3d405b', '#d97b4a', '#6aa4b0', '#b5838d', '#81b29a', '#e07a5f', '#264653', '#d4d0c8', '#5b7f95'];
     const COATS = ['#3b3f45', '#6b4e37', '#2c3e50', '#8b7d6b', '#7a2e2e', '#4f5d3a', '#1f1f24', '#a68b5b'];
@@ -558,9 +560,11 @@
       let total = 0;
       const w = cands.map(e => {
         let v = 1;
-        if (e.to.kind.b === 'door') v = 0.25;
+        const wr = Math.min(1, WXK.rain + WXK.snow * 0.5);   // bij regen en sneeuw: liever naar binnen en onder een dak
+        if (e.to.kind.b === 'door') v = 0.25 + 1.4 * wr;
         if (e.climb) v = 1.6;
-        if (e.to.kind.b === 'mdoor') v = 0.7;
+        if (e.to.kind.b === 'mdoor') v = 0.7 + 1.2 * wr;
+        if (e.to.kind.b === 'mod' && !a.umb) v *= e.to.kind.open ? 1 - 0.6 * wr : 1 + wr;
         if (inSide !== undefined && e.side === inSide) v *= 3;   // liefst rechtdoor
         total += v; return v;
       });
@@ -726,6 +730,19 @@
       put('face', pose.head, '#ffffff');
       put('brows', pose.head, a.old ? a.hair : a.hair);
       if (a.hairStyle) put('hair' + a.hairStyle[0].toUpperCase() + a.hairStyle.slice(1), pose.head, a.hair);
+      if (a.umb && a.state !== 'rag' && a.state !== 'getup') {   // paraplu boven het hoofd, iets voor je uit en schuin tegen de wind
+        const e = pose.head.elements, fx = Math.sin(a.heading), fz = Math.cos(a.heading), sc = a.scale || 1;
+        M.makeRotationFromEuler(UMB_E.set(0.12, a.heading, 0.05, 'YXZ')).scale(UMB_S.setScalar(sc)).setPosition(e[12] + fx * 0.14 * sc, e[13] + 0.5 * sc, e[14] + fz * 0.14 * sc);
+        put('umbrella', M, a.umbCol);
+      }
+    }
+    const UMB_E = new THREE.Euler(), UMB_S = new THREE.Vector3(), UMBS = ['#1f2a44', '#c8553d', '#2f6690', '#e9b44c', '#222222', '#3a7d44', '#8e5572', '#d4d0c8'];
+    // bij regen: wie een paraplu heeft en buiten loopt, steekt hem op (onder een overkapping of binnen in een module niet)
+    function umbCheck(a) {
+      if (a.hasUmb === undefined) { a.hasUmb = Math.random() < 0.6; a.umbCol = UMBS[Math.floor(Math.random() * UMBS.length)]; }
+      const covered = a.node && a.node.kind && a.node.kind.b === 'mod' && !a.node.kind.open && a.prev && a.prev.kind && a.prev.kind.b === 'mod' && !a.prev.kind.open;
+      a.umb = a.hasUmb && WXK.rain > 0.3 && !covered;
+      a.wetHurry = WXK.rain > 0.3 && !a.umb && !covered;   // geen paraplu: doorlopen
     }
 
     // ---------- Ragdoll (Verlet-deeltjes met afstandsbeperkingen) ----------
@@ -1034,7 +1051,7 @@
             continue;
           }
           if (!a.wps.length) {
-            if (a.goingIn) { a.state = 'inside'; a.timer = 4 + Math.random() * 10; a.goingIn = false; continue; }
+            if (a.goingIn) { a.state = 'inside'; a.timer = (4 + Math.random() * 10) * (1 + 2.5 * Math.min(1, WXK.rain + WXK.snow * 0.5)); a.goingIn = false; continue; }   // bij slecht weer blijven ze langer binnen
             const k = a.node.kind;
             if ((k.b === 'hof' || (k.b === 'looppad' && a.node.edges.size >= 3) || k.level === 'high' || (k.b === 'mod' && k.open)) && Math.random() < 0.18) { a.state = 'pause'; a.timer = 2 + Math.random() * 5; }
             go(a, chooseNext(a));
@@ -1055,7 +1072,8 @@
           a.heading += Math.sign(err) * Math.min(Math.abs(err), dt * (a.spd < 0.3 ? 3.6 : 2.5));   // niet sneller draaien dan de voeten bijhouden
           a.heading = Math.atan2(Math.sin(a.heading), Math.cos(a.heading));
           const align = Math.cos(Math.min(Math.abs(err), Math.PI / 2));
-          const want = a.speed * Math.max(0, (align - 0.35) / 0.65) * (a.follow || 1) * (a.precise ? 0.85 : 1);
+          if ((a.umbT = (a.umbT || Math.random()) - dt) <= 0) { a.umbT = 0.8; umbCheck(a); }
+          const want = a.speed * Math.max(0, (align - 0.35) / 0.65) * (a.follow || 1) * (a.precise ? 0.85 : 1) * (a.wetHurry ? 1.3 : 1) * (WXK.snow > 0.3 ? 0.85 : 1);
           a.spd += (want - a.spd) * Math.min(1, dt * (want > a.spd ? 2.5 : 5));
           const step = Math.min(d, a.spd * dt), [fx, fz] = fwdOf(a.heading);
           // oversteken: niet de rijbaan op als er een auto aankomt

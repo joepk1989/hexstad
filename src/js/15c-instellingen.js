@@ -28,6 +28,7 @@
     { id: 'brush', name: 'Penseel', note: 'Terrein: aantal vakken ([ en ])', opts: [[0, '1'], [1, '7'], [2, '19'], [3, '37']], get: () => terrBrush, set: v => setBrush(v) },
     { sub: 'Stad' },
     { id: 'speed', name: 'Tijd', opts: [[0, 'Pauze'], [1, '1×'], [4, '4×'], [12, '12×']], get: () => DN.st.auto ? DN.st.speed : 0, set: v => { const b = optSpeed.querySelector(`[data-sp="${v}"]`); if (b) b.click(); } },
+    { id: 'weer', name: 'Weer', note: 'Wisselend: het weer verandert vanzelf (toets O)', opts: weather.ORDER.map(k => [k, weather.NAME[k]]), get: () => weather.mode, set: v => weather.set(v) },
     { id: 'people', name: 'Mensen', opts: [[true, 'Aan'], [false, 'Uit']], get: () => people.on, set: v => { if (v !== people.on) optPeople.click(); } },
     { id: 'cars', name: "Auto's", opts: [[true, 'Aan'], [false, 'Uit']], get: () => cars.on, set: v => { if (v !== cars.on) optCars.click(); } },
     { id: 'sound', name: 'Geluid', opts: [[true, 'Aan'], [false, 'Uit']], get: () => document.getElementById('soundBtn').getAttribute('aria-pressed') === 'true', set: v => { const b = document.getElementById('soundBtn'); if ((b.getAttribute('aria-pressed') === 'true') !== v) b.click(); } },

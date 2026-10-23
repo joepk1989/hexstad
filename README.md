@@ -90,6 +90,17 @@ Het loopnetwerk van de voetgangers (`buildWalkGraph` in `10`) krijgt uit `08f` k
 
 De modules in de familie Winkelcentrum hebben daarom twee achterdeuren tegenover de voorkant (die bij rug-aan-rug winkels op elkaar vallen), het dakpaviljoen een open terras aan de voorkant, en de doorgang open kiosken naar de buren. In het voorbeeld-winkelcentrum lopen voetgangers van de straat de opritten op, door de tunnels de entreehal in en via de trappen naar de straat op de tweede verdieping. De dichte kern op de begane grond is (zoals in de schets) niet van buiten te bereiken.
 
+## Weer
+
+In de optiebalk staat **Weer** met zeven knoppen: zon, bewolkt, regen, onweer, mist, sneeuw en wisselend. Met **O** ga je naar het volgende weer (Shift+O naar het vorige), ook tijdens het lopen; je keuze staat ook in Instellingen en wordt bewaard (`hexstad.weer`). Bij wisselend volgt het ene weer vanzelf op het andere (zon → bewolkt → regen → onweer …), sneller als de tijd sneller loopt en niet als de tijd stilstaat (`13b-weer.js`).
+
+- **Lucht en licht**: bewolking maakt de lucht grijs en de zon zwakker (minder schaduw), 's nachts geen sterren of maan. Bij donker weer gaan de lampen binnen eerder aan. Mist zet de horizon dicht; in bouwmodus blijft je eigen stad zichtbaar. Alles verloopt in een paar seconden (`WXK` in `02`, gemengd in `DN.apply`).
+- **Regen en sneeuw** zijn deeltjes in een doos rond de camera (9000 strepen, 7000 vlokken), helemaal op de grafische kaart berekend. Bij onweer is de regen harder en schuin, en flitst de lucht met daarna de donder (verder weg is later en zachter).
+- **Droog onder een dak**: elke halve seconde wordt de stad van bovenaf als hoogtekaart getekend (alleen bij nat weer). Wat daaronder ligt, krijgt geen regen en geen sneeuw: onder een galerij, in de hal, onder een boom.
+- **Nat en sneeuw op de stad**: alle gewone materialen krijgen een stukje shader (`wxPatch` in `02`). Wat naar boven kijkt en open ligt, wordt bij regen donkerder en glanzend (de lucht spiegelt in de straat) en bij sneeuw wit, met wat vlekken. Na de regen droogt de stad op; sneeuw blijft liggen en smelt langzaam, sneller in de regen. Water doet niet mee (`userData.noWx`).
+- **Geluid**: gesis en geruis van regen, wind bij storm en een beetje bij sneeuw, donder. Vogels zwijgen bij regen.
+- **Voetgangers**: bij regen steekt ruim de helft buiten een paraplu op, wie er geen heeft loopt sneller. Ze gaan liever naar binnen of onder een overkapping en blijven langer binnen. In de sneeuw lopen ze iets langzamer.
+
 ## Ongelukjes en door iets heen lopen
 
 Rechtsboven, onder **Roekeloos rijgedrag**, telt een knop de ongelukjes met voetgangers (aangereden door een auto, gevallen, omver gelopen door de speler, geraakt door een geplaatst blok) en hoe vaak iemand door een muur of voorwerp heen liep (`INC`, `incident` en `throughCheck` in `10`). Een klik toont de laatste gebeurtenissen; **toon** vliegt erheen en zet een rode ring op de plek. **Op nul** zet de tellers terug. Valt iemand omdat jij de vloer weghaalt of een andere stad laadt, dan telt dat niet als ongeluk.

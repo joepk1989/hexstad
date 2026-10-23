@@ -204,6 +204,7 @@
   const terrU = { uContour: { value: 0 } };
   const terrMat = new THREE.MeshStandardMaterial({ color: '#ffffff', vertexColors: true, roughness: 1, flatShading: TQ[terrQ].flat, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
   terrMat.onBeforeCompile = sh => {
+    wxPatch(sh, terrMat);   // nat en sneeuw (zie 02)
     sh.uniforms.uContour = terrU.uContour;
     sh.vertexShader = 'varying float vWH;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vWH = (modelMatrix * vec4(transformed, 1.0)).y;');
     sh.fragmentShader = 'uniform float uContour; varying float vWH;\n' + sh.fragmentShader.replace('#include <dithering_fragment>', `#include <dithering_fragment>

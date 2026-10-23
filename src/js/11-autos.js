@@ -110,7 +110,7 @@
       m.frustumCulled = false; m.castShadow = k !== 'front' && k !== 'rear' && k !== 'glow' && k !== 'hub'; m.receiveShadow = k === 'body';
       m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       if (pd.color) { const w = new THREE.Color('#ffffff'); for (let i = 0; i < CAP * pd.per; i++) m.setColorAt(i, w); }
-      m.count = 0; scene.add(m); meshes[k] = m;
+      m.count = 0; m.userData.noOcc = true; scene.add(m); meshes[k] = m;
     }
     const PAINT = ['#f2f3f5', '#e9ecef', '#1c1f24', '#2b2f36', '#9ea7b0', '#c9ced4', '#1f3c5c', '#5a1f2a', '#d8c9a8', '#2f4a3f'];
     const ACCENT = ['#3ef0ff', '#ff3ec8', '#ffb23e', '#7dff6a', '#7a8cff'];

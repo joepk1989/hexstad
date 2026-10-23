@@ -511,3 +511,8 @@ body.coarse .keysbtn { display: none; }
 .sw-vfiets::after { content: ''; position: absolute; left: 49%; top: 10%; width: 2px; height: 80%; background: repeating-linear-gradient(180deg, #f1efe6 0 4px, transparent 4px 8px); }
 .sw-vrot { background: radial-gradient(circle, #6aa84a 0 22%, #9b5a45 22% 30%, #3c4045 30% 58%, #c3beb1 58% 70%, transparent 70%), #d9e6c3; }
 .tool.modcard.warn, #mmApp .mod button.warn { outline: 2px solid #c8472f; color: #ffb3a6; }
+
+/* weer: zeven icoontjes in de optiebalk */
+.seg-wx button { min-width: 34px; padding: 0 7px; display: inline-flex; align-items: center; justify-content: center; }
+.seg-wx svg { display: block; }
+#optWxName { font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--ink-dim); }

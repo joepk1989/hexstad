@@ -146,6 +146,7 @@
   const sound = (() => {
     let ctx = null, master = null, on = false;
     let birdBus, stepBus, noiseBuf, brownBuf, birdBed = null, indoorF, out;
+    let rainBed = null, rainLow = null, windBed = null;
     let nextMix = 0, stepDist = 0, klapBuf = null, lastKlap = 0, gruntBuf = null, lastGrunt = 0;
     // stukken in grunts.mp3 (iemand die kreunt als hij geraakt wordt): [begin, duur] in seconden
     const GRUNT = [[0.47, 0.35], [1.51, 0.31], [3.28, 0.3], [4.55, 0.32], [5.59, 0.35], [6.87, 0.42], [8.06, 0.51], [9.41, 0.36], [11.03, 0.34], [12.13, 0.37], [13.32, 0.39], [14.49, 0.39], [15.79, 0.43], [17.09, 0.31], [18.12, 0.32], [19.14, 0.33], [20.31, 0.35], [21.45, 0.37], [22.54, 0.36], [23.62, 0.31], [24.79, 0.5], [25.87, 0.39], [27.16, 0.37], [28.23, 0.37], [30.14, 0.39], [31.12, 0.68], [32.4, 0.59], [33.82, 0.69], [35.29, 0.36], [36.48, 0.69], [37.87, 0.46], [39.05, 0.45], [40.31, 0.46]];
@@ -184,6 +185,9 @@
       let last = 0;
       for (let i = 0; i < len; i++) { w[i] = Math.random() * 2 - 1; last = (last + 0.02 * w[i]) / 1.02; br[i] = last * 3.5; }
       birdBus = ctx.createGain(); birdBus.gain.value = 0.5; birdBus.connect(master);
+      // weer: ruis door filters. Regen = gesis (hoog), storm = aanzwellende wind (laag)
+      const bed = (buf, type, f, q) => { const src = ctx.createBufferSource(), fl = ctx.createBiquadFilter(), g = ctx.createGain(); src.buffer = buf; src.loop = true; fl.type = type; fl.frequency.value = f; fl.Q.value = q; g.gain.value = 0; src.connect(fl); fl.connect(g); g.connect(master); src.start(0, Math.random() * 2); return { g, fl }; };
+      rainBed = bed(noiseBuf, 'bandpass', 2600, 0.35); rainLow = bed(brownBuf, 'lowpass', 900, 0.5); windBed = bed(brownBuf, 'bandpass', 320, 0.8);
       stepBus = ctx.createGain(); stepBus.gain.value = 0.5; stepBus.connect(master);
     }
     // ---------- Autogeluid ----------
@@ -298,7 +302,9 @@
           const far = mode === 'walk' ? 1 : Math.max(0.35, 1 - orbit.dist / 500);
           const tc = ctx.currentTime;
           // vogelkoor: altijd zacht aanwezig, voller bij parken en hofjes, iets minder hoog in de lucht
-          if (birdBed) birdBed.gain.setTargetAtTime((0.25 + Math.min(1, green / 5) * 0.75) * far * (height > 25 ? 0.6 : 1) * (1 - 0.92 * nightK), tc, 1.5);
+          if (birdBed) birdBed.gain.setTargetAtTime((0.25 + Math.min(1, green / 5) * 0.75) * far * (height > 25 ? 0.6 : 1) * (1 - 0.92 * nightK) * (1 - 0.85 * Math.min(1, WXK.rain + WXK.snow * 0.6)), tc, 1.5);
+          // regen en storm: overal om je heen, iets zachter hoog in de lucht
+          if (rainBed) { const r = Math.min(1.4, WXK.rain), hi = mode === 'walk' ? 1 : Math.max(0.45, 1 - orbit.dist / 600); rainBed.g.gain.setTargetAtTime(r * 0.16 * hi, tc, 0.8); rainLow.g.gain.setTargetAtTime(r * 0.22 * hi, tc, 0.8); windBed.g.gain.setTargetAtTime(Math.min(1, WXK.storm || 0) * 0.35 + WXK.snow * 0.06, tc, 1.2); windBed.fl.frequency.setTargetAtTime(260 + Math.random() * 160, tc, 2); }
           // binnen? dan klinkt alles van buiten dof en zachter
           const inside = mode === 'walk' && indoorsAt(player.x, player.z, player.y);
           indoorF.frequency.setTargetAtTime(inside ? 650 : 18000, tc, 0.25);
@@ -318,6 +324,15 @@
         src.connect(f); f.connect(g); g.connect(master); src.start(t0, Math.random() * 2, len + 0.05);
       },
       chime(x, z) { if (on && ctx) chime(x, z); },
+      // Donder: een lage rommel na de flits (later en zachter als het verder weg is)
+      thunder(delay, vol) {
+        if (!on || !ctx) return;
+        const t0 = ctx.currentTime + delay, src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(), len = 3 + Math.random() * 2.5;
+        src.buffer = brownBuf; src.loop = true; f.type = 'lowpass'; f.frequency.value = 110 + vol * 160; f.Q.value = 0.7;
+        g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.9 * vol, t0 + 0.08 + (1 - vol) * 0.4);
+        g.gain.setTargetAtTime(0.5 * vol, t0 + 0.6, 0.4); g.gain.exponentialRampToValueAtTime(0.0001, t0 + len);
+        src.connect(f); f.connect(g); g.connect(master); src.start(t0, Math.random() * 2); src.stop(t0 + len + 0.1);
+      },
       // Aanrijding: een opname van een klap op de motorkap, uit de goede richting, harder bij meer snelheid.
       // Twee auto's die op elkaar klappen: dezelfde opname, lager afgespeeld.
       carHit(strength, x, y, z, cars2) {
