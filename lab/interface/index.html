@@ -1,0 +1,563 @@
+<title>Hexstad Interfacelab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: links de werkbank (modus, voorbeelden, onderdelen, opslaan), rechts het scherm van het spel op schaal,
+   met de onderdelen in negen zones (hoeken, randen, midden). Zelfde donkere bouwkeet-stijl als Hexstad zelf. */
+:root {
+  --bg: #0f1418;
+  --bench: #161c23;
+  --panel: rgba(20, 26, 33, 0.88);
+  --ink: #eef1ec;
+  --ink-dim: #a8b2ab;
+  --line: rgba(238, 241, 236, 0.14);
+  --signal: #f2b233;
+  --signal-ink: #1d1708;
+  --good: #6fbf73;
+  --warn: #e0573e;
+  --font-display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --font-ui: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 14px; }
+button, select, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+
+.app { display: grid; grid-template-columns: 360px minmax(0, 1fr); height: 100%; }
+@media (max-width: 900px) { .app { grid-template-columns: 1fr; height: auto; } }
+
+/* ---------- werkbank ---------- */
+.bench { background: var(--bench); border-right: 1px solid var(--line); overflow-y: auto; padding-block: 18px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: 16px; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+@media (max-width: 900px) { .bench { order: 2; border-right: 0; border-top: 1px solid var(--line); padding-right: max(16px, env(safe-area-inset-right, 0px)); } }
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand .hex { width: 26px; height: 26px; background: var(--signal); clip-path: polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0 50%); flex: none; }
+.brand h1 { font-family: var(--font-display); font-weight: 800; font-size: 28px; letter-spacing: 0.02em; margin: 0; line-height: 1; text-transform: uppercase; }
+.brand small { display: block; color: var(--ink-dim); font-size: 12px; margin-top: 2px; }
+.lede { margin: 0; color: var(--ink-dim); line-height: 1.5; font-size: 13px; }
+h2 { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-dim); margin: 0 0 8px; font-weight: 700; }
+.seg { display: inline-flex; background: rgba(238,241,236,0.06); border-radius: 10px; padding: 3px; gap: 2px; flex-wrap: wrap; }
+.seg button { border: 0; background: transparent; padding: 7px 11px; border-radius: 8px; font-weight: 700; font-size: 13px; color: var(--ink-dim); }
+.seg button[aria-pressed="true"] { background: var(--signal); color: var(--signal-ink); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); }
+.tabs button { border: 0; background: none; padding: 8px 10px; color: var(--ink-dim); font-weight: 700; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--signal); }
+
+.presets { display: grid; gap: 6px; }
+.preset { text-align: left; border: 1px solid var(--line); background: rgba(238,241,236,0.03); border-radius: 10px; padding: 9px 11px; display: grid; gap: 2px; }
+.preset b { font-size: 14px; }
+.preset span { color: var(--ink-dim); font-size: 12px; line-height: 1.4; }
+.preset[aria-pressed="true"] { border-color: var(--signal); background: rgba(242,178,51,0.08); }
+
+.meters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.meter { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.meter b { font-family: var(--font-display); font-size: 26px; font-variant-numeric: tabular-nums; display: block; line-height: 1.1; }
+.meter span { color: var(--ink-dim); font-size: 11.5px; line-height: 1.35; display: block; }
+.meter.good b { color: var(--good); } .meter.warn b { color: var(--warn); }
+
+.comps { display: grid; gap: 4px; }
+.comp { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; padding: 8px 9px; border-radius: 9px; border: 1px solid transparent; }
+.comp:hover, .comp.sel { border-color: var(--line); background: rgba(238,241,236,0.03); }
+.comp.sel { border-color: var(--signal); }
+.comp .nm { font-weight: 700; min-width: 0; }
+.comp .nm small { display: block; font-weight: 400; color: var(--ink-dim); font-size: 11.5px; line-height: 1.35; margin-top: 1px; }
+.comp .vis { display: flex; gap: 3px; align-self: start; }
+.vis button { width: 30px; height: 26px; border-radius: 7px; border: 1px solid var(--line); background: transparent; font-size: 11px; font-weight: 700; color: var(--ink-dim); }
+.vis button[aria-pressed="true"] { background: var(--signal); color: var(--signal-ink); border-color: var(--signal); }
+.comp .ctl { grid-column: 1 / -1; display: none; gap: 6px; flex-wrap: wrap; align-items: center; }
+.comp.sel .ctl { display: flex; }
+select, input[type="text"], textarea { background: #0f1418; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; min-width: 0; }
+textarea { width: 100%; resize: vertical; min-height: 64px; line-height: 1.4; }
+.small-btn { border: 1px solid var(--line); background: transparent; border-radius: 8px; padding: 5px 9px; font-size: 12.5px; }
+.small-btn:hover { border-color: var(--ink-dim); }
+.check { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-dim); }
+.btn-main { border: 0; background: var(--signal); color: var(--signal-ink); font-weight: 700; border-radius: 10px; padding: 9px 14px; }
+.saved { display: grid; gap: 4px; }
+.saved .it { display: flex; gap: 8px; align-items: center; border: 1px solid var(--line); border-radius: 9px; padding: 7px 9px; }
+.saved .it b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.saved .it small { color: var(--ink-dim); font-size: 11px; white-space: nowrap; }
+.note { color: var(--ink-dim); font-size: 12px; line-height: 1.45; margin: 0; }
+.research { display: grid; gap: 10px; }
+.research article { border-left: 2px solid var(--signal); padding: 2px 0 2px 10px; }
+.research h3 { margin: 0 0 3px; font-size: 14px; }
+.research p { margin: 0; color: var(--ink-dim); font-size: 12.5px; line-height: 1.5; }
+.research a { color: var(--signal); }
+
+/* ---------- scherm ---------- */
+.stagewrap { display: flex; flex-direction: column; min-width: 0; min-height: 0; padding-block: 14px; padding-left: 16px; padding-right: max(16px, env(safe-area-inset-right, 0px)); gap: 10px; }
+@media (max-width: 900px) { .stagewrap { order: 1; padding-left: max(16px, env(safe-area-inset-left, 0px)); } }
+.stagebar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+.stagebar .ttl { font-family: var(--font-display); font-size: 20px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; }
+.fit { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; position: relative; }
+@media (max-width: 900px) { .fit { min-height: 56vw; } }
+.screen { position: absolute; left: 50%; top: 50%; transform-origin: center; border-radius: 14px; overflow: hidden; background: #8eab69 center / cover no-repeat; box-shadow: 0 0 0 1px var(--line), 0 18px 50px rgba(0,0,0,0.45); font-family: var(--font-ui); color: var(--ink); }
+.screen.walk { background-color: #a9c2cf; }
+
+/* zones: negen gebieden met een vaste stapelrichting */
+.zone { position: absolute; display: flex; gap: 8px; pointer-events: none; }
+.zone > * { pointer-events: auto; }
+.z-tl { top: 12px; left: 14px; flex-direction: column; align-items: flex-start; }
+.z-tr { top: 12px; right: 14px; flex-direction: column; align-items: flex-end; }
+.z-tc { top: 12px; left: 50%; transform: translateX(-50%); flex-direction: column; align-items: center; }
+.z-bl { bottom: 14px; left: 14px; flex-direction: column-reverse; align-items: flex-start; }
+.z-br { bottom: 14px; right: 14px; flex-direction: column-reverse; align-items: flex-end; }
+.z-bc { bottom: 14px; left: 50%; transform: translateX(-50%); flex-direction: column-reverse; align-items: center; }
+.z-ml { left: 14px; top: 50%; transform: translateY(-50%); flex-direction: column; align-items: flex-start; }
+.z-mr { right: 14px; top: 50%; transform: translateY(-50%); flex-direction: column; align-items: flex-end; }
+.z-c { left: 50%; top: 50%; transform: translate(-50%, -50%); flex-direction: column; align-items: center; }
+.drop { position: absolute; border: 2px dashed rgba(242,178,51,0.0); border-radius: 12px; display: none; align-items: center; justify-content: center; font-weight: 700; color: rgba(242,178,51,0.9); font-size: 13px; background: rgba(15,20,24,0.18); }
+.dragging .drop { display: flex; border-color: rgba(242,178,51,0.45); }
+.drop.hot { background: rgba(242,178,51,0.18); border-color: var(--signal); }
+
+/* mock-onderdelen in de stijl van het spel */
+.m { position: relative; }
+.arrange .m { cursor: grab; }
+.arrange .m:hover { outline: 2px dashed rgba(242,178,51,0.7); outline-offset: 3px; border-radius: 12px; }
+.m.picked { outline: 2px solid var(--signal) !important; outline-offset: 3px; border-radius: 12px; }
+.pnl { background: var(--panel); border: 1px solid rgba(238,241,236,0.18); border-radius: 12px; backdrop-filter: blur(6px); }
+.pill { background: var(--panel); border: 1px solid rgba(238,241,236,0.2); border-radius: 999px; display: inline-flex; align-items: center; gap: 2px; padding: 3px; }
+.gbtn { background: var(--panel); border: 1px solid rgba(238,241,236,0.2); color: var(--ink); border-radius: 11px; height: 40px; padding: 0 14px; display: inline-flex; align-items: center; gap: 7px; font-weight: 700; font-size: 14px; white-space: nowrap; }
+.gbtn.icon { width: 40px; padding: 0; justify-content: center; }
+.gbtn.primary { background: var(--signal); color: var(--signal-ink); border-color: var(--signal); }
+.gbtn svg { width: 18px; height: 18px; }
+.row-g { display: flex; gap: 6px; align-items: center; }
+.city { display: flex; align-items: center; gap: 10px; padding: 9px 12px; }
+.city .hx { width: 24px; height: 24px; background: var(--signal); clip-path: polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0 50%); }
+.city b { font-family: var(--font-display); font-size: 22px; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; display: block; line-height: 1; }
+.city small { color: var(--ink-dim); font-size: 11.5px; }
+.score { border: 1px solid rgba(242,178,51,0.45); border-radius: 9px; padding: 3px 9px; text-align: center; margin-left: 6px; }
+.score b { color: var(--signal); font-size: 20px; }
+.score small { display: block; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; }
+.chip { border: 1px solid rgba(238,241,236,0.2); background: rgba(238,241,236,0.06); border-radius: 999px; padding: 6px 12px; font-size: 12.5px; font-weight: 700; white-space: nowrap; }
+.chip.on { border-color: var(--signal); color: var(--signal); }
+.ptab { padding: 7px 14px; border-radius: 999px; font-weight: 700; font-size: 13px; color: var(--ink); white-space: nowrap; }
+.ptab.on { background: var(--signal); color: var(--signal-ink); }
+.lbl { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-dim); white-space: nowrap; }
+.optbar { display: flex; align-items: center; padding: 6px 4px; }
+.optbar .grp { display: flex; align-items: center; gap: 6px; padding: 0 10px; border-right: 1px solid rgba(238,241,236,0.14); }
+.optbar .grp:last-child { border-right: 0; }
+
+.slots { display: flex; gap: 5px; padding: 6px; }
+.slot { width: 52px; height: 52px; position: relative; display: grid; place-items: center; background: rgba(238,241,236,0.06); border: 1px solid rgba(238,241,236,0.18); border-radius: 10px; }
+.slot.hex { width: 54px; height: 50px; border: 0; border-radius: 0; background: rgba(238,241,236,0.16); clip-path: polygon(25% 2%, 75% 2%, 100% 50%, 75% 98%, 25% 98%, 0 50%); }
+.slot.hex::before { content: ""; position: absolute; inset: 2px; clip-path: inherit; background: rgba(20,26,33,0.92); }
+.slot.on { background: var(--signal); }
+.slot.hex.on::before { background: rgba(60,46,14,0.95); }
+.slot i { position: relative; width: 26px; height: 26px; border-radius: 6px; display: block; }
+.slot em { position: absolute; left: 50%; bottom: -1px; transform: translateX(-50%); font-style: normal; font-size: 9px; font-weight: 700; color: var(--ink-dim); }
+.slot.hex em { bottom: 3px; }
+.slot.wide { width: auto; padding: 0 10px; font-size: 11px; font-weight: 700; color: var(--ink-dim); }
+.cards { display: flex; gap: 6px; padding: 8px; }
+.cards.grid { display: grid; grid-template-columns: repeat(6, 74px); }
+.card { width: 74px; height: 70px; border-radius: 9px; background: rgba(238,241,236,0.05); border: 1px solid rgba(238,241,236,0.14); display: grid; place-items: center; align-content: center; gap: 5px; font-size: 11px; font-weight: 700; }
+.card.on { border-color: var(--signal); background: rgba(242,178,51,0.12); }
+.card i { width: 28px; height: 26px; display: block; clip-path: polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0 50%); }
+.search { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 9px; background: rgba(238,241,236,0.06); color: var(--ink-dim); font-size: 12.5px; min-width: 180px; }
+.catpanel { display: grid; gap: 4px; padding: 6px; }
+.catpanel .top { display: flex; gap: 4px; align-items: center; justify-content: space-between; padding: 2px 4px; }
+.catcol { display: grid; gap: 4px; padding: 5px; }
+.catcol span { width: 42px; height: 42px; border-radius: 10px; display: grid; place-items: center; background: rgba(238,241,236,0.05); }
+.catcol span.on { background: var(--signal); color: var(--signal-ink); }
+.catcol svg { width: 20px; height: 20px; }
+.rnd { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; background: var(--panel); border: 1px solid rgba(238,241,236,0.2); }
+.rnd svg { width: 20px; height: 20px; }
+.layers { display: grid; gap: 3px; padding: 5px; text-align: center; }
+.layers span { width: 38px; height: 34px; border-radius: 8px; display: grid; place-items: center; font-weight: 700; font-size: 13px; color: var(--ink-dim); }
+.layers span.on { background: var(--signal); color: var(--signal-ink); }
+.layers small { font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-dim); }
+.cross { width: 26px; height: 26px; position: relative; }
+.cross::before, .cross::after { content: ""; position: absolute; background: rgba(255,255,255,0.92); box-shadow: 0 0 0 1px rgba(0,0,0,0.35); }
+.cross::before { left: 12px; top: 3px; width: 2px; height: 20px; } .cross::after { top: 12px; left: 3px; height: 2px; width: 20px; }
+.wheel { width: 300px; height: 300px; border-radius: 50%; position: relative; background: radial-gradient(circle, rgba(20,26,33,0) 0 58px, rgba(20,26,33,0.86) 59px 100%); border: 1px solid rgba(238,241,236,0.2); }
+.wheel .w { position: absolute; width: 64px; text-align: center; font-size: 11px; font-weight: 700; display: grid; justify-items: center; gap: 4px; }
+.wheel .w i { width: 30px; height: 28px; display: block; clip-path: polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0 50%); }
+.wheel .w.on { color: var(--signal); }
+.wheel .mid { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; color: var(--ink-dim); text-align: center; line-height: 1.3; }
+.mini { width: 150px; height: 150px; border-radius: 12px; overflow: hidden; position: relative; }
+.mini .map { position: absolute; inset: 6px; border-radius: 8px; background: repeating-conic-gradient(from 30deg, rgba(142,171,105,0.85) 0 60deg, rgba(122,150,90,0.85) 0 120deg); }
+.mini .dot { position: absolute; left: 50%; top: 50%; width: 10px; height: 10px; border-radius: 50%; background: var(--signal); transform: translate(-50%, -50%); box-shadow: 0 0 0 3px rgba(242,178,51,0.35); }
+.joy { width: 110px; height: 110px; border-radius: 50%; background: rgba(20,26,33,0.45); border: 1px solid rgba(238,241,236,0.25); display: grid; place-items: center; }
+.joy::after { content: ""; width: 44px; height: 44px; border-radius: 50%; background: rgba(238,241,236,0.35); }
+.hintline { font-size: 12px; color: var(--ink); background: rgba(20,26,33,0.6); border-radius: 8px; padding: 5px 9px; white-space: nowrap; }
+.hintline kbd { font: 700 11px var(--font-ui); border: 1px solid rgba(238,241,236,0.35); border-radius: 4px; padding: 0 4px; margin: 0 2px; }
+.teller { display: grid; gap: 6px; justify-items: start; }
+.tag { position: absolute; left: 0; top: -18px; font-size: 10px; font-weight: 700; color: var(--signal-ink); background: var(--signal); border-radius: 4px; padding: 1px 5px; white-space: nowrap; display: none; }
+.arrange .m:hover .tag, .m.picked .tag { display: block; }
+.toast-lab { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--signal); color: var(--signal-ink); font-weight: 700; padding: 8px 14px; border-radius: 10px; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 20; }
+.toast-lab.show { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .toast-lab { transition: none; } }
+</style>
+
+<div class="app">
+  <aside class="bench" aria-label="Werkbank">
+    <div class="brand"><span class="hex" aria-hidden="true"></span><div><h1>Interfacelab</h1><small>Hexstad · schik de bediening voor bouwen en lopen</small></div></div>
+    <p class="lede">Kies een voorbeeld, wissel tussen bouwen en lopen, sleep onderdelen naar een andere plek en zet ze aan of uit. Sla je ontwerp op; daarna bouw ik het precies zo in het spel.</p>
+
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" aria-selected="true" data-tab="ontwerp">Ontwerp</button>
+      <button type="button" role="tab" aria-selected="false" data-tab="onderzoek">Onderzoek</button>
+      <button type="button" role="tab" aria-selected="false" data-tab="opslaan">Opslaan</button>
+    </div>
+
+    <section data-pane="ontwerp" style="display:grid;gap:18px">
+      <div>
+        <h2>Voorbeelden</h2>
+        <div class="presets" id="presets"></div>
+      </div>
+      <div class="meters" id="meters"></div>
+      <div>
+        <h2>Onderdelen</h2>
+        <p class="note" style="margin-bottom:8px">B = zichtbaar bij bouwen, L = bij lopen. Klik een onderdeel om plek, vorm en volgorde te kiezen, of sleep het op het scherm.</p>
+        <div class="comps" id="comps"></div>
+      </div>
+    </section>
+
+    <section data-pane="onderzoek" hidden>
+      <div class="research">
+        <article><h3>Eén vaste snelbalk</h3><p>In Satisfactory open je met Q het bouwmenu en zet je een blok met 1–9 op de snelbalk; daarna bouw je zonder het menu. Minecraft houdt dezelfde balk onderaan, wat je ook doet. Voor Hexstad: één balk die bij bouwen én lopen op dezelfde plek staat. <a href="https://satisfactory.wiki.gg/fr/wiki/HUD" target="_blank" rel="noopener">Satisfactory wiki</a></p></article>
+        <article><h3>Een catalogus die je doorzoekt</h3><p>Bij Cities: Skylines II klaagden spelers dat ze blokken niet konden vinden; de populairste mod voegt één paneel toe met zoeken op naam, soort en label, en favorieten bovenaan. Hexstad heeft al zoeken en filters bij modules: dat hoort in elke categorie. <a href="https://www.pcgamesn.com/cities-skylines-2/ui-menu-mod" target="_blank" rel="noopener">PCGamesN</a></p></article>
+        <article><h3>Een wiel voor snel kiezen</h3><p>Planet Coaster vervangt op de console sneltoetsen door wielen die per modus anders zijn. Een wiel werkt met muis, touch en controller, maar alleen tot zo'n 6–10 keuzes, en het beste met loslaten om te kiezen. Goed voor categorieën of de handen, niet voor de hele catalogus. <a href="https://www.thesixthaxis.com/?p=361512" target="_blank" rel="noopener">TheSixthAxis</a> · <a href="https://300mind.studio/blog/radial-menus-in-game-design/" target="_blank" rel="noopener">300Mind</a></p></article>
+        <article><h3>Zo min mogelijk in beeld</h3><p>Tiny Glade en Townscaper laten bijna alleen de stad zien: je bouwt door te slepen en te klikken, en gereedschap verschijnt pas als je het nodig hebt. Een permanente balk met alles erop leidt af. <a href="https://indiegames.substack.com/p/doodle-designer-tiny-glade" target="_blank" rel="noopener">Indie Games</a> · <a href="https://en.wikipedia.org/wiki/Townscaper" target="_blank" rel="noopener">Wikipedia</a></p></article>
+        <article><h3>Wat dat voor Hexstad betekent</h3><p>Nu staat het bouwmenu bij bouwen onderaan en bij lopen bovenaan, met de knoppen voor de handen er nog bij. Het lab meet daarom twee dingen: hoeveel onderdelen in beide modi op dezelfde plek blijven, en hoeveel van het beeld de bediening bedekt. Hexstad heeft ook iets wat andere spellen niet hebben: lagen. Een laagkiezer aan de rand maakt bouwen op de tweede verdieping makkelijker.</p></article>
+      </div>
+    </section>
+
+    <section data-pane="opslaan" hidden style="display:grid;gap:12px">
+      <div style="display:grid;gap:6px">
+        <label for="dName" class="lbl">Naam</label>
+        <input type="text" id="dName" placeholder="Bijvoorbeeld: Snelbalk onderaan">
+        <label for="dNotes" class="lbl">Opmerkingen voor Claude</label>
+        <textarea id="dNotes" placeholder="Wat moet anders, wat vind je mooi?"></textarea>
+        <div class="row"><button type="button" class="btn-main" id="saveBtn">Ontwerp opslaan</button><button type="button" class="small-btn" id="copyBtn">Kopieer als JSON</button></div>
+        <p class="note" id="saveNote"></p>
+      </div>
+      <div>
+        <h2>Opgeslagen ontwerpen</h2>
+        <div class="saved" id="saved"><p class="note">Nog geen ontwerpen opgeslagen. Je eerste ontwerp verschijnt hier.</p></div>
+      </div>
+    </section>
+  </aside>
+
+  <main class="stagewrap">
+    <div class="stagebar">
+      <div class="seg" role="group" aria-label="Modus" id="modeSeg"><button type="button" data-mode="bouwen" aria-pressed="true">Bouwen</button><button type="button" data-mode="lopen" aria-pressed="false">Lopen</button></div>
+      <div class="seg" role="group" aria-label="Scherm" id="devSeg"><button type="button" data-dev="laptop" aria-pressed="true">Laptop</button><button type="button" data-dev="tablet" aria-pressed="false">Tablet</button><button type="button" data-dev="liggend" aria-pressed="false">Telefoon liggend</button><button type="button" data-dev="staand" aria-pressed="false">Telefoon staand</button></div>
+      <label class="check"><input type="checkbox" id="arrangeChk" checked> Schikken (slepen)</label>
+    </div>
+    <div class="fit" id="fit">
+      <div class="screen arrange" id="screen" aria-label="Voorbeeld van het spelscherm"></div>
+    </div>
+  </main>
+</div>
+<div class="toast-lab" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  // ---------- onderdelen ----------
+  const ZONES = { tl: 'Linksboven', tc: 'Boven midden', tr: 'Rechtsboven', ml: 'Links midden', c: 'Midden', mr: 'Rechts midden', bl: 'Linksonder', bc: 'Onder midden', br: 'Rechtsonder' };
+  const COMPS = {
+    stad:      { naam: 'Stadskaart', uitleg: 'Naam, aantal blokken en de gezelligheidsscore', v: { kaart: 'Kaart', compact: 'Compact' } },
+    teller:    { naam: 'Teller en roekeloos', uitleg: 'Ongelukjes met voetgangers, roekeloos rijgedrag', v: { knoppen: 'Twee knoppen', klein: 'Klein' } },
+    systeem:   { naam: 'Systeem', uitleg: 'Geluid en menu', v: { knoppen: 'Geluid + menu', menu: 'Alleen menu' } },
+    tijdweer:  { naam: 'Tijd en weer', uitleg: 'Klok, snelheid van de tijd, het weer', v: { knop: 'Eén knop', balk: 'Uitgeklapt' } },
+    modus:     { naam: 'Bouwen ↔ lopen', uitleg: 'Wisselen tussen bovenaf bouwen en zelf lopen', v: { knop: 'Knop', schakel: 'Schakelaar' } },
+    weergave:  { naam: 'Optiebalk', uitleg: 'Raster, mensen, auto’s (nu ook tijd en weer)', v: { balk: 'Balk', klein: 'Alleen raster' } },
+    categorie: { naam: 'Categorieën', uitleg: 'Wegen, paden, gebouwen, groen, terrein, modules', v: { tabs: 'Tabs', iconen: 'Iconen' } },
+    catalogus: { naam: 'Catalogus', uitleg: 'Alle blokken in de gekozen categorie', v: { rij: 'Rij', raster: 'Raster met zoeken', knop: 'Ingeklapt (knop)' } },
+    hotbar:    { naam: 'Snelbalk 1–9', uitleg: 'Negen blokken onder de cijfertoetsen, in beide modi', v: { hex: 'Zeshoekig', vierkant: 'Vierkant' } },
+    opties:    { naam: 'Gereedschap', uitleg: 'Draaien, spiegelen, gum, ongedaan maken', v: { chips: 'Chips', rond: 'Ronde knoppen' } },
+    lagen:     { naam: 'Laagkiezer', uitleg: 'Op welke verdieping je bouwt (gelaagde stad)', v: { kolom: 'Kolom' } },
+    handen:    { naam: 'Handen', uitleg: 'Kijken, bouwen of slopen tijdens het lopen', v: { pill: 'Woorden', iconen: 'Iconen' } },
+    vizier:    { naam: 'Vizier', uitleg: 'Waar je naar kijkt tijdens het lopen', v: { kruis: 'Kruis' } },
+    wiel:      { naam: 'Bouwwiel', uitleg: 'Houd Tab of druk lang: kies in een cirkel', v: { open: 'Open getoond' } },
+    minikaart: { naam: 'Minikaart', uitleg: 'Overzicht en waar je bent (nieuw idee)', v: { vierkant: 'Vierkant' } },
+    hint:      { naam: 'Sneltoetsen', uitleg: 'Knop of een regel met de belangrijkste toetsen', v: { knop: 'Knop', regel: 'Regel' } },
+    touch:     { naam: 'Joystick', uitleg: 'Lopen met je duim (telefoon, tablet)', v: { rond: 'Rond' } },
+  };
+  const BLOCKS = [['Woning', '#b4583f'], ['Kantoor', '#7f97ad'], ['Dak', '#a8442f'], ['Winkel', '#e0a640'], ['Park', '#5a9440'], ['Weg', '#3c4045'], ['Pad', '#bdb5a5'], ['Water', '#2d5a66'], ['Module', '#c9bfab']];
+  const CATS = ['Wegen', 'Paden', 'Gebouwen', 'Groen en water', 'Terrein', 'Modules'];
+  const ICO = {
+    geluid: '<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/>',
+    lopen: '<circle cx="13" cy="4" r="2"/><path d="M10 21l2-6 3 3v3M9 12l2-4 4 1 2 3M11 8l-2 4-3 1"/>',
+    bouwen: '<path d="M4 20l7-7M14 4l6 6-3 3-6-6zM12 6l-2 2"/>',
+    zon: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6L19 19M5 19l1.4-1.4M17.6 6.4L19 5"/>',
+    draai: '<path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/>',
+    spiegel: '<path d="M12 3v18M8 7l-5 5 5 5V7zM16 7l5 5-5 5V7z"/>',
+    gum: '<path d="M7 20h11M5 15l9-9 5 5-8 8H8z"/>',
+    terug: '<path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"/>',
+    oog: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+    hamer: '<path d="M14 4l6 6-3 3-6-6zM12 9l-8 8 3 3 8-8"/>',
+    hand: '<path d="M7 12V6a1.5 1.5 0 0 1 3 0v5M10 11V4.5a1.5 1.5 0 0 1 3 0V11M13 11V6a1.5 1.5 0 0 1 3 0v6M16 9a1.5 1.5 0 0 1 3 0v4a7 7 0 0 1-7 7h-1a6 6 0 0 1-5-3l-2.5-4a1.5 1.5 0 0 1 2.5-1.6L7 13"/>',
+    weg: '<path d="M7 21L10 3M17 21L14 3M12 6v2M12 11v2M12 16v2"/>',
+    pad: '<path d="M6 21c3-6 9-6 12-18"/>',
+    huis: '<path d="M3 11l9-7 9 7M5 10v10h14V10"/>',
+    boom: '<circle cx="12" cy="9" r="6"/><path d="M12 15v6"/>',
+    berg: '<path d="M2 20l7-12 4 6 3-4 6 10z"/>',
+    module: '<path d="M12 2l9 5v10l-9 5-9-5V7z"/><path d="M12 12l9-5M12 12v10M12 12L3 7"/>',
+    zoek: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
+    toetsen: '<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h0M10 10h0M14 10h0M18 10h0M7 14h10"/>',
+  };
+  const svg = (k, w = 2) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[k]}</svg>`;
+  const CATICO = ['weg', 'pad', 'huis', 'boom', 'berg', 'module'];
+
+  function render(id, variant, mode) {
+    switch (id) {
+      case 'stad': return variant === 'compact'
+        ? `<div class="pill" style="padding:5px 12px 5px 6px;gap:8px"><span class="city" style="padding:0"><span class="hx" style="width:20px;height:20px"></span></span><b style="font-family:var(--font-display);font-size:17px;text-transform:uppercase;letter-spacing:.03em">Voorbeeldstad</b><span style="color:var(--signal);font-weight:700">64</span></div>`
+        : `<div class="pnl city"><span class="hx"></span><div><b>Hexstad</b><small>Voorbeeldstad · 88 blokken · 21 m</small></div><div class="score"><b>64</b><small>gezellig</small></div></div>`;
+      case 'teller': return variant === 'klein'
+        ? `<div class="pill" style="padding:4px 10px;font-size:12px;font-weight:700;gap:8px">Ongelukjes <span style="color:var(--signal)">0</span></div>`
+        : `<div class="teller"><span class="gbtn" style="height:34px;font-size:13px">Roekeloos rijgedrag</span><span class="gbtn" style="height:30px;font-size:12px">Ongelukjes <span style="color:var(--signal)">0</span> · Door iets heen <span style="color:var(--signal)">0</span></span></div>`;
+      case 'systeem': return variant === 'menu'
+        ? `<span class="gbtn">Menu</span>`
+        : `<div class="row-g"><span class="gbtn icon">${svg('geluid')}</span><span class="gbtn">Menu</span></div>`;
+      case 'tijdweer': return variant === 'balk'
+        ? `<div class="pnl optbar"><div class="grp"><span class="lbl">Tijd <b style="color:var(--ink)">15:00</b></span><span class="pill" style="padding:2px"><span class="ptab" style="padding:4px 9px">⏸</span><span class="ptab on" style="padding:4px 9px">1×</span><span class="ptab" style="padding:4px 9px">4×</span></span></div><div class="grp"><span class="lbl">Weer</span><span class="pill" style="padding:2px"><span class="ptab on" style="padding:4px 8px">${svg('zon', 2).replace('<svg', '<svg width="14" height="14"')}</span><span class="ptab" style="padding:4px 8px">☁</span><span class="ptab" style="padding:4px 8px">☂</span></span></div></div>`
+        : `<span class="gbtn">${svg('zon')}15:00</span>`;
+      case 'modus': {
+        const toWalk = mode === 'bouwen';
+        if (variant === 'schakel') return `<div class="pill" style="padding:4px"><span class="ptab ${toWalk ? 'on' : ''}" style="display:inline-flex;gap:6px;align-items:center;padding:8px 14px">${svg('bouwen').replace('<svg', '<svg width="16" height="16"')}Bouwen</span><span class="ptab ${toWalk ? '' : 'on'}" style="display:inline-flex;gap:6px;align-items:center;padding:8px 14px">${svg('lopen').replace('<svg', '<svg width="16" height="16"')}Lopen</span></div>`;
+        return `<span class="gbtn primary">${svg(toWalk ? 'lopen' : 'bouwen')}${toWalk ? 'Lopen' : 'Bouwen'}</span>`;
+      }
+      case 'weergave': return variant === 'klein'
+        ? `<span class="chip on">Raster</span>`
+        : `<div class="pnl optbar"><div class="grp"><span class="lbl">Weergave</span><span class="chip on">Raster</span></div><div class="grp"><span class="lbl">Tijd 15:00</span><span class="pill" style="padding:2px"><span class="ptab" style="padding:4px 9px">⏸</span><span class="ptab on" style="padding:4px 9px">1×</span><span class="ptab" style="padding:4px 9px">4×</span><span class="ptab" style="padding:4px 9px">12×</span></span></div><div class="grp"><span class="lbl">Weer</span><span class="pill" style="padding:2px"><span class="ptab on" style="padding:4px 8px">☀</span><span class="ptab" style="padding:4px 8px">☁</span><span class="ptab" style="padding:4px 8px">☂</span><span class="ptab" style="padding:4px 8px">❄</span></span></div><div class="grp"><span class="lbl">Stad</span><span class="chip on">Mensen</span><span class="chip on">Auto's</span></div></div>`;
+      case 'categorie': return variant === 'iconen'
+        ? `<div class="pnl catcol">${CATICO.map((k, i) => `<span class="${i === 2 ? 'on' : ''}" title="${CATS[i]}">${svg(k)}</span>`).join('')}</div>`
+        : `<div class="pnl" style="display:flex;gap:2px;padding:4px">${CATS.map((c, i) => `<span class="ptab ${i === 2 ? 'on' : ''}">${c}</span>`).join('')}</div>`;
+      case 'catalogus': {
+        if (variant === 'knop') return `<span class="gbtn">${svg('zoek')}Alle blokken <span style="color:var(--ink-dim);font-weight:400">Tab</span></span>`;
+        const cards = BLOCKS.slice(0, variant === 'raster' ? 12 : 6).concat(variant === 'raster' ? BLOCKS.slice(0, 3) : []).map(([n, c], i) => `<div class="card ${i === 0 ? 'on' : ''}"><i style="background:${c}"></i>${n}</div>`).join('');
+        if (variant === 'raster') return `<div class="pnl catpanel"><div class="top"><span class="search">${svg('zoek').replace('<svg', '<svg width="14" height="14"')}Zoek een blok of module…</span><span class="chip on">Favorieten</span></div><div class="cards grid">${cards}</div></div>`;
+        return `<div class="pnl"><div class="cards">${cards}</div></div>`;
+      }
+      case 'hotbar': {
+        const hex = variant !== 'vierkant';
+        return `<div class="pnl slots">${BLOCKS.map(([n, c], i) => `<div class="slot ${hex ? 'hex' : ''} ${i === 0 ? 'on' : ''}" title="${n}"><i style="background:${c};${hex ? 'clip-path:polygon(25% 3%,75% 3%,100% 50%,75% 97%,25% 97%,0 50%);border-radius:0' : ''}"></i><em>${i + 1}</em></div>`).join('')}</div>`;
+      }
+      case 'opties': {
+        const it = [['draai', 'Draai', 'R'], ['spiegel', 'Spiegel', 'F'], ['gum', 'Gum', 'Del'], ['terug', 'Terug', 'Ctrl Z']];
+        if (variant === 'rond') return `<div class="row-g">${it.map(([k, n]) => `<span class="rnd" title="${n}">${svg(k)}</span>`).join('')}</div>`;
+        return `<div class="pnl" style="display:flex;gap:6px;padding:6px">${it.map(([k, n, t]) => `<span class="chip" style="display:inline-flex;gap:6px;align-items:center">${svg(k).replace('<svg', '<svg width="14" height="14"')}${n}<span style="color:var(--ink-dim);font-weight:400">${t}</span></span>`).join('')}</div>`;
+      }
+      case 'lagen': return `<div class="pnl layers"><small>Laag</small>${[3, 2, 1, 0].map(l => `<span class="${l === 1 ? 'on' : ''}">${l}</span>`).join('')}</div>`;
+      case 'handen': return variant === 'iconen'
+        ? `<div class="pill">${[['oog', 'Kijken'], ['hand', 'Bouwen'], ['hamer', 'Hamer']].map(([k, n], i) => `<span class="ptab ${i === 1 ? 'on' : ''}" title="${n}" style="display:grid;place-items:center;padding:7px 10px">${svg(k).replace('<svg', '<svg width="18" height="18"')}</span>`).join('')}</div>`
+        : `<div class="pill">${['Kijken', 'Bouwen', 'Hamer'].map((n, i) => `<span class="ptab ${i === 1 ? 'on' : ''}">${n}</span>`).join('')}</div>`;
+      case 'vizier': return `<div class="cross"></div>`;
+      case 'wiel': {
+        const n = 6, items = CATS.map((c, i) => { const a = -Math.PI / 2 + i * 2 * Math.PI / n, x = 150 + Math.cos(a) * 104 - 32, y = 150 + Math.sin(a) * 104 - 24; return `<div class="w ${i === 2 ? 'on' : ''}" style="left:${x}px;top:${y}px">${svg(CATICO[i]).replace('<svg', '<svg width="24" height="24"')}${c.split(' ')[0]}</div>`; }).join('');
+        return `<div class="wheel">${items}<div class="mid">Laat los<br>om te kiezen</div></div>`;
+      }
+      case 'minikaart': return `<div class="pnl mini"><div class="map"></div><div class="dot"></div></div>`;
+      case 'hint': return variant === 'regel'
+        ? `<div class="hintline"><kbd>1</kbd>–<kbd>9</kbd> blok · <kbd>R</kbd> draai · <kbd>Tab</kbd> catalogus · <kbd>L</kbd> lopen</div>`
+        : `<span class="gbtn icon">${svg('toetsen')}</span>`;
+      case 'touch': return `<div class="joy"></div>`;
+    }
+    return '';
+  }
+
+  // ---------- voorbeelden ----------
+  // per onderdeel: { v: vorm, b: [zone, aan], l: [zone, aan] }; de volgorde in een zone volgt de volgorde hieronder
+  const P = (v, b, l) => ({ v, b, l });
+  const PRESETS = {
+    nu: { naam: 'Hexstad nu (v99)', uitleg: 'Zoals het nu is: bij bouwen het menu onderaan, bij lopen bovenaan', c: {
+      stad: P('kaart', ['tl', 1], ['tl', 1]), teller: P('knoppen', ['tl', 1], ['tl', 1]), tijdweer: P('knop', ['tr', 1], ['tr', 1]), systeem: P('knoppen', ['tr', 1], ['tr', 1]), modus: P('knop', ['tr', 1], ['tr', 1]),
+      catalogus: P('rij', ['bc', 1], ['tc', 1]), categorie: P('tabs', ['bc', 1], ['tc', 1]), weergave: P('balk', ['bc', 1], ['bc', 0]), handen: P('pill', ['tc', 0], ['tc', 1]),
+      hotbar: P('hex', ['bc', 0], ['bc', 0]), opties: P('chips', ['bc', 0], ['bc', 0]), lagen: P('kolom', ['mr', 0], ['mr', 0]), vizier: P('kruis', ['c', 0], ['c', 1]), wiel: P('open', ['c', 0], ['c', 0]),
+      minikaart: P('vierkant', ['br', 0], ['br', 0]), hint: P('knop', ['br', 1], ['br', 1]), touch: P('rond', ['bl', 0], ['bl', 0]) } },
+    snelbalk: { naam: 'Eén snelbalk', uitleg: 'Minecraft en Satisfactory: dezelfde balk 1–9 onderaan in beide modi, de catalogus klapt open', c: {
+      stad: P('compact', ['tl', 1], ['tl', 1]), teller: P('klein', ['tl', 1], ['tl', 0]), tijdweer: P('knop', ['tr', 1], ['tr', 1]), systeem: P('menu', ['tr', 1], ['tr', 1]), modus: P('knop', ['br', 1], ['br', 1]),
+      hotbar: P('hex', ['bc', 1], ['bc', 1]), catalogus: P('knop', ['bc', 1], ['bc', 1]), categorie: P('tabs', ['tc', 0], ['tc', 0]), weergave: P('klein', ['bl', 0], ['bl', 0]), handen: P('iconen', ['bl', 0], ['bl', 1]),
+      opties: P('rond', ['br', 1], ['br', 1]), lagen: P('kolom', ['mr', 0], ['mr', 0]), vizier: P('kruis', ['c', 0], ['c', 1]), wiel: P('open', ['c', 0], ['c', 0]), minikaart: P('vierkant', ['tr', 0], ['tr', 0]), hint: P('regel', ['tc', 0], ['tc', 0]), touch: P('rond', ['bl', 0], ['bl', 0]) } },
+    werkbalk: { naam: 'Werkbalk en catalogus', uitleg: 'Cities: Skylines en Manor Lords: categorieën onderaan, een groot paneel met zoeken erboven', c: {
+      stad: P('kaart', ['tl', 1], ['tl', 1]), teller: P('knoppen', ['tl', 1], ['tl', 0]), tijdweer: P('balk', ['tc', 1], ['tc', 0]), systeem: P('knoppen', ['tr', 1], ['tr', 1]), modus: P('knop', ['tr', 1], ['tr', 1]),
+      catalogus: P('raster', ['bc', 1], ['bc', 0]), categorie: P('tabs', ['bc', 1], ['bc', 0]), opties: P('chips', ['bc', 0], ['bc', 0]), weergave: P('klein', ['bl', 1], ['bl', 0]), hotbar: P('vierkant', ['bc', 0], ['bc', 1]), handen: P('pill', ['bc', 0], ['bc', 1]),
+      lagen: P('kolom', ['mr', 0], ['mr', 0]), vizier: P('kruis', ['c', 0], ['c', 1]), wiel: P('open', ['c', 0], ['c', 0]), minikaart: P('vierkant', ['br', 1], ['br', 1]), hint: P('knop', ['br', 0], ['br', 0]), touch: P('rond', ['bl', 0], ['bl', 0]) } },
+    minimaal: { naam: 'Zo min mogelijk', uitleg: 'Townscaper en Tiny Glade: bijna alleen de stad, een smalle kolom gereedschap', c: {
+      stad: P('compact', ['tl', 0], ['tl', 0]), teller: P('klein', ['tl', 0], ['tl', 0]), tijdweer: P('knop', ['tr', 0], ['tr', 0]), systeem: P('menu', ['tr', 1], ['tr', 1]), modus: P('knop', ['tr', 1], ['tr', 1]),
+      categorie: P('iconen', ['ml', 1], ['ml', 0]), catalogus: P('rij', ['bc', 1], ['bc', 0]), hotbar: P('hex', ['bc', 0], ['bc', 0]), opties: P('rond', ['bl', 0], ['bl', 0]), weergave: P('klein', ['bl', 0], ['bl', 0]), handen: P('iconen', ['bc', 0], ['bc', 1]),
+      lagen: P('kolom', ['mr', 0], ['mr', 0]), vizier: P('kruis', ['c', 0], ['c', 1]), wiel: P('open', ['c', 0], ['c', 0]), minikaart: P('vierkant', ['br', 0], ['br', 0]), hint: P('knop', ['br', 0], ['br', 0]), touch: P('rond', ['bl', 0], ['bl', 0]) } },
+    wiel: { naam: 'Bouwwiel', uitleg: 'Planet Coaster op de console: houd een knop vast en kies een categorie in een wiel', c: {
+      stad: P('compact', ['tl', 1], ['tl', 1]), teller: P('klein', ['tl', 0], ['tl', 0]), tijdweer: P('knop', ['tr', 1], ['tr', 1]), systeem: P('menu', ['tr', 1], ['tr', 1]), modus: P('schakel', ['tc', 1], ['tc', 1]),
+      wiel: P('open', ['c', 1], ['c', 1]), hotbar: P('vierkant', ['bc', 1], ['bc', 1]), catalogus: P('rij', ['bc', 0], ['bc', 0]), categorie: P('tabs', ['bc', 0], ['bc', 0]), opties: P('rond', ['br', 1], ['br', 1]), handen: P('iconen', ['bl', 0], ['bl', 1]),
+      weergave: P('klein', ['bl', 0], ['bl', 0]), lagen: P('kolom', ['mr', 1], ['mr', 1]), vizier: P('kruis', ['c', 0], ['c', 1]), minikaart: P('vierkant', ['br', 0], ['br', 0]), hint: P('regel', ['bl', 0], ['bl', 0]), touch: P('rond', ['bl', 0], ['bl', 0]) } },
+    voorstel: { naam: 'Voorstel voor Hexstad', uitleg: 'Alles voor je handen onderaan, op dezelfde plek bij bouwen en lopen; lagen aan de rechterkant', c: {
+      stad: P('compact', ['tl', 1], ['tl', 1]), teller: P('klein', ['tl', 1], ['tl', 1]), tijdweer: P('knop', ['tr', 1], ['tr', 1]), systeem: P('knoppen', ['tr', 1], ['tr', 1]), modus: P('schakel', ['br', 1], ['br', 1]),
+      hotbar: P('hex', ['bc', 1], ['bc', 1]), catalogus: P('knop', ['bc', 1], ['bc', 1]), categorie: P('iconen', ['ml', 0], ['ml', 0]), opties: P('rond', ['bl', 1], ['bl', 1]), handen: P('iconen', ['bl', 0], ['bl', 1]),
+      lagen: P('kolom', ['mr', 1], ['mr', 1]), weergave: P('klein', ['tl', 0], ['tl', 0]), vizier: P('kruis', ['c', 0], ['c', 1]), wiel: P('open', ['c', 0], ['c', 0]), minikaart: P('vierkant', ['tr', 0], ['tr', 0]), hint: P('regel', ['tc', 0], ['tc', 0]), touch: P('rond', ['bl', 0], ['bl', 0]) } },
+  };
+  const DEV = { laptop: [1280, 800], tablet: [1180, 820], liggend: [844, 390], staand: [390, 844] };
+
+  // ---------- staat ----------
+  const st = { mode: 'bouwen', dev: 'laptop', preset: 'nu', sel: null, link: true, c: {}, order: { bouwen: [], lopen: [] } };
+  const key = m => m === 'bouwen' ? 'b' : 'l';
+  function load(presetId, data) {
+    st.preset = presetId || null;
+    const src = data || PRESETS[presetId].c;
+    st.c = JSON.parse(JSON.stringify(src));
+    for (const id in COMPS) if (!st.c[id]) st.c[id] = P(Object.keys(COMPS[id].v)[0], ['bc', 0], ['bc', 0]);
+    st.order = data && data.__order ? JSON.parse(JSON.stringify(data.__order)) : { bouwen: Object.keys(st.c), lopen: Object.keys(st.c) };
+    delete st.c.__order;
+    for (const m of ['bouwen', 'lopen']) for (const id in COMPS) if (!st.order[m].includes(id)) st.order[m].push(id);
+    paint();
+  }
+  const snapshot = () => Object.assign(JSON.parse(JSON.stringify(st.c)), { __order: st.order });
+  try { const s = JSON.parse(localStorage.getItem('hexlab.state') || 'null'); if (s) { st.dev = s.dev || st.dev; } } catch (e) { /* geen opslag */ }
+
+  // ---------- scherm ----------
+  const screen = document.getElementById('screen'), fit = document.getElementById('fit');
+  function paintScreen() {
+    const [W, H] = DEV[st.dev], walk = st.mode === 'lopen';
+    screen.style.width = W + 'px'; screen.style.height = H + 'px';
+    screen.style.backgroundImage = `url(${walk ? 'lopen.jpg' : 'bouwen.jpg'})`;
+    screen.classList.toggle('walk', walk);
+    const zones = {}; let html = '';
+    for (const z in ZONES) zones[z] = [];
+    for (const id of st.order[st.mode]) { const C = st.c[id], p = C[key(st.mode)]; if (!p[1]) continue; zones[p[0]].push(id); }
+    for (const z in ZONES) {
+      html += `<div class="zone z-${z}">` + zones[z].map(id => `<div class="m ${st.sel === id ? 'picked' : ''}" data-id="${id}"><span class="tag">${COMPS[id].naam}</span>${render(id, st.c[id].v, st.mode)}</div>`).join('') + '</div>';
+    }
+    const dz = { tl: [0, 0], tc: [1, 0], tr: [2, 0], ml: [0, 1], c: [1, 1], mr: [2, 1], bl: [0, 2], bc: [1, 2], br: [2, 2] };
+    for (const z in dz) html += `<div class="drop" data-zone="${z}" style="left:${dz[z][0] * 33.333}%;top:${dz[z][1] * 33.333}%;width:33.333%;height:33.333%">${ZONES[z]}</div>`;
+    screen.innerHTML = html;
+    scale();
+    requestAnimationFrame(meters);
+  }
+  function scale() {
+    const [W, H] = DEV[st.dev], r = fit.getBoundingClientRect(), s = Math.min((r.width - 8) / W, (Math.max(r.height, 240) - 8) / H, 1.2);
+    screen.style.transform = `translate(-50%, -50%) scale(${s})`;
+    screen.dataset.s = s;
+    if (window.innerWidth <= 900) fit.style.height = Math.ceil(H * s + 12) + 'px';
+  }
+  new ResizeObserver(scale).observe(fit);
+
+  // ---------- meters: zelfde plek in beide modi, bedekt beeld ----------
+  function meters() {
+    let both = 0, same = 0;
+    for (const id in st.c) { const C = st.c[id]; if (C.b[1] && C.l[1] && id !== 'vizier') { both++; if (C.b[0] === C.l[0]) same++; } }
+    const cons = both ? Math.round(same / both * 100) : 100;
+    const s = +screen.dataset.s || 1, sr = screen.getBoundingClientRect(); let area = 0;
+    screen.querySelectorAll('.m').forEach(m => { if (m.dataset.id === 'vizier') return; const r = m.getBoundingClientRect(); area += r.width * r.height; });
+    const cover = Math.round(area / (sr.width * sr.height) * 100);
+    document.getElementById('meters').innerHTML = `
+      <div class="meter ${cons >= 85 ? 'good' : cons < 60 ? 'warn' : ''}"><b>${cons}%</b><span>van de onderdelen die je bij bouwen én lopen ziet, staat op dezelfde plek</span></div>
+      <div class="meter ${cover <= 12 ? 'good' : cover > 22 ? 'warn' : ''}"><b>${cover}%</b><span>van het beeld (${st.mode}) is bedekt door bediening</span></div>`;
+    void s;
+  }
+
+  // ---------- werkbank ----------
+  const presetsEl = document.getElementById('presets'), compsEl = document.getElementById('comps');
+  function paintBench() {
+    presetsEl.innerHTML = Object.entries(PRESETS).map(([k, p]) => `<button type="button" class="preset" data-preset="${k}" aria-pressed="${st.preset === k}"><b>${p.naam}</b><span>${p.uitleg}</span></button>`).join('');
+    const ord = st.order[st.mode];
+    compsEl.innerHTML = Object.keys(COMPS).map(id => {
+      const C = st.c[id], D = COMPS[id], p = C[key(st.mode)];
+      const zsel = `<select data-act="zone" aria-label="Plek bij ${st.mode}">${Object.entries(ZONES).map(([z, n]) => `<option value="${z}" ${p[0] === z ? 'selected' : ''}>${n}</option>`).join('')}</select>`;
+      const vsel = Object.keys(D.v).length > 1 ? `<select data-act="variant" aria-label="Vorm">${Object.entries(D.v).map(([v, n]) => `<option value="${v}" ${C.v === v ? 'selected' : ''}>${n}</option>`).join('')}</select>` : '';
+      return `<div class="comp ${st.sel === id ? 'sel' : ''}" data-id="${id}">
+        <div class="nm">${D.naam}<small>${D.uitleg} · ${ZONES[p[0]].toLowerCase()}</small></div>
+        <div class="vis"><button type="button" data-act="b" aria-pressed="${!!C.b[1]}" aria-label="Zichtbaar bij bouwen">B</button><button type="button" data-act="l" aria-pressed="${!!C.l[1]}" aria-label="Zichtbaar bij lopen">L</button></div>
+        <div class="ctl">${zsel}${vsel}<button type="button" class="small-btn" data-act="up" aria-label="Eerder in de zone">↑</button><button type="button" class="small-btn" data-act="down" aria-label="Later in de zone">↓</button><label class="check"><input type="checkbox" data-act="link" ${st.link ? 'checked' : ''}> ook bij ${st.mode === 'bouwen' ? 'lopen' : 'bouwen'}</label></div>
+      </div>`;
+    }).join('');
+    void ord;
+  }
+  function paint() { paintScreen(); paintBench(); try { localStorage.setItem('hexlab.state', JSON.stringify({ dev: st.dev })); } catch (e) { /* geen opslag */ } }
+  function changed() { st.preset = null; paint(); }
+  function setZone(id, z) {
+    const C = st.c[id], k = key(st.mode), o = k === 'b' ? 'l' : 'b';
+    C[k][0] = z; C[k][1] = 1; if (st.link) C[o][0] = z;
+    for (const m of st.link ? ['bouwen', 'lopen'] : [st.mode]) { const a = st.order[m]; a.splice(a.indexOf(id), 1); a.push(id); }
+  }
+
+  presetsEl.addEventListener('click', e => { const b = e.target.closest('[data-preset]'); if (b) { st.sel = null; load(b.dataset.preset); toast(PRESETS[b.dataset.preset].naam); } });
+  compsEl.addEventListener('click', e => {
+    const row = e.target.closest('.comp'); if (!row) return; const id = row.dataset.id, act = e.target.closest('[data-act]')?.dataset.act;
+    if (act === 'b' || act === 'l') { st.c[id][act][1] = st.c[id][act][1] ? 0 : 1; changed(); return; }
+    if (act === 'up' || act === 'down') { const a = st.order[st.mode], i = a.indexOf(id), z = st.c[id][key(st.mode)][0]; const same = a.filter(x => st.c[x][key(st.mode)][0] === z && st.c[x][key(st.mode)][1]); const j = same.indexOf(id), t = same[act === 'up' ? j - 1 : j + 1]; if (t) { const ti = a.indexOf(t); a[i] = t; a[ti] = id; } changed(); return; }
+    if (act) return;
+    st.sel = st.sel === id ? null : id; paint();
+  });
+  compsEl.addEventListener('change', e => {
+    const row = e.target.closest('.comp'); if (!row) return; const id = row.dataset.id, act = e.target.dataset.act;
+    if (act === 'zone') { setZone(id, e.target.value); changed(); }
+    if (act === 'variant') { st.c[id].v = e.target.value; changed(); }
+    if (act === 'link') { st.link = e.target.checked; paintBench(); }
+  });
+  document.getElementById('modeSeg').addEventListener('click', e => { const b = e.target.closest('[data-mode]'); if (!b) return; st.mode = b.dataset.mode; document.querySelectorAll('#modeSeg button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); paint(); });
+  document.getElementById('devSeg').addEventListener('click', e => { const b = e.target.closest('[data-dev]'); if (!b) return; st.dev = b.dataset.dev; paint(); });
+  function syncDev() { document.querySelectorAll('#devSeg button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.dev === st.dev))); }
+  const arrangeChk = document.getElementById('arrangeChk');
+  arrangeChk.addEventListener('change', () => screen.classList.toggle('arrange', arrangeChk.checked));
+  document.querySelector('.tabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (!b) return; document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', String(x === b))); document.querySelectorAll('[data-pane]').forEach(p => { p.hidden = p.dataset.pane !== b.dataset.tab; }); });
+
+  // ---------- slepen op het scherm ----------
+  let drag = null;
+  screen.addEventListener('pointerdown', e => {
+    const m = e.target.closest('.m'); if (!m || !arrangeChk.checked) return;
+    e.preventDefault(); drag = { id: m.dataset.id, x: e.clientX, y: e.clientY, moved: false }; screen.setPointerCapture(e.pointerId);
+  });
+  screen.addEventListener('pointermove', e => {
+    if (!drag) return;
+    if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 6) { drag.moved = true; screen.classList.add('dragging'); }
+    if (!drag.moved) return;
+    screen.querySelectorAll('.drop').forEach(d => { const r = d.getBoundingClientRect(); d.classList.toggle('hot', e.clientX >= r.left && e.clientX < r.right && e.clientY >= r.top && e.clientY < r.bottom); });
+  });
+  const endDrag = e => {
+    if (!drag) return; const d = drag; drag = null; screen.classList.remove('dragging');
+    if (!d.moved) { st.sel = st.sel === d.id ? null : d.id; paint(); const row = compsEl.querySelector(`[data-id="${d.id}"]`); if (row && st.sel) row.scrollIntoView({ block: 'nearest' }); return; }
+    const hot = screen.querySelector('.drop.hot'); if (hot) { setZone(d.id, hot.dataset.zone); st.sel = d.id; changed(); toast(`${COMPS[d.id].naam}: ${ZONES[hot.dataset.zone].toLowerCase()}${st.link ? ' (beide modi)' : ''}`); }
+  };
+  screen.addEventListener('pointerup', endDrag); screen.addEventListener('pointercancel', () => { drag = null; screen.classList.remove('dragging'); });
+
+  // ---------- opslaan: gedeelde database, zodat Claude het ontwerp kan uitlezen ----------
+  let db = null;
+  const savedEl = document.getElementById('saved'), saveNote = document.getElementById('saveNote');
+  function design() { return { naam: document.getElementById('dName').value.trim() || 'Naamloos ontwerp', notities: document.getElementById('dNotes').value.trim(), scherm: st.dev, basis: st.preset || 'eigen', layout: snapshot(), bijgewerkt: new Date().toISOString() }; }
+  document.getElementById('saveBtn').addEventListener('click', async () => {
+    const d = design();
+    if (!db) { saveNote.textContent = 'Opslaan lukt hier niet (niet aangemeld of geen toegang). Gebruik "Kopieer als JSON" en plak het in de chat.'; return; }
+    try { await db.collection('ontwerpen').add(d); saveNote.textContent = `"${d.naam}" is opgeslagen. Zeg in de chat dat het klaar is, dan lees ik het uit.`; toast('Opgeslagen'); }
+    catch (err) { saveNote.textContent = 'Opslaan mislukte: ' + (err && err.message ? err.message : 'onbekende fout') + '. Gebruik "Kopieer als JSON".'; }
+  });
+  document.getElementById('copyBtn').addEventListener('click', () => {
+    const txt = JSON.stringify(design(), null, 1);
+    navigator.clipboard.writeText(txt).then(() => toast('Gekopieerd')).catch(() => { const t = document.getElementById('dNotes'); t.value = txt; t.select(); saveNote.textContent = 'Kopiëren mocht niet; de JSON staat nu in het notitieveld, geselecteerd.'; });
+  });
+  function paintSaved(docs) {
+    if (!docs.length) { savedEl.innerHTML = '<p class="note">Nog geen ontwerpen opgeslagen. Je eerste ontwerp verschijnt hier.</p>'; return; }
+    savedEl.innerHTML = '';
+    for (const d of docs) {
+      const v = d.data() || {}, it = document.createElement('div'); it.className = 'it';
+      const when = v.bijgewerkt ? new Date(v.bijgewerkt).toLocaleString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+      const b = document.createElement('b'); b.textContent = v.naam || 'Naamloos';
+      const sm = document.createElement('small'); sm.textContent = when;
+      const open = document.createElement('button'); open.type = 'button'; open.className = 'small-btn'; open.textContent = 'Openen';
+      open.addEventListener('click', () => { if (v.layout) { st.dev = v.scherm || st.dev; load(null, v.layout); syncDev(); document.getElementById('dName').value = v.naam || ''; document.getElementById('dNotes').value = v.notities || ''; toast(v.naam || 'Geopend'); } });
+      const del = document.createElement('button'); del.type = 'button'; del.className = 'small-btn'; del.textContent = 'Verwijder';
+      del.addEventListener('click', async () => { if (del.dataset.sure) { try { await db.collection('ontwerpen').doc(d.id).delete(); } catch (e) { toast('Verwijderen mocht niet'); } } else { del.dataset.sure = '1'; del.textContent = 'Zeker?'; setTimeout(() => { del.textContent = 'Verwijder'; delete del.dataset.sure; }, 2500); } });
+      it.append(b, sm, open, del); savedEl.appendChild(it);
+    }
+  }
+  if (window.claude && window.claude.use) window.claude.use('db').then(d => {
+    db = d;
+    if (!db) { savedEl.innerHTML = '<p class="note">Opgeslagen ontwerpen zijn hier niet beschikbaar. "Kopieer als JSON" werkt wel.</p>'; return; }
+    db.collection('ontwerpen').orderBy('bijgewerkt', 'desc').limit(50).onSnapshot(s => paintSaved(s.docs), () => { savedEl.innerHTML = '<p class="note">De lijst kon niet laden.</p>'; });
+  });
+
+  // ---------- melding ----------
+  const toastEl = document.getElementById('toast'); let tt = 0;
+  function toast(t) { toastEl.textContent = t; toastEl.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => toastEl.classList.remove('show'), 1600); }
+
+  syncDev(); load('nu');
+  document.getElementById('devSeg').addEventListener('click', syncDev);
+})();
+</script>
