@@ -97,7 +97,7 @@
     { const seen = new Set();
       for (const n0 of nodes.values()) {
         if (seen.has(n0.key)) continue; const comp = [n0]; seen.add(n0.key); let exit = false;
-        for (let i = 0; i < comp.length; i++) { const n = comp[i]; if (n.kind.b !== 'mod' && n.kind.b !== 'mdoor') exit = true; for (const e of n.edges.values()) if (!seen.has(e.to.key)) { seen.add(e.to.key); comp.push(e.to); } }
+        for (let i = 0; i < comp.length; i++) { const n = comp[i]; if (n.kind.b !== 'mod') exit = true;   /* een ingang naar buiten telt ook zonder getekende straat */ for (const e of n.edges.values()) if (!seen.has(e.to.key)) { seen.add(e.to.key); comp.push(e.to); } }
         if (!exit) for (const n of comp) n.dead = true;
       } }
     return nodes;

@@ -42,11 +42,11 @@
       for (let li = 0; li < m.lv.length; li++) {
         const roofLayer = li >= fl;   // een plat dak is beloopbaar waar niets op staat (dakterras, passage over de daken)
         const L = m.lv[li], lvW = (I.lv || 0) + li, y = base + li * LH + 0.02, tris = [], stairs = [];
-        for (const id in L.f) { const [i, j, t] = id.split(',').map(Number), v = mv2TriVerts(i, j, t, ts), cx = (v[0][0] + v[1][0] + v[2][0]) / 3, cz = (v[0][1] + v[1][1] + v[2][1]) / 3; if (!mv2InArea(m, cx, cz)) continue; if (roofLayer && mask) { const Wc = tf(cx, cz), c = mask(Wc[0], Wc[1]); if (c === 2 || (c === 1 && L.f[id] === 'glass')) continue; } const W = v.map(p => tf(p[0], p[1])); tris.push(W); }
+        for (const id in L.f) { const [i, j, t] = id.split(',').map(Number), v = mv2TriVerts(i, j, t, ts), cx = (v[0][0] + v[1][0] + v[2][0]) / 3, cz = (v[0][1] + v[1][1] + v[2][1]) / 3; if (!mv2InArea(m, cx, cz)) continue; if (roofLayer && mask) { const Wc = tf(cx, cz), c = mask(Wc[0], Wc[1]); if (c === 2) continue; } const W = v.map(p => tf(p[0], p[1])); tris.push(W); }
         if (roofLayer && !tris.length) continue;
         for (const id in L.w) { const Wd = L.w[id]; if (!Wd) continue; const [i, j, d] = id.split(',').map(Number), D = MV2.DIRW[d]; if (!D) continue; const a = mv2P(i, j, ts), b = mv2P(i + D[0], j + D[1], ts); if (!mv2NearArea(m, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2)) continue; const A = tf(a[0], a[1]), B = tf(b[0], b[1]); addWallIdx(lvW, { a: A, b: B, pass: PASS.has(Wd.o || ''), mid: [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2], o: Wd.o || '', outer: true }); }
         for (const S of L.s || []) {
-          if (S.k === 'hexramp') { const c = mv2CellXZ(S.q || 0, S.r || 0), f = FRAMES[(S.side || 0) % 6], ex = -f.nx, ez = -f.nz; const lo = tf(c[0] - ex * (INNER - 1.2), c[1] - ez * (INNER - 1.2)), hi = tf(c[0] + ex * (INNER - 1.2), c[1] + ez * (INNER - 1.2)); stairs.push({ lo, hi, q: S.q || 0, r: S.r || 0, ramp: true, side: (S.side || 0) % 6 }); continue; }
+          if (S.k === 'hexramp') { const c = mv2CellXZ(S.q || 0, S.r || 0), f = FRAMES[(S.side || 0) % 6], ex = -f.nx, ez = -f.nz; const lo = tf(c[0] - ex * (INNER - 1.2), c[1] - ez * (INNER - 1.2)), hi = tf(c[0] + ex * (INNER - 1.2), c[1] + ez * (INNER - 1.2)); stairs.push({ lo, hi, q: S.q || 0, r: S.r || 0, ramp: true, side: ((S.side || 0) + (I.rot || 0)) % 6 }); continue; }   // zijde in de wereld: plus de draaiing
           const D = MV2.DIR6[S.d] || MV2.DIR6[0], a = mv2P(S.a[0], S.a[1], ts), len = (S.n || 2) * ts, w = S.w || 1.2, dx = D[0] * ts * SQ3 / 2, dz = D[0] * ts / 2 + D[1] * ts, dl = Math.hypot(dx, dz) || 1, ux = dx / dl, uz = dz / dl, nx = -uz, nz = ux, off = S.off || 0;
           const at = (al, lat) => [a[0] + ux * al + nx * (lat + off), a[1] + uz * al + nz * (lat + off)];
           const lo = at(-0.6, 0), hi = S.k === 'u' ? at(-0.6, (S.side || 1) * w) : at(len + 0.6, 0);
@@ -101,7 +101,7 @@
       conn(lo, hi, null, true);
       if (S.ramp) {   // schans: onderaan hoort bij de buur over de instapzijde (op het vak zelf is geen vloer), bovenaan bij de buur over de uitstapzijde
         const c = cellToWorld(lq, lr), f = FRAMES[S.side], NB0 = byCell.get(Ly.lvW + '|' + (lq + NEIGH[S.side][0]) + ',' + (lr + NEIGH[S.side][1])), NB1 = byCell.get(up + '|' + (lq + NEIGH[(S.side + 3) % 6][0]) + ',' + (lr + NEIGH[(S.side + 3) % 6][1])); void c; void f;
-        const A = NB0 && NB0[(S.side + 3) % 6], B = NB1 && NB1[S.side]; if (A) { const v = route(Ly.lvW, [lo.x, lo.z], [A.x, A.z]); if (v) conn(lo, A, v, false); } if (B) { const v = route(up, [hi.x, hi.z], [B.x, B.z]); if (v) conn(hi, B, v, false); }
+        const A = NB0 && NB0[(S.side + 3) % 6], B = NB1 && NB1[S.side]; if (A) { const v = passage(Ly.lvW, [lo.x, lo.z], [A.x, A.z]); if (v) conn(lo, A, v, false); } if (B) { const v = passage(up, [hi.x, hi.z], [B.x, B.z]); if (v) conn(hi, B, v, false); }   // de helling zelf is geen vloer: alleen muren controleren
         const H0 = nodes.get(lk(lq + NEIGH[S.side][0], lr + NEIGH[S.side][1], Ly.lvW * LH)); if (!A && H0) conn(lo, H0, null, false);   // oude bouwblokken naast de schans
         if (!A && !H0 && Ly.lvW === 0) { const f2 = FRAMES[S.side], ent = mk('mde' + si, lo.x, lo.z, Ly.y, { b: 'mdoor', d: S.side, outside: [lo.x + f2.nx * 2.6, lo.z + f2.nz * 2.6] }); conn(ent, lo, null, false); }   // instap vanaf de straat
         continue;

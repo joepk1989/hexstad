@@ -88,7 +88,7 @@ Wissel je naar lopen, dan val je uit de lucht (16 m) op de plek waar het midden 
 
 Het loopnetwerk van de voetgangers (`buildWalkGraph` in `10`) krijgt uit `08f` knopen voor elke module: per exemplaar, per verdieping en per vak zes knopen, één per zijde (sector), op het zwaartepunt van de vloer in die sector. Op een galerij loopt iemand zo netjes rondom, door een winkel langs de muren. Twee knopen zijn verbonden als de rechte lijn ertussen geen muur kruist, of alleen muren met een deur, poort of open doorgang; dan loopt het pad door het midden van die opening (`route`). Hek en haag tellen als muur. Er moet overal vloer onder het pad liggen (geen vide, trapgat of weggehaalde lichtkap). Trappen, hellingen en de schans verbinden de verdiepingen; een plat dak waar niets op staat is beloopbaar (dakterras, passage over de daken). Een opening in de buitenrand op de begane grond is een ingang (`mdoor`), die net als een voordeur aan de dichtstbijzijnde stoep wordt gekoppeld (ook midden op een lang recht stuk straat). Langwerpige voorwerpen (stelling, toonbank, bank, fietsenrek) botsen als een lijnstuk langs hun lengte, niet als een grote cirkel die een deur dichtzet. Stukken netwerk waar je niet uit kunt (een winkel zonder deur naar buiten) tellen niet mee als startplek. Winkels trekken bezoekers: per winkelmodule komen er mensen bij.
 
-De modules in de familie Winkelcentrum hebben daarom twee achterdeuren tegenover de voorkant (die bij rug-aan-rug winkels op elkaar vallen), het dakpaviljoen een open terras aan de voorkant, en de doorgang open kiosken naar de buren. In het voorbeeld-winkelcentrum zijn de winkels zo gedraaid dat zoveel mogelijk vakken vanaf de straat bereikbaar zijn (voorkant naar een gang, galerij of dek), op de begane grond zijn ingesloten blokken om de andere rij een doorgang, en elf galerijen met trap verbinden de lagen.
+De modules in de familie Winkelcentrum hebben daarom twee achterdeuren tegenover de voorkant (die bij rug-aan-rug winkels op elkaar vallen), het dakpaviljoen een open terras aan de voorkant, en de doorgang open kiosken naar de buren. In het voorbeeld-winkelcentrum lopen voetgangers van de straat de opritten op, door de tunnels de entreehal in en via de trappen naar de straat op de tweede verdieping. De dichte kern op de begane grond is (zoals in de schets) niet van buiten te bereiken.
 
 ## Winkelcentrum: de hex-modules uit de SketchUp-schets
 
@@ -104,9 +104,16 @@ De familie **Winkelcentrum** (categorie, `08e`) bouwt de tien bouwstenen uit `he
 | schans | `· oprit` | het hele vak is een helling naar de verdieping erboven (zie Schans in de maker) |
 | space | `· dakpaviljoen` | teruggezette opbouw van ¾ met een terras van 1,95 m rondom (hek, tafels) |
 | ring | `· galerij` | vloerring rond een vide met balustrade: zet hem op een winkel en je kijkt erin |
-| trapring | `· galerij · trap` | winkel beneden, galerij erboven, rechte trap in de band langs één zijde |
+| trapring | `· galerij · trap` (en `· gespiegeld`) | onderaan alleen de trap (de vloer is het dak eronder), erboven de galerijring; trap van 1,95 m in de band langs één zijde |
+| 2× trapzijde | `· trap · breed` | brede trap van 3,9 m langs de rand van het vak, met een bordes naar de galerij ernaast |
 
-De schansflanken (`schans_zijde`) staan tussen de vakken en zijn weggelaten. **Menu → Winkelcentrum (hex-modules)** laadt het hele winkelcentrum uit de schets: 129 modules in vier lagen (`MALL` in `08e`, uit de Collada-export gelezen), met op de begane grond winkels en twee opritten, op de eerste en derde verdieping een ring van blokken rond de diagonale passage met galerijen, trappen en teruggezette gevels, en op de tweede verdieping dakpaviljoens met terras. Waar de schets blokken liet zweven staat een open galerij als steun.
+De schansflanken (`schans_zijde`) staan tussen de vakken en zijn weggelaten. **Menu → Winkelcentrum (hex-modules)** laadt het winkelcentrum precies zoals getekend (`MALL` in `08e`, uit de Collada-export gelezen): elke bouwsteen op zijn eigen vak, laag en draaiing. Alleen de winkels zijn gedraaid (een zeshoekig blok ziet er rondom hetzelfde uit), zodat hun pui naar de hal, de straat op de tweede verdieping of naar buiten kijkt; blokken die de schets in een blok laat staan (`space` binnen een `variable`) vallen weg. De indeling:
+- **begane grond**: een dichte kern van winkels en een magazijn, met twee **opritten** aan de westkant;
+- **eerste verdieping**: de opritten komen via twee **tunnels** (doorgangen) uit in de **entreehal**, die diagonaal door het centrum loopt en open is naar de lucht; de halve en afgesneden blokken geven de hal zijn schuine wanden;
+- **trappen** naar de tweede verdieping: twee galerijen met trap (`trapring`, één gespiegeld) en een **brede trap** van 3,9 m tussen de twee halve blokken (de twee `trapzijde`-delen), met het bordes uit de schets naar de galerij van het buurvak;
+- **tweede verdieping**: een overdekte straat over de daken van de eerste verdieping, met dakpaviljoens (`space`) en een galerij rond een vide;
+- **derde verdieping**: een laag winkels als dak over die straat (in de schets dragen die op de buren; in het voorbeeld zweven ze daar dus).
+
 
 Nieuw in de module maker hiervoor:
 - **Schans (S)**: klik in een vak bij de zijde waar je onderaan instapt; het hele vak wordt een oprit die aan de overkant 3 m hoger uitkomt (`hexramp` in `mv2Build`: vlakke middenstrook van 9 m en twee gewrongen zijdriehoeken, dichte wanden eromheen).

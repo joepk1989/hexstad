@@ -135,7 +135,7 @@
       for (const id in L.f) {
         const [i, j, t] = id.split(',').map(Number), v = mv2TriVerts(i, j, t, ts), mat = L.f[id];
         if (!mv2InArea(m, (v[0][0] + v[1][0] + v[2][0]) / 3, (v[0][1] + v[1][1] + v[2][1]) / 3)) continue;
-        if (li === roofLi && mask) { const W = tf((v[0][0] + v[1][0] + v[2][0]) / 3, (v[0][1] + v[1][1] + v[2][1]) / 3), c = mask(W[0], W[1]); if (c === 2 || (c === 1 && mat === 'glass')) continue; }   // 2: onder een vloer erboven, 1: op een bebouwd vak
+        if (li === roofLi && mask) { const W = tf((v[0][0] + v[1][0] + v[2][0]) / 3, (v[0][1] + v[1][1] + v[2][1]) / 3), c = mask(W[0], W[1]); if (c === 2) continue; }   // 2: onder een vloer erboven, 1: op een bebouwd vak
         (byMat[mat] || (byMat[mat] = [])).push(v);
         for (const [p, q] of [[v[0], v[1]], [v[1], v[2]], [v[2], v[0]]]) { const k = eid(p, q); edgeCnt.set(k, (edgeCnt.get(k) || 0) + 1); }
         const top = lifted ? y0 + 0.02 : 0.05; pushWalk(v[0], v[1], v[2], top, top, top);
