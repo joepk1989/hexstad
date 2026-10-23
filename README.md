@@ -90,6 +90,10 @@ Het loopnetwerk van de voetgangers (`buildWalkGraph` in `10`) krijgt uit `08f` k
 
 De modules in de familie Winkelcentrum hebben daarom twee achterdeuren tegenover de voorkant (die bij rug-aan-rug winkels op elkaar vallen), het dakpaviljoen een open terras aan de voorkant, en de doorgang open kiosken naar de buren. In het voorbeeld-winkelcentrum lopen voetgangers van de straat de opritten op, door de tunnels de entreehal in en via de trappen naar de straat op de tweede verdieping. De dichte kern op de begane grond is (zoals in de schets) niet van buiten te bereiken.
 
+## De stad
+
+**Menu → Hexstad** laadt de ene voorbeeldstad met alles erin (`08g-hexstad-stad.js`, vast, geen toeval): een rotonde in het midden, zes wegen recht naar buiten (twee brede), een binnenring, de ringweg (laan met bomen, straal 270 m), een fietsring erbuiten en een snelweg langs de oostkant waar de weg met een viaduct overheen gaat. Binnen de binnenring het centrum met hoogbouw en pleinen; daaromheen zes buurten, één per taartpunt: het winkelcentrum (de SketchUp-schets, 120° gedraaid zodat hij langs de ring past) met parkeren en markt; de woonwijk met rijhuizen, villa's, een woonerf en een hofje; openbaar (school, bibliotheek, gemeentehuis, kerk, ziekenhuis, museum, station, stadsplein); park en water met een meer waar de weg als brug overheen gaat, voetpaden en een voetbrug; terrein met een dijk waar de weg overheen klimt en villa's en tuinen ernaast; werken met fabriek, hallen, parkeergarage en de oude bouwblokken (looppaden, tunnel, tribune, zuilen, hof). Modules uit de bibliotheek staan met de deur naar de dichtstbijzijnde straat (`toRoad`), een module van 7 vakken alleen waar al die vakken vrij zijn. De losse voorbeeldsteden (ringstad, dorpjes, blokkenstad …) zijn uit het menu; de code en `doAct('sample')` enzovoort bestaan nog voor de tests. De loopwereld voor de speler reikt tot 450 m van het midden.
+
 ## Bediening (v100)
 
 Ontworpen in het interfacelab (`lab/interface/`, voorbeeld "Voorstel voor Hexstad"): bij bouwen en lopen staat alles op dezelfde plek (`15d-bediening.js`, HTML in `index.html`, stijlen onderaan `style.css`).
@@ -113,9 +117,26 @@ Achter de tijdknop rechtsboven staat **Weer** met zeven knoppen: zon, bewolkt, r
 - **Geluid**: gesis en geruis van regen, wind bij storm en een beetje bij sneeuw, donder. Vogels zwijgen bij regen.
 - **Voetgangers**: bij regen steekt ruim de helft buiten een paraplu op, wie er geen heeft loopt sneller. Ze gaan liever naar binnen of onder een overkapping en blijven langer binnen. In de sneeuw lopen ze iets langzamer.
 
+## Bouwen: wegen klikken, wegen door bebouwing, voorbeeld, parken, daken
+
+- **Een weg met één klik**: met een wegtool op een vak klikken maakt een stukje weg. Eindigt er in een buurvak al zo'n weg, dan loopt die door tot dit vak; anders begint hier een weg van twee vakken in je kijkrichting (R draait). Klik vak voor vak om door te trekken (`vecClick` in `14`).
+- **Slepen door bebouwing**: een weg stopt niet meer bij een gebouw. Wat onder de verharding komt (gebouwen, blokken, modules) verdwijnt bij het loslaten; water, een uitgraving en het terrein blijven (brug, klim). Ctrl+Z zet het terug (`vecClearUnder`). Andersom niet: op een weg kun je niet bouwen.
+- **Voorbeeld**: bij een wegtool zie je de strook die een klik maakt, bij de rotonde de ring; bij het terrein doorzichtige plaatjes op de nieuwe hoogte onder het penseel (`terrPreview` in `14b`), bij de helling een lijn van A naar B.
+- **Parken**: klik met het park op een park voor een andere inrichting: bomen, bankjes met lantaarns, bloemperken, een vijver met riet, een speeltuin (`park1`…`park4`, zie `06`).
+- **Daken**: het schildak wordt op 2,5 m afgesneden (plat stuk bovenop, `ROOF_CUT` in `05`) en krijgt een schoorsteen aan de achterkant; de dakkapellen zijn ingekort.
+- **Terrein**: links ophogen, rechts afgraven (of andersom bij afgraven); egaliseren links naar de gemiddelde hoogte onder het penseel, rechts naar de hoogte van het startvak. Sneeuwvlekken zijn zeshoekjes (`wxHex` in de shader).
+
+## Mensen: low poly, groeten, praatjes, schrikken
+
+De mensen zijn low poly (weinig segmenten, platte vlakken) met meer gezicht: ogen met glimlichtjes, wenkbrauwen, wangen, mond; sommigen een bril of baard, en wie groet of kletst lacht. Wie elkaar tegemoet loopt zwaait soms even en kijkt de ander aan; af en toe blijven twee mensen staan voor een praatje (naar elkaar gedraaid, knikkend). Loop je er zelf langs, dan word je gegroet. Wordt iemand aangereden (of komt de Hulk langs), dan schrikken de omstanders: handen omhoog, even stilstaan, kijken (`social`, `startle` in `10`). Bij een aanrijding klinkt een vrouw hoger, een kind nog hoger en een oudere lager (`sound.grunt(…, who)`).
+
+## De Hulk
+
+Staat er een file (vijf of meer auto's die bij elkaar al een tijd stilstaan, `cars.jams()`), dan komt een reus van 4,5 m aangelopen (`11b-hulk.js`), tilt de auto's één voor één op en slingert ze weg (`cars.toss`: een boog door de lucht, tollend, de wielen blijven eraan; na de landing glijdt de auto nog even en begint ergens anders opnieuw). De omstanders schrikken, de file is opgelost, de Hulk loopt weer weg. Hooguit één keer per anderhalve minuut; `__hulk.summon()` roept hem voor een test.
+
 ## Ongelukjes en door iets heen lopen
 
-Linksboven, onder de naam van de stad, telt een knop de ongelukjes met voetgangers (aangereden door een auto, gevallen, omver gelopen door de speler, geraakt door een geplaatst blok) en hoe vaak iemand door een muur of voorwerp heen liep (`INC`, `incident` en `throughCheck` in `10`). Een klik toont de laatste gebeurtenissen; **toon** vliegt erheen en zet een rode ring op de plek. **Op nul** zet de tellers terug. Valt iemand omdat jij de vloer weghaalt of een andere stad laadt, dan telt dat niet als ongeluk.
+Linksboven, onder de naam van de stad, telt een knop de ongelukjes met voetgangers (aangereden door een auto, gevallen, omver gelopen door de speler, geraakt door een geplaatst blok) en hoe vaak iemand door een muur of voorwerp heen liep (`INC`, `incident` en `throughCheck` in `10`). Een klik toont de laatste gebeurtenissen; **toon** vliegt erheen en zet een rode ring op de plek. **Op nul** zet de tellers terug. Valt iemand omdat jij de vloer weghaalt of een andere stad laadt, dan telt dat niet als ongeluk. Tijdens het tekenen van een weg blijven de voetgangers gewoon staan (alleen wie zijn plek kwijt is, begint opnieuw); ze lopen een deur in zonder te krimpen; over een brugdek (getekende weg over water) kun je lopen; binnen is het licht gedempt; auto's kruipen of 'spoken' nooit meer dwars door rijdende auto's heen.
 
 Voetgangers lopen zelf niet meer door muren, inrichting of over de rand van een vloer: een stap die een muur op lichaamshoogte zou kruisen glijdt langs die muur (`wallStep`), en een stap de leegte in wordt niet gezet. Dat geldt ook voor duwen tussen mensen en uitwijken voor de speler. Wie een voordeur uitkomt, stapt eerst naar buiten en loopt zo nodig om de hoek van het eigen gebouw naar de stoep, niet dwars door de zijmuur. Loopt iemand toch klem (een paar seconden geen vooruitgang, of binnen een module heel lang onderweg naar dezelfde knoop), dan begint hij opnieuw bij de knoop waar hij heen ging. In het loopnetwerk ligt een hoekpunt om de kern van een galerij nooit op of tegen een dichte muur. Met `__INC.dbg = 1` (console) krijgt elke melding het gelopen spoor erbij; `__modDbg().whyBlocked` noemt nu ook de bron (module met naam en plek, blok, rand, weg) en `walkWalls(laag, x, z)` toont de muren zoals het loopnetwerk ze ziet.
 
