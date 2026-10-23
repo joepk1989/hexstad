@@ -20,7 +20,7 @@ async def main():
         for w in ['regen','sneeuw']:
             await pg.evaluate("(w)=>{window.__WX.snap(w, w==='regen'?1:0, w==='sneeuw'?1:0); const S=window.__SC(); S.orbit.target.set(0,3,-20); S.orbit.dist=45; S.orbit.phi=1.15; S.orbit.theta=2.2; S.applyOrbit();}", w); await pg.wait_for_timeout(2500)
             await pg.screenshot(path=f'weer_mall_{w}.png',timeout=300000)
-        sw=await pg.evaluate("()=>{const W=window.__WX; W.set('wissel'); const seen={}; for(let i=0;i<1500;i++){ W.update(0.5); seen[W.now]=(seen[W.now]||0)+1;} const d=W.debug(); W.set('zon'); return {seen, d}}")
+        sw=await pg.evaluate("()=>{const W=window.__WX; window.__DN.st.auto=true; window.__DN.st.speed=1; W.set('wissel'); const seen={}; for(let i=0;i<1500;i++){ W.update(0.5); seen[W.now]=(seen[W.now]||0)+1;} const d=W.debug(); W.set('zon'); return {seen, d}}")
         print('wisselend:', json.dumps(sw)[:400])
         await pg.evaluate("()=>{document.getElementById('menuBtn').click(); const b=[...document.querySelectorAll('#menuSheet button, .sheet button')].find(x=>/Instellingen/.test(x.textContent)); if(b) b.click()}"); await pg.wait_for_timeout(800)
         await pg.screenshot(path='weer_instellingen.png',timeout=300000)

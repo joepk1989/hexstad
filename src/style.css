@@ -516,3 +516,5 @@ body.coarse .keysbtn { display: none; }
 .seg-wx button { min-width: 34px; padding: 0 7px; display: inline-flex; align-items: center; justify-content: center; }
 .seg-wx svg { display: block; }
 #optWxName { font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--ink-dim); }
+.set-row.wide { flex-direction: column; align-items: stretch; gap: 8px; }
+.set-row.wide .seg { flex-wrap: wrap; justify-content: flex-start; }

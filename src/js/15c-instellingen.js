@@ -38,7 +38,7 @@
     setRows.innerHTML = '';
     for (const R0 of SET_ROWS) {
       if (R0.sub) { const p = document.createElement('p'); p.className = 'sheet-sub'; p.textContent = R0.sub; setRows.appendChild(p); continue; }
-      const row = document.createElement('div'); row.className = 'set-row';
+      const row = document.createElement('div'); row.className = 'set-row' + (R0.opts.length > 5 ? ' wide' : '');
       row.innerHTML = `<div class="set-name">${R0.name}${R0.note ? `<small>${R0.note}</small>` : ''}</div>`;
       const seg = document.createElement('div'); seg.className = 'seg'; seg.setAttribute('role', 'group'); seg.setAttribute('aria-label', R0.name);
       for (const [v, lbl] of R0.opts) {

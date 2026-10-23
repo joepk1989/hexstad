@@ -20,7 +20,7 @@
     const st = { mode: 'zon' };
     try { const v = JSON.parse(localStorage.getItem(KEY)); if (v && ORDER.includes(v.mode)) st.mode = v.mode; } catch (e) { /* geen opslag: zon */ }
     let cur = st.mode === 'wissel' ? 'bewolkt' : st.mode, switchIn = 90;
-    const now = Object.assign({}, TYPES[cur]);   // bij het opstarten meteen het bewaarde weer, zonder overgang
+    const FIELDS = ['cloud', 'fog', 'rain', 'snow', 'storm'], now = {}; for (const f of FIELDS) now[f] = TYPES[cur][f];   // bij het opstarten meteen het bewaarde weer, zonder overgang
     let wet = now.rain > 0 ? 1 : 0, cover = now.snow > 0 ? 1 : 0, applyT = 0, flashT = -1, bolt = 8, occT = 0, time = 0;
     const save = () => { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* mag niet */ } };
 
@@ -126,7 +126,7 @@
       if (st.mode === 'wissel' && sp > 0) { switchIn -= dt * sp; if (switchIn <= 0) { cur = pickNext(); switchIn = 70 + Math.random() * 130; ui(); } }
       const T = TYPES[cur], k = 1 - Math.exp(-dt / 6);
       let moved = 0;
-      for (const f of ['cloud', 'fog', 'rain', 'snow', 'storm']) { const d = (T[f] - now[f]) * k; now[f] += d; moved += Math.abs(d); }
+      for (const f of FIELDS) { const d = (T[f] - now[f]) * k; now[f] += d; moved += Math.abs(d); }
       // de straat wordt nat bij regen en droogt daarna op; sneeuw blijft liggen en smelt langzaam (sneller in de regen)
       const ff = Math.max(1, sp);
       if (now.rain > 0.15) wet = Math.min(1, wet + dt * now.rain / 12); else wet = Math.max(0, wet - dt * ff / 80);
@@ -203,7 +203,7 @@
       get mode() { return st.mode; }, get now() { return cur; },
       debug: () => ({ mode: st.mode, cur, now: Object.assign({}, now), wet, cover, occ: WXU.uWxOccOn.value }),
       // tests: meteen het eindbeeld, zonder overgang
-      snap(mode, w, c) { if (mode) set(mode); Object.assign(now, TYPES[cur]); if (w !== undefined) wet = w; if (c !== undefined) cover = c; step(0.001); DN.apply(); },
+      snap(mode, w, c) { if (mode) set(mode); for (const f of FIELDS) now[f] = TYPES[cur][f]; if (w !== undefined) wet = w; if (c !== undefined) cover = c; step(0.001); DN.apply(); },
     };
     window.__WX = api;
     return api;
