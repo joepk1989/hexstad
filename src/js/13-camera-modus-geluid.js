@@ -113,6 +113,7 @@
     : 'Klik om de muis te vangen · WASD lopen · Q: kijken, bouwen of hamer · 1–9 of scrollwiel: blok uit de snelbalk · Tab: alle blokken';
 
   function setMode(m) {
+    if (typeof vecChainEnd === 'function') vecChainEnd(true);
     mode = m;
     const walking = m === 'walk';
     document.body.classList.toggle('walk', walking);

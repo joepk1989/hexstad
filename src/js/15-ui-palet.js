@@ -123,7 +123,7 @@
   TOOLS.forEach((t) => {
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'tool'; b.id = 'tool-' + t;
-    b.title = t === 'gum' ? 'Gum: haalt de bovenste laag weg' : VEC_TOOLS.has(t) ? TYPES[t].name + ': sleep van vak naar vak; rechtermuisknop of gum haalt de hele weg weg' : TYPES[t].name;
+    b.title = t === 'gum' ? 'Gum: haalt de bovenste laag weg' : VEC_TOOLS.has(t) ? TYPES[t].name + ': klik een knooppunt en dan het volgende vak (of sleep); rechtermuisknop stopt, gum haalt de hele weg weg' : TYPES[t].name;
     b.innerHTML = `<span class="sw sw-${t}">${TERR_SVG[t] ? TERR_SVG[t] : t === 'gum' ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>' : ''}</span>${t === 'gum' ? 'Gum' : (TOOL_LABEL[t] || TYPES[t].name)}`;
     b.addEventListener('click', () => selectTool(t));
     (t === 'gum' ? palRow : toolScroll).appendChild(b); toolBtns[t] = b;
@@ -165,6 +165,7 @@
   function cycleTool(step) { hotStep(step); }   // scrollwiel: door de snelbalk (15d)
   let terrHintShown = false;
   function selectTool(t) {
+    if (t !== tool && typeof vecChainEnd === 'function') vecChainEnd(true);
     tool = t;
     if (TERR_TOOLS.has(t) && !terrHintShown) { terrHintShown = true; setTimeout(() => toast((coarse ? 'Vasthouden en slepen' : 'Ingedrukt houden en slepen') + ' om te boetseren · Shift: andersom · [ ] penseel', 3200), 50); }
     { let cw = true; try { cw = setState.contour; } catch (e) { /* instellingen nog niet geladen */ } terrU.uContour.value = TERR_TOOLS.has(t) && cw ? 1 : 0; } if (!TERR_TOOLS.has(t)) { brushRing.hide(); terrLbl.hidden = true; }
@@ -214,7 +215,7 @@
   todRange.addEventListener('input', () => { DN.set(+todRange.value); ui(); });
   todPanel.querySelectorAll('[data-tod]').forEach(b => b.addEventListener('click', () => { DN.set(+b.dataset.tod); ui(); }));
   todAutoBtn.addEventListener('click', () => { DN.st.auto = !DN.st.auto; DN.set(DN.st.tod); ui(); });
-  DN.apply(); ui(); window.__DN = DN; window.__mods = modules; window.__saveMods = () => { saveMods(); renderModCards(); }; window.__libStandard = libStandard; window.__match = matchingModules; window.__libInstall = libInstall; window.__modDbg = () => { let walls = 0, surfaces = 0; for (const L of modCols.values()) for (const c of L) { walls += c.walls.length; surfaces += c.surfaces.length; } return { walls, surfaces, floorAt, blockedAt, whyBlocked, mv2Build, mv2New, walkWalls: (lv, x, z) => (modWalkDbg.wallsNear ? modWalkDbg.wallsNear(lv, x, z) : []).filter(w => Math.hypot(w.mid[0] - x, w.mid[1] - z) < 1.5).map(w => ({ from: w.from || w.o, o: w.o, pass: w.pass, a: w.a.map(v => +v.toFixed(2)), b: w.b.map(v => +v.toFixed(2)) })) }; }; window.__SC = () => ({ roadTop, terrainHeightAt, terrGround, terrSet, terrFlush, gH, tChunks, tRoadSegs: () => tRoadSegs, pathProf, pathH, player, walkAction, pick, hand: () => hand, getCells: () => cells, cars, people, buildPathNet, openSchets, cover: () => [...vecCover], canPlace, place, scene, renderer, orbit, applyOrbit, camera, edgeMid: k => { const [q, r, kk] = k.split(',').map(Number), [a, b] = edgeEnds(q, r, kk), v = new THREE.Vector3((a[0] + b[0]) / 2, 0, (a[1] + b[1]) / 2).project(camera); return [(v.x + 1) / 2 * window.innerWidth, (1 - v.y) / 2 * window.innerHeight]; }, dbgPick: (x, y) => { const r = pick(x, y); return r && r.point ? { p: [r.point.x, r.point.z], ne: nearestExistingEdge(r.point.x, r.point.z, 4.5), n2: nearestEdge(r.point.x, r.point.z), tool } : r; }, doAct, setCells: (o, inst) => { cells = new Map(Object.entries(o)); if (inst) cells.inst = inst; rebuildAll(); }, rebuildAll, buildModNet });
+  DN.apply(); ui(); window.__DN = DN; window.__mods = modules; window.__saveMods = () => { saveMods(); renderModCards(); }; window.__libStandard = libStandard; window.__match = matchingModules; window.__libInstall = libInstall; window.__modDbg = () => { let walls = 0, surfaces = 0; for (const L of modCols.values()) for (const c of L) { walls += c.walls.length; surfaces += c.surfaces.length; } return { walls, surfaces, floorAt, blockedAt, whyBlocked, mv2Build, mv2New, walkWalls: (lv, x, z) => (modWalkDbg.wallsNear ? modWalkDbg.wallsNear(lv, x, z) : []).filter(w => Math.hypot(w.mid[0] - x, w.mid[1] - z) < 1.5).map(w => ({ from: w.from || w.o, o: w.o, pass: w.pass, a: w.a.map(v => +v.toFixed(2)), b: w.b.map(v => +v.toFixed(2)) })) }; }; window.__SC = () => ({ cellToWorld, worldToCell, roadTop, terrainHeightAt, terrGround, terrSet, terrFlush, gH, tChunks, tRoadSegs: () => tRoadSegs, pathProf, pathH, player, walkAction, pick, hand: () => hand, getCells: () => cells, cars, people, buildPathNet, openSchets, cover: () => [...vecCover], canPlace, place, scene, renderer, orbit, applyOrbit, camera, edgeMid: k => { const [q, r, kk] = k.split(',').map(Number), [a, b] = edgeEnds(q, r, kk), v = new THREE.Vector3((a[0] + b[0]) / 2, 0, (a[1] + b[1]) / 2).project(camera); return [(v.x + 1) / 2 * window.innerWidth, (1 - v.y) / 2 * window.innerHeight]; }, dbgPick: (x, y) => { const r = pick(x, y); return r && r.point ? { p: [r.point.x, r.point.z], ne: nearestExistingEdge(r.point.x, r.point.z, 4.5), n2: nearestEdge(r.point.x, r.point.z), tool } : r; }, doAct, setCells: (o, inst) => { cells = new Map(Object.entries(o)); if (inst) cells.inst = inst; rebuildAll(); }, rebuildAll, buildModNet });
 
   // ---------- Optiebalk onderaan: opties van het gekozen blok + spelinstellingen ----------
   const optGrid = document.getElementById('optGrid'), optPeople = document.getElementById('optPeople'), optCars = document.getElementById('optCars');
@@ -279,6 +280,7 @@
     doAct(act || 'cancel');
   });
   function doAct(act) {
+    vecChainEnd(true);
     if (act === 'adopt') {
       if (!adoptArmed && hasMine()) { adoptArmed = true; adoptBtn.textContent = 'Tik nog eens: je huidige eigen stad wordt vervangen'; return; }
       slot = 'mijn'; slotName = 'Mijn stad'; changed(); toast('Bewaard als mijn stad'); adoptArmed = false;

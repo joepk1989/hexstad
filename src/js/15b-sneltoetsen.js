@@ -40,7 +40,7 @@
   window.addEventListener('keydown', e => {
     if (busy(e)) return;
     if (e.key === '?' || (e.code === 'Slash' && e.shiftKey)) { toggleKeys(); e.preventDefault(); return; }
-    if (e.code === 'Escape') { if (!keysPanel.hidden) toggleKeys(false); const sh = document.getElementById('sheet'); if (sh && !sh.hidden) sh.hidden = true; return; }
+    if (e.code === 'Escape') { if (vecChain.on) { vecChainEnd(); return; } if (!keysPanel.hidden) toggleKeys(false); const sh = document.getElementById('sheet'); if (sh && !sh.hidden) sh.hidden = true; return; }
     if (e.code === 'Tab' && !e.ctrlKey && !e.altKey) { e.preventDefault(); toggleCatalog(); return; }
     if (e.code === 'KeyL') { document.getElementById('modeBtn').click(); if (!keysPanel.hidden) renderKeys(); return; }
     if (mode === 'walk') return;   // de rest is voor bouwen

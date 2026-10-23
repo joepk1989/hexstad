@@ -155,7 +155,7 @@
       rebuildMany(list); terrainChanged(list); changed(); toast((tool === 'heuvel' ? 'Verhoogd: ' : 'Verlaagd: ') + list.length + ' vakken', 900); return;
     }
     if (tool === 'vrot') return placeRot(q, r);
-    if (VEC_TOOLS.has(tool)) { toast('Sleep van vak naar vak om een ' + TYPES[tool].name.toLowerCase() + ' te trekken', 1600); return; }
+    if (VEC_TOOLS.has(tool)) return vecChainClick([q, r]);   // klikmodus: knooppunt, stuk weg, knooppunt … (14)
     if (tool === 'module') { const a = anchorOf(lastPickRes) || [q, r]; return placeModule(a[0], a[1], lastPickRes && lastPickRes.inst && !lastPickRes.side ? lastPickRes.lv : 0); }
     if (EDGE_TOOLS.has(tool)) return placeEdgeAt(lastPickRes);
     const T = toolBase(tool), wideTool = tool === 'fietspad';
@@ -269,6 +269,7 @@
   }
   // Rechtermuisknop: haalt de bovenste laag weg, welk blok er ook gekozen is
   function eraseAt(cx, cy) {
+    if (vecChain.on) { vecChainEnd(); return; }   // rechts klikken stopt de weg-klikmodus
     const res = pick(cx, cy);
     if (res && eraseModuleAt(res)) { updateGhost(cx, cy); return; }
     if (res && eraseEdgeAt(res)) { updateGhost(cx, cy); return; }
@@ -371,6 +372,7 @@
     if (VEC_TOOLS.has(tool) || tool === 'vrot') {   // voorbeeld: het stuk weg dat een klik hier maakt (of de rotonde)
       previewActive = false; ghost.visible = false; ghostEdges.visible = false;
       if (!res.place || roadDrag.on) { vecGhost.visible = false; return; }
+      if (vecChain.on && VEC_T[tool] === vecChain.t) { vecGhost.visible = false; vecChainHover(res.place); return; }
       if (tool === 'vrot') { const c = cellToWorld(res.place[0], res.place[1]); vecGhost.geometry = vecGhostRing; vecGhost.position.set(c.x, gH(res.place[0], res.place[1]) + 0.3, c.z); vecGhost.rotation.y = 0; vecGhost.scale.set(1, 1, 1); vecGhost.visible = true; return; }
       const { from, to } = vecClickPlan(res.place, VEC_T[tool]), dx = to[0] - from[0], dz = to[1] - from[1], len = Math.hypot(dx, dz) || 1, hw = PATH_DEF[VEC_T[tool]].hw;
       vecGhost.geometry = vecGhostBox; vecGhost.position.set((from[0] + to[0]) / 2, Math.max(gH(res.place[0], res.place[1]), terrainHeightAt((from[0] + to[0]) / 2, (from[1] + to[1]) / 2)) + 0.3, (from[1] + to[1]) / 2);
