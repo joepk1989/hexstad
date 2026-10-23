@@ -10,6 +10,7 @@
 <canvas id="scene" aria-label="3D-bouwplaats van Hexstad"></canvas>
 
 <header class="hud-top">
+  <div class="hud-left">
   <div class="brand">
     <span class="logo-hex" aria-hidden="true"></span>
     <div style="min-width:0">
@@ -18,16 +19,14 @@
     </div>
     <button class="score" id="scoreBtn" type="button" title="Schoonheid van je stad" aria-label="Schoonheid van je stad"><b id="scoreVal">–</b><small>schoonheid</small></button>
   </div>
+  <button class="btn incbtn" id="incBtn" type="button" title="Ongelukjes en voetgangers die ergens doorheen lopen · klik voor de lijst"></button>
+  </div>
   <div class="actions">
+    <button class="btn tod" id="todBtn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-label="Tijd van de dag" title="Tijd van de dag"><span id="todIcon" aria-hidden="true">☀</span><span id="todLbl">14:00</span></button>
     <button class="btn icon" id="soundBtn" type="button" aria-pressed="false" aria-label="Geluid aan of uit" title="Geluid">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path id="soundWaves" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" opacity="0.35"/></svg>
     </button>
-    <button class="btn tod" id="todBtn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-label="Tijd van de dag" title="Tijd van de dag"><span id="todIcon" aria-hidden="true">☀</span><span id="todLbl">14:00</span></button>
     <button class="btn" id="menuBtn" type="button">Menu</button>
-    <button class="btn primary" id="modeBtn" type="button">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13" cy="4" r="2"/><path d="M10 21l2-6 3 3v3M9 12l2-4 4 1 2 3M11 8l-2 4-3 1"/></svg>
-      <span id="modeLbl">Lopen</span>
-    </button>
   </div>
 </header>
 
@@ -40,51 +39,46 @@
     <button class="btn" type="button" data-tod="19.8">Avond</button>
     <button class="btn" type="button" data-tod="0.5">Nacht</button>
   </div>
-  <button class="btn" type="button" id="todAutoBtn" aria-pressed="true">Tijd loopt: aan</button>
-</div>
-
-<button class="btn reckless" id="recklessBtn" type="button" aria-pressed="false">Roekeloos rijgedrag</button>
-<button class="btn incbtn" id="incBtn" type="button" title="Ongelukjes en voetgangers die ergens doorheen lopen · klik voor de lijst"></button>
-<div class="incpanel" id="incPanel" hidden></div>
-
-<div class="optbar" id="optbar" role="toolbar" aria-label="Opties">
-  <div class="og" id="ogTool" hidden>
-    <span class="og-t" id="ogToolName">Blok</span>
-    <button class="chip" type="button" id="optRot">↻ Draai</button>
-    <button class="chip" type="button" id="optAutoDir" aria-pressed="false" title="Richting volgt je kijkrichting; tik om vast te zetten of weer los te laten">Richting: auto</button>
-  </div>
-  <div class="og">
-    <span class="og-t">Weergave</span>
-    <button class="chip" type="button" id="optGrid" aria-pressed="true">Raster</button>
-  </div>
-  <div class="og">
-    <span class="og-t">Tijd <b id="optClock">14:00</b></span>
+  <button class="btn" type="button" id="todAutoBtn" aria-pressed="true" hidden>Tijd loopt: aan</button>
+  <div class="tp-row"><span class="og-t">Snelheid</span>
     <div class="seg" id="optSpeed" role="group" aria-label="Tijdsnelheid">
-      <button type="button" data-sp="0" aria-label="Pauze" title="Pauze">⏸</button>
+      <button type="button" data-sp="0" aria-label="Pauze" title="Pauze (P)">⏸</button>
       <button type="button" data-sp="1" aria-label="Normaal" title="Normaal: een etmaal in 5 minuten">1×</button>
       <button type="button" data-sp="4" aria-label="Sneller" title="4× sneller">4×</button>
       <button type="button" data-sp="12" aria-label="Snelst" title="12× sneller">12×</button>
     </div>
   </div>
-  <div class="og">
-    <span class="og-t">Weer <b id="optWxName"></b></span>
-    <div class="seg seg-wx" id="optWx" role="group" aria-label="Weer"></div>
-  </div>
-  <div class="og">
-    <span class="og-t">Stad</span>
-    <button class="chip" type="button" id="optPeople" aria-pressed="true">Mensen</button>
-    <button class="chip" type="button" id="optCars" aria-pressed="true">Auto's</button>
-  </div>
+  <div class="tp-row"><span class="og-t">Weer <b id="optWxName"></b></span><div class="seg seg-wx" id="optWx" role="group" aria-label="Weer"></div></div>
+  <div class="tp-row"><span class="og-t">Beeld</span><div class="tp-chips"><button class="chip" type="button" id="optGrid" aria-pressed="true" title="Raster (G)">Raster</button><button class="chip" type="button" id="optPeople" aria-pressed="true">Mensen</button><button class="chip" type="button" id="optCars" aria-pressed="true">Auto's</button></div></div>
 </div>
 
-<nav class="palette" id="palette" aria-label="Bouwblokken"></nav>
+<button class="btn reckless" id="recklessBtn" type="button" aria-pressed="false">Roekeloos rijgedrag</button>
+<div class="incpanel" id="incPanel" hidden></div>
+
+<nav class="palette" id="palette" aria-label="Alle blokken" hidden></nav>
+
+<!-- Onderaan, bij bouwen en lopen op dezelfde plek: gereedschap links, snelbalk in het midden, bouwen/lopen rechts -->
+<div class="dockl" id="dockL">
+  <div class="hands" id="hands" role="radiogroup" aria-label="Wat doe je met je handen">
+    <button type="button" data-hand="kijken" aria-pressed="true" title="Kijken: alleen rondlopen (Q wisselt)" aria-label="Kijken"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+    <button type="button" data-hand="bouwen" aria-pressed="false" title="Bouwen: het gekozen blok neerzetten waar je naar kijkt" aria-label="Bouwen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 12V6a1.5 1.5 0 0 1 3 0v5M10 11V4.5a1.5 1.5 0 0 1 3 0V11M13 11V6a1.5 1.5 0 0 1 3 0v6M16 9a1.5 1.5 0 0 1 3 0v4a7 7 0 0 1-7 7h-1a6 6 0 0 1-5-3l-2.5-4a1.5 1.5 0 0 1 2.5-1.6L7 13"/></svg></button>
+    <button type="button" data-hand="hamer" aria-pressed="false" title="Hamer: slopen wat je aankijkt" aria-label="Hamer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4l6 6-3 3-6-6zM12 9l-8 8 3 3 8-8"/></svg></button>
+  </div>
+  <div class="rtools" id="rTools" role="toolbar" aria-label="Gereedschap"></div>
+</div>
+<div class="dockm" id="dockM">
+  <div class="hotname" id="hotName" aria-live="polite"></div>
+  <button class="catopen" id="catOpen" type="button" aria-expanded="false" aria-controls="palette" title="Alle blokken en modules (Tab)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/></svg>Alle blokken <kbd>Tab</kbd></button>
+  <div class="hotbar" id="hotbar" role="toolbar" aria-label="Snelbalk: blokken onder 1 tot 9"></div>
+</div>
+<button class="modeswitch" id="modeBtn" type="button" title="Wissel tussen bouwen en lopen (L)" aria-label="Wissel tussen bouwen en lopen">
+  <span class="ms ms-b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18M5 21V10l7-5 7 5v11M10 21v-6h4v6"/></svg>Bouwen</span>
+  <span class="ms ms-l"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13" cy="4" r="2"/><path d="M10 21l2-6 3 3v3M9 12l2-4 4 1 2 3M11 8l-2 4-3 1"/></svg>Lopen</span>
+  <span id="modeLbl" hidden>Lopen</span>
+</button>
+<div class="layerpick" id="layerPick" role="group" aria-label="Op welke laag bouw je"></div>
 
 <div id="walkUI" hidden>
-  <div class="hands" id="hands" role="radiogroup" aria-label="Wat doe je met je handen">
-    <button type="button" data-hand="kijken" aria-pressed="true" title="Alleen rondlopen en kijken (Q wisselt)">Kijken</button>
-    <button type="button" data-hand="bouwen" aria-pressed="false" title="Het gekozen blok neerzetten waar je naar kijkt">Bouwen</button>
-    <button type="button" data-hand="hamer" aria-pressed="false" title="Hamer: slopen wat je aankijkt">Hamer</button>
-  </div>
   <p class="walk-hint" id="walkHint"></p>
   <div class="joy" id="joy"><div class="knob" id="knob"></div></div>
   <button class="jump" id="jumpBtn" type="button">Spring</button>

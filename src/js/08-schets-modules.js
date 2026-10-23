@@ -57,6 +57,7 @@
   function placeModule(q0, r0, lv) {
     const mod = modules[moduleSel]; if (!mod) { openSchets(); return false; }
     ensureIds();
+    if (lv === undefined && mod.v === 2 && hudLayer() !== null) lv = hudLayer();   // laagkiezer (15d)
     if (lv === undefined) lv = mod.v === 2 && Number.isInteger(q0) && Number.isInteger(r0) && lastPickRes && lastPickRes.inst ? stackLvAt(q0, r0) : 0;
     if (lastPickRes && lastPickRes.inst && lastPickRes.side) { const i = cells.inst.indexOf(lastPickRes.inst); if (i >= 0 && swapInst(i)) return true; }   // op de gevel van een geplaatste module: wisselen
     const { n, skip } = placeCore(mod, moduleRot, q0, r0, lv);

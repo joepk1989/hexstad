@@ -39,6 +39,7 @@ Eerst bouwen: `node build.js` in de hoofdmap. Daarna, vanuit `test/`:
 | `python klim.py` | zelf de oprit en alle trappen op: vloerhoogte en botsing stap voor stap |
 | `python mall_mensen.py` | voetgangers door het winkelcentrum: knopen, ingangen aan de stoep, mensen per laag, geen valpartijen |
 | `python dbg_graph.py` / `dbg4.py` / `dbg8.py` | loopnetwerk: componenten per laag, trapknopen, valpartijen met plek |
+| `python bediening.py` | bediening v100: snelbalk, catalogus, ongedaan maken, lopen, laagkiezer op het winkelcentrum, telefoon (`out/bed_*.png`) |
 | `python weer.py [typen]` | elk weertype in de voorbeeldstad en het winkelcentrum (`out/weer_*.png`), shaderfouten, wisselend weer, instellingen |
 | `python weer_lopen.py` | regen tijdens het lopen: straat, hal, galerij, paraplu's |
 | `python teller.py [sec]` | ongelukjes-teller: winkelcentrum en voorbeeldstad laten lopen, tellers en laatste meldingen, knop en lijst (`out/teller.png`) |

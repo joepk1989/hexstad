@@ -77,7 +77,7 @@
       lodUpdate(mode === 'walk' ? player.x : orbit.target.x, mode === 'walk' ? player.z : orbit.target.z, chg);
     }
     DN.place(camera.position);
-    renderer.render(scene, camera);
+    hudRender();   // gewoon, of in twee keer met de laagkiezer (15d)
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

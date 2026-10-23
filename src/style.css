@@ -518,3 +518,126 @@ body.coarse .keysbtn { display: none; }
 #optWxName { font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--ink-dim); }
 .set-row.wide { flex-direction: column; align-items: stretch; gap: 8px; }
 .set-row.wide .seg { flex-wrap: wrap; justify-content: flex-start; }
+
+/* ---------- Bediening v100: bij bouwen en lopen op dezelfde plek (uit het interfacelab) ----------
+   Linksboven de stad en de teller, rechtsboven tijd/weer, geluid en menu. Onderaan links het gereedschap
+   (bij lopen met de handen erboven), in het midden de snelbalk 1–9 met "Alle blokken", rechts bouwen/lopen.
+   Aan de rechterrand de laagkiezer. De catalogus klapt boven de snelbalk open. */
+.hud-left { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; pointer-events: none; }
+.hud-left > * { pointer-events: auto; }
+.brand { padding: 6px 12px 6px 8px; }
+.brand h1 { font-size: 19px; }
+.logo-hex { width: 22px; height: 25px; }
+.incbtn, body.walk .incbtn { position: static; top: auto; height: 30px; font-size: 12px; padding: 0 11px; }
+.reckless { display: none; }
+.incpanel, body.walk .incpanel { top: calc(env(safe-area-inset-top, 0px) + 104px); }
+.keysbtn { display: none; }
+.keys { bottom: calc(env(safe-area-inset-bottom, 0px) + 160px); }
+.tod-wx { font-size: 15px; line-height: 1; }
+.tod-wx:empty { display: none; }
+.tp-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.tp-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.todpanel .seg-wx button { min-width: 32px; }
+
+/* catalogus: alle blokken en modules, boven de snelbalk */
+.palette, body.walk .palette {
+  top: auto; left: 50%; right: auto; transform: translateX(-50%);
+  width: min(920px, calc(100vw - 24px)); max-height: 52vh;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 134px);
+  padding: 8px 10px 10px; border: 1px solid var(--line); border-radius: 16px;
+  background: var(--panel-solid); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.42); z-index: 7;
+}
+body.walk.hand-kijken .palette:not([hidden]) { display: flex; }
+
+/* snelbalk */
+.dockm { position: fixed; z-index: 6; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
+.dockm > * { pointer-events: auto; }
+.hotbar { display: flex; gap: 3px; padding: 5px 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.hslot { --s: 54px; width: var(--s); height: calc(var(--s) * 0.9); position: relative; border: 0; padding: 0; cursor: pointer; display: grid; place-items: center;
+  background: rgba(238, 241, 236, 0.24); clip-path: polygon(25% 2%, 75% 2%, 100% 50%, 75% 98%, 25% 98%, 0 50%); }
+.hslot::before { content: ""; position: absolute; inset: 2px; clip-path: polygon(25% 2%, 75% 2%, 100% 50%, 75% 98%, 25% 98%, 0 50%); background: #1b232b; }
+.hslot:hover::before { background: #26303a; }
+.hslot[aria-pressed="true"] { background: var(--signal); }
+.hslot[aria-pressed="true"]::before { background: #3b3014; }
+.hslot .hx { position: relative; width: 32px; height: 32px; display: grid; place-items: center; margin-top: -4px; }
+.hslot .hx .sw { width: 28px; height: 30px; }
+.hslot .hx canvas { width: 36px; height: 36px; display: block; }
+.hslot em { position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); font: 700 9px var(--font-ui); font-style: normal; color: var(--ink-dim); }
+.hslot[aria-pressed="true"] em { color: var(--signal); }
+.hslot:focus-visible { outline: none; }
+.hslot:focus-visible::before { box-shadow: inset 0 0 0 2px var(--signal); }
+.hotname { font: 700 13px var(--font-ui); color: var(--ink); background: var(--panel-solid); border: 1px solid var(--line); padding: 4px 11px; border-radius: 999px; opacity: 0; transition: opacity 0.25s; pointer-events: none !important; white-space: nowrap; }
+.hotname.show { opacity: 1; }
+.catopen { order: 0; height: 32px; display: inline-flex; align-items: center; gap: 7px; padding: 0 12px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); color: var(--ink); font: 700 13px var(--font-ui); cursor: pointer; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.catopen svg { width: 15px; height: 15px; }
+.catopen kbd { font: 600 10.5px ui-monospace, monospace; color: var(--ink-dim); border: 1px solid rgba(238, 241, 236, 0.25); border-radius: 4px; padding: 0 4px; }
+.catopen[aria-expanded="true"] { background: var(--signal); color: var(--signal-ink); border-color: transparent; }
+.catopen[aria-expanded="true"] kbd { color: var(--signal-ink); border-color: rgba(29, 23, 8, 0.4); }
+body.coarse .catopen kbd { display: none; }
+
+/* gereedschap linksonder; bij lopen de handen erboven */
+.dockl { position: fixed; z-index: 6; left: var(--gutter-l); bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.dockl .hands { position: static; transform: none; top: auto; }
+body:not(.walk) .dockl .hands { display: none; }
+.dockl .hands button { padding: 7px 11px; display: grid; place-items: center; }
+.dockl .hands svg { width: 18px; height: 18px; display: block; }
+.rtools { display: flex; gap: 6px; }
+.rt, .rtools .tool, .rtools .tool.rot { flex: none; min-width: 0; width: 44px; height: 44px; padding: 0; border-radius: 50%; display: grid; place-items: center; gap: 0;
+  background: var(--panel); border: 1px solid var(--line); color: var(--ink); cursor: pointer; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.rtools .tool .sw { width: 22px; height: 22px; background: none; clip-path: none; }
+.rtools .tool .sw svg, .rt svg { width: 20px; height: 20px; color: currentColor; }
+.rtools .tool > span:not(.sw) { display: none; }
+.rt[aria-pressed="true"], .rtools .tool[aria-pressed="true"] { background: var(--signal); color: var(--signal-ink); border-color: transparent; }
+.rt:disabled, .rtools .tool:disabled { opacity: 0.35; cursor: default; }
+
+/* bouwen / lopen: altijd rechtsonder */
+.modeswitch { position: fixed; z-index: 6; right: var(--gutter-r); bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); display: flex; gap: 2px; padding: 4px; border-radius: 999px;
+  background: var(--panel); border: 1px solid var(--line); color: var(--ink); cursor: pointer; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.modeswitch .ms { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 999px; font: 700 14px var(--font-ui); }
+.modeswitch svg { width: 17px; height: 17px; }
+body:not(.walk) .modeswitch .ms-b, body.walk .modeswitch .ms-l { background: var(--signal); color: var(--signal-ink); }
+
+/* laagkiezer */
+.layerpick { position: fixed; z-index: 5; right: var(--gutter-r); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 5px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.layerpick small { font: 700 9px var(--font-ui); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-dim); }
+.layerpick button { width: 38px; height: 30px; border-radius: 8px; border: 0; background: transparent; color: var(--ink-dim); font: 700 13px var(--font-ui); cursor: pointer; font-variant-numeric: tabular-nums; }
+.layerpick button[data-l="alles"] { height: 26px; font-size: 11px; border: 1px solid var(--line); color: var(--ink); }
+.layerpick button[aria-pressed="true"] { background: var(--signal); color: var(--signal-ink); border-color: transparent; }
+.layerpick button.above { opacity: 0.45; text-decoration: line-through; }
+.layerpick button:disabled { cursor: default; }
+body.walk .layerpick button[data-l="alles"] { display: none; }
+body.coarse .layerpick .lk { display: none; }
+
+/* meldingen net boven de snelbalk */
+.toast, body.walk .toast { bottom: calc(env(safe-area-inset-bottom, 0px) + 150px); }
+.undo, body.walk .undo { bottom: calc(env(safe-area-inset-bottom, 0px) + 198px); }
+body.cat-open .toast { bottom: calc(52vh + env(safe-area-inset-bottom, 0px) + 150px); }
+
+/* aanraakscherm, lopen: joystick linksonder, springen en bouwen rechts; gereedschap en schakelaar schuiven op */
+body.coarse.walk .dockl { bottom: calc(env(safe-area-inset-bottom, 0px) + 168px); }
+.jump { bottom: calc(env(safe-area-inset-bottom, 0px) + 78px); }
+.place { bottom: calc(env(safe-area-inset-bottom, 0px) + 172px); }
+
+/* smal scherm: de snelbalk past op de onderste rij, gereedschap en schakelaar erboven */
+@media (max-width: 760px) {
+  .hslot { --s: min(46px, calc((100vw - 54px) / 9)); }
+  .hotbar { gap: 1px; padding: 4px; }
+  .hslot .hx { transform: scale(0.85); }
+  .dockl, .modeswitch { bottom: calc(env(safe-area-inset-bottom, 0px) + 100px); }
+  .modeswitch .ms { padding: 7px 10px; font-size: 13px; }
+  .toast, body.walk .toast { bottom: calc(env(safe-area-inset-bottom, 0px) + 160px); }
+  .palette, body.walk .palette { bottom: calc(env(safe-area-inset-bottom, 0px) + 100px); max-height: 46vh; }
+  .layerpick { top: 40%; }
+}
+@media (prefers-reduced-motion: reduce) { .hotname { transition: none; } }
+@media (max-width: 480px) {
+  .hud-left .incbtn { white-space: nowrap; height: 28px; font-size: 11.5px; padding: 0 9px; }
+  .hud-left { max-width: calc(100vw - 190px); }
+  .dockl .rtools { gap: 4px; }
+  .rt, .rtools .tool, .rtools .tool.rot { width: 38px; height: 38px; }
+  .modeswitch .ms { padding: 6px 9px; font-size: 12.5px; gap: 4px; }
+  .modeswitch svg { width: 15px; height: 15px; }
+  .layerpick button { width: 32px; height: 26px; font-size: 12px; }
+  .layerpick { padding: 5px 4px; gap: 2px; }
+}

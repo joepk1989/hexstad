@@ -240,7 +240,7 @@
   function pick(cx, cy) {
     ndc.set(cx / window.innerWidth * 2 - 1, -(cy / window.innerHeight) * 2 + 1);
     raycaster.setFromCamera(ndc, camera);
-    const hits = raycaster.intersectObjects([ground, terrGroup, blocks, ...(tool === 'module' || tool === 'gum' ? [...modGroups.values()].map(e => e.group) : [])], true);
+    const hits = hudPickFilter(raycaster.intersectObjects([ground, terrGroup, blocks, ...(tool === 'module' || tool === 'gum' ? [...modGroups.values()].map(e => e.group) : [])], true));   // laagkiezer: wat erboven ligt is doorzichtig en niet aan te klikken
     if (!hits.length) return null;
     const h = hits[0];
     if (mode === 'walk' && h.distance > REACH) return null;
@@ -358,7 +358,7 @@
     if (terrHover(res, cx, cy)) { previewActive = false; ghost.visible = false; ghostEdges.visible = false; return; }
     if (!res || (mode === 'walk' && hand !== 'bouwen')) { ghost.visible = false; ghostEdges.visible = false; return; }
     if (VEC_TOOLS.has(tool) || tool === 'vrot') { previewActive = false; ghost.visible = false; ghostEdges.visible = false; return; }
-    if (tool === 'module') { previewActive = false; ghost.visible = false; ghostEdges.visible = false; if (res.place) { const a = anchorOf(res); showModuleGhost(a[0], a[1], res.inst && !res.side ? res.lv : 0); } return; }
+    if (tool === 'module') { previewActive = false; ghost.visible = false; ghostEdges.visible = false; if (res.place) { const a = anchorOf(res); showModuleGhost(a[0], a[1], hudLayer() !== null ? hudLayer() : res.inst && !res.side ? res.lv : 0); } return; }
     if (EDGE_TOOLS.has(tool)) {
       previewActive = false; ghost.visible = false; ghostEdges.visible = false;
       const ne = res.point ? nearestEdge(res.point.x, res.point.z) : null;

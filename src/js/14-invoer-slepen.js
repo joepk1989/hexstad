@@ -172,8 +172,7 @@
     if (mode === 'walk' && e.code === 'KeyQ') { const H = ['kijken', 'bouwen', 'hamer']; setHand(H[(H.indexOf(hand) + 1) % 3]); toast(hand === 'kijken' ? 'Kijken' : hand === 'bouwen' ? 'Bouwen: ' + (TYPES[toolBase(tool)] ? TYPES[toolBase(tool)].name : tool) : 'Hamer: klik om te slopen', 1200); return; }
     if (e.code === 'KeyR') { e.shiftKey ? resetRotation() : rotateDir(); return; }
     if (e.code === 'KeyF' && mode === 'build' && tool === 'module') { toggleMirror(); return; }
-    const inCat = CATS[catIdx].tools;
-    if (n >= 1 && n <= inCat.length) selectTool(inCat[n - 1]);
+    if (n >= 1 && n <= 9 && !e.ctrlKey && !e.metaKey && !e.altKey) hotSelect(n - 1);   // snelbalk (15d)
   });
   window.addEventListener('keyup', e => { keys[e.code] = false; });
   window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
@@ -181,7 +180,7 @@
   // Bouwen tijdens het lopen: wat in het midden van het beeld ligt
   let handHintT = 0;
   function walkAction(erase) {
-    if (hand === 'kijken') { if (performance.now() - handHintT > 2500) { handHintT = performance.now(); toast('Je kijkt alleen · kies bovenin Bouwen of Hamer (Q)', 1800); } return; }
+    if (hand === 'kijken') { if (performance.now() - handHintT > 2500) { handHintT = performance.now(); toast('Je kijkt alleen · kies linksonder bouwen of de hamer (Q)', 1800); } return; }
     if (hand === 'bouwen' && erase) { toast('Pak de hamer om te slopen (Q)', 1400); return; }
     const cx = window.innerWidth / 2, cy = window.innerHeight / 2, res = pick(cx, cy);
     if (!res) return toast('Richt het puntje op de grond of een blok binnen 30 m');

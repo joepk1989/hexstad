@@ -166,16 +166,20 @@
   let slot = 'mijn', slotName = 'Mijn stad';
   const serialize = m => { const o = Object.fromEntries(m); if (m.edges && m.edges.size) o.__e = [...m.edges]; if (m.paths && m.paths.length) o.__p = m.paths; if (m.tris && m.tris.length) o.__t = m.tris; if (m.inst && m.inst.length) o.__i = m.inst; if (m.terr) { const g = {}; for (const k in m.terr) if (m.terr[k] > 0.004) g[k] = Math.round(m.terr[k] * 100) / 100; if (Object.keys(g).length) o.__g = g; } return JSON.stringify(o); };
   function save() {
+    const snap = serialize(cells);
+    if (typeof hudSnap === 'function') hudSnap(snap);   // ongedaan maken (15d)
     try {
-      localStorage.setItem(STORE, serialize(cells));
+      localStorage.setItem(STORE, snap);
       localStorage.setItem(SLOT, JSON.stringify({ slot, slotName }));
       if (slot === 'mijn') localStorage.setItem(MINE, serialize(cells));
     } catch (e) {}
   }
   function load(key = STORE) {
+    let raw = null; try { raw = localStorage.getItem(key); } catch (e) { return null; }
+    return raw ? parseCity(raw) : null;
+  }
+  function parseCity(raw) {
     try {
-      const raw = localStorage.getItem(key);
-      if (!raw) return null;
       const obj = JSON.parse(raw);
       const m = new Map();
       if (Array.isArray(obj.__e)) m.edges = new Map(obj.__e.filter(e => Array.isArray(e) && typeof e[0] === 'string' && (e[1] === 'weg' || e[1] === 'brd' || e[1] === 'pad')));

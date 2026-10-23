@@ -90,9 +90,21 @@ Het loopnetwerk van de voetgangers (`buildWalkGraph` in `10`) krijgt uit `08f` k
 
 De modules in de familie Winkelcentrum hebben daarom twee achterdeuren tegenover de voorkant (die bij rug-aan-rug winkels op elkaar vallen), het dakpaviljoen een open terras aan de voorkant, en de doorgang open kiosken naar de buren. In het voorbeeld-winkelcentrum lopen voetgangers van de straat de opritten op, door de tunnels de entreehal in en via de trappen naar de straat op de tweede verdieping. De dichte kern op de begane grond is (zoals in de schets) niet van buiten te bereiken.
 
-## Weer
+## Bediening (v100)
 
-In de optiebalk staat **Weer** met zeven knoppen: zon, bewolkt, regen, onweer, mist, sneeuw en wisselend. Met **O** ga je naar het volgende weer (Shift+O naar het vorige), ook tijdens het lopen; je keuze staat ook in Instellingen en wordt bewaard (`hexstad.weer`). Bij wisselend volgt het ene weer vanzelf op het andere (zon → bewolkt → regen → onweer …), sneller als de tijd sneller loopt en niet als de tijd stilstaat (`13b-weer.js`).
+Ontworpen in het interfacelab (`lab/interface/`, voorbeeld "Voorstel voor Hexstad"): bij bouwen en lopen staat alles op dezelfde plek (`15d-bediening.js`, HTML in `index.html`, stijlen onderaan `style.css`).
+
+- **Linksboven**: naam, aantal blokken en schoonheid; daaronder de ongelukjes-teller. **Rechtsboven**: één knop met de tijd en het weer (het paneel erachter heeft ook de tijdsnelheid, het weer en raster/mensen/auto's), geluid en menu. Roekeloos rijgedrag staat in Instellingen.
+- **Snelbalk 1–9** onderaan in het midden: negen zeshoekige vakken, ook tijdens het lopen. Cijfertoetsen, klik of het scrollwiel kiezen een vak; tijdens het lopen neem je het blok dan meteen in je hand. Wat je kiest in **Alle blokken** (Tab, of de knop erboven) komt in het gekozen vak; een blok dat al in de balk staat wordt daar gekozen. De balk wordt bewaard (`hexstad-snelbalk`). Standaard: weg, pad, woning, kantoor, dak, park, water, ophogen, module.
+- **Alle blokken** is de oude catalogus met tabbladen, maar nu een paneel dat boven de snelbalk openklapt en na een keuze dichtgaat (ook Escape of een klik in de stad). De zoekbalk en filters bij modules staan erin; `/` opent hem meteen bij het zoekveld.
+- **Gereedschap linksonder**: draaien (R), spiegelen (F), gum (Delete) en ongedaan maken (Ctrl+Z). Tijdens het lopen staan de handen erboven (kijken, bouwen, hamer; Q).
+- **Ongedaan maken**: na elke wijziging wordt de stad (de tekst die toch al bewaard wordt) in een rij van 15 momentopnamen gezet; wijzigingen binnen 0,7 s tellen als één stap (slepen, boetseren). `parseCity` in `01` leest zo'n tekst terug.
+- **Bouwen/lopen**: een schakelaar rechtsonder (L).
+- **Laagkiezer** aan de rechterrand: kies op welke laag een module komt (Page Up/Down, of klik). Alles boven die laag wordt glas: de stad wordt in twee keer getekend, tot de snede (`laag × 3 m + 2,65 m`) gewoon en daarboven met een doorzichtig materiaal (`renderLayered`, met `renderer.clippingPlanes`). Wat boven de snede ligt is niet aan te klikken (`hudPickFilter` in `pick`). **Alles** zet de kiezer uit. Tijdens het lopen toont de kiezer alleen op welke laag je staat.
+
+
+
+Achter de tijdknop rechtsboven staat **Weer** met zeven knoppen: zon, bewolkt, regen, onweer, mist, sneeuw en wisselend. Met **O** ga je naar het volgende weer (Shift+O naar het vorige), ook tijdens het lopen; je keuze staat ook in Instellingen en wordt bewaard (`hexstad.weer`). Bij wisselend volgt het ene weer vanzelf op het andere (zon → bewolkt → regen → onweer …), sneller als de tijd sneller loopt en niet als de tijd stilstaat (`13b-weer.js`).
 
 - **Lucht en licht**: bewolking maakt de lucht grijs en de zon zwakker (minder schaduw), 's nachts geen sterren of maan. Bij donker weer gaan de lampen binnen eerder aan. Mist zet de horizon dicht; in bouwmodus blijft je eigen stad zichtbaar. Alles verloopt in een paar seconden (`WXK` in `02`, gemengd in `DN.apply`).
 - **Regen en sneeuw** zijn deeltjes in een doos rond de camera (9000 strepen, 7000 vlokken), helemaal op de grafische kaart berekend. Bij onweer is de regen harder en schuin, en flitst de lucht met daarna de donder (verder weg is later en zachter).
@@ -103,7 +115,7 @@ In de optiebalk staat **Weer** met zeven knoppen: zon, bewolkt, regen, onweer, m
 
 ## Ongelukjes en door iets heen lopen
 
-Rechtsboven, onder **Roekeloos rijgedrag**, telt een knop de ongelukjes met voetgangers (aangereden door een auto, gevallen, omver gelopen door de speler, geraakt door een geplaatst blok) en hoe vaak iemand door een muur of voorwerp heen liep (`INC`, `incident` en `throughCheck` in `10`). Een klik toont de laatste gebeurtenissen; **toon** vliegt erheen en zet een rode ring op de plek. **Op nul** zet de tellers terug. Valt iemand omdat jij de vloer weghaalt of een andere stad laadt, dan telt dat niet als ongeluk.
+Linksboven, onder de naam van de stad, telt een knop de ongelukjes met voetgangers (aangereden door een auto, gevallen, omver gelopen door de speler, geraakt door een geplaatst blok) en hoe vaak iemand door een muur of voorwerp heen liep (`INC`, `incident` en `throughCheck` in `10`). Een klik toont de laatste gebeurtenissen; **toon** vliegt erheen en zet een rode ring op de plek. **Op nul** zet de tellers terug. Valt iemand omdat jij de vloer weghaalt of een andere stad laadt, dan telt dat niet als ongeluk.
 
 Voetgangers lopen zelf niet meer door muren, inrichting of over de rand van een vloer: een stap die een muur op lichaamshoogte zou kruisen glijdt langs die muur (`wallStep`), en een stap de leegte in wordt niet gezet. Dat geldt ook voor duwen tussen mensen en uitwijken voor de speler. Wie een voordeur uitkomt, stapt eerst naar buiten en loopt zo nodig om de hoek van het eigen gebouw naar de stoep, niet dwars door de zijmuur. Loopt iemand toch klem (een paar seconden geen vooruitgang, of binnen een module heel lang onderweg naar dezelfde knoop), dan begint hij opnieuw bij de knoop waar hij heen ging. In het loopnetwerk ligt een hoekpunt om de kern van een galerij nooit op of tegen een dichte muur. Met `__INC.dbg = 1` (console) krijgt elke melding het gelopen spoor erbij; `__modDbg().whyBlocked` noemt nu ook de bron (module met naam en plek, blok, rand, weg) en `walkWalls(laag, x, z)` toont de muren zoals het loopnetwerk ze ziet.
 

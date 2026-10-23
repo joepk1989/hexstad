@@ -109,14 +109,14 @@
   const menuBtn = document.getElementById('menuBtn');
   const modeLbl = document.getElementById('modeLbl');
   document.getElementById('walkHint').textContent = coarse
-    ? 'Linkerduim lopen · rechterduim kijken · kies bovenin Bouwen of Hamer en tik op de knop'
-    : 'Klik om de muis te vangen · WASD lopen · Q wisselt tussen kijken, bouwen en hamer · scrollwiel wisselt van blok';
+    ? 'Linkerduim lopen · rechterduim kijken · kies linksonder bouwen of hamer en tik op de knop'
+    : 'Klik om de muis te vangen · WASD lopen · Q: kijken, bouwen of hamer · 1–9 of scrollwiel: blok uit de snelbalk · Tab: alle blokken';
 
   function setMode(m) {
     mode = m;
     const walking = m === 'walk';
     document.body.classList.toggle('walk', walking);
-    walkUI.hidden = !walking; menuBtn.hidden = walking;
+    walkUI.hidden = !walking;
     modeLbl.textContent = walking ? 'Bouwen' : 'Lopen';
     gridLines.visible = !walking && gridOn; ghost.visible = false; ghostArrow.visible = false; ghostEdges.visible = false;
     toastEl.classList.add('fade');
