@@ -170,6 +170,9 @@ textarea { width: 100%; resize: vertical; min-height: 64px; line-height: 1.4; }
 .layers { display: grid; gap: 3px; padding: 5px; text-align: center; }
 .layers span { width: 38px; height: 34px; border-radius: 8px; display: grid; place-items: center; font-weight: 700; font-size: 13px; color: var(--ink-dim); }
 .layers span.on { background: var(--signal); color: var(--signal-ink); }
+.layers span.all { width: 38px; height: 26px; font-size: 10.5px; border: 1px solid rgba(238,241,236,0.2); }
+.layers span.above { opacity: 0.45; text-decoration: line-through; }
+.layers .lyhint { font-style: normal; font-size: 9px; line-height: 1.2; color: var(--signal); margin-top: 2px; }
 .layers small { font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-dim); }
 .cross { width: 26px; height: 26px; position: relative; }
 .cross::before, .cross::after { content: ""; position: absolute; background: rgba(255,255,255,0.92); box-shadow: 0 0 0 1px rgba(0,0,0,0.35); }
@@ -230,6 +233,7 @@ textarea { width: 100%; resize: vertical; min-height: 64px; line-height: 1.4; }
         <article><h3>Een catalogus die je doorzoekt</h3><p>Bij Cities: Skylines II klaagden spelers dat ze blokken niet konden vinden; de populairste mod voegt één paneel toe met zoeken op naam, soort en label, en favorieten bovenaan. Hexstad heeft al zoeken en filters bij modules: dat hoort in elke categorie. <a href="https://www.pcgamesn.com/cities-skylines-2/ui-menu-mod" target="_blank" rel="noopener">PCGamesN</a></p></article>
         <article><h3>Een wiel voor snel kiezen</h3><p>Planet Coaster vervangt op de console sneltoetsen door wielen die per modus anders zijn. Een wiel werkt met muis, touch en controller, maar alleen tot zo'n 6–10 keuzes, en het beste met loslaten om te kiezen. Goed voor categorieën of de handen, niet voor de hele catalogus. <a href="https://www.thesixthaxis.com/?p=361512" target="_blank" rel="noopener">TheSixthAxis</a> · <a href="https://300mind.studio/blog/radial-menus-in-game-design/" target="_blank" rel="noopener">300Mind</a></p></article>
         <article><h3>Zo min mogelijk in beeld</h3><p>Tiny Glade en Townscaper laten bijna alleen de stad zien: je bouwt door te slepen en te klikken, en gereedschap verschijnt pas als je het nodig hebt. Een permanente balk met alles erop leidt af. <a href="https://indiegames.substack.com/p/doodle-designer-tiny-glade" target="_blank" rel="noopener">Indie Games</a> · <a href="https://en.wikipedia.org/wiki/Townscaper" target="_blank" rel="noopener">Wikipedia</a></p></article>
+        <article><h3>Verdiepingen zoals in De Sims</h3><p>In De Sims kies je de verdieping waarop je bouwt, en wat erboven ligt verdwijnt of wordt doorzichtig, zodat je naar binnen kijkt. Voor de gelaagde stad werkt dat ook: kies laag 1 en je ziet de winkels onder de galerijen. Zet het winkelcentrum op de achtergrond en probeer de vormen van de laagkiezer: erboven doorzichtig, erboven verbergen of alleen kiezen.</p></article>
         <article><h3>Wat dat voor Hexstad betekent</h3><p>Nu staat het bouwmenu bij bouwen onderaan en bij lopen bovenaan, met de knoppen voor de handen er nog bij. Het lab meet daarom twee dingen: hoeveel onderdelen in beide modi op dezelfde plek blijven, en hoeveel van het beeld de bediening bedekt. Hexstad heeft ook iets wat andere spellen niet hebben: lagen. Een laagkiezer aan de rand maakt bouwen op de tweede verdieping makkelijker.</p></article>
       </div>
     </section>
@@ -254,6 +258,7 @@ textarea { width: 100%; resize: vertical; min-height: 64px; line-height: 1.4; }
     <div class="stagebar">
       <div class="seg" role="group" aria-label="Modus" id="modeSeg" data-tip="Modus|Bekijk het scherm zoals bij bouwen (bovenaf) of bij lopen (zelf in de stad). Onderdelen kunnen per modus aan of uit staan."><button type="button" data-mode="bouwen" aria-pressed="true">Bouwen</button><button type="button" data-mode="lopen" aria-pressed="false">Lopen</button></div>
       <div class="seg" role="group" aria-label="Scherm" id="devSeg" data-tip="Scherm|Hoe het eruitziet op een laptop, tablet of telefoon. De onderdelen hebben overal dezelfde grootte, dus op een telefoon is het voller."><button type="button" data-dev="laptop" aria-pressed="true">Laptop</button><button type="button" data-dev="tablet" aria-pressed="false">Tablet</button><button type="button" data-dev="liggend" aria-pressed="false">Telefoon liggend</button><button type="button" data-dev="staand" aria-pressed="false">Telefoon staand</button></div>
+      <div class="seg" role="group" aria-label="Stad" id="bgSeg" data-tip="Stad op de achtergrond|De voorbeeldstad, of het winkelcentrum met lagen: daar zie je wat de laagkiezer doet."><button type="button" data-bg="stad" aria-pressed="true">Voorbeeldstad</button><button type="button" data-bg="wc" aria-pressed="false">Winkelcentrum</button></div>
       <label class="check" data-tip="Schikken|Aan: sleep een onderdeel op het scherm naar een andere plek; klik om het te selecteren. Uit: alleen kijken."><input type="checkbox" id="arrangeChk" checked> Schikken (slepen)</label>
     </div>
     <div class="fit" id="fit">
@@ -278,7 +283,7 @@ textarea { width: 100%; resize: vertical; min-height: 64px; line-height: 1.4; }
     catalogus: { naam: 'Catalogus', uitleg: 'Alle blokken in de gekozen categorie', v: { rij: 'Rij', raster: 'Raster met zoeken', knop: 'Ingeklapt (knop)' } },
     hotbar:    { naam: 'Snelbalk 1–9', uitleg: 'Negen blokken onder de cijfertoetsen, in beide modi', v: { hex: 'Zeshoekig', vierkant: 'Vierkant' } },
     opties:    { naam: 'Gereedschap', uitleg: 'Draaien, spiegelen, gum, ongedaan maken', v: { chips: 'Chips', rond: 'Ronde knoppen' } },
-    lagen:     { naam: 'Laagkiezer', uitleg: 'Op welke verdieping je bouwt (gelaagde stad)', v: { kolom: 'Kolom' } },
+    lagen:     { naam: 'Laagkiezer', uitleg: 'Op welke verdieping je bouwt; wat erboven ligt kan doorzichtig worden of verdwijnen', v: { doorzichtig: 'Erboven doorzichtig', verbergen: 'Erboven verbergen', kiezen: 'Alleen kiezen' } },
     handen:    { naam: 'Handen', uitleg: 'Kijken, bouwen of slopen tijdens het lopen', v: { pill: 'Woorden', iconen: 'Iconen' } },
     vizier:    { naam: 'Vizier', uitleg: 'Waar je naar kijkt tijdens het lopen', v: { kruis: 'Kruis' } },
     wiel:      { naam: 'Bouwwiel', uitleg: 'Houd Tab of druk lang: kies in een cirkel', v: { open: 'Open getoond' } },
@@ -315,8 +320,8 @@ textarea { width: 100%; resize: vertical; min-height: 64px; line-height: 1.4; }
   function render(id, variant, mode) {
     switch (id) {
       case 'stad': return variant === 'compact'
-        ? `<div class="pill" style="padding:5px 12px 5px 6px;gap:8px"><span class="city" style="padding:0"><span class="hx" style="width:20px;height:20px"></span></span><b style="font-family:var(--font-display);font-size:17px;text-transform:uppercase;letter-spacing:.03em">Voorbeeldstad</b><span style="color:var(--signal);font-weight:700">64</span></div>`
-        : `<div class="pnl city"><span class="hx"></span><div><b>Hexstad</b><small>Voorbeeldstad · 88 blokken · 21 m</small></div><div class="score"><b>64</b><small>gezellig</small></div></div>`;
+        ? `<div class="pill" style="padding:5px 12px 5px 6px;gap:8px"><span class="city" style="padding:0"><span class="hx" style="width:20px;height:20px"></span></span><b style="font-family:var(--font-display);font-size:17px;text-transform:uppercase;letter-spacing:.03em">${st.bg === 'wc' ? 'Winkelcentrum' : 'Voorbeeldstad'}</b><span style="color:var(--signal);font-weight:700">64</span></div>`
+        : `<div class="pnl city"><span class="hx"></span><div><b>Hexstad</b><small>${st.bg === 'wc' ? 'Winkelcentrum · 129 modules · 4 lagen' : 'Voorbeeldstad · 88 blokken · 21 m'}</small></div><div class="score"><b>64</b><small>gezellig</small></div></div>`;
       case 'teller': return variant === 'klein'
         ? `<div class="pill" style="padding:4px 10px;font-size:12px;font-weight:700;gap:8px">Ongelukjes <span style="color:var(--signal)">0</span></div>`
         : `<div class="teller"><span class="gbtn" style="height:34px;font-size:13px">Roekeloos rijgedrag</span><span class="gbtn" style="height:30px;font-size:12px">Ongelukjes <span style="color:var(--signal)">0</span> · Door iets heen <span style="color:var(--signal)">0</span></span></div>`;
@@ -352,7 +357,10 @@ textarea { width: 100%; resize: vertical; min-height: 64px; line-height: 1.4; }
         if (variant === 'rond') return `<div class="row-g">${it.map(([k, n]) => `<span class="rnd" title="${n}">${svg(k)}</span>`).join('')}</div>`;
         return `<div class="pnl" style="display:flex;gap:6px;padding:6px">${it.map(([k, n, t]) => `<span class="chip" style="display:inline-flex;gap:6px;align-items:center">${svg(k).replace('<svg', '<svg width="14" height="14"')}${n}<span style="color:var(--ink-dim);font-weight:400">${t}</span></span>`).join('')}</div>`;
       }
-      case 'lagen': return `<div class="pnl layers"><small>Laag</small>${[3, 2, 1, 0].map(l => `<span class="${l === 1 ? 'on' : ''}">${l}</span>`).join('')}</div>`;
+      case 'lagen': {
+        const eye = variant === 'kiezen' ? '' : `<em class="lyhint">${variant === 'doorzichtig' ? 'erboven<br>glas' : 'erboven<br>weg'}</em>`;
+        return `<div class="pnl layers"><small>Laag</small><span class="all">Alles</span>${[3, 2, 1, 0].map(l => `<span class="${l === 1 ? 'on' : l > 1 && variant !== 'kiezen' ? 'above' : ''}">${l}</span>`).join('')}${eye}<small style="margin-top:2px">PgUp/Dn</small></div>`;
+      }
       case 'handen': return variant === 'iconen'
         ? `<div class="pill">${[['oog', 'Kijken'], ['hand', 'Bouwen'], ['hamer', 'Hamer']].map(([k, n], i) => `<span class="ptab ${i === 1 ? 'on' : ''}" title="${n}" style="display:grid;place-items:center;padding:7px 10px">${svg(k).replace('<svg', '<svg width="18" height="18"')}</span>`).join('')}</div>`
         : `<div class="pill">${['Kijken', 'Bouwen', 'Hamer'].map((n, i) => `<span class="ptab ${i === 1 ? 'on' : ''}">${n}</span>`).join('')}</div>`;
@@ -377,33 +385,33 @@ textarea { width: 100%; resize: vertical; min-height: 64px; line-height: 1.4; }
     nu: { naam: 'Hexstad nu (v99)', uitleg: 'Zoals het nu is: bij bouwen het menu onderaan, bij lopen bovenaan', c: {
       stad: P('kaart', ['tl', 1], ['tl', 1]), teller: P('knoppen', ['tl', 1], ['tl', 1]), tijdweer: P('knop', ['tr', 1], ['tr', 1]), systeem: P('knoppen', ['tr', 1], ['tr', 1]), modus: P('knop', ['tr', 1], ['tr', 1]),
       catalogus: P('rij', ['bc', 1], ['tc', 1]), categorie: P('tabs', ['bc', 1], ['tc', 1]), weergave: P('balk', ['bc', 1], ['bc', 0]), handen: P('pill', ['tc', 0], ['tc', 1]),
-      hotbar: P('hex', ['bc', 0], ['bc', 0]), opties: P('chips', ['bc', 0], ['bc', 0]), lagen: P('kolom', ['mr', 0], ['mr', 0]), vizier: P('kruis', ['c', 0], ['c', 1]), wiel: P('open', ['c', 0], ['c', 0]),
+      hotbar: P('hex', ['bc', 0], ['bc', 0]), opties: P('chips', ['bc', 0], ['bc', 0]), lagen: P('doorzichtig', ['mr', 0], ['mr', 0]), vizier: P('kruis', ['c', 0], ['c', 1]), wiel: P('open', ['c', 0], ['c', 0]),
       minikaart: P('vierkant', ['br', 0], ['br', 0]), hint: P('knop', ['br', 1], ['br', 1]), touch: P('rond', ['bl', 0], ['bl', 0]) } },
     snelbalk: { naam: 'Eén snelbalk', uitleg: 'Minecraft en Satisfactory: dezelfde balk 1–9 onderaan in beide modi, de catalogus klapt open', c: {
       stad: P('compact', ['tl', 1], ['tl', 1]), teller: P('klein', ['tl', 1], ['tl', 0]), tijdweer: P('knop', ['tr', 1], ['tr', 1]), systeem: P('menu', ['tr', 1], ['tr', 1]), modus: P('knop', ['br', 1], ['br', 1]),
       hotbar: P('hex', ['bc', 1], ['bc', 1]), catalogus: P('knop', ['bc', 1], ['bc', 1]), categorie: P('tabs', ['tc', 0], ['tc', 0]), weergave: P('klein', ['bl', 0], ['bl', 0]), handen: P('iconen', ['bl', 0], ['bl', 1]),
-      opties: P('rond', ['br', 1], ['br', 1]), lagen: P('kolom', ['mr', 0], ['mr', 0]), vizier: P('kruis', ['c', 0], ['c', 1]), wiel: P('open', ['c', 0], ['c', 0]), minikaart: P('vierkant', ['tr', 0], ['tr', 0]), hint: P('regel', ['tc', 0], ['tc', 0]), touch: P('rond', ['bl', 0], ['bl', 0]) } },
+      opties: P('rond', ['br', 1], ['br', 1]), lagen: P('doorzichtig', ['mr', 0], ['mr', 0]), vizier: P('kruis', ['c', 0], ['c', 1]), wiel: P('open', ['c', 0], ['c', 0]), minikaart: P('vierkant', ['tr', 0], ['tr', 0]), hint: P('regel', ['tc', 0], ['tc', 0]), touch: P('rond', ['bl', 0], ['bl', 0]) } },
     werkbalk: { naam: 'Werkbalk en catalogus', uitleg: 'Cities: Skylines en Manor Lords: categorieën onderaan, een groot paneel met zoeken erboven', c: {
       stad: P('kaart', ['tl', 1], ['tl', 1]), teller: P('knoppen', ['tl', 1], ['tl', 0]), tijdweer: P('balk', ['tc', 1], ['tc', 0]), systeem: P('knoppen', ['tr', 1], ['tr', 1]), modus: P('knop', ['tr', 1], ['tr', 1]),
       catalogus: P('raster', ['bc', 1], ['bc', 0]), categorie: P('tabs', ['bc', 1], ['bc', 0]), opties: P('chips', ['bc', 0], ['bc', 0]), weergave: P('klein', ['bl', 1], ['bl', 0]), hotbar: P('vierkant', ['bc', 0], ['bc', 1]), handen: P('pill', ['bc', 0], ['bc', 1]),
-      lagen: P('kolom', ['mr', 0], ['mr', 0]), vizier: P('kruis', ['c', 0], ['c', 1]), wiel: P('open', ['c', 0], ['c', 0]), minikaart: P('vierkant', ['br', 1], ['br', 1]), hint: P('knop', ['br', 0], ['br', 0]), touch: P('rond', ['bl', 0], ['bl', 0]) } },
+      lagen: P('doorzichtig', ['mr', 0], ['mr', 0]), vizier: P('kruis', ['c', 0], ['c', 1]), wiel: P('open', ['c', 0], ['c', 0]), minikaart: P('vierkant', ['br', 1], ['br', 1]), hint: P('knop', ['br', 0], ['br', 0]), touch: P('rond', ['bl', 0], ['bl', 0]) } },
     minimaal: { naam: 'Zo min mogelijk', uitleg: 'Townscaper en Tiny Glade: bijna alleen de stad, een smalle kolom gereedschap', c: {
       stad: P('compact', ['tl', 0], ['tl', 0]), teller: P('klein', ['tl', 0], ['tl', 0]), tijdweer: P('knop', ['tr', 0], ['tr', 0]), systeem: P('menu', ['tr', 1], ['tr', 1]), modus: P('knop', ['tr', 1], ['tr', 1]),
       categorie: P('iconen', ['ml', 1], ['ml', 0]), catalogus: P('rij', ['bc', 1], ['bc', 0]), hotbar: P('hex', ['bc', 0], ['bc', 0]), opties: P('rond', ['bl', 0], ['bl', 0]), weergave: P('klein', ['bl', 0], ['bl', 0]), handen: P('iconen', ['bc', 0], ['bc', 1]),
-      lagen: P('kolom', ['mr', 0], ['mr', 0]), vizier: P('kruis', ['c', 0], ['c', 1]), wiel: P('open', ['c', 0], ['c', 0]), minikaart: P('vierkant', ['br', 0], ['br', 0]), hint: P('knop', ['br', 0], ['br', 0]), touch: P('rond', ['bl', 0], ['bl', 0]) } },
+      lagen: P('doorzichtig', ['mr', 0], ['mr', 0]), vizier: P('kruis', ['c', 0], ['c', 1]), wiel: P('open', ['c', 0], ['c', 0]), minikaart: P('vierkant', ['br', 0], ['br', 0]), hint: P('knop', ['br', 0], ['br', 0]), touch: P('rond', ['bl', 0], ['bl', 0]) } },
     wiel: { naam: 'Bouwwiel', uitleg: 'Planet Coaster op de console: houd een knop vast en kies een categorie in een wiel', c: {
       stad: P('compact', ['tl', 1], ['tl', 1]), teller: P('klein', ['tl', 0], ['tl', 0]), tijdweer: P('knop', ['tr', 1], ['tr', 1]), systeem: P('menu', ['tr', 1], ['tr', 1]), modus: P('schakel', ['tc', 1], ['tc', 1]),
       wiel: P('open', ['c', 1], ['c', 1]), hotbar: P('vierkant', ['bc', 1], ['bc', 1]), catalogus: P('rij', ['bc', 0], ['bc', 0]), categorie: P('tabs', ['bc', 0], ['bc', 0]), opties: P('rond', ['br', 1], ['br', 1]), handen: P('iconen', ['bl', 0], ['bl', 1]),
-      weergave: P('klein', ['bl', 0], ['bl', 0]), lagen: P('kolom', ['mr', 1], ['mr', 1]), vizier: P('kruis', ['c', 0], ['c', 1]), minikaart: P('vierkant', ['br', 0], ['br', 0]), hint: P('regel', ['bl', 0], ['bl', 0]), touch: P('rond', ['bl', 0], ['bl', 0]) } },
+      weergave: P('klein', ['bl', 0], ['bl', 0]), lagen: P('doorzichtig', ['mr', 1], ['mr', 1]), vizier: P('kruis', ['c', 0], ['c', 1]), minikaart: P('vierkant', ['br', 0], ['br', 0]), hint: P('regel', ['bl', 0], ['bl', 0]), touch: P('rond', ['bl', 0], ['bl', 0]) } },
     voorstel: { naam: 'Voorstel voor Hexstad', uitleg: 'Alles voor je handen onderaan, op dezelfde plek bij bouwen en lopen; lagen aan de rechterkant', c: {
       stad: P('compact', ['tl', 1], ['tl', 1]), teller: P('klein', ['tl', 1], ['tl', 1]), tijdweer: P('knop', ['tr', 1], ['tr', 1]), systeem: P('knoppen', ['tr', 1], ['tr', 1]), modus: P('schakel', ['br', 1], ['br', 1]),
       hotbar: P('hex', ['bc', 1], ['bc', 1]), catalogus: P('knop', ['bc', 1], ['bc', 1]), categorie: P('iconen', ['ml', 0], ['ml', 0]), opties: P('rond', ['bl', 1], ['bl', 1]), handen: P('iconen', ['bl', 0], ['bl', 1]),
-      lagen: P('kolom', ['mr', 1], ['mr', 1]), weergave: P('klein', ['tl', 0], ['tl', 0]), vizier: P('kruis', ['c', 0], ['c', 1]), wiel: P('open', ['c', 0], ['c', 0]), minikaart: P('vierkant', ['tr', 0], ['tr', 0]), hint: P('regel', ['tc', 0], ['tc', 0]), touch: P('rond', ['bl', 0], ['bl', 0]) } },
+      lagen: P('doorzichtig', ['mr', 1], ['mr', 1]), weergave: P('klein', ['tl', 0], ['tl', 0]), vizier: P('kruis', ['c', 0], ['c', 1]), wiel: P('open', ['c', 0], ['c', 0]), minikaart: P('vierkant', ['tr', 0], ['tr', 0]), hint: P('regel', ['tc', 0], ['tc', 0]), touch: P('rond', ['bl', 0], ['bl', 0]) } },
   };
   const DEV = { laptop: [1280, 800], tablet: [1180, 820], liggend: [844, 390], staand: [390, 844] };
 
   // ---------- staat ----------
-  const st = { mode: 'bouwen', dev: 'laptop', preset: 'nu', sel: null, link: true, c: {}, order: { bouwen: [], lopen: [] } };
+  const st = { mode: 'bouwen', dev: 'laptop', bg: 'stad', preset: 'nu', sel: null, link: true, c: {}, order: { bouwen: [], lopen: [] } };
   const key = m => m === 'bouwen' ? 'b' : 'l';
   function load(presetId, data) {
     st.preset = presetId || null;
@@ -423,7 +431,9 @@ textarea { width: 100%; resize: vertical; min-height: 64px; line-height: 1.4; }
   function paintScreen() {
     const [W, H] = DEV[st.dev], walk = st.mode === 'lopen';
     screen.style.width = W + 'px'; screen.style.height = H + 'px';
-    screen.style.backgroundImage = `url(${walk ? 'lopen.jpg' : 'bouwen.jpg'})`;
+    const L = st.c.lagen, lv = L && L[key(st.mode)][1] ? L.v : 'kiezen';
+    screen.style.backgroundImage = `url(${walk ? 'lopen.jpg' : st.bg === 'wc' ? (lv === 'doorzichtig' ? 'wc_doorzichtig.jpg' : lv === 'verbergen' ? 'wc_verbergen.jpg' : 'wc_bouwen.jpg') : 'bouwen.jpg'})`;
+    document.querySelectorAll('#bgSeg button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.bg === st.bg)));
     screen.classList.toggle('walk', walk);
     const zones = {}; let html = '';
     for (const z in ZONES) zones[z] = [];
@@ -495,11 +505,12 @@ textarea { width: 100%; resize: vertical; min-height: 64px; line-height: 1.4; }
   compsEl.addEventListener('change', e => {
     const row = e.target.closest('.comp'); if (!row) return; const id = row.dataset.id, act = e.target.dataset.act;
     if (act === 'zone') { setZone(id, e.target.value); changed(); }
-    if (act === 'variant') { st.c[id].v = e.target.value; changed(); }
+    if (act === 'variant') { st.c[id].v = e.target.value; if (id === 'lagen' && e.target.value !== 'kiezen' && st.bg !== 'wc') { st.bg = 'wc'; toast('Winkelcentrum op de achtergrond: laag 1 gekozen'); } changed(); }
     if (act === 'link') { st.link = e.target.checked; paintBench(); }
   });
   document.getElementById('modeSeg').addEventListener('click', e => { const b = e.target.closest('[data-mode]'); if (!b) return; st.mode = b.dataset.mode; document.querySelectorAll('#modeSeg button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); paint(); });
   document.getElementById('devSeg').addEventListener('click', e => { const b = e.target.closest('[data-dev]'); if (!b) return; st.dev = b.dataset.dev; paint(); });
+  document.getElementById('bgSeg').addEventListener('click', e => { const b = e.target.closest('[data-bg]'); if (!b) return; st.bg = b.dataset.bg; paintScreen(); });
   function syncDev() { document.querySelectorAll('#devSeg button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.dev === st.dev))); }
   const arrangeChk = document.getElementById('arrangeChk');
   arrangeChk.addEventListener('change', () => screen.classList.toggle('arrange', arrangeChk.checked));
@@ -527,7 +538,7 @@ textarea { width: 100%; resize: vertical; min-height: 64px; line-height: 1.4; }
   // ---------- opslaan: gedeelde database, zodat Claude het ontwerp kan uitlezen ----------
   let db = null;
   const savedEl = document.getElementById('saved'), saveNote = document.getElementById('saveNote');
-  function design() { return { naam: document.getElementById('dName').value.trim() || 'Naamloos ontwerp', notities: document.getElementById('dNotes').value.trim(), scherm: st.dev, basis: st.preset || 'eigen', layout: snapshot(), bijgewerkt: new Date().toISOString() }; }
+  function design() { return { naam: document.getElementById('dName').value.trim() || 'Naamloos ontwerp', notities: document.getElementById('dNotes').value.trim(), scherm: st.dev, achtergrond: st.bg, basis: st.preset || 'eigen', layout: snapshot(), bijgewerkt: new Date().toISOString() }; }
   document.getElementById('saveBtn').addEventListener('click', async () => {
     const d = design();
     if (!db) { saveNote.textContent = 'Opslaan lukt hier niet (niet aangemeld of geen toegang). Gebruik "Kopieer als JSON" en plak het in de chat.'; return; }
@@ -547,7 +558,7 @@ textarea { width: 100%; resize: vertical; min-height: 64px; line-height: 1.4; }
       const b = document.createElement('b'); b.textContent = v.naam || 'Naamloos';
       const sm = document.createElement('small'); sm.textContent = when;
       const open = document.createElement('button'); open.type = 'button'; open.className = 'small-btn'; open.textContent = 'Openen';
-      open.addEventListener('click', () => { if (v.layout) { st.dev = v.scherm || st.dev; load(null, v.layout); syncDev(); document.getElementById('dName').value = v.naam || ''; document.getElementById('dNotes').value = v.notities || ''; toast(v.naam || 'Geopend'); } });
+      open.addEventListener('click', () => { if (v.layout) { st.dev = v.scherm || st.dev; st.bg = v.achtergrond || st.bg; load(null, v.layout); syncDev(); document.getElementById('dName').value = v.naam || ''; document.getElementById('dNotes').value = v.notities || ''; toast(v.naam || 'Geopend'); } });
       const del = document.createElement('button'); del.type = 'button'; del.className = 'small-btn'; del.textContent = 'Verwijder';
       del.addEventListener('click', async () => { if (del.dataset.sure) { try { await db.collection('ontwerpen').doc(d.id).delete(); } catch (e) { toast('Verwijderen mocht niet'); } } else { del.dataset.sure = '1'; del.textContent = 'Zeker?'; setTimeout(() => { del.textContent = 'Verwijder'; delete del.dataset.sure; }, 2500); } });
       it.append(b, sm, open, del); savedEl.appendChild(it);
