@@ -218,7 +218,8 @@
           sp.push(...quad(pt(-INNER, 4.5), y0, y0, pt(0, 9), y0, top), ...quad(pt(0, -9), y0, top, pt(-INNER, -4.5), y0, y0));   // driehoeken naast de instap
           const g2 = new THREE.BufferGeometry(); g2.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3)); g2.setAttribute('uv', new THREE.Float32BufferAttribute(new Array(sp.length / 3 * 2).fill(0), 2)); g2.computeVertexNormals(); put(Mt.slab, g2);
           const g3 = g2.clone(); const idx = []; for (let i = 0; i < sp.length / 3; i += 3) idx.push(i, i + 2, i + 1); g3.setIndex(idx); put(Mt.slab, g3.toNonIndexed());   // ook van binnen zichtbaar
-          for (const [A, B] of [[pt(INNER, 4.5), pt(INNER, -4.5)], [pt(0, 9), pt(INNER, 4.5)], [pt(INNER, -4.5), pt(0, -9)], [pt(-INNER, 4.5), pt(0, 9)], [pt(0, -9), pt(-INNER, -4.5)]]) addWall(A, B, y0, top + 1, 0.08);   // randen: niet vanaf de helling vallen
+          addWall(pt(INNER, 4.5), pt(INNER, -4.5), y0, top - 0.15, 0.08);   // uitstapzijde: dicht van onderen, maar bovenaan loop je eraf de verdieping op
+          for (const [A, B] of [[pt(0, 9), pt(INNER, 4.5)], [pt(INNER, -4.5), pt(0, -9)], [pt(-INNER, 4.5), pt(0, 9)], [pt(0, -9), pt(-INNER, -4.5)]]) addWall(A, B, y0, top + 1, 0.08);   // zijranden: niet van de helling vallen
           continue;
         }
         if (S.k === 'u') {   // bordestrap: steek 1 (1,5 m) vooruit, bordes, steek 2 ernaast terug naar boven

@@ -32,6 +32,7 @@ Eerst bouwen: `node build.js` in de hoofdmap. Daarna, vanuit `test/`:
 | `python mm_haaks.py` | module maker: muren onder 90° (rechthoekige kamer) |
 | `python vallen.py` | van bouwen naar lopen: vallen op het midden van het scherm (midden van het centrum, dak, straat) |
 | `python ingang.py` | zelf naar binnen: elke ingang van de begane grond langs een lijn op blokkades testen (met de reden) |
+| `python doorgang.py` | door elke doorgang heen lopen (ook bovenaan de oprit), met de reden van een blokkade |
 | `python klim.py` | zelf de oprit en alle trappen op: vloerhoogte en botsing stap voor stap |
 | `python mall_mensen.py` | voetgangers door het winkelcentrum: knopen, ingangen aan de stoep, mensen per laag, geen valpartijen |
 | `python dbg_graph.py` / `dbg4.py` / `dbg8.py` | loopnetwerk: componenten per laag, trapknopen, valpartijen met plek |
