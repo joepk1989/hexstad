@@ -315,7 +315,7 @@
       const sp = Math.hypot(vx, vz);
       for (const a of peds) {
         { const ly = lvlOf(a, c); if (ly >= (reckless ? 0.3 : 0.2) || ly < -1 || !inside(c, a.x, a.z, 0.15, 0.2)) continue; }   // netjes rijdend verkeer raakt niemand op de stoep
-        if (sp > 2) { if (crashLog.length < 40) crashLog.push({ hit: 1, car: [+c.x.toFixed(1), +c.z.toFixed(1), +c.h.toFixed(2), c.eid, c.kind, +sp.toFixed(1), c.next && c.next.kind], ped: [+a.x.toFixed(1), +a.z.toFixed(1), +a.y.toFixed(2), a.node && a.node.key, a.wps.length, a.wps[0] && a.wps[0].map(v => +v.toFixed(1))] }); people.hit(a, vx * 1.1, vz * 1.1); sound.carHit(Math.min(1, (sp - 2) / 10), a.x, 0.8, a.z); sound.grunt(a.x, 0.9, a.z, Math.min(1, (sp - 2) / 10)); }
+        if (sp > 2) { if (crashLog.length < 40) crashLog.push({ hit: 1, car: [+c.x.toFixed(1), +c.z.toFixed(1), +c.h.toFixed(2), c.eid, c.kind, +sp.toFixed(1), c.next && c.next.kind], ped: [+a.x.toFixed(1), +a.z.toFixed(1), +a.y.toFixed(2), a.node && a.node.key, a.wps.length, a.wps[0] && a.wps[0].map(v => +v.toFixed(1))] }); people.hit(a, vx * 1.1, vz * 1.1); sound.carHit(Math.min(1, (sp - 2) / 10), a.x, 0.8, a.z); sound.grunt(a.x, 0.9, a.z, Math.min(1, (sp - 2) / 10), a.kid ? 'k' : a.female ? 'v' : a.old ? 'o' : 'm'); }
         else {   // stapvoets: mensen worden zacht opzij geschoven
           const dx = a.x - c.x, dz = a.z - c.z, lat = -dx * Math.sin(c.h) + dz * Math.cos(c.h), sgn = lat >= 0 ? 1 : -1;
           a.x += -Math.sin(c.h) * sgn * dt * 1.5; a.z += Math.cos(c.h) * sgn * dt * 1.5;
@@ -510,6 +510,9 @@
             // pas weer 'vast' worden als hij nergens meer doorheen staat
             if (c.ghost <= 0 && list.some(o => o !== c && Math.hypot(o.x - c.x, o.z - c.z) < 4.6 && (inside(o, c.x, c.z, 1.4, 0.4) || inside(c, o.x, o.z, 1.4, 0.4)))) c.ghost = 0.5;
           }
+          // doorkruipen of 'doorzichtig': nooit zomaar door een andere auto heen; wel dichter op elkaar dan normaal
+          // (kruipen: tot 1,5 m; doorzichtig: alleen stilstaande auto's mogen gepasseerd worden, rijdende niet)
+          if (c.creepT > 0 || c.ghost > 0) for (const o of list) { if (o === c || Math.abs((o.sy ?? 0) - (c.sy ?? 0)) >= 2) continue; if (c.ghost > 0 && o.v < 0.5 && !(o.ghost > 0)) continue; ahead(o.x, o.z, 1.6, 1.5, o); }
           if (!(c.creepT > 0) && !(c.ghost > 0)) { for (const o of list) if (o !== c && Math.abs((o.sy ?? 0) - (c.sy ?? 0)) < 2) {
             // wie op mijn keerlus wacht, staat niet in de weg (anders wachten we op elkaar)
             if (keerT && o.next && o.next.q === c.q && o.next.r === c.r && o.next.outS === o.next.inS) continue;

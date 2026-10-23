@@ -12,7 +12,13 @@
   // 'Open' komt uit een hoogtekaart van bovenaf (uWxOcc, zie 13b): ligt er iets boven, dan blijft het droog.
   const WXK = { cloud: 0, fog: 0, flash: 0, rain: 0, snow: 0, storm: 0, wet: 0 };
   const WXU = { uWxWet: { value: 0 }, uWxSnow: { value: 0 }, uWxSky: { value: new THREE.Color('#dde5e1') }, uWxOcc: { value: null }, uWxOccP: { value: new THREE.Vector4(0, 0, 1, 0) }, uWxOccNF: { value: new THREE.Vector2(1, 700) }, uWxOccOn: { value: 0 } };
-  const WX_OPEN = `float wxOpen(vec3 w) {
+  const WX_OPEN = `vec2 wxHex(vec2 p) {   // zeshoekje (0,7 m) waarin dit punt ligt, als axiale coördinaten
+      float q = (0.57735 * p.x - 0.33333 * p.y) / 0.7, r = (0.66667 * p.y) / 0.7, x = q, z = r, y = -x - z;
+      float rx = floor(x + 0.5), ry = floor(y + 0.5), rz = floor(z + 0.5), dx = abs(rx - x), dy = abs(ry - y), dz = abs(rz - z);
+      if (dx > dy && dx > dz) rx = -ry - rz; else if (dy > dz) ry = -rx - rz; else rz = -rx - ry;
+      return vec2(rx, rz);
+    }
+    float wxOpen(vec3 w) {
       if (uWxOccOn < 0.5) return 1.0;
       vec2 uv = vec2((w.x - uWxOccP.x) / uWxOccP.z, (uWxOccP.y - w.z) / uWxOccP.z);
       if (uv.x <= 0.0 || uv.y <= 0.0 || uv.x >= 1.0 || uv.y >= 1.0) return 1.0;
@@ -32,7 +38,7 @@
       {
         float wxUp = dot(normal, normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz));
         float wxO = (uWxWet + uWxSnow > 0.001) ? wxOpen(vWxW) : 1.0;
-        float wxN = fract(sin(dot(floor(vWxW.xz * 1.6), vec2(12.9898, 78.233))) * 43758.5453);
+        float wxN = fract(sin(dot(wxHex(vWxW.xz), vec2(12.9898, 78.233))) * 43758.5453);   // sneeuwvlekken per zeshoekje
         float wxS = clamp(uWxSnow * 1.6 - wxN * 0.6, 0.0, 1.0) * smoothstep(0.45, 0.8, wxUp) * wxO;
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.92, 0.94, 0.97), wxS);
         roughnessFactor = mix(roughnessFactor, 0.95, wxS); metalnessFactor *= 1.0 - wxS;
@@ -188,7 +194,7 @@
       moon.position.set(Math.cos(a) * 170 * 1, Math.max(60, -elev * 190), -75);
       // binnenverlichting: lampen gaan aan als het donker wordt
       const lamp = Math.min(1, night * 1.15 + dusk * 0.3 + wc * day * 0.3);   // bij donker weer gaan de lampen eerder aan
-      for (const [m, base] of litMats) m.emissiveIntensity = Math.min(1.2, base * (1 + lamp * 3.2));
+      for (const [m, base] of litMats) m.emissiveIntensity = Math.min(1.0, base * (1 + lamp * 4.5));   // overdag gedempt (geen overbelichting binnen), 's nachts branden de lampen
       stars.material.opacity = Math.min(1, night * 1.2) * (1 - wc);
       // zon en maan aan de hemel
       sunDisc.userData.dir = [Math.cos(a) * -1, Math.max(-0.2, elev * 0.8 + 0.1), 0.35];
@@ -302,7 +308,7 @@
   const std = o => new THREE.MeshStandardMaterial(Object.assign({ flatShading: true, roughness: 0.85 }, typeof o === 'string' ? { color: o } : o));
   // Binnenruimtes liggen in de schaduw; een beetje eigen licht houdt ze leesbaar
   const inner = (o) => { const m = std(Object.assign({ emissive: '#ffffff', emissiveIntensity: 0.28 }, o)); litMats.push([m, m.emissiveIntensity]); return m; };
-  const innerTex = (tex) => { const m = std({ map: tex, emissiveMap: tex, emissive: '#ffffff', emissiveIntensity: 0.48 }); litMats.push([m, m.emissiveIntensity]); return m; };
+  const innerTex = (tex) => { const m = std({ map: tex, emissiveMap: tex, emissive: '#ffffff', emissiveIntensity: 0.26 }); litMats.push([m, m.emissiveIntensity]); return m; };
   const BRICKS = [
     ['#9c4a33', '#cdbfae', '#efe9dc'],
     ['#c39248', '#e5dac8', '#ffffff'],
@@ -329,11 +335,11 @@
     brickDoor: BRICKS.map(([b, m, f]) => std({ map: brickTex(b, m, f, true) })),
     plaster: innerTex(plasterTex(true)), plasterPlain: innerTex(plasterTex(false)),
     officeIn: innerTex(officeInTex),
-    floorWood: inner({ color: '#a97c52', emissive: '#a97c52', emissiveIntensity: 0.2 }),
-    floorOffice: inner({ color: '#8b9397', emissive: '#8b9397', emissiveIntensity: 0.2 }),
-    ceiling: inner({ color: '#f1eee7', emissive: '#f1eee7', emissiveIntensity: 0.72 }),
-    trim: inner({ color: '#f4f2ec', emissive: '#f4f2ec', emissiveIntensity: 0.25 }),
-    stairWood: inner({ color: '#8f6440', emissive: '#8f6440', emissiveIntensity: 0.2 }),
+    floorWood: inner({ color: '#a97c52', emissive: '#a97c52', emissiveIntensity: 0.1 }),
+    floorOffice: inner({ color: '#8b9397', emissive: '#8b9397', emissiveIntensity: 0.1 }),
+    ceiling: inner({ color: '#f1eee7', emissive: '#f1eee7', emissiveIntensity: 0.38 }),
+    trim: inner({ color: '#f4f2ec', emissive: '#f4f2ec', emissiveIntensity: 0.14 }),
+    stairWood: inner({ color: '#8f6440', emissive: '#8f6440', emissiveIntensity: 0.1 }),
   };
 
   const G = {
@@ -348,10 +354,10 @@
     crown: new THREE.IcosahedronGeometry(2.1, 0),
     unit: new THREE.BoxGeometry(1, 1, 1),
     // Dakkapel op het dakvlak: voorkant op 5,4 m uit het midden, plat dakje op 2,9 m; de rest zit in het dak
-    kapelBox: new THREE.BoxGeometry(2.6, 2.2, 2.3).translate(0, 1.8, 4.25),
-    kapelTop: new THREE.BoxGeometry(3.0, 0.14, 2.75).translate(0, 2.97, 4.3),
-    kapelWin: new THREE.BoxGeometry(1.7, 0.95, 0.06).translate(0, 2.2, 5.42),
-    kapelSill: new THREE.BoxGeometry(1.9, 0.08, 0.16).translate(0, 1.68, 5.45),
+    kapelBox: new THREE.BoxGeometry(2.6, 2.2, 2.3).translate(0, 1.8, 4.25).scale(1, 0.76, 1),   // dakkapel, past onder het afgesneden dak (2,5 m)
+    kapelTop: new THREE.BoxGeometry(3.0, 0.14, 2.75).translate(0, 2.97, 4.3).scale(1, 0.76, 1),
+    kapelWin: new THREE.BoxGeometry(1.7, 0.95, 0.06).translate(0, 2.2, 5.42).scale(1, 0.76, 1),
+    kapelSill: new THREE.BoxGeometry(1.9, 0.08, 0.16).translate(0, 1.68, 5.45).scale(1, 0.76, 1),
     tlPole: new THREE.CylinderGeometry(0.055, 0.07, 3.45, 8).translate(0, 1.725, 0),
     tlHead: new THREE.BoxGeometry(0.34, 1.0, 0.34),
     tlLamp: new THREE.CylinderGeometry(0.105, 0.105, 0.06, 14).rotateX(Math.PI / 2),

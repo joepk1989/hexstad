@@ -174,6 +174,14 @@
       toast(['Dak zonder dakkapel', 'Dakkapel aan de voorkant', 'Dakkapellen voor en achter'][nv], 1200);
       return;
     }
+    // Park aanklikken met het park gekozen: andere inrichting (bomen, bankjes, bloemen, vijver, speeltuin)
+    if (T === 'park' && top0 && baseOf(top0) === 'park') {
+      const v = /^park\d$/.test(top0) ? +top0.slice(4) : 0, nv = (v + 1) % 5;
+      st0[st0.length - 1] = nv ? 'park' + nv : 'park';
+      rebuildAround(q, r); changed();
+      toast(['Park met bomen', 'Park met bankjes en lantaarns', 'Park met bloemperken', 'Park met een vijver', 'Speeltuin'][nv] + ' · klik verder voor een andere inrichting', 1600);
+      return;
+    }
     // Woning op een huis met dak: er komt een verdieping onder het dak bij
     if (T === 'woning' && top0 && baseOf(top0) === 'dak' && st0.length >= 2 && isBuilding(baseOf(st0[st0.length - 2]))) {
       if (columnTop(q, r) + TY('woning').h > MAX_H + 0.01) return toast('Maximaal 60 meter hoog');
@@ -312,6 +320,9 @@
   })();
   // Doorzichtig voorbeeld van de échte module, met de juiste aansluitingen op wat ernaast ligt
   const ghostNone = new THREE.MeshBasicMaterial({ visible: false });
+  // voorbeeld van een getekende weg (klik) of rotonde: een platte strook of ring in de kleur van het spookblok
+  const vecGhostBox = new THREE.BoxGeometry(1, 0.3, 1), vecGhostRing = new THREE.RingGeometry(8.25, 13.75, 36).rotateX(-Math.PI / 2);
+  const vecGhost = new THREE.Mesh(vecGhostBox, ghostMat); vecGhost.visible = false; vecGhost.renderOrder = 4; vecGhost.userData.noOcc = true; scene.add(vecGhost);
   const crosshairEl = document.querySelector('.crosshair');
   const previewGroup = new THREE.Group(); scene.add(previewGroup);
   const prevMat = new THREE.MeshLambertMaterial({ color: '#f2b233', emissive: '#4a3300', transparent: true, opacity: 0.5, depthWrite: false });
@@ -357,7 +368,15 @@
     edgeGhost.visible = false; moduleGhost.visible = false;
     if (terrHover(res, cx, cy)) { previewActive = false; ghost.visible = false; ghostEdges.visible = false; return; }
     if (!res || (mode === 'walk' && hand !== 'bouwen')) { ghost.visible = false; ghostEdges.visible = false; return; }
-    if (VEC_TOOLS.has(tool) || tool === 'vrot') { previewActive = false; ghost.visible = false; ghostEdges.visible = false; return; }
+    if (VEC_TOOLS.has(tool) || tool === 'vrot') {   // voorbeeld: het stuk weg dat een klik hier maakt (of de rotonde)
+      previewActive = false; ghost.visible = false; ghostEdges.visible = false;
+      if (!res.place || roadDrag.on) { vecGhost.visible = false; return; }
+      if (tool === 'vrot') { const c = cellToWorld(res.place[0], res.place[1]); vecGhost.geometry = vecGhostRing; vecGhost.position.set(c.x, gH(res.place[0], res.place[1]) + 0.3, c.z); vecGhost.rotation.y = 0; vecGhost.scale.set(1, 1, 1); vecGhost.visible = true; return; }
+      const { from, to } = vecClickPlan(res.place, VEC_T[tool]), dx = to[0] - from[0], dz = to[1] - from[1], len = Math.hypot(dx, dz) || 1, hw = PATH_DEF[VEC_T[tool]].hw;
+      vecGhost.geometry = vecGhostBox; vecGhost.position.set((from[0] + to[0]) / 2, Math.max(gH(res.place[0], res.place[1]), terrainHeightAt((from[0] + to[0]) / 2, (from[1] + to[1]) / 2)) + 0.3, (from[1] + to[1]) / 2);
+      vecGhost.rotation.y = -Math.atan2(dz, dx); vecGhost.scale.set(len + hw, 1, hw * 2); vecGhost.visible = true; return;
+    }
+    vecGhost.visible = false;
     if (tool === 'module') { previewActive = false; ghost.visible = false; ghostEdges.visible = false; if (res.place) { const a = anchorOf(res); showModuleGhost(a[0], a[1], hudLayer() !== null ? hudLayer() : res.inst && !res.side ? res.lv : 0); } return; }
     if (EDGE_TOOLS.has(tool)) {
       previewActive = false; ghost.visible = false; ghostEdges.visible = false;

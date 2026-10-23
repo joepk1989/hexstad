@@ -573,7 +573,8 @@
   function buildPathNet(quick) {
     if (pathGroup) { pathGroup.traverse(m => { if (m.isMesh && m.userData.own) m.geometry.dispose(); }); scene.remove(pathGroup); }
     for (const k of profCache.keys()) if (!cells.paths || !cells.paths.includes(k)) profCache.delete(k);
-    vecLightReg = []; pathGroup = pathBuild(cells.paths, vecLightReg, quick); scene.add(pathGroup); carsDirty = true; vecDirty = true; peopleDirty = true;
+    vecLightReg = []; pathGroup = pathBuild(cells.paths, vecLightReg, quick); scene.add(pathGroup); carsDirty = true; vecDirty = true;
+    if (!quick) { peopleDirty = true; peopleLocalEdit = true; }   // een weg erbij of weg: de voetgangers blijven waar ze zijn (alleen wie zijn plek kwijt is, begint opnieuw); tijdens het slepen helemaal niets
     if (!quick) roadCols = pathGroup.userData.col || new Map();
     vecCover = vecCoverOf(cells.paths);
     if (!quick) terrRoadsChanged();   // het maaiveld langs de wegen sluit aan op de weg

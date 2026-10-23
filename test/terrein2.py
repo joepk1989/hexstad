@@ -1,0 +1,53 @@
+# Terrein: voorbeeld vóór het klikken, links ophogen / rechts afgraven, egaliseren links (gemiddelde) en rechts (startvak), helling met lijn; sneeuw in zeshoekjes
+import asyncio, os, json
+from playwright.async_api import async_playwright
+HERE=os.path.dirname(os.path.abspath(__file__)); DIST=os.path.join(HERE,"..","dist","hexstad.html"); THREE=os.path.join(HERE,"node_modules","three","build","three.min.js"); EMB=os.path.join(HERE,"out","emb.html"); open(EMB,"w",encoding="utf-8").write(open(DIST,encoding="utf-8").read().replace("https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js","file://"+THREE).replace("<title>","<meta charset=\"utf-8\"><title>",1)); os.chdir(os.path.join(HERE,'out'))
+async def main():
+    async with async_playwright() as p:
+        b=await p.chromium.launch(args=['--use-gl=swiftshader','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader'])
+        pg=await b.new_page(viewport={"width":1100,"height":700}); errs=[]; pg.on('pageerror',lambda e:errs.append(str(e)+' | '+str(getattr(e,'stack',''))[:400]))
+        await pg.add_init_script("try{localStorage.setItem('hexstad-set',JSON.stringify({terr:'laag',shadow:'zacht',tv:1,res:'normaal'})); localStorage.setItem('hexstad-keys-seen','1'); localStorage.setItem('hexstad.tod',JSON.stringify({tod:14,auto:false,speed:1}))}catch(e){}")
+        await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
+        await pg.evaluate("()=>{window.__SC().doAct('empty'); const S=window.__SC(); S.orbit.target.set(0,0,0); S.orbit.dist=90; S.orbit.phi=0.9; S.orbit.theta=0.3; S.applyOrbit();}"); await pg.wait_for_timeout(800)
+        await pg.evaluate("()=>document.getElementById('tool-tophoog').click()"); await pg.wait_for_timeout(300)
+        sc=await pg.evaluate("()=>{const S=window.__SC(); const v=new THREE.Vector3(0,0,0).project(S.camera); return [(v.x+1)/2*window.innerWidth,(1-v.y)/2*window.innerHeight]}")
+        await pg.mouse.move(sc[0],sc[1]); await pg.wait_for_timeout(500)
+        pv=await pg.evaluate("()=>{const S=window.__SC(); const o=S.scene.children.find(x=>x.isMesh&&x.material&&x.material.opacity===0.35&&x.visible&&x.renderOrder===6); return o?o.geometry.attributes.position.count:0}")
+        print('voorbeeld plaatjes (hoekpunten):', pv)
+        await pg.screenshot(path='terr_voorbeeld.png',timeout=300000)
+        # links: omhoog
+        await pg.mouse.down(); await pg.wait_for_timeout(700); await pg.mouse.up(); await pg.wait_for_timeout(500)
+        h1=await pg.evaluate("()=>window.__SC().gH(0,0)")
+        # rechts: omlaag
+        await pg.mouse.down(button='right'); await pg.wait_for_timeout(400); await pg.mouse.up(button='right'); await pg.wait_for_timeout(500)
+        h2=await pg.evaluate("()=>window.__SC().gH(0,0)")
+        print('ophogen links → %.2f, rechts → %.2f' % (h1,h2))
+        # egaliseren: maak een bult van 3 m op (2,0) en vlak links (gemiddelde) vs rechts (startvak)
+        await pg.evaluate("()=>{const S=window.__SC(); S.terrSet([[2,0,3],[3,0,3],[2,-1,3]]); S.terrFlush();}"); await pg.wait_for_timeout(300)
+        await pg.evaluate("()=>document.getElementById('tool-tvlak').click()"); await pg.wait_for_timeout(200)
+        p2=await pg.evaluate("()=>{const S=window.__SC(); const w=S.scene?null:null; const v=new THREE.Vector3(9*Math.sqrt(3)*2,3,0).project(S.camera); return [(v.x+1)/2*window.innerWidth,(1-v.y)/2*window.innerHeight]}")
+        await pg.mouse.move(p2[0],p2[1]); await pg.wait_for_timeout(300)
+        await pg.mouse.down(button='right'); await pg.wait_for_timeout(1200); await pg.mouse.up(button='right'); await pg.wait_for_timeout(400)
+        r1=await pg.evaluate("()=>[0,1,2,3].map(q=>+window.__SC().gH(q,0).toFixed(2))")
+        print('egaliseren rechts (naar startvak 3 m):', r1)
+        await pg.evaluate("()=>{const S=window.__SC(); S.terrSet([[0,0,0],[1,0,0],[2,0,3],[3,0,3],[2,-1,3],[1,-1,0],[3,-1,0],[1,1,0],[2,1,0]]); S.terrFlush();}"); await pg.wait_for_timeout(300)
+        await pg.mouse.move(p2[0]+3,p2[1]); await pg.wait_for_timeout(300)
+        await pg.mouse.down(); await pg.wait_for_timeout(1200); await pg.mouse.up(); await pg.wait_for_timeout(400)
+        r2=await pg.evaluate("()=>[0,1,2,3].map(q=>+window.__SC().gH(q,0).toFixed(2))")
+        print('egaliseren links (naar gemiddelde):', r2)
+        # helling met lijn
+        await pg.evaluate("()=>document.getElementById('tool-thelling').click()"); await pg.wait_for_timeout(200)
+        a=await pg.evaluate("()=>{const S=window.__SC(); const v=new THREE.Vector3(9*Math.sqrt(3)*-3,0,0).project(S.camera); return [(v.x+1)/2*window.innerWidth,(1-v.y)/2*window.innerHeight]}")
+        await pg.mouse.move(a[0],a[1]); await pg.mouse.down(); await pg.wait_for_timeout(200)
+        for i in range(1,9): await pg.mouse.move(a[0]+(p2[0]-a[0])*i/8, a[1]+(p2[1]-a[1])*i/8); await pg.wait_for_timeout(80)
+        await pg.wait_for_timeout(400)
+        gl=await pg.evaluate("()=>{const S=window.__SC(); const o=S.scene.children.find(x=>x.isLine&&x.material&&x.material.color&&x.material.color.getHexString()==='f08a5d'); return o?o.visible:null}")
+        print('hellinglijn zichtbaar:', gl)
+        await pg.screenshot(path='terr_helling.png',timeout=300000)
+        await pg.mouse.up(); await pg.wait_for_timeout(500)
+        print('helling hoogtes', await pg.evaluate("()=>[-3,-2,-1,0,1,2].map(q=>+window.__SC().gH(q,0).toFixed(2))"))
+        # sneeuw
+        await pg.evaluate("()=>{window.__WX.snap('sneeuw',0,1)}"); await pg.wait_for_timeout(2000)
+        await pg.screenshot(path='terr_sneeuw.png',timeout=300000)
+        print('fouten:',errs[:3]); await b.close()
+asyncio.run(main())

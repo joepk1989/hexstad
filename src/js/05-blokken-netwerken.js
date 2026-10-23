@@ -574,7 +574,7 @@
   // dichtstbijzijnde dakgoot (een rand waar geen dak op dezelfde hoogte naast ligt), tot 5 m. Een los huis
   // krijgt zo een zeshoekig schilddak; huizen naast elkaar een doorlopende nok, met kepers en kilgoten waar
   // rijen elkaar raken. Omdat buren dezelfde goten zien, sluiten de daken naadloos op elkaar aan.
-  const ROOF_H = 5;
+  const ROOF_H = 5, ROOF_CUT = 2.5;   // schildak: zou 5 m hoog worden, maar wordt op 2,5 m afgesneden (plat stuk bovenop, met een schoorsteen)
   const roofAt = (q, r, y) => { const it = itemAtLevel(q, r, y); return !!it.t && baseOf(it.t) === 'dak'; };
   function roofEaves(q, r, y) {
     // goten: open zijden van dit huis en van de dakburen. Nok: lijnen tussen de middens van aangrenzende
@@ -618,7 +618,7 @@
       for (const e of E.eaves) de = Math.min(de, segDist2(x, z, ...e));
       if (E.tris.some(T => inTri(x, z, T))) dr = 0;
       else for (const g of E.ridges) dr = Math.min(dr, segDist2(x, z, ...g));
-      return de + dr > 1e-6 ? ROOF_H * de / (de + dr) : ROOF_H;
+      return Math.min(ROOF_CUT, de + dr > 1e-6 ? ROOF_H * de / (de + dr) : ROOF_H);
     };
   }
   // Dakvlak als fijn raster in twaalf driehoeken (midden, hoek, zijmidden), zodat nokken en hoekkepers

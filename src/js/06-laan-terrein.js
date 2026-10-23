@@ -79,6 +79,8 @@
     if (['tunnel', 'muur', 'trappad', 'tribune', 'hofhelling'].includes(baseOf(t))) { makeModular(o, t, q, r, i, baseY, cx, cz, col); return o; }
     const kapels = /^dak\d$/.test(t) ? +t.slice(3) : 0;   // dak1: een dakkapel aan de voorkant, dak2: voor en achter
     if (kapels) t = 'dak';
+    const parkV = /^park\d$/.test(t) ? +t.slice(4) : 0;   // park1 bankjes, park2 bloemen, park3 vijver, park4 speeltuin (klik met het park op een park)
+    if (parkV) t = 'park';
     if (t !== 'water' && t !== 'park' && t !== 'dak') col.surfaces.push({ kind: 'hex', cx, cz, top: baseY + TYPES[t].h, bottom: baseY, hole: false });
     const add = (geo, mat) => { const m = new THREE.Mesh(geo, mat); m.castShadow = true; m.receiveShadow = true; o.add(m); return m; };
     const hv = hash(q, r, i);
@@ -89,6 +91,13 @@
       if (!M.roofTileD) { M.roofTileD = M.roofTile.clone(); M.roofTileD.side = THREE.DoubleSide; M.roofTileD.flatShading = false; }
       add(rgeo, M.roofTileD);
       col.surfaces.push({ kind: 'tris', cx, cz, B: rgeo.userData.tb, base: baseY, bottom: baseY });
+      { // schoorsteen: op het platte stuk, naar de achterkant toe (tegenover de voordeur), met een rand bovenop
+        const st = stackOf(q, r); let hb = 0, j = i - 1; while (j > 0 && isBuilding(baseOf(st[j - 1]))) j--; for (let n = 0; n < j; n++) hb += TY(st[n]).h;
+        let front = j >= 0 && isBuilding(baseOf(st[j])) ? doorFace(q, r, hb) : -1; if (front < 0) front = hv % 6;
+        const f = FRAMES[(front + 3) % 6], d = 2.6, sx = f.nx * d, sz = f.nz * d, rh = roofFn(eav)(sx, sz);
+        if (!G.chimney) { G.chimney = new THREE.BoxGeometry(0.7, 1, 0.7).translate(0, 0.5, 0); G.chimneyCap = new THREE.BoxGeometry(0.9, 0.12, 0.9).translate(0, 0.06, 0); M.chimney = std({ color: '#6e3d2e', roughness: 0.95 }); }
+        const ch = add(G.chimney, M.chimney); ch.position.set(sx, rh - 0.3, sz); ch.scale.y = 2.5 + 0.9 - (rh - 0.3);
+        add(G.chimneyCap, M.kapelDak).position.set(sx, 2.5 + 0.9, sz); }
       if (kapels && eav.open.length) {
         // voorkant = de kant van de voordeur van het huis eronder
         const st = stackOf(q, r);
@@ -110,9 +119,32 @@
       const geo = cachedField('p' + JSON.stringify(tg), () => fieldHexGeo(fieldFn(GREEN, tg)));
       add(geo, M.grass);
       col.surfaces.push({ kind: 'tris', cx, cz, B: geo.userData.tb, base: baseY, bottom: baseY });
-      const n = 3 + (hv % 2);
-      const base = (hv % 6) * Math.PI / 3;
+      if (!G.parkBench) { G.parkBench = new THREE.BoxGeometry(1.8, 0.08, 0.45).translate(0, 0.52, 0); G.parkLeg = new THREE.BoxGeometry(0.08, 0.5, 0.4).translate(0, 0.25, 0); G.parkPost = new THREE.CylinderGeometry(0.06, 0.08, 3.4, 6).translate(0, 1.7, 0); G.parkLampTop = new THREE.SphereGeometry(0.22, 8, 6).translate(0, 3.45, 0);
+        G.parkBed = new THREE.CylinderGeometry(1.4, 1.5, 0.35, 8).translate(0, 0.17, 0); G.parkFlower = new THREE.SphereGeometry(0.18, 6, 5); G.parkPond = new THREE.CylinderGeometry(3.2, 3.2, 0.3, 24).translate(0, 0.1, 0); G.parkRim = new THREE.TorusGeometry(3.25, 0.18, 6, 28).rotateX(Math.PI / 2).translate(0, 0.28, 0); G.parkReed = new THREE.CylinderGeometry(0.04, 0.05, 1.1, 4).translate(0, 0.55, 0);
+        G.parkSand = new THREE.CylinderGeometry(3.6, 3.6, 0.12, 24).translate(0, 0.06, 0); G.parkBar = new THREE.CylinderGeometry(0.05, 0.05, 2.6, 6).rotateZ(Math.PI / 2).translate(0, 2.4, 0); G.parkFrame = new THREE.CylinderGeometry(0.06, 0.06, 2.5, 6).translate(0, 1.25, 0); G.parkSeat = new THREE.BoxGeometry(0.45, 0.05, 0.2).translate(0, 0.6, 0); G.parkSlide = new THREE.BoxGeometry(0.7, 0.06, 2.6).rotateX(0.62).translate(0, 1.0, 0); G.parkTower = new THREE.BoxGeometry(1.2, 1.9, 1.2).translate(0, 0.95, 0);
+        M.lampLit = new THREE.MeshBasicMaterial({ color: '#fff1c4' }); M.flower = ['#e0573e', '#f2b233', '#d96cb0', '#f1efe6'].map(c => std({ color: c })); M.sand = std({ color: '#d6c69a' }); M.play = std({ color: '#2f6690' }); M.playRed = std({ color: '#c8553d' }); M.reed = std({ color: '#5a7f3a' }); }
+      const pk = (g, m, x, z, ry) => { const mm = add(g, m); mm.position.set(x, FLAT, z); if (ry) mm.rotation.y = ry; return mm; };
+      let n = 3 + (hv % 2), base = (hv % 6) * Math.PI / 3, only = null;
+      if (parkV === 1) {   // bankjes en lantaarns rond een pleintje, één boom
+        for (let k = 0; k < 3; k++) { const a = base + k * Math.PI * 2 / 3, bx = Math.cos(a) * 4.2, bz = Math.sin(a) * 4.2; pk(G.parkBench, M.bench, bx, bz, -a + Math.PI / 2); pk(G.parkLeg, M.bench, bx + Math.cos(a + Math.PI / 2) * 0.7, bz + Math.sin(a + Math.PI / 2) * 0.7, -a + Math.PI / 2); pk(G.parkLeg, M.bench, bx - Math.cos(a + Math.PI / 2) * 0.7, bz - Math.sin(a + Math.PI / 2) * 0.7, -a + Math.PI / 2); }
+        for (let k = 0; k < 2; k++) { const a = base + Math.PI / 3 + k * Math.PI, lx = Math.cos(a) * 5.4, lz = Math.sin(a) * 5.4; pk(G.parkPost, M.tlBody, lx, lz); const lm = pk(G.parkLampTop, M.lampLit, lx, lz); litMats.push([lm.material, 0]); }
+        n = 1; only = [[Math.cos(base + Math.PI) * 1.0, Math.sin(base + Math.PI) * 1.0]];
+      } else if (parkV === 2) {   // bloemperken
+        for (let k = 0; k < 3; k++) { const a = base + k * Math.PI * 2 / 3, bx = Math.cos(a) * 3.6, bz = Math.sin(a) * 3.6; pk(G.parkBed, M.kadeSteen, bx, bz); for (let f = 0; f < 7; f++) { const fa = f * 0.9 + k, fr = f ? 0.9 : 0; const fl = pk(G.parkFlower, M.flower[(f + k + (hv >>> k)) % 4], bx + Math.cos(fa) * fr, bz + Math.sin(fa) * fr); fl.position.y += 0.45; } }
+        n = 1; only = [[0, 0]];
+      } else if (parkV === 3) {   // vijvertje met riet
+        pk(G.parkPond, M.water, 0, 0); pk(G.parkRim, M.kadeSteen, 0, 0);
+        for (let k = 0; k < 9; k++) { const a = k * 0.7 + base, rr = 3.4 + (k % 3) * 0.25; pk(G.parkReed, M.reed, Math.cos(a) * rr, Math.sin(a) * rr); }
+        n = 2; only = [[Math.cos(base) * 5.6, Math.sin(base) * 5.6], [Math.cos(base + 2.6) * 5.6, Math.sin(base + 2.6) * 5.6]];
+      } else if (parkV === 4) {   // speeltuin: zandbak, schommel, glijbaan
+        pk(G.parkSand, M.sand, 0, 0);
+        const sa = base; pk(G.parkBar, M.play, Math.cos(sa) * 1.6, Math.sin(sa) * 1.6, -sa); for (const sd of [-1, 1]) { const fr = pk(G.parkFrame, M.play, Math.cos(sa) * 1.6 + Math.cos(sa + Math.PI / 2) * sd * 1.3, Math.sin(sa) * 1.6 + Math.sin(sa + Math.PI / 2) * sd * 1.3); fr.rotation.z = 0; }
+        for (const sd of [-0.5, 0.5]) pk(G.parkSeat, M.playRed, Math.cos(sa) * 1.6 + Math.cos(sa + Math.PI / 2) * sd, Math.sin(sa) * 1.6 + Math.sin(sa + Math.PI / 2) * sd, -sa);
+        const tx = Math.cos(sa + Math.PI) * 2.2, tz = Math.sin(sa + Math.PI) * 2.2; pk(G.parkTower, M.playRed, tx, tz, -sa); pk(G.parkSlide, M.play, tx + Math.cos(sa + Math.PI / 2) * 1.6, tz + Math.sin(sa + Math.PI / 2) * 1.6, -sa + Math.PI / 2);
+        n = 1; only = [[Math.cos(sa + Math.PI / 2) * -5.6, Math.sin(sa + Math.PI / 2) * -5.6]];
+      }
       for (let k = 0; k < n; k++) {
+        if (only) { const [tx, tz] = only[k]; add(G.trunk, M.trunk).position.set(tx, FLAT, tz); const c = add(G.crown, M.leaf[(hv >>> k) % 3]); c.position.set(tx, FLAT + 2.4 + 2.1 * 0.9, tz); continue; }
         const ang = base + k * (Math.PI * 2 / n) + ((hv >>> (k + 7)) % 3) * 0.2;
         const rad = 3.0 + ((hv >>> (k * 5 + 3)) % 4) * 0.55;
         const tx = Math.cos(ang) * rad, tz = Math.sin(ang) * rad;

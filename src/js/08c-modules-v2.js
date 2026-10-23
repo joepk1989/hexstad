@@ -416,7 +416,7 @@
         }
       });
     }
-    const wallOn = (x, z, y) => { for (const c of nearby(x, z)) for (const w of c.walls) if (w.y0 <= y + 0.3 && w.y1 >= y + 0.9 && segDist(x, z, w) <= w.half + 0.15) return true; return false; };
+    const wallOn = (x, z, y) => { for (const c of nearby(x, z)) for (const w of c.walls) if (w.y0 <= y + 0.3 && w.y1 >= y + 0.6 && segDist(x, z, w) <= w.half + 0.15) return true; return false; };   // ook een borstwering onder een raam (0,9 m) telt als muur: geen hek in het raam
     const geos = [], posts = new Set(), bar = (A, B, y0, y1, t) => { const dx = B[0] - A[0], dz = B[1] - A[1], l = Math.hypot(dx, dz); if (l < 0.01) return; const g = new THREE.BoxGeometry(l, y1 - y0, t); g.rotateY(-Math.atan2(dz, dx)); g.translate((A[0] + B[0]) / 2, (y0 + y1) / 2, (A[1] + B[1]) / 2); geos.push(g); };
     for (const E of edges.values()) {
       if (E.n !== 1 || E.y < 0.5) continue;

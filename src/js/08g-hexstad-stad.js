@@ -5,7 +5,7 @@
   //   1 (60–120°)   woonwijk: rijhuizen en villa's uit de bibliotheek, een woonerf en een hofje, speeltuin
   //   2 (120–180°)  openbaar: school, bibliotheek, gemeentehuis, kerk, ziekenhuis, station, stadsplein
   //   3 (180–240°)  park en water: een meer waar de weg als brug overheen gaat, bos, vijver, voetpaden, voetbrug
-  //   4 (240–300°)  terrein: een dijk waar de weg overheen klimt, villa's en tuinen op de helling, trap naar terras
+  //   4 (240–300°)  terrein: een dijk waar de weg naar het zuidwesten overheen klimt, villa's en tuinen op de helling, trap naar terras
   //   5 (300–360°)  werken en de oude bouwblokken: fabriek, hallen, parkeergarage, looppaden, tunnel, tribune
   // Buiten de ring: een snelweg langs de oostkant (de weg erheen gaat er met een viaduct over) en een fietsring.
   // Alles is vast (geen toeval), zodat de stad elke keer hetzelfde is en tests erop kunnen rekenen.
@@ -25,11 +25,10 @@
     // straten in de buurten (klinkers), tussen de spaken in
     const mid = (k, r0, r1) => { const a = (k + 0.5) * Math.PI / 3; return { t: 'klink', l: 0, r: 0, p: [P(Math.cos(a) * r0, Math.sin(a) * r0), P(Math.cos(a) * r1, Math.sin(a) * r1)] }; };
     c.paths.push(mid(1, 130, 262)); c.paths.push(mid(2, 130, 262)); c.paths.push(mid(5, 130, 262)); c.paths.push(mid(4, 130, 205));
-    c.paths.push({ t: 'klink', l: 0, r: 0, p: [P(Math.cos(0.34) * 118, Math.sin(0.34) * 118), P(Math.cos(0.34) * 150, Math.sin(0.34) * 150)] });   // naar het winkelcentrum
     // voetpaden door het park, rond het meer
-    const lake = [Math.cos(Math.PI * 1.17) * 185, Math.sin(Math.PI * 1.17) * 185];
+    const lake = [-185, 0];   // op de weg naar het westen: die gaat er als brug overheen
     { const p = []; for (let i = 0; i <= 20; i++) { const a = i / 20 * Math.PI * 2; p.push(P(lake[0] + Math.cos(a) * 54, lake[1] + Math.sin(a) * 54)); } c.paths.push({ t: 'pad', l: 0, r: 0, p }); }
-    c.paths.push({ t: 'pad', l: 0, r: 0, p: [P(lake[0] + 54, lake[1]), P(Math.cos(Math.PI * 1.08) * 118, Math.sin(Math.PI * 1.08) * 118)] });
+    c.paths.push({ t: 'pad', l: 0, r: 0, p: [P(lake[0] + 38, lake[1] + 38), P(Math.cos(Math.PI * 1.12) * 118, Math.sin(Math.PI * 1.12) * 118)] });
     // ---------- afstand tot de wegen ----------
     const roads = c.paths.filter(p => p.t !== 'rot').map(p => ({ def: PATH_DEF[p.t], pts: smoothPts(p.p) }));
     const roadDist = (x, z) => { let d = Math.hypot(x, z) - ROT.Ro; for (const r of roads) d = Math.min(d, distPoly(x, z, r.pts) - r.def.hw - r.def.walk); return d; };
@@ -44,18 +43,23 @@
     const lib = name => byName.get(name) || std.get(name) || null;
     const put = (name, q, r, rot, lv, mir) => { const m = lib(name); if (!m) return false; c.inst.push(Object.assign({ mid: m.id, m: instData(m, !!mir), q, r, rot: ((rot % 6) + 6) % 6 }, lv ? { lv } : {}, mir ? { mir: true } : {})); return true; };
     const taken = new Set(), take = (q, r) => taken.add(key(q, r)), isTaken = (q, r) => taken.has(key(q, r)) || has(q, r);
-    const place1 = (name, q, r, rot) => { if (isTaken(q, r) || !free(q, r)) return false; if (rot === undefined) rot = (toRoad(q, r) + 1) % 6; if (!put(name, q, r, rot)) return false; take(q, r); return true; };   // deur (ringzijde 0 = geometriezijde 5) naar de straat
+    const hilly = (q, r) => (c.terr[q + ',' + r] || 0) > 0.3;
+    const place1 = (name, q, r, rot) => {   // deur (ringzijde 0 = geometriezijde 5) naar de straat; een module van 7 vakken moet overal vrij staan
+      if (isTaken(q, r) || !free(q, r)) return false; if (rot === undefined) rot = (toRoad(q, r) + 1) % 6;
+      const m = lib(name); if (!m) return false;
+      const area = m.k ? [[q, r], ...NEIGH.map(([a, b]) => [q + a, r + b])] : [[q, r]];
+      if (area.some(([a, b]) => isTaken(a, b) || !free(a, b, m.k ? 6 : 7.5) || hilly(a, b))) return false;
+      if (!put(name, q, r, rot)) return false; area.forEach(([a, b]) => take(a, b)); return true; };
     const place7 = (name, q, r, rot = 0) => { const cells7 = [[q, r], ...NEIGH.map(([a, b]) => [q + a, r + b])]; if (cells7.some(([a, b]) => isTaken(a, b) || !free(a, b, 6))) return false; if (!put(name, q, r, rot)) return false; cells7.forEach(([a, b]) => take(a, b)); return true; };
     // ---------- water: een meer in het park; de weg erdoor wordt een brug ----------
     const [lq, lr] = worldToCell(lake[0], lake[1]);
     for (let q = lq - 5; q <= lq + 5; q++) for (let r = lr - 5; r <= lr + 5; r++) { const w = cellToWorld(q, r); if (Math.hypot(w.x - lake[0], w.z - lake[1]) < 40) { set(q, r, ['water']); take(q, r); } }
     // ---------- terrein: een dijk dwars over de weg naar het zuidwesten (270°), met een zachte flank ----------
-    { const A = 270 * Math.PI / 180, C = [Math.cos(A) * 200, Math.sin(A) * 200], tx = -Math.sin(A), tz = Math.cos(A);   // dijk loopt loodrecht op de weg
+    { const A = 240 * Math.PI / 180, C = [Math.cos(A) * 200, Math.sin(A) * 200], tx = -Math.sin(A), tz = Math.cos(A);   // dijk loopt loodrecht op de weg naar het zuidwesten
       for (let q = -30; q <= 30; q++) for (let r = -30; r <= 30; r++) { const w = cellToWorld(q, r), dx = w.x - C[0], dz = w.z - C[1], along = dx * tx + dz * tz, across = Math.abs(dx * Math.cos(A) + dz * Math.sin(A)); if (Math.abs(along) > 95 || across > 34) continue; const end = Math.max(0, Math.min(1, (95 - Math.abs(along)) / 30)), h = 4.5 * end * (across < 12 ? 1 : Math.max(0, 1 - (across - 12) / 22)); if (h > 0.3) c.terr[q + ',' + r] = Math.round(h * 2) / 2; } }
-    const hilly = (q, r) => (c.terr[q + ',' + r] || 0) > 0.3;
     // ---------- winkelcentrum (sector 0), verschoven naar zijn plek ----------
-    { const [mq, mr] = worldToCell(Math.cos(0.52) * 190, Math.sin(0.52) * 190);
-      for (const [ni, q, r, lv, rot, mir] of MALL) { const name = MALL_NAMES[ni]; put(name, q + mq, r + mr, rot, lv, mir); if (!lv) { take(q + mq, r + mr); for (const [a, b] of NEIGH) if (!isTaken(q + mq + a, r + mr + b)) take(q + mq + a, r + mr + b); } }
+    { const [mq, mr] = worldToCell(Math.cos(0.52) * 190, Math.sin(0.52) * 190);   // 120° gedraaid: de lange kant langs de ring
+      for (const [ni, q0, r0, lv, rot, mir] of MALL) { const q1 = -r0, r1 = q0 + r0, q = -r1, r = q1 + r1, name = MALL_NAMES[ni]; put(name, q + mq, r + mr, rot + 2, lv, mir); if (!lv) { take(q + mq, r + mr); for (const [a, b] of NEIGH) if (!isTaken(q + mq + a, r + mr + b)) take(q + mq + a, r + mr + b); } }
       // parkeren en markt bij het winkelcentrum
       const park = [['Parkeerplaats · lantaarns', 0.62, 255], ['Parkeerplaats · haag', 0.42, 255], ['Plein · markt', 0.24, 150], ['Winkel · supermarkt', 0.9, 170], ['Fietsenstalling · overdekt', 0.75, 250], ['Horeca · hotel', 0.14, 250]];
       for (const [name, a, rad] of park) { const [q, r] = worldToCell(Math.cos(a) * rad, Math.sin(a) * rad); place1(name, q, r); } }
@@ -105,9 +109,9 @@
       }
       if (hilly(q, r)) continue;   // op de dijk staat niets
       if (s === 0) { if (street && rad > 215 && h < 6) place1(WINKELS[h % WINKELS.length], q, r); else if (!street && h < 4) set(q, r, ['park']); continue; }
-      if (s === 1) { if (street) { if (h < 11) place1(RIJ[(h + n++) % RIJ.length], q, r); else set(q, r, [h % 2 ? 'woning' : 'woning', 'woning']); } else if (h < 5) set(q, r, ['woning']); else if (h < 8) set(q, r, ['park']); continue; }
+      if (s === 1) { if (street) { if (h < 11) place1(RIJ[(h + n++) % RIJ.length], q, r); else set(q, r, [h % 2 ? 'woning' : 'woning', 'woning']); } else if (h < 5) set(q, r, ['woning']); else if (h < 8) set(q, r, [h === 7 ? 'park4' : h === 6 ? 'park1' : 'park']); continue; }
       if (s === 2) { if (street && h < 7) place1(RIJ[(h * 3) % RIJ.length], q, r); else if (h < 4) set(q, r, ['park']); continue; }
-      if (s === 3) { if (h < 9) set(q, r, ['park']); continue; }
+      if (s === 3) { if (h < 9) set(q, r, [h % 4 === 1 ? 'park' + (1 + (h % 4)) : 'park']); continue; }   // ook bankjes, bloemen, vijvers, speeltuinen
       if (s === 4) { if (street && h < 6) place1(RIJ[(h + 2) % RIJ.length], q, r); else if (h < 5) set(q, r, ['park']); continue; }
       if (s === 5) { if (street && rad < 200 && h < 7) place1(KANT[h % KANT.length], q, r); else if (street && h < 9) set(q, r, Array(1 + (h % 3)).fill('kantoor')); else if (h < 3) set(q, r, ['park']); }
     }

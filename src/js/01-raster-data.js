@@ -14,7 +14,7 @@
     laan:    { name: 'Laan',    h: 0.25 },   // brede laan over twee rijen vakken
     woning:  { name: 'Woning',  h: 3 },
     kantoor: { name: 'Kantoor', h: 3 },
-    dak:     { name: 'Dak',     h: 5 },
+    dak:     { name: 'Dak',     h: 2.5 },   // afgesneden schildak
     park:    { name: 'Park',    h: FLAT },
     water:   { name: 'Water',   h: 0 },   // verzonken: waterspiegel 1,4 m onder straatniveau
     pad:     { name: 'Pad',     h: 0.15 },

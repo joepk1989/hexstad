@@ -118,7 +118,7 @@
     document.body.classList.toggle('walk', walking);
     walkUI.hidden = !walking;
     modeLbl.textContent = walking ? 'Bouwen' : 'Lopen';
-    gridLines.visible = !walking && gridOn; ghost.visible = false; ghostArrow.visible = false; ghostEdges.visible = false;
+    gridLines.visible = !walking && gridOn; ghost.visible = false; ghostArrow.visible = false; ghostEdges.visible = false; vecGhost.visible = false;
     toastEl.classList.add('fade');
     camera.fov = walking ? 72 : 45; camera.near = walking ? 0.1 : 1.0; camera.updateProjectionMatrix();
     if (walking) {
@@ -351,7 +351,8 @@
         src.start(now, off, dur);
       },
       // Een kreun van iemand die geraakt wordt (door een auto of door een speler die tegen hem aan loopt), vlak na de klap.
-      grunt(x, y, z, strength) {
+      // wie: 'm' (man), 'v' (vrouw: hoger), 'k' (kind: nog hoger en korter), 'o' (oudere: lager en langzamer)
+      grunt(x, y, z, strength, who) {
         if (!on || !ctx || !gruntBuf) return;
         const now = ctx.currentTime;
         if (now - lastGrunt < 0.25) return;   // niet alle omgevallen mensen tegelijk
@@ -361,7 +362,8 @@
         Object.assign(pn, { panningModel: 'equalpower', distanceModel: 'inverse', refDistance: 4, rolloffFactor: 1.3, maxDistance: 250 });
         placeAt(pn, x, y, z);
         src.buffer = gruntBuf;
-        src.playbackRate.value = 0.88 + Math.random() * 0.28;   // elke persoon een iets andere stem
+        const base = who === 'k' ? 1.45 : who === 'v' ? 1.18 : who === 'o' ? 0.8 : 0.92;
+        src.playbackRate.value = base * (0.95 + Math.random() * 0.1);   // elke persoon een iets andere stem; vrouwen en kinderen hoger
         g.gain.value = 0.55 + 0.45 * Math.min(1, strength || 0.5);
         src.connect(g); g.connect(pn); pn.connect(master);
         src.start(now + 0.07, off, dur);

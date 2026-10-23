@@ -662,7 +662,7 @@
     }
     function animPose(a) {
       if (!a.feet) initFeet(a);
-      const sc = a.scale * (0.2 + 0.8 * a.fade), w = Math.min(1, a.spd / 1.0), idle = 1 - w;
+      const sc = a.scale, w = Math.min(1, a.spd / 1.0), idle = 1 - w;   // niet krimpen bij een deur: je loopt gewoon naar binnen (fade telt alleen voor het ontwijken)
       const [fx, fz] = fwdOf(a.heading), stepLen = a.stride * 0.4;
       VFw.set(fx, 0, fz);
       const fL = a.feet[0], fR = a.feet[1];
@@ -1034,7 +1034,7 @@
           if (walking) {
             const dx = a.x - player.x, dz = a.z - player.z, d = Math.hypot(dx, dz);
             if (d < 0.6 && Math.abs(a.y - player.y) < 1.2) {
-              if (pSpeed > 3) { a.ragWhy = 'player'; startRagdoll(a, pvx * 0.9 + dx / (d || 1) * 0.5, 1.6 + pSpeed * 0.25, pvz * 0.9 + dz / (d || 1) * 0.5); sound.grunt(a.x, 0.9, a.z, Math.min(1, pSpeed / 8)); continue; }
+              if (pSpeed > 3) { a.ragWhy = 'player'; startRagdoll(a, pvx * 0.9 + dx / (d || 1) * 0.5, 1.6 + pSpeed * 0.25, pvz * 0.9 + dz / (d || 1) * 0.5); sound.grunt(a.x, 0.9, a.z, Math.min(1, pSpeed / 8), a.kid ? 'k' : a.female ? 'v' : a.old ? 'o' : 'm'); continue; }
               // rustig: ze stappen zijwaarts uit je looplijn (rechts of links, wat het dichtst bij is)
               const pl = Math.hypot(pvx, pvz) || 1, lx = -pvz / pl, lz = pvx / pl;
               const sideS = (dx * lx + dz * lz) >= 0 ? 1 : -1;
@@ -1095,7 +1095,7 @@
           if (a.y - fy > 0.8) { a.ragWhy = 'floor'; startRagdoll(a, Math.sin(a.heading) * a.spd, 0, Math.cos(a.heading) * a.spd); continue; }   // geen grond meer onder je: vallen
           a.y += (fy - a.y) * Math.min(1, dt * 14);
           stepFeet(a, dt);
-          if (a.goingIn && a.wps.length === 1) a.fade = Math.max(0, Math.min(a.fade, d0 / 2.5));   // verdwijnt in de deuropening
+          if (a.goingIn && a.wps.length === 1) a.fade = Math.max(0, Math.min(a.fade, d0 / 2.5));   // vlak bij de deur: anderen hoeven niet meer uit te wijken
         }
         render();
       },

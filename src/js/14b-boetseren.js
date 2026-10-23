@@ -1,7 +1,9 @@
   // ---------- Terrein boetseren ----------
   // Vijf gereedschappen, allemaal met de muis ingedrukt houden en slepen (op een touchscreen: even vasthouden):
-  //  Ophogen / Afgraven  zolang je drukt gaat het terrein onder het penseel omhoog of omlaag (Shift: andersom)
-  //  Egaliseren          alles wat je raakt gaat naar de hoogte van het vak waar je begon
+  //  Ophogen / Afgraven  zolang je drukt gaat het terrein onder het penseel omhoog of omlaag (rechts of Shift: andersom)
+  //  Egaliseren          links: alles wat je raakt gaat naar de gemiddelde hoogte onder het penseel waar je begon;
+  //                      rechts: naar de hoogte van het vak waar je begon
+  //  Voordat je klikt zie je wat er gebeurt: doorzichtige plaatjes op de nieuwe hoogte onder het penseel.
   //  Gladstrijken        scherpe overgangen worden zacht (elk vak schuift naar het gemiddelde van zijn buren)
   //  Helling             sleep van A naar B: een gelijkmatige helling van de hoogte bij A naar die bij B
   // Het penseel is 1, 7, 19 of 37 vakken ([ en ]); het midden werkt het hardst. Vakken waar iets op staat blijven
@@ -30,12 +32,52 @@
   })();
   const terrLbl = document.createElement('div'); terrLbl.id = 'terrLbl'; terrLbl.hidden = true; document.body.appendChild(terrLbl);
   const fmtM = v => (Math.round(v * 2) / 2).toLocaleString('nl', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' m';
+  // Voorbeeld vóór het klikken: per vak onder het penseel een doorzichtig plaatje op de hoogte na één flinke streek
+  const terrPreview = (() => {
+    const geo = new THREE.BufferGeometry(), mat = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide });
+    const m = new THREE.Mesh(geo, mat); m.renderOrder = 6; m.visible = false; m.frustumCulled = false; m.userData.noOcc = true; scene.add(m);
+    const CORN = [0, 1, 2, 3, 4, 5].map(i => { const a = (30 + 60 * i) * Math.PI / 180; return [Math.cos(a) * R * 0.92, Math.sin(a) * R * 0.92]; });
+    return {
+      show(q, r, tl, inv) {
+        const pos = [], raise = (tl === 'tophoog') !== !!inv;
+        let hv = gH(q, r); if (tl === 'tvlak' && !inv) { let s = 0, n = 0; for (const [a, b] of brushCells(q, r)) { s += gH(a, b); n++; } hv = Math.round(s / n * 2) / 2; }
+        for (const [cq, cr, d] of brushCells(q, r)) {
+          if (!terrFree(cq, cr)) continue;
+          const w = brushW(d), h = gH(cq, cr); let nh = h;
+          if (tl === 'tophoog' || tl === 'tafgraaf') nh = Math.max(0, Math.min(TERR_TOP, h + (raise ? 1 : -1) * 1.5 * w));
+          else if (tl === 'tvlak') nh = hv;
+          else if (tl === 'tglad') { let s = 0; for (const [dq, dr] of NEIGH) s += gH(cq + dq, cr + dr); nh = h + (s / 6 - h) * Math.min(1, 0.8 * w); }
+          else continue;
+          if (Math.abs(nh - h) < 0.02) continue;
+          const c = cellToWorld(cq, cr), y = nh + 0.12;
+          for (let i = 0; i < 6; i++) { const A = CORN[i], B = CORN[(i + 1) % 6]; pos.push(c.x, y, c.z, c.x + A[0], y, c.z + A[1], c.x + B[0], y, c.z + B[1]); }
+        }
+        if (!pos.length) { m.visible = false; return; }
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.computeBoundingSphere();
+        mat.color.set(TERR_COL[tl] || '#fff'); m.visible = true;
+      },
+      hide() { m.visible = false; },
+    };
+  })();
+  // Helling: een lijn van A naar het vak onder de muis, boven het terrein
+  const guideLine = (() => {
+    const N = 48, g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N * 3), 3));
+    const m = new THREE.Line(g, new THREE.LineBasicMaterial({ color: '#f08a5d', transparent: true, opacity: 0.95, depthTest: false }));
+    m.renderOrder = 21; m.visible = false; m.frustumCulled = false; scene.add(m);
+    return {
+      show(A, B) { const P = g.attributes.position; for (let i = 0; i < N; i++) { const t = i / (N - 1), x = A.x + (B.x - A.x) * t, z = A.z + (B.z - A.z) * t; P.setXYZ(i, x, terrGround(x, z) + 0.5, z); } P.needsUpdate = true; m.visible = true; },
+      hide() { m.visible = false; },
+    };
+  })();
   function terrHover(res, cx, cy) {
-    if (!TERR_TOOLS.has(tool) || !res || !res.point || mode !== 'build') { brushRing.hide(); terrLbl.hidden = true; return false; }
+    if (!TERR_TOOLS.has(tool) || !res || !res.point || mode !== 'build') { brushRing.hide(); terrPreview.hide(); terrLbl.hidden = true; if (!SC.on) guideLine.hide(); return false; }
     const [q, r] = worldToCell(res.point.x, res.point.z), c = cellToWorld(q, r);
     brushRing.show(c.x, c.z, tool);
+    if (!SC.on) terrPreview.show(q, r, tool, keys.ShiftLeft || keys.ShiftRight); else terrPreview.hide();
+    if (SC.on && tool === 'thelling' && SC.a) guideLine.show(cellToWorld(SC.a[0], SC.a[1]), c);
     terrLbl.hidden = false; terrLbl.style.left = (cx + 16) + 'px'; terrLbl.style.top = (cy + 14) + 'px';
-    terrLbl.textContent = terrOcc(q, r) ? fmtM(gH(q, r)) + ' · bebouwd' : SC.on && tool === 'thelling' && SC.a ? fmtM(SC.ha) + ' → ' + fmtM(SC.prior.get(q + ',' + r) ?? gH(q, r)) : fmtM(gH(q, r));
+    const hint = { tophoog: 'links omhoog · rechts omlaag', tafgraaf: 'links omlaag · rechts omhoog', tvlak: 'links: gemiddelde · rechts: dit vak', tglad: 'slepen om glad te strijken', thelling: 'sleep van hier naar het andere eind' }[tool];
+    terrLbl.textContent = terrOcc(q, r) ? fmtM(gH(q, r)) + ' · bebouwd' : SC.on && tool === 'thelling' && SC.a ? fmtM(SC.ha) + ' → ' + fmtM(SC.prior.get(q + ',' + r) ?? gH(q, r)) : fmtM(gH(q, r)) + (SC.on ? '' : ' · ' + hint);
     return true;
   }
   // Een streek: van indrukken tot loslaten
@@ -43,7 +85,10 @@
   function terrCellAt(cx, cy) { const h = groundHit(cx, cy); return h ? worldToCell(h.point.x, h.point.z) : null; }
   function sculptStart(cx, cy, inv) {
     const c = terrCellAt(cx, cy); if (!c) return false;
-    Object.assign(SC, { on: true, x: cx, y: cy, inv: !!inv, touched: new Set(), a: c, ha: gH(c[0], c[1]), prior: new Map(), hv: gH(c[0], c[1]) });
+    let hv = gH(c[0], c[1]);
+    if (tool === 'tvlak' && !inv) { let s = 0, n = 0; for (const [q, r] of brushCells(c[0], c[1])) { s += gH(q, r); n++; } hv = Math.round(s / n * 2) / 2; }   // links: het gemiddelde; rechts: het startvak
+    Object.assign(SC, { on: true, x: cx, y: cy, inv: !!inv, touched: new Set(), a: c, ha: gH(c[0], c[1]), prior: new Map(), hv });
+    guideLine.hide();
     if (tool === 'tophoog' || tool === 'tafgraaf') sculptStep(0.12);   // een klik is ook al een stapje
     if (tool === 'thelling') sculptMove(cx, cy);
     return true;
@@ -91,7 +136,7 @@
   }
   function sculptEnd() {
     if (!SC.on) return;
-    SC.on = false; sculptAcc = 0;
+    SC.on = false; sculptAcc = 0; guideLine.hide();
     if (!SC.touched.size) return;
     const list = [...SC.touched].map(k => k.split(',').map(Number));
     terrVer++;   // wegprofielen volgen het nieuwe terrein

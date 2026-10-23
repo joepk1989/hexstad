@@ -176,8 +176,7 @@
   function waterAt(x, z) {
     const [q, r] = worldToCell(x, z);
     if (baseOf(stackOf(q, r)[0]) !== 'water') return false;
-    const c = colMap.get(key(q, r));
-    if (c) for (const s2 of c.surfaces) { const t = surfTop(s2, x, z); if (t !== null && t > -0.6) return false; }
+    for (const c of nearby(x, z)) for (const s2 of c.surfaces) { const t = surfTop(s2, x, z); if (t !== null && t > -0.6) return false; }   // een brugdek (getekende weg, module) of een blok op het water: daar kun je staan
     return true;
   }
   function blockedAt(x, z, feet) {

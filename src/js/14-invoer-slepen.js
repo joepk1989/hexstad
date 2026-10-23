@@ -45,11 +45,11 @@
     }
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pointers.size === 1) {
-      const terrT = TERR_TOOLS.has(tool) && e.button === 0 && !e.altKey;
-      downInfo = { x: e.clientX, y: e.clientY, t: performance.now(), moved: false, panMode: e.button === 2 || (e.shiftKey && !terrT), right: e.button === 2,
+      const terrT = TERR_TOOLS.has(tool) && (e.button === 0 || e.button === 2) && !e.altKey;   // terrein: links én rechts boetseren (rechts andersom), schuiven met het wiel/middelste knop
+      downInfo = { x: e.clientX, y: e.clientY, t: performance.now(), moved: false, panMode: (e.button === 2 && !terrT) || (e.shiftKey && !terrT), right: e.button === 2,
         rotate: e.button === 1 || e.altKey,
         road: (DRAG_TOOLS.has(tool) || EDGE_TOOLS.has(tool) || lineModSel()) && e.button === 0 && !e.shiftKey && !e.altKey && e.pointerType === 'mouse' };
-      if (terrT && e.pointerType === 'mouse') { downInfo.sculpt = sculptStart(e.clientX, e.clientY, e.shiftKey); downInfo.moved = true; }   // terrein: meteen boetseren
+      if (terrT && e.pointerType === 'mouse') { downInfo.sculpt = sculptStart(e.clientX, e.clientY, e.shiftKey || e.button === 2); downInfo.moved = true; }   // terrein: meteen boetseren
       if (terrT && e.pointerType !== 'mouse') {   // touchscreen: even vasthouden, dan boetseren
         const d0 = downInfo; clearTimeout(roadHold);
         roadHold = setTimeout(() => { if (downInfo !== d0 || d0.moved || pointers.size !== 1) return; d0.moved = true; d0.sculpt = sculptStart(d0.x, d0.y, false); }, 320);
@@ -319,10 +319,7 @@
     arm(650);
     D.vfrom = () => D.vcorners.length ? D.vcorners[D.vcorners.length - 1] : D.vstart;
     const from = D.vfrom();
-    // niet door gebouwen of water: de weg stopt bij het laatste vrije vak vóór het obstakel
-    const seg = (c0, c1) => { const a = cellToWorld(c0[0], c0[1]), b = cellToWorld(c1[0], c1[1]); return [{ t: D.vp.t, l: 0, r: 0, p: [[a.x, a.z], [b.x, b.z]] }]; };
-    const free = c1 => { for (const k of vecCoverOf(seg(from, c1), true)) { const [q, r] = k.split(',').map(Number); if (vecObstacle(q, r)) return false; } return true; };
-    if (!free(cell)) { const line = [from, ...hexLine(from, cell)]; let ok = from; for (const c of line) { if (!free(c)) break; ok = c; } cell = ok; }
+    // dwars door bebouwing mag: wat onder de weg komt, verdwijnt bij het loslaten (Ctrl+Z zet het terug)
     D.vend = cell;
     const W = c => { const w = cellToWorld(c[0], c[1]); return [Math.round(w.x * 100) / 100, Math.round(w.z * 100) / 100]; };
     const same = cell[0] === from[0] && cell[1] === from[1];
@@ -349,8 +346,51 @@
   if (dragHEl) dragHEl.querySelectorAll('button').forEach(b => b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); roadHeightStep(+b.dataset.d); }));
   function vecDragEnd() {
     const D = roadDrag, vp = D.vp; D.vp = null; clearTimeout(D.vtimer); showDragH(false); if (!vp) return;
-    if (vp.p.length < 2) { const i = cells.paths.indexOf(vp); if (i >= 0) cells.paths.splice(i, 1); buildPathNet(); toast('Sleep van vak naar vak om een ' + TYPES[D.tool].name.toLowerCase() + ' te trekken', 1600); return; }
-    buildPathNet(); changed(); toast(TYPES[D.tool].name + ' aangelegd, ' + D.count + ' vakken lang', 1400);
+    if (vp.p.length < 2) { const i = cells.paths.indexOf(vp); if (i >= 0) cells.paths.splice(i, 1); vecClick(D.vstart, VEC_T[D.tool]); return; }
+    const gone = vecClearUnder([vp]);
+    buildPathNet(); changed(); toast(TYPES[D.tool].name + ' aangelegd, ' + D.count + ' vakken lang' + (gone ? ' · ' + gone + ' ' + (gone === 1 ? 'gebouw' : 'gebouwen') + ' weggehaald (Ctrl+Z zet terug)' : ''), gone ? 2600 : 1400);
+  }
+  // Wat onder een nieuwe weg staat, gaat weg: gebouwen, blokken en modules op de vakken waarvan het midden op de
+  // verharding ligt. Water, een uitgraving en het terrein blijven (daar wordt de weg een brug of klimt hij).
+  function vecClearUnder(P) {
+    let gone = 0; const touched = [];
+    for (const k of vecCoverOf(P, true)) {
+      const [q, r] = k.split(',').map(Number);
+      if (cells.inst && cells.inst.length) {
+        const hit = cells.inst.filter(I => I.m && (I.m.v === 2 ? mv2Area(I).some(([a, b]) => a === q && b === r) : moduleCells(I.m, I.rot, I.q, I.r).some(([a, b]) => a === q && b === r)));
+        for (const I of hit) { const i = cells.inst.indexOf(I); if (i >= 0) { cells.inst.splice(i, 1); removeInst(I); gone++; } }
+      }
+      const st = stackOf(q, r); if (!st.length) continue;
+      const b0 = baseOf(st[0]), keep = (b0 === 'water' || b0 === 'kuil') ? 1 : (b0 === 'heuvel' && terrOnly(q, r)) ? st.length : 0;
+      if (keep >= st.length) continue;
+      if (columnTop(q, r) - (keep ? TY(st[0]).h : 0) <= 0.5 && !st.slice(keep).some(t => ['woning', 'kantoor', 'dak', 'blok', 'zuilen', 'hof', 'tunnel', 'looppad', 'trap', 'muur', 'tribune', 'helling', 'trappad', 'hofhelling'].includes(baseOf(t)))) continue;   // een pad of park onder de weg mag blijven
+      const ns = st.slice(0, keep); if (ns.length) cells.set(k, ns); else cells.delete(k); gone++; touched.push([q, r]);
+    }
+    if (touched.length) { if (touched.length > 3) rebuildMany(touched); else for (const [q, r] of touched) rebuildAround(q, r); }
+    if (gone) { buildTriNet(); buildEdgeNet(); buildModNet(); }
+    return gone;
+  }
+  // Eén klik met een wegtool op een vak: ligt er in een buurvak een uiteinde van zo'n weg, dan loopt die door tot
+  // hier; anders begint hier een stukje weg van twee vakken in je kijkrichting (R draait die)
+  function vecClickPlan(cell, t) {   // wat een klik zou doen: {best: {p, end}, from, to} (ook voor het voorbeeld)
+    const c = cellToWorld(cell[0], cell[1]), W = [Math.round(c.x * 100) / 100, Math.round(c.z * 100) / 100];
+    let best = null, bd = 1e9;
+    for (const p of pathsOf()) {
+      if (p.t !== t || !p.p || p.p.length < 2) continue;
+      for (const end of [0, p.p.length - 1]) { const e = p.p[end], d = Math.hypot(e[0] - c.x, e[1] - c.z); if (d < 1 || d > R * SQ3 * 1.05) continue; if (d < bd) { bd = d; best = { p, end }; } }
+    }
+    if (best) return { best, W, from: best.p.p[best.end], to: W };
+    const k = manualDir !== null ? manualDir : viewDirIndex(), n = NEIGH[k], c2 = cellToWorld(cell[0] + n[0], cell[1] + n[1]);
+    return { best: null, W, from: W, to: [Math.round(c2.x * 100) / 100, Math.round(c2.z * 100) / 100] };
+  }
+  function vecClick(cell, t) {
+    if (!cell) return;
+    const { best, W, to } = vecClickPlan(cell, t);
+    let made;
+    if (best) { const p = best.p; if (best.end === 0) { p.p.unshift(W); if (p.y) p.y.unshift(0); } else { p.p.push(W); if (p.y) p.y.push(0); } made = p; }
+    else { made = { t, l: 0, r: 0, p: [W, to] }; pathsOf().push(made); }
+    const gone = vecClearUnder([made]);
+    buildPathNet(); changed(); toast((best ? TYPES[tool].name + ' doorgetrokken' : TYPES[tool].name + ': klik op het volgende vak om door te trekken, of sleep') + (gone ? ' · ' + gone + ' weggehaald' : ''), 1800);
   }
   function roadPaintTo(cell) {
     if (!cell) return;
@@ -388,7 +428,7 @@
     D.count = D.prior.size;
     changed();
   }
-  function roadDragStart(cell) { roadDrag.on = true; roadDrag.last = null; roadDrag.count = 0; roadDrag.skip = 0; roadDrag.lp = null; roadDrag.sp = null; roadDrag.vp = null; roadDrag.vstart = null; roadDrag.prior = null; roadDrag.tool = tool; ghost.visible = false; ghostArrow.visible = false; previewGroup.visible = false; roadPaintTo(cell); }
+  function roadDragStart(cell) { roadDrag.on = true; roadDrag.last = null; roadDrag.count = 0; roadDrag.skip = 0; roadDrag.lp = null; roadDrag.sp = null; roadDrag.vp = null; roadDrag.vstart = null; roadDrag.prior = null; roadDrag.tool = tool; ghost.visible = false; ghostArrow.visible = false; vecGhost.visible = false; previewGroup.visible = false; roadPaintTo(cell); }
   function roadDragEnd() {
     if (!roadDrag.on) return;
     roadDrag.on = false; roadDrag.last = null;
