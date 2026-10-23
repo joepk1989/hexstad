@@ -21,7 +21,7 @@ async def main():
         r.append(await pg.evaluate("()=>[window.__HUD.idx, window.__HUD.slots()[window.__HUD.idx], document.getElementById('palette').hidden]"))
         # ongedaan maken: blok plaatsen en terugdraaien
         n0=await pg.evaluate("()=>window.__SC().getCells().size")
-        await pg.keyboard.press('Digit3'); await pg.evaluate("()=>{const S=window.__SC(); S.place(9,9)}"); await pg.wait_for_timeout(900)
+        await pg.keyboard.press('Digit4'); await pg.evaluate("()=>{const S=window.__SC(); S.place(9,9)}"); await pg.wait_for_timeout(900)
         n1=await pg.evaluate("()=>window.__SC().getCells().size")
         await pg.keyboard.press('Control+KeyZ'); await pg.wait_for_timeout(600)
         n2=await pg.evaluate("()=>window.__SC().getCells().size")
