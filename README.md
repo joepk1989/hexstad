@@ -78,7 +78,7 @@ Een geplaatst exemplaar heeft een laag `lv` (0 = op de grond, 1 = op 3 m, enzovo
 - op een schuin dak kun je niet bouwen;
 - de bovenkant van een module is `lv` + aantal verdiepingen; een bovenste laag met alleen dakvloer telt niet mee en wordt **verborgen zodra er iets op staat** (`noRoof` in `mv2Build`). Zo kijk je vanaf een galerij in de winkel eronder.
 
-Een gestapelde module krijgt een plafond onder zijn begane grond (`stacked`). Lopen en botsing werken per laag (`modCols`, `shiftCol`). Buren voor de randcodes zijn alleen modules op dezelfde laag. De gum haalt het exemplaar weg waar je op klikt (het bovenste).
+Een gestapelde module krijgt een plafond onder zijn begane grond (`stacked`). Groen op een dak (boom, struik, plantenbak) telt niet als verdieping; staat er een module op, dan verdwijnt het groen daaronder, en staat er hoger een module boven het vak (overdekte straat), dan wordt een boom een struik. Lopen en botsing werken per laag (`modCols`, `shiftCol`). Buren voor de randcodes zijn alleen modules op dezelfde laag. De gum haalt het exemplaar weg waar je op klikt (het bovenste).
 
 ## Van bouwen naar lopen: vallen
 
@@ -96,7 +96,7 @@ De familie **Winkelcentrum** (categorie, `08e`) bouwt de tien bouwstenen uit `he
 
 | SketchUp | Hexstad | Betekenis |
 |---|---|---|
-| variable | `Winkelcentrum · winkel`, `· winkel · boeken`, `· horeca` | winkelblok: glazen pui met open front, dichte zijwanden, stellingen, toonbank, lichtreclame; plat dak met glazen lichtkap |
+| variable | `Winkelcentrum · winkel`, `· winkel · boeken`, `· horeca` | winkelblok: glazen pui met open front, dichte zijwanden, stellingen, toonbank, lichtreclame; plat dak met een groen dak (gras, boom, struiken) in de kern |
 | recht | `· magazijn` | dicht betonblok met poort achter, stellingen |
 | half | `· café · half` | halve zeshoek langs de lange diagonaal; de diagonaal is een glazen pui naar de passage, tafels binnen |
 | afgesneden | `· winkel · afgesneden` | één zijde tot halverwege teruggezet; de schuine pui is de ingang |

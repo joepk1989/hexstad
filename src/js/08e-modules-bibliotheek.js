@@ -222,7 +222,8 @@
     // meetkunde (FRAMES, nrm) telt vanaf +x (zijde k heeft zijn normaal op −60°·k). Ringzijde = (5 − k) mod 6.
     const WC = 'Winkelcentrum', CORE = 6.75, nrm = k => [Math.cos(-k * Math.PI / 3), Math.sin(-k * Math.PI / 3)], rs = k => (5 - k + 6) % 6, FRONT = rs(0), NOT_FRONT = [1, 2, 3, 4, 5].map(rs);
     const inCore = (x, z, rad = CORE) => { for (let k = 0; k < 6; k++) { const n = nrm(k); if (x * n[0] + z * n[1] > rad * SQ3 / 2 + 1e-6) return false; } return true; };
-    const wcRoof = (b, li, light = true) => { b.cell(li, 0, 0, 'roof'); if (light) b.hex(li, 0, 0, CORE, 'glass'); };   // plat dak met glazen lichtkap
+    // plat dak; met groen: een grasdak in de kern met een boom en struiken (onder een overdekte straat worden het struiken)
+    const wcRoof = (b, li, green = true) => { b.cell(li, 0, 0, 'roof'); if (green) { b.hex(li, 0, 0, CORE, 'grass'); b.obj(li, 'tree', 0, 0).circle(li, 'bush', 0, 0, 3.8, 3, 0.5); } };
     const wcFront = (b, li, side, mat = 'curtain') => b.cellRing(li, 0, 0, mat, { sides: [side], open: { [side]: [['open', 1], ['open', 2]] } });   // brede open pui
     const wcSides = (b, li, sides, mat = 'panel') => b.cellRing(li, 0, 0, mat, { sides, open: { [rs(3)]: [['door', 1], ['door', 2]] } });   // achterdeuren tegenover de voorkant (twee, zodat ze bij rug-aan-rug winkels op elkaar vallen)
     { const b = libBuilder('Winkelcentrum · winkel', WC); b.cell(0, 0, 0, 'polished'); wcSides(b, 0, NOT_FRONT); wcFront(b, 0, FRONT); b.obj(0, 'shelf', -3, -3.2, Math.PI / 2).obj(0, 'shelf', -3, 3.2, Math.PI / 2).obj(0, 'shelf', -5.6, 0, 0).obj(0, 'counter', 3.2, -4.2, Math.PI / 2).obj(0, 'sign', 7.1, 0).obj(0, 'planter', 3, 4.5); wcRoof(b, 1); add(b); }
@@ -239,7 +240,7 @@
       b.where(0, keep, 'polished'); b.cellRing(0, 0, 0, 'panel', { sides: [3, 4, 5].map(rs) }); b.line(0, INNER, 0, 1, 2, 'panel'); b.line(0, -INNER, -4.5, 5, 2, 'panel');
       b.line(0, -INNER / 2, -6.75, 0, 6, 'curtain', i => (i === 2 || i === 3 ? 'open' : ''));
       b.obj(0, 'shelf', -4, 2.4, Math.PI / 2).obj(0, 'shelf', -4, 5.4, Math.PI / 2).obj(0, 'shelf', -1, 5.8, 0).obj(0, 'counter', 4.2, 3.4, Math.PI / 2).obj(0, 'sign', 2.2, -3.2).obj(0, 'planter', -6.2, -1.5);
-      b.where(1, keep, 'roof'); b.hex(1, 0, 0, CORE * 0.7, 'glass'); add(b); }
+      b.where(1, keep, 'roof'); b.hex(1, 0, 0, CORE * 0.7, 'grass'); b.obj(1, 'tree', -1, 0).obj(1, 'bush', 2.2, 1.5); add(b); }
     { // doorgang: een 9 m brede passage dwars door het blok (zijde 3 → 0), met een kiosk in elke punt (open naar de buren)
       const b = libBuilder('Winkelcentrum · doorgang', WC); b.where(0, (x, z) => Math.abs(z) < 4.5, 'paver'); b.where(0, (x, z) => Math.abs(z) >= 4.5, 'tile');
       b.wline(0, -INNER, -4.5, 3, 4, 'concrete', i => (i === 2 ? 'door' : '')); b.wline(0, -INNER, 4.5, 3, 4, 'concrete', i => (i === 1 ? 'door' : ''));   // de punten blijven open naar de buren
@@ -303,9 +304,9 @@
   // lib5: de Winkelcentrum-familie volgens de schets (galerij met trap zonder winkel eronder, gespiegeld, brede trap):
   // die standaardmodules worden vervangen (zelfde id, zodat geplaatste exemplaren meegaan), de rest blijft staan
   try {
-    if (!localStorage.getItem('hexstad-lib6')) {
+    if (!localStorage.getItem('hexstad-lib7')) {
       const base = n => (n || '').replace(/( · \d+[Lv])+$/, '');
       for (const m of libStandard()) { if (m.cat !== 'Winkelcentrum') continue; const i = modules.findIndex(x => base(x.name) === base(m.name)); if (i >= 0) { m.id = modules[i].id; modules[i] = m; } else modules.push(m); }
-      saveMods(); localStorage.setItem('hexstad-lib6', '1');
+      saveMods(); localStorage.setItem('hexstad-lib7', '1');
     }
   } catch (e) { /* geen opslag */ }

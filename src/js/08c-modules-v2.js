@@ -266,7 +266,10 @@
         else if (kind === 'flat') { const g = new THREE.CylinderGeometry(R - 0.1, R - 0.1, 0.3, 6); const W = tf(c[0], c[1]), W2 = tf(c[0] + 1, c[1]); g.rotateY(Math.atan2(-(W2[1] - W[1]), W2[0] - W[0])); g.translate(W[0], y0 + LH + 0.15, W[1]); put(Mt.slab, g); }
       }
       // --- voorwerpen ---
-      for (const O of L.o || []) {
+      for (const O0 of L.o || []) {
+        let O = O0;
+        if (li === roofLi && mask) { const Wm = tf(O.x, O.z); if (mask(Wm[0], Wm[1])) continue; }   // op een dak waar een module op staat: niets
+        if (li === roofLi && opts.lowRoof && O.t === 'tree') O = Object.assign({}, O, { t: 'bush' });   // onder een overdekte straat: geen boom maar een struik
         const W = tf(O.x, O.z), W2 = tf(O.x + Math.cos(O.rot || 0), O.z + Math.sin(O.rot || 0)), ang = Math.atan2(-(W2[1] - W[1]), W2[0] - W[0]);
         const place = (mat, g) => { g.rotateY(ang); g.translate(W[0], y0, W[1]); put(mat, g); };
         const box = (mat, sx, sy, sz, x, y, z) => place(mat, new THREE.BoxGeometry(sx, sy, sz).translate(x, y, z));
@@ -318,7 +321,8 @@
   function instCover(I) {
     const t = instTopLv(I), A = mv2Area(I), ups = [];
     for (const J of cells.inst || []) if (J !== I && J.m && J.m.v === 2 && instLv(J) === t && mv2Area(J).some(([q, r]) => A.some(([a, b]) => a === q && b === r))) ups.push(J);
-    if (!ups.length) return { sig: '', mask: null };
+    const low = (cells.inst || []).some(J => J !== I && J.m && J.m.v === 2 && instLv(J) > t && mv2Area(J).some(([q, r]) => A.some(([a, b]) => a === q && b === r)));   // overdekt: weinig hoogte op het dak
+    if (!ups.length) return { sig: low ? 'L' : '', mask: null, low };
     const tris = [], cellsUp = new Set();
     for (const J of ups) {
       const ts = mv2Ts(J.m), tf = mv2Tf(J.rot, J.q, J.r), L0 = J.m.lv[0];
@@ -327,7 +331,7 @@
     }
     const inTri = (x, z, T) => { const s1 = (T[1][0] - T[0][0]) * (z - T[0][1]) - (T[1][1] - T[0][1]) * (x - T[0][0]), s2 = (T[2][0] - T[1][0]) * (z - T[1][1]) - (T[2][1] - T[1][1]) * (x - T[1][0]), s3 = (T[0][0] - T[2][0]) * (z - T[2][1]) - (T[0][1] - T[2][1]) * (x - T[2][0]); return (s1 >= -1e-6 && s2 >= -1e-6 && s3 >= -1e-6) || (s1 <= 1e-6 && s2 <= 1e-6 && s3 <= 1e-6); };
     const mask = (x, z) => { for (const T of tris) if (inTri(x, z, T)) return 2; return cellsUp.has(worldToCell(x, z).join(',')) ? 1 : 0; };
-    return { sig: ups.map(J => (cells.inst.indexOf(J)) + ':' + J.mid + ':' + J.rot + ':' + (J.m._sig || 0)).join('|'), mask };
+    return { sig: (low ? 'L' : '') + ups.map(J => (cells.inst.indexOf(J)) + ':' + J.mid + ':' + J.rot + ':' + (J.m._sig || 0)).join('|'), mask, low };
   }
   function buildModNet() {
     const live = new Set((cells.inst || []).filter(I => I.m && I.m.v === 2));
@@ -341,7 +345,7 @@
       let e = modGroups.get(I);
       if (e && e.sig === cov.sig) { /* ongewijzigd */ } else {
         if (e) { e.group.traverse(o => { if (o.isMesh && o.userData.own) o.geometry.dispose(); }); scene.remove(e.group); }
-        const o = cellToWorld(I.q, I.r), G = gH(I.q, I.r) + instLv(I) * MV2.LV_H, b = mv2Build(I.m, mv2Tf(I.rot, I.q, I.r), [o.x, o.z], { stacked: instLv(I) > 0, roofMask: cov.mask });
+        const o = cellToWorld(I.q, I.r), G = gH(I.q, I.r) + instLv(I) * MV2.LV_H, b = mv2Build(I.m, mv2Tf(I.rot, I.q, I.r), [o.x, o.z], { stacked: instLv(I) > 0, roofMask: cov.mask, lowRoof: cov.low });
         b.group.position.y += G; b.group.userData.inst = I; e = { group: b.group, col: shiftCol({ surfaces: b.surfaces, walls: b.walls }, G), sig: cov.sig, roofed: !!cov.mask, mask: cov.mask }; scene.add(e.group); modGroups.set(I, e); touched = true;
       }
       for (const [q, r] of mv2Area(I)) { const k = q + ',' + r; if (!instLv(I)) modCellSet.add(k); let L = modCols.get(k); if (!L) modCols.set(k, L = []); L.push(e.col); }
@@ -389,7 +393,8 @@
   // fl: verdiepingen (een bovenste laag met alleen dakvloer telt niet mee), k/n: maat (1 of 7 vakken), h: hoogte in m,
   // top: 'kap' (schuin dak), 'plat' (beloopbaar plat dak: hier kan later een module op), 'open' (niets erboven),
   // bouw: is het een gebouw (muren of meer lagen), deur/weg: aantal randen met een deur of weg
-  const modRoofOnly = m => { const L = m.lv, T = L[L.length - 1]; return L.length > 1 && !Object.keys(T.w).length && !T.s.length && !T.o.length && !Object.keys(T.r || {}).length && Object.keys(T.f).length > 0; };
+  const ROOF_GREEN = new Set(['tree', 'bush', 'planter']);   // groen op een dak: het blijft een (plat) dak
+  const modRoofOnly = m => { const L = m.lv, T = L[L.length - 1]; return L.length > 1 && !Object.keys(T.w).length && !T.s.length && T.o.every(o => ROOF_GREEN.has(o.t)) && !Object.keys(T.r || {}).length && Object.keys(T.f).length > 0; };
   function modMeta(m) {
     if (!m || m.v !== 2) return { fl: 0, k: 0, n: 1, h: 0, top: 'open', stack: false, bouw: false, deur: 0, weg: 0 };
     mv2Fix(m);
