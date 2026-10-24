@@ -5,13 +5,13 @@ public class Raatstad : MonoBehaviour
 {
     // Materialen worden bij het eerste gebruik gemaakt (en opnieuw als ze na een hercompilatie tijdens Play weg zijn)
     static Material mWalk, mAsph, mLine, mWall, mGround, mGrid, mOutline;
-    public static Material MatWalk => mWalk ? mWalk : (mWalk = Mat(new Color(0.88f, 0.84f, 0.72f)));
-    public static Material MatAsphalt => mAsph ? mAsph : (mAsph = Mat(new Color(0.27f, 0.28f, 0.30f)));
-    public static Material MatLine => mLine ? mLine : (mLine = Mat(Color.white));
-    public static Material MatWall => mWall ? mWall : (mWall = Mat(new Color(0.55f, 0.55f, 0.52f)));
-    public static Material MatGround => mGround ? mGround : (mGround = Mat(new Color(0.64f, 0.78f, 0.45f)));
-    public static Material MatGrid => mGrid ? mGrid : (mGrid = Mat(new Color(1f, 1f, 1f, 0.5f), true));
-    public static Material MatOutline => mOutline ? mOutline : (mOutline = Mat(new Color(1f, 0.75f, 0.1f), true));
+    public static Material MatWalk => mWalk ? mWalk : (mWalk = MakeMat(new Color(0.88f, 0.84f, 0.72f)));
+    public static Material MatAsphalt => mAsph ? mAsph : (mAsph = MakeMat(new Color(0.27f, 0.28f, 0.30f)));
+    public static Material MatLine => mLine ? mLine : (mLine = MakeMat(Color.white));
+    public static Material MatWall => mWall ? mWall : (mWall = MakeMat(new Color(0.55f, 0.55f, 0.52f)));
+    public static Material MatGround => mGround ? mGround : (mGround = MakeMat(new Color(0.64f, 0.78f, 0.45f)));
+    public static Material MatGrid => mGrid ? mGrid : (mGrid = MakeMat(new Color(1f, 1f, 1f, 0.5f), true));
+    public static Material MatOutline => mOutline ? mOutline : (mOutline = MakeMat(new Color(1f, 0.75f, 0.1f), true));
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void Boot()
@@ -20,7 +20,7 @@ public class Raatstad : MonoBehaviour
         var go = new GameObject("Raatstad"); go.AddComponent<Raatstad>();
     }
 
-    static Material Mat(Color c, bool unlit = false)
+    public static Material MakeMat(Color c, bool unlit = false)
     {
         Shader s = unlit ? Shader.Find("Universal Render Pipeline/Unlit") : Shader.Find("Universal Render Pipeline/Lit");
         if (s == null) s = Shader.Find(unlit ? "Unlit/Color" : "Standard");
@@ -46,6 +46,7 @@ public class Raatstad : MonoBehaviour
         BuildGrid(12);
 
         var b = gameObject.AddComponent<Builder>(); b.Cam = cam;
+        gameObject.AddComponent<DayNight>(); gameObject.AddComponent<Chatter>(); People.I = gameObject.AddComponent<People>(); gameObject.AddComponent<Cars>();
     }
 
     void BuildGrid(int radius)

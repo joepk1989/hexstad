@@ -6,7 +6,9 @@ public class Builder : MonoBehaviour
 {
     public Camera Cam;
     List<RoadPath> paths = new List<RoadPath>();
-    readonly List<List<RoadPath>> undo = new List<List<RoadPath>>();
+    class Snap { public List<RoadPath> P; public Dictionary<Vector2Int, List<string>> C; }
+    readonly List<Snap> undo = new List<Snap>();
+    int tool; Transform blocksT;   // tool: 0 = weg, anders een blok (zie Blocks.Tools)
     Transform committed, preview; LineRenderer outline;
     Vector3 focus = Vector3.zero; float yaw = 20f, pitch = 55f, dist = 90f;
     Vector2Int hover, startCell, lastPreviewCell = new Vector2Int(int.MinValue, 0); int level, lastPreviewLevel = -1;
@@ -15,21 +17,24 @@ public class Builder : MonoBehaviour
 
     void Start()
     {
-        committed = new GameObject("Wegen").transform; preview = new GameObject("Voorbeeld").transform;
+        committed = new GameObject("Wegen").transform; preview = new GameObject("Voorbeeld").transform; blocksT = new GameObject("Blokken").transform;
+        if (City.Load()) paths = City.Paths;
         outline = new GameObject("Hover").AddComponent<LineRenderer>(); outline.loop = true; outline.positionCount = 6; outline.widthMultiplier = 0.35f; outline.material = Raatstad.MatOutline; outline.useWorldSpace = true;
         walker = new GameObject("Wandelaar").AddComponent<Walker>(); walker.Cam = Cam; walker.gameObject.SetActive(false);
-        Apply(); Say("Klik een vak voor een weg · lang vasthouden en slepen voor een lijn");
+        Apply(); RebuildBlocks(); Say("Toets 1-9: gereedschap · klik een vak · lang vasthouden en slepen voor een weglijn");
     }
 
     void Say(string s) { msg = s; msgT = Time.time + 4f; }
 
-    void Apply() { RoadMesher.Build(committed, paths, true); }
+    void Apply() { RoadMesher.Build(committed, paths, true); City.Paths = paths; City.Save(); }
+    void RebuildBlocks() { BlockMesher.Build(blocksT, City.Cells, true); City.Save(); }
 
-    void Push() { undo.Add(RoadRules.CloneAll(paths)); if (undo.Count > 100) undo.RemoveAt(0); }
+    void Push() { undo.Add(new Snap { P = RoadRules.CloneAll(paths), C = City.CloneCells(City.Cells) }); if (undo.Count > 100) undo.RemoveAt(0); }
 
     void Update()
     {
         if (Inp.Down(K.Tab)) { ToggleWalk(); }
+        if (Inp.Down(K.M)) { Babble.Muted = !Babble.Muted; Say(Babble.Muted ? "Stemmen uit (M)" : "Stemmen aan (M)"); }
         if (walking) return;
         CameraControl();
         // aanwijzen op de grond
@@ -37,9 +42,19 @@ public class Builder : MonoBehaviour
         if (!plane.Raycast(ray, out float t)) return;
         Vector3 hit = ray.GetPoint(t); hover = Hex.FromWorld(hit.x, hit.z);
 
+        K[] dk = { K.D1, K.D2, K.D3, K.D4, K.D5, K.D6, K.D7, K.D8, K.D9 };
+        for (int i = 0; i < dk.Length; i++) if (Inp.Down(dk[i])) { tool = i; ClearPreview(); Say("Gereedschap: " + Blocks.Names[i]); }
+        if (OverBar) return;
+        if (tool != 0)
+        {
+            ShowBlockOutline(hover);
+            if (Inp.Down(K.X)) { Push(); City.RemoveTop(hover); RebuildBlocks(); }
+            if (Inp.LeftDown) { Push(); if (Blocks.Tools[tool] == "gum") { if (!City.RemoveTop(hover)) { Erase(hit); } } else City.Place(hover, Blocks.Tools[tool]); RebuildBlocks(); }
+            return;
+        }
         if (Inp.Down(K.E)) { level = Mathf.Min(level + 1, 6); Say("Laag " + level + " (" + level * RoadRules.LAYER_H + " m, los van het terrein)"); }
         if (Inp.Down(K.Q)) { level = Mathf.Max(level - 1, 0); Say(level == 0 ? "Laag 0: op de grond" : "Laag " + level + " (" + level * RoadRules.LAYER_H + " m)"); }
-        if (Inp.Down(K.Z) && Inp.Held(K.Ctrl) && undo.Count > 0) { paths = undo[undo.Count - 1]; undo.RemoveAt(undo.Count - 1); Apply(); ClearPreview(); Say("Ongedaan gemaakt"); }
+        if (Inp.Down(K.Z) && Inp.Held(K.Ctrl) && undo.Count > 0) { var sn = undo[undo.Count - 1]; undo.RemoveAt(undo.Count - 1); paths = sn.P; City.Cells = sn.C; Apply(); RebuildBlocks(); ClearPreview(); Say("Ongedaan gemaakt"); }
         if (Inp.Down(K.X)) { Push(); RoadRules.Erase(paths, new Vector2(hit.x, hit.z), level); Apply(); ClearPreview(); }
 
         if (Inp.LeftDown) { startCell = hover; pressT = Time.time; dragging = false; }
@@ -70,6 +85,14 @@ public class Builder : MonoBehaviour
         committed.gameObject.SetActive(false); preview.gameObject.SetActive(true); RoadMesher.Build(preview, plan, false); previewOn = true;
     }
     void ClearPreview() { if (!previewOn) return; previewOn = false; committed.gameObject.SetActive(true); foreach (Transform c in preview) Destroy(c.gameObject); }
+
+    bool OverBar => Inp.Pos.y < 54f;
+    void Erase(Vector3 hit) { RoadRules.Erase(paths, new Vector2(hit.x, hit.z), level); Apply(); }
+    void ShowBlockOutline(Vector2Int c)
+    {
+        Vector2 m = Hex.Center(c); float y = City.StackHeight(c) + 0.3f; outline.enabled = true;
+        for (int i = 0; i < 6; i++) { Vector2 k = Hex.Corner(m, i); outline.SetPosition(i, new Vector3(k.x, y, k.y)); }
+    }
 
     void ShowOutline(Vector2Int c)
     {
@@ -102,5 +125,16 @@ public class Builder : MonoBehaviour
             : "Bouwen: klik vak = weg · vasthouden + slepen = lijn (30°-hoeken) · E/Q = laag omhoog/omlaag (nu " + level + ") · X = weg weghalen · Ctrl+Z = ongedaan · WASD = camera · rechtermuis = draaien · scroll = zoom · Tab = wandelen";
         GUI.Label(new Rect(10, 8, Screen.width - 20, 24), help, st);
         if (Time.time < msgT) GUI.Label(new Rect(10, 32, Screen.width - 20, 24), msg, st);
+        if (!walking)
+        {
+            float bw = 84f, x0 = (Screen.width - bw * Blocks.Tools.Length) / 2f;
+            for (int i = 0; i < Blocks.Tools.Length; i++)
+            {
+                var r = new Rect(x0 + i * bw, Screen.height - 46, bw - 4, 40);
+                var prev = GUI.color; GUI.color = i == tool ? new Color(1f, 0.8f, 0.2f) : Color.white;
+                if (GUI.Button(r, (i + 1) + "  " + Blocks.Names[i])) { tool = i; ClearPreview(); }
+                GUI.color = prev;
+            }
+        }
     }
 }

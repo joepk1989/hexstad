@@ -33,3 +33,8 @@ Wandelen: WASD, muis, Shift rennen, Spatie springen. Wegen op hogere lagen kun j
 ## Bestanden
 `Hex.cs` raster · `RoadRules.cs` regels (klik, slepen, aansluiten, hoeken) · `RoadMesher.cs` meshes · `Builder.cs` invoer en camera ·
 `Walker.cs` wandelaar · `Inp.cs` invoer (oud en nieuw Input System) · `Raatstad.cs` opstart.
+
+## Wat er nu in zit
+- Hexraster, wegen (klik/sleep, 30°-hoeken, lagen), blokken: woning, kantoor, park, gracht, meer, pad, dak, heuvel, blok; opslaan/laden (JSON)
+- Eerste persoon wandelen (Tab), dag/nacht (N), mensen (lopen, groeten, praatjes), auto's, brabbeltaal (M = stem uit), spreekballonnen met kleur
+- Toetsen: 1-9 gereedschap (klikbalk onderin heeft ze allemaal), X weghalen, Ctrl+Z ongedaan
