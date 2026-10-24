@@ -82,11 +82,19 @@ public static class PlanetCity
         int n = Planet.Cells.Length;
         for (int c0 = 0; c0 < n; c0 += ChunkN)
         {
-            var m = new MeshBuilder();
+            var m = new MeshBuilder(); var pm = new MeshBuilder();   // pm: de vijfhoeken, in een eigen kleur zodat je ze ziet
             for (int i = c0; i < Mathf.Min(n, c0 + ChunkN); i++)
             {
-                var c = Planet.Cells[i]; Vector3 mid = c.dir * Planet.R;
-                for (int k = 0; k < c.corners.Length; k++) m.Tri(mid, c.corners[k] * Planet.R, c.corners[(k + 1) % c.corners.Length] * Planet.R, c.dir);
+                var c = Planet.Cells[i]; Vector3 mid = c.dir * Planet.R; bool pent = c.corners.Length == 5; var mb0 = pent ? pm : m;
+                for (int k = 0; k < c.corners.Length; k++) mb0.Tri(mid, c.corners[k] * Planet.R, c.corners[(k + 1) % c.corners.Length] * Planet.R, c.dir);
+                if (pent)   // opstaand randje rondom, zodat de vijfhoek ook van dichtbij opvalt
+                    for (int k = 0; k < 5; k++) { Vector3 a = c.corners[k], b = c.corners[(k + 1) % 5]; Vector3 am = (a + b) * 0.5f; Vector3 ai = Vector3.Lerp(a, c.dir, 0.08f), bi = Vector3.Lerp(b, c.dir, 0.08f); pm.Quad(a * Planet.R, b * Planet.R, bi * (Planet.R + 0.25f), ai * (Planet.R + 0.25f), am - c.dir); }
+            }
+            if (pm.v.Count > 0)
+            {
+                var pg = new GameObject("Vijfhoeken " + (c0 / ChunkN)); pg.transform.SetParent(groundRoot, false);
+                var pmesh = pm.Build(); pg.AddComponent<MeshFilter>().sharedMesh = pmesh; pg.AddComponent<MeshRenderer>().sharedMaterial = Mats.Get("p_vijfhoek", new Color(0.93f, 0.55f, 0.25f));
+                pg.AddComponent<MeshCollider>().sharedMesh = pmesh;
             }
             var go = new GameObject("Bodem " + (c0 / ChunkN)); go.transform.SetParent(groundRoot, false);
             var mesh = m.Build(); go.AddComponent<MeshFilter>().sharedMesh = mesh; go.AddComponent<MeshRenderer>().sharedMaterial = Raatstad.MatGround;

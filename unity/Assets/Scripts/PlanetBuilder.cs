@@ -58,6 +58,7 @@ public class PlanetBuilder : MonoBehaviour
     void ShowOutline(int i)
     {
         var c = Planet.Cells[i]; float h = PlanetCity.StackHeight(i) + 0.3f;
+        if (c.corners.Length == 5 && Time.time > msgT) Say("Dit is een van de 12 vijfhoeken (oranje): op een bol passen niet alleen zeshoeken");
         if (outline.positionCount != c.corners.Length) outline.positionCount = c.corners.Length;
         for (int k = 0; k < c.corners.Length; k++) outline.SetPosition(k, c.corners[k] * (Planet.R + h));
     }
