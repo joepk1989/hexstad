@@ -505,10 +505,29 @@
     }
   }
   function wallSeg(L, a, b, y0, y1) { const base = L.pos.length / 3, ha = hy(a[0], a[1]), hb = hy(b[0], b[1]); L.pos.push(a[0], y0 + ha, a[1], a[0], y1 + ha, a[1], b[0], y0 + hb, b[1], b[0], y1 + hb, b[1]); L.idx.push(base, base + 1, base + 2, base + 1, base + 3, base + 2); }
+  // Stoeprand met een lichte schuine kant: van het wegdek (lijn A, hoogte yA) schuin omhoog naar de stoep (lijn B, hoogte yB).
+  // A en B mogen een verschillend aantal punten hebben; ze worden op gelijke stappen langs hun lengte gelegd.
+  const KERB_IN = 0.15, KERB_OUT = 0.45;   // de schuine kant loopt van 15 tot 45 cm naast de rand van het asfalt
+  function resamplePts(pts, n) {
+    if (pts.length < 2) return pts.slice(); const S = [0]; for (let i = 1; i < pts.length; i++) S.push(S[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+    const L = S[S.length - 1] || 1, out = []; let j = 0;
+    for (let k = 0; k <= n; k++) { const t = L * k / n; while (j < pts.length - 2 && S[j + 1] < t) j++; const f = (t - S[j]) / ((S[j + 1] - S[j]) || 1); out.push([pts[j][0] + (pts[j + 1][0] - pts[j][0]) * f, pts[j][1] + (pts[j + 1][1] - pts[j][1]) * f]); }
+    return out;
+  }
+  function slopeInto(L, A, B, yA, yB) {
+    if (A.length < 2 || B.length < 2) return;
+    let len = 0; for (let i = 1; i < A.length; i++) len += Math.hypot(A[i][0] - A[i - 1][0], A[i][1] - A[i - 1][1]);
+    const n = Math.max(A.length - 1, B.length - 1, Math.ceil(len / (HF ? 1.5 : 4)), 1), a = resamplePts(A, n), b = resamplePts(B, n), base = L.pos.length / 3;
+    for (let i = 0; i <= n; i++) {   // de bovenrand schuift 8 cm onder de stoep door: geen kier tussen rand en stoep
+      const dx = b[i][0] - a[i][0], dz = b[i][1] - a[i][1], l = Math.hypot(dx, dz) || 1, bx = b[i][0] + dx / l * 0.08, bz = b[i][1] + dz / l * 0.08;
+      L.pos.push(a[i][0], yA + hy(a[i][0], a[i][1]), a[i][1], bx, yB - 0.006 + hy(bx, bz), bz);
+    }
+    for (let i = 0; i < n; i++) { const k = base + i * 2; L.idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); }
+  }
   function discInto(L, p, r, y) {
     const base = L.pos.length / 3, h = hy(p[0], p[1]); L.pos.push(p[0], y + h, p[1]);
-    for (let i = 0; i < 16; i++) { const a = i * Math.PI / 8; L.pos.push(p[0] + Math.cos(a) * r, y + h, p[1] + Math.sin(a) * r); }
-    for (let i = 0; i < 16; i++) L.idx.push(base, base + 1 + i, base + 1 + (i + 1) % 16);
+    for (let i = 0; i < 32; i++) { const a = i * Math.PI / 16; L.pos.push(p[0] + Math.cos(a) * r, y + h, p[1] + Math.sin(a) * r); }
+    for (let i = 0; i < 32; i++) L.idx.push(base, base + 1 + i, base + 1 + (i + 1) % 32);
   }
   function dashesInto(L, pts, hw, y, len, gap, off = 0) {
     let acc = 0, on = true, run = [];
@@ -629,7 +648,8 @@
       ctx(pathHF(path), gid++);
       const ext = HEAD_EXT[path.t] || 0, c = path.p[0], kw = def.hw + ext + 0.3, ow = def.hw + ext + (def.walk || 0);   // even groot als de ronde kop van een weg
       discInto(path.t === 'pad' ? pave : path.t === 'fiets' ? bike : def.klink ? klink : asph, c, kw, Y + 0.02);
-      if (def.walk) { ringWallInto(kerb, c, kw, Y, PW_H); for (let i = 0; i < 24; i++) { const a0 = i / 24 * Math.PI * 2, a1 = (i + 1) / 24 * Math.PI * 2; polyInto(walk, [[c[0] + Math.cos(a0) * kw, c[1] + Math.sin(a0) * kw], [c[0] + Math.cos(a0) * ow, c[1] + Math.sin(a0) * ow], [c[0] + Math.cos(a1) * ow, c[1] + Math.sin(a1) * ow], [c[0] + Math.cos(a1) * kw, c[1] + Math.sin(a1) * kw]], PW_H); } }
+      if (def.walk) { const ring = r => Array.from({ length: 33 }, (_, i) => [c[0] + Math.cos(i / 32 * Math.PI * 2) * r, c[1] + Math.sin(i / 32 * Math.PI * 2) * r]), kb = kw - 0.3 + KERB_IN, kt2 = kw - 0.3 + KERB_OUT;
+        slopeInto(kerb, ring(kb), ring(kt2), Y + 0.015, PW_H); for (let i = 0; i < 32; i++) { const a0 = i / 32 * Math.PI * 2, a1 = (i + 1) / 32 * Math.PI * 2; polyInto(walk, [[c[0] + Math.cos(a0) * kt2, c[1] + Math.sin(a0) * kt2], [c[0] + Math.cos(a0) * ow, c[1] + Math.sin(a0) * ow], [c[0] + Math.cos(a1) * ow, c[1] + Math.sin(a1) * ow], [c[0] + Math.cos(a1) * kt2, c[1] + Math.sin(a1) * kt2]], PW_H); } }
     }
     for (const path of P) {
       const def = PATH_DEF[path.t]; if (!def || !path.p || path.p.length < 2 || isLone(path)) continue;
@@ -699,7 +719,10 @@
       inner.push(pt(tr, kw, B.A.d, nA)); outer.push(pt(tr, ow, B.A.d, nA));
       for (let i = 0; i <= steps; i++) { const a = a0 + (a1 - a0) * i / steps; inner.push([N.x + Math.cos(a) * kw, N.z + Math.sin(a) * kw]); outer.push([N.x + Math.cos(a) * ow, N.z + Math.sin(a) * ow]); }
       inner.push(pt(tr, kw, B.B.d, nB)); outer.push(pt(tr, ow, B.B.d, nB));
-      for (let i = 0; i < inner.length - 1; i++) { polyInto(walk, [inner[i], outer[i], outer[i + 1], inner[i + 1]], PW_H); polyInto(kerb, [inner[i], [inner[i][0] + (outer[i][0] - inner[i][0]) * 0.08, inner[i][1] + (outer[i][1] - inner[i][1]) * 0.08], [inner[i + 1][0] + (outer[i + 1][0] - inner[i + 1][0]) * 0.08, inner[i + 1][1] + (outer[i + 1][1] - inner[i + 1][1]) * 0.08], inner[i + 1]], PW_H + 0.005); wallSeg(kerb, inner[i], inner[i + 1], Y, PW_H); wallSeg(walk, outer[i], outer[i + 1], 0, PW_H); }
+      const mk = lat => { const Lp = [pt(tr, lat, B.A.d, nA)]; for (let i = 0; i <= steps; i++) { const a = a0 + (a1 - a0) * i / steps; Lp.push([N.x + Math.cos(a) * lat, N.z + Math.sin(a) * lat]); } Lp.push(pt(tr, lat, B.B.d, nB)); return Lp; };
+      const kB = mk(hw + KERB_IN), kT = mk(hw + KERB_OUT);
+      slopeInto(kerb, kB, kT, Y + 0.015, PW_H);
+      for (let i = 0; i < kT.length - 1; i++) { polyInto(walk, [kT[i], outer[i], outer[i + 1], kT[i + 1]], PW_H); wallSeg(walk, outer[i], outer[i + 1], 0, PW_H); }
     }
     // Stoephoeken op kruisingen: tussen twee opeenvolgende takken loopt de stoep door (afgesneden hoek), met stoeprand
     for (let n = 0; n < GR.nodes.length; n++) {
@@ -723,11 +746,14 @@
           return Array.from({ length: 11 }, (_, k) => [P[0] + (Q[0] - P[0]) * k / 10, P[1] + (Q[1] - P[1]) * k / 10]);
         };
         const kc = corner(KA, KB), oc = corner(OA, OB);
+        const bc = corner(vecWalkPts(GR, A.e, A.dir, sA * (dA.hw + KERB_IN))[0], vecWalkPts(GR, B.e, B.dir, sB * (dB.hw + KERB_IN))[0]);
+        const tc = corner(vecWalkPts(GR, A.e, A.dir, sA * (dA.hw + KERB_OUT))[0], vecWalkPts(GR, B.e, B.dir, sB * (dB.hw + KERB_OUT))[0]);
+        slopeInto(kerb, bc, tc, Y + 0.015, PW_H);
         polyInto(surfOf(n), [[N.x, N.z], ...kc], Y + 0.02);   // het kruisingsvak zelf: tot aan de stoephoek dicht met asfalt
         for (let k = 0; k < kc.length - 1; k++) {
           const ki = kc[k], kj = kc[k + 1], oi = oc[k], oj = oc[k + 1], lerp = (a, b, f) => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
-          polyInto(walk, [ki, oi, oj, kj], PW_H); polyInto(kerb, [ki, lerp(ki, oi, 0.08), lerp(kj, oj, 0.08), kj], PW_H + 0.005);
-          wallSeg(kerb, ki, kj, Y, PW_H); wallSeg(walk, oi, oj, 0, PW_H);
+          polyInto(walk, [tc[k], oi, oj, tc[k + 1]], PW_H);
+          wallSeg(walk, oi, oj, 0, PW_H);
         }
       }
       // Zebrapaden en stopstrepen bij een kruising met verkeerslichten: net binnen het kruisingsvak, de auto's
@@ -791,17 +817,22 @@
         continue;
       }
       for (const sg of [1, -1]) {
-        const sp = vecWalkPts(GR, e, 0, sg * (def.hw + def.walk / 2)), kp = vecWalkPts(GR, e, 0, sg * (def.hw + 0.3)), ep = vecWalkPts(GR, e, 0, sg * hw);
-        ribbonInto(walk, sp, def.walk / 2, PW_H); wallInto(kerb, kp, 0, Y, PW_H); ribbonInto(kerb, vecWalkPts(GR, e, 0, sg * (def.hw + 0.15)), 0.15, PW_H + 0.005); wallInto(walk, ep, 0, 0, PW_H);
+        const ep = vecWalkPts(GR, e, 0, sg * hw);
+        if (def.walk >= 0.8) {   // schuine stoeprand, dan de stoep
+          const sp = vecWalkPts(GR, e, 0, sg * (def.hw + (def.walk + KERB_OUT) / 2));
+          ribbonInto(walk, sp, (def.walk - KERB_OUT) / 2, PW_H); slopeInto(kerb, vecWalkPts(GR, e, 0, sg * (def.hw + KERB_IN)), vecWalkPts(GR, e, 0, sg * (def.hw + KERB_OUT)), Y + 0.015, PW_H);
+        } else { const sp = vecWalkPts(GR, e, 0, sg * (def.hw + def.walk / 2)), kp = vecWalkPts(GR, e, 0, sg * (def.hw + 0.3)); ribbonInto(walk, sp, def.walk / 2, PW_H); wallInto(kerb, kp, 0, Y, PW_H); ribbonInto(kerb, vecWalkPts(GR, e, 0, sg * (def.hw + 0.15)), 0.15, PW_H + 0.005); }
+        wallInto(walk, ep, 0, 0, PW_H);
       }
       // doodlopend eind: ronde kop (halve cirkel) met asfalt, stoeprand en stoep eromheen
       for (const n of [e.a, e.b]) { const H = vecHead(GR, n); if (!H) continue;
         const { C, d, r, R } = H, at = (rad, th) => [C[0] + (d[0] * Math.cos(th) + r[0] * Math.sin(th)) * rad, C[1] + (d[1] * Math.cos(th) + r[1] * Math.sin(th)) * rad];
         // boog op afstand dl buiten de rand van het wegdek: begint waar hij de rechte stoeprand raakt (zijkant hw + dl)
-        const arc = (dl, steps = 14) => { const rad = R + dl, th0 = Math.PI - Math.asin(Math.min(1, (def.hw + dl) / rad)); return Array.from({ length: steps + 1 }, (_, i) => at(rad, -th0 + 2 * th0 * i / steps)); };
+        const arc = (dl, steps = 28) => { const rad = R + dl, th0 = Math.PI - Math.asin(Math.min(1, (def.hw + dl) / rad)); return Array.from({ length: steps + 1 }, (_, i) => at(rad, -th0 + 2 * th0 * i / steps)); };
         discInto(def.klink ? klink : asph, C, R + 0.3, Y + 0.02);
         const inner = arc(0), outer = arc(def.walk), kt = arc(0.3);
-        for (let i = 0; i < inner.length - 1; i++) { polyInto(walk, [inner[i], outer[i], outer[i + 1], inner[i + 1]], PW_H); polyInto(kerb, [inner[i], kt[i], kt[i + 1], inner[i + 1]], PW_H + 0.005); wallSeg(kerb, kt[i], kt[i + 1], Y, PW_H); wallSeg(walk, outer[i], outer[i + 1], 0, PW_H); }
+        if (def.walk >= 0.8) { const hB = arc(KERB_IN), hT = arc(KERB_OUT); slopeInto(kerb, hB, hT, Y + 0.015, PW_H); for (let i = 0; i < hT.length - 1; i++) { polyInto(walk, [hT[i], outer[i], outer[i + 1], hT[i + 1]], PW_H); wallSeg(walk, outer[i], outer[i + 1], 0, PW_H); } }
+        else for (let i = 0; i < inner.length - 1; i++) { polyInto(walk, [inner[i], outer[i], outer[i + 1], inner[i + 1]], PW_H); polyInto(kerb, [inner[i], kt[i], kt[i + 1], inner[i + 1]], PW_H + 0.005); wallSeg(kerb, kt[i], kt[i + 1], Y, PW_H); wallSeg(walk, outer[i], outer[i + 1], 0, PW_H); }
       }
     }
     // Rotondes: rijbaan als ring, eiland met een overrijdbare klinkerrand en een boom, stoep eromheen (open waar een
