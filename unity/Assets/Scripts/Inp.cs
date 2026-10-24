@@ -32,6 +32,8 @@ public static class Inp
     public static bool LeftHeld => Mouse_() != null && Mouse_().leftButton.isPressed;
     public static bool LeftUp => Mouse_() != null && Mouse_().leftButton.wasReleasedThisFrame;
     public static bool RightHeld => Mouse_() != null && Mouse_().rightButton.isPressed;
+    public static bool RightDown => Mouse_() != null && Mouse_().rightButton.wasPressedThisFrame;
+    public static bool RightUp => Mouse_() != null && Mouse_().rightButton.wasReleasedThisFrame;
     public static Vector2 Delta => Mouse_() != null ? Mouse_().delta.ReadValue() : Vector2.zero;
     public static float Scroll { get { if (Mouse_() == null) return 0f; float y = Mouse_().scroll.ReadValue().y; return Mathf.Abs(y) > 10f ? y / 120f : y; } }   // per klikje ±1 (oude Input System-versies geven ±120)
 #else
@@ -54,6 +56,8 @@ public static class Inp
     public static bool LeftHeld => Input.GetMouseButton(0);
     public static bool LeftUp => Input.GetMouseButtonUp(0);
     public static bool RightHeld => Input.GetMouseButton(1);
+    public static bool RightDown => Input.GetMouseButtonDown(1);
+    public static bool RightUp => Input.GetMouseButtonUp(1);
     public static Vector2 Delta => new Vector2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y")) * 10f;
     public static float Scroll => Input.mouseScrollDelta.y;
 #endif

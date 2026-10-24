@@ -16,7 +16,7 @@ public class PlanetBuilder : MonoBehaviour
     int lineStart = -1; List<int> linePlan; readonly List<LineRenderer> planLines = new List<LineRenderer>();   // weg slepen: een rechte lijn van vakken (30°-richtingen)                 // slepen: elk nieuw vak onder de muis krijgt het blok
     Beauty.Result beauty; float beautyT = -99f, fps; int fpsN; float fpsT;
     Vector3 centre; float centreT = -99f; bool hasCentre;   // middelpunt van de stad, voor de pijl
-    bool showHelp;
+    bool showHelp; Vector2 rightAt; int rightCell = -1;
 
     void Start()
     {
@@ -39,7 +39,6 @@ public class PlanetBuilder : MonoBehaviour
 
         K[] dk = { K.D1, K.D2, K.D3, K.D4, K.D5, K.D6, K.D7, K.D8, K.D9 };
         for (int i = 0; i < dk.Length; i++) if (Inp.Down(dk[i])) { tool = i; Say("Gereedschap: " + Blocks.Names[i]); }
-        if (Inp.Down(K.D0) || Inp.Down(K.G)) { tool = System.Array.IndexOf(Blocks.Tools, "gum"); Say("Gum: klik of sleep over blokken om ze weg te halen (X doet hetzelfde zonder van gereedschap te wisselen)"); }
         if (Inp.Down(K.H)) { CityCentre(); if (hasCentre) { focus = centre; Say("Naar het midden van de stad (H)"); } }
         if (Inp.Down(K.Z) && Inp.Held(K.Ctrl) && undo.Count > 0) { PlanetCity.Cells = undo[undo.Count - 1]; undo.RemoveAt(undo.Count - 1); PlanetCity.TouchAll(); Changed(); Say("Ongedaan gemaakt"); }
 
@@ -50,22 +49,23 @@ public class PlanetBuilder : MonoBehaviour
             hover = Planet.Nearest(hit.point); hasHover = true;
             ShowOutline(hover);
             if (Inp.Down(K.X)) { Push(); if (PlanetCity.RemoveTop(hover)) Changed(); }
+            if (Inp.RightDown) { rightAt = Inp.Pos; rightCell = hover; }
+            if (Inp.RightUp && rightCell >= 0 && Vector2.Distance(Inp.Pos, rightAt) < 6f) { Push(); if (PlanetCity.Clear(hover)) { Changed(); Say("Vak leeggemaakt"); } rightCell = -1; }
             bool roadTool = Blocks.Tools[tool] == "weg" || Blocks.Tools[tool] == "pad";
             if (Inp.LeftDown) { Push(); painting = !roadTool; lastPainted = -1; lineStart = roadTool ? hover : -1; linePlan = null; }
             if (lineStart >= 0 && Inp.LeftHeld) { linePlan = hover == lineStart ? null : LinePlan(lineStart, hover); ShowPlan(linePlan); }
             if (painting && Inp.LeftHeld && hover != lastPainted)
             {
                 lastPainted = hover; string t = Blocks.Tools[tool];
-                if (t == "gum") { if (PlanetCity.RemoveTop(hover)) Changed(); else if (!Inp.LeftHeld || lastPainted == hover) Say("Hier staat niets"); }
-                else { string err = PlanetCity.Place(hover, t); if (err != null) Say(err); else Changed(); }
+                string err = PlanetCity.Place(hover, t); if (err != null) Say(err); else Changed();
             }
         }
         if (Inp.LeftUp)
         {
             if (lineStart >= 0)
             {
-                var cellsToDo = linePlan ?? new List<int> { lineStart }; string t = Blocks.Tools[tool]; int ok = 0; string err = null;
-                foreach (int i in cellsToDo) { string e = PlanetCity.Place(i, t); if (e == null) ok++; else err = e; }
+                string t = Blocks.Tools[tool]; int ok = 0; string err = null;
+                if (linePlan != null) ok = PlanetCity.PlaceLine(linePlan, t); else { err = PlanetCity.Place(lineStart, t); if (err == null) ok = 1; }
                 if (ok > 0) Changed(); else if (err != null) Say(err);
                 if (linePlan != null && ok > 0) Say(ok + " vakken " + Blocks.Names[tool].ToLower());
                 lineStart = -1; linePlan = null; ShowPlan(null);
@@ -81,7 +81,7 @@ public class PlanetBuilder : MonoBehaviour
     {
         if (n == PlanetCity.Slot) return;
         PlanetCity.Save(); PlanetCity.Slot = n; undo.Clear();
-        if (!PlanetCity.Load()) { PlanetCity.Cells = new Dictionary<int, List<string>>(); PlanetCity.TouchAll(); }
+        if (!PlanetCity.Load()) { PlanetCity.Cells = new Dictionary<int, List<string>>(); PlanetCity.Links.Clear(); PlanetCity.TouchAll(); }
         PlanetCity.Rebuild(); beautyT = -99f; Say("Stad " + n + (PlanetCity.Cells.Count == 0 ? " (leeg)" : ""));
     }
 
@@ -214,10 +214,10 @@ public class PlanetBuilder : MonoBehaviour
         // ---- onderbalk: gereedschap, modus, slots
         if (!walking)
         {
-            int n = Blocks.Tools.Length; float bw = Mathf.Min(74f, (W - 420f) / n), x0 = 12f;
+            int n = Blocks.Tools.Length - 1; float bw = Mathf.Min(74f, (W - 420f) / n), x0 = 12f;   // zonder de gum: rechtermuisknop maakt een vak leeg
             for (int i = 0; i < n; i++)
             {
-                string key = i < 9 ? (i + 1).ToString() : Blocks.Tools[i] == "gum" ? "0" : null;
+                string key = i < 9 ? (i + 1).ToString() : null;
                 if (Ui.Tool(new Rect(x0 + i * bw, H - 68, bw - 6, 58), Blocks.Names[i], key, Ui.ToolColor(Blocks.Tools[i]), i == tool)) tool = i;
             }
             float sx = W - 12;
@@ -236,8 +236,8 @@ public class PlanetBuilder : MonoBehaviour
             var hr = Ui.Card(new Rect(W / 2 - 260, 90, 520, 300), 0.95f);
             Ui.Title(new Rect(hr.x, hr.y, 300, 26), "Bediening");
             Ui.Help(new Rect(hr.x, hr.y + 32, hr.width, 250),
-                "<b>Bouwen</b>  klik of sleep over vakken (1-9 kiest een blok, 0 of G de gum, X haalt het bovenste blok weg, Ctrl+Z maakt ongedaan)\n" +
-                "<b>Wegen en paden slepen</b>  klik een vak en sleep: een rechte lijn in een van de 12 richtingen (30°), loslaten plaatst hem\n" +
+                "<b>Bouwen</b>  klik of sleep over vakken (1-9 kiest een blok) · rechtermuisknop maakt een vak helemaal leeg · X haalt het bovenste blok weg · Ctrl+Z maakt ongedaan\n" +
+                "<b>Wegen en paden slepen</b>  klik een vak en sleep: een rechte lijn in een van de 12 richtingen (30°). Alleen de vakken in de lijn worden verbonden; twee wegen naast elkaar blijven los. Een klik verbindt met alle buurwegen.\n" +
                 "<b>Wegen en paden</b>  zijn ook blokken: zet ze op aangrenzende vakken en ze sluiten vanzelf aan\n" +
                 "<b>Camera</b>  WASD schuiven (Shift sneller) · rechtermuis draaien · scroll zoomen · H naar het midden van je stad\n" +
                 "<b>Wandelen</b>  Tab · WASD · Shift rennen · Spatie springen · Esc muis los\n" +

@@ -27,8 +27,8 @@ public class PlanetLife : MonoBehaviour
     // volgend wegvak vanaf a, liefst niet terug naar prev
     static int NextRoad(int a, int prev, bool walk = false)
     {
-        var opts = new List<int>(6); foreach (int j in Planet.Cells[a].nb) if ((walk ? PlanetCity.IsWalk(j) : PlanetCity.IsRoad(j)) && j != prev) opts.Add(j);
-        if (opts.Count == 0) return (walk ? PlanetCity.IsWalk(prev) : PlanetCity.IsRoad(prev)) ? prev : a;
+        var opts = new List<int>(6); foreach (int j in Planet.Cells[a].nb) if ((walk ? PlanetCity.LinkedWalk(a, j) : PlanetCity.LinkedRoad(a, j)) && j != prev) opts.Add(j);
+        if (opts.Count == 0) return prev >= 0 && (walk ? PlanetCity.LinkedWalk(a, prev) : PlanetCity.LinkedRoad(a, prev)) ? prev : a;
         return opts[Random.Range(0, opts.Count)];
     }
 
@@ -100,6 +100,8 @@ public class PlanetLife : MonoBehaviour
     static void Arc(int a, int b, int cc, float s, float side, float h, out Vector3 pos, out Vector3 fwd, out Vector3 up)
     {
         Vector3 P0 = ((Planet.Cells[a].dir + Planet.Cells[b].dir) * 0.5f).normalized, P1 = Planet.Cells[b].dir, P2 = ((Planet.Cells[b].dir + Planet.Cells[cc].dir) * 0.5f).normalized;
+        // bij een draai van hooguit 70° (recht of 120°-zigzag) rijdt de auto recht van rand naar rand, net als het asfalt
+        Vector3 t1 = (P1 - P0).normalized, t2 = (P2 - P1).normalized; if (Vector3.Dot(t1, t2) > 0.34f) P1 = ((P0 + P2) * 0.5f).normalized;
         float u = 1f - s; Vector3 d = P0 * (u * u) + P1 * (2f * u * s) + P2 * (s * s); up = d.normalized;
         Vector3 tan = (P1 - P0) * (2f * u) + (P2 - P1) * (2f * s);
         fwd = tan - up * Vector3.Dot(tan, up); if (fwd.sqrMagnitude < 1e-10f) fwd = Planet.Cells[b].north; fwd.Normalize();

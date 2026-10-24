@@ -22,7 +22,7 @@ public static class Beauty
             res.blocks += st.Count;
             if (st[0] == "weg")
             {
-                roads++; int rn = 0; foreach (int j in cell.nb) if (PlanetCity.IsRoad(j)) rn++;
+                roads++; int rn = 0; foreach (int j in cell.nb) if (PlanetCity.LinkedRoad(i, j)) rn++;
                 if (rn == 1) deadEnds++; if (rn == 0) isolated++;
                 continue;
             }

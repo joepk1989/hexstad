@@ -8,7 +8,7 @@ using UnityEngine;
 // assenstelsel van het vak gebouwd, zodat gebouwen overal recht op de bol staan. De bodem is één mesh per
 // deel (1024 vakken); blokken en wegen worden per deel opnieuw gemaakt als er iets verandert.
 [Serializable] public class PCellSave { public int i; public string[] items; }
-[Serializable] public class PSaveData { public int m; public float r; public List<PCellSave> cells = new List<PCellSave>(); }
+[Serializable] public class PSaveData { public int m; public float r; public List<PCellSave> cells = new List<PCellSave>(); public List<int> links = new List<int>(); }
 
 public static class PlanetCity
 {
@@ -21,6 +21,19 @@ public static class PlanetCity
     public static bool IsRoad(int i) => Cells.TryGetValue(i, out var l) && l.Count > 0 && l[0] == "weg";
     public static bool IsPath(int i) => Cells.TryGetValue(i, out var l) && l.Count == 1 && l[0] == "pad";
     public static bool IsWalk(int i) => IsRoad(i) || IsPath(i);
+
+    // Verbindingen tussen weg- en padvakken. Twee wegvakken naast elkaar zijn alleen verbonden als ze in dezelfde lijn
+    // gesleept zijn of met een klik aan elkaar gezet; zo kunnen twee wegen naast elkaar lopen zonder in elkaar over te gaan.
+    public static readonly HashSet<long> Links = new HashSet<long>();
+    static long Key(int i, int j) => i < j ? ((long)i << 20) | (uint)j : ((long)j << 20) | (uint)i;
+    public static bool Linked(int i, int j) => Links.Contains(Key(i, j));
+    public static void Link(int i, int j) { if (i != j && System.Array.IndexOf(Planet.Cells[i].nb, j) >= 0) Links.Add(Key(i, j)); }
+    public static void Unlink(int i) { foreach (int j in Planet.Cells[i].nb) Links.Remove(Key(i, j)); }
+    public static bool LinkedRoad(int i, int j) => IsRoad(j) && Linked(i, j);
+    public static bool LinkedWalk(int i, int j) => IsWalk(j) && Linked(i, j);
+    public static int LinkCount(int i) { int n = 0; foreach (int j in Planet.Cells[i].nb) if (Linked(i, j) && IsWalk(j)) n++; return n; }
+    // een heel vak leegmaken (rechtermuisknop)
+    public static bool Clear(int i) { if (!Cells.ContainsKey(i)) return false; Cells.Remove(i); Unlink(i); Touch(i); return true; }
     public static float StackHeight(int i) { float h = 0f; if (Cells.TryGetValue(i, out var l)) foreach (var t in l) h += Blocks.Height(t); return h; }
     public static int RoadCount() { int n = 0; foreach (var kv in Cells) if (kv.Value.Count > 0 && kv.Value[0] == "weg") n++; return n; }
 
@@ -30,21 +43,33 @@ public static class PlanetCity
     }
 
     // plaatsen; geeft een melding terug als het niet kan (anders null)
-    public static string Place(int i, string type)
+    public static string Place(int i, string type, bool autoLink = true)
     {
         if (!Cells.TryGetValue(i, out var l)) { l = new List<string>(); Cells[i] = l; }
-        if (type == "weg") { if (l.Count > 0) return "Eerst het vak leegmaken (gum) voor een weg"; l.Add("weg"); Touch(i); return null; }
-        if (l.Count > 0 && l[0] == "weg") return "Op een weg kun je niet bouwen; haal de weg eerst weg (gum)";
+        if (type == "weg") { if (l.Count > 0 && !(l.Count == 1 && l[0] == "weg")) return "Eerst het vak leegmaken (rechtermuisknop) voor een weg"; if (l.Count == 0) l.Add("weg"); if (autoLink) foreach (int j in Planet.Cells[i].nb) if (IsWalk(j)) Link(i, j); Touch(i); return null; }
+        if (type == "pad" && l.Count == 0) { l.Add("pad"); if (autoLink) foreach (int j in Planet.Cells[i].nb) if (IsWalk(j)) Link(i, j); Touch(i); return null; }
+        if (type == "pad" && l.Count == 1 && l[0] == "pad") { if (autoLink) foreach (int j in Planet.Cells[i].nb) if (IsWalk(j)) Link(i, j); Touch(i); return null; }
+        if (l.Count > 0 && l[0] == "weg") return "Op een weg kun je niet bouwen; haal de weg eerst weg (rechtermuisknop)";
         if (l.Count >= 8) return "Hoger kan niet";
         if ((type == "water" || type == "meer") && l.Count > 0) l.Clear();
         if (l.Count > 0 && (l[l.Count - 1] == "water" || l[l.Count - 1] == "meer")) l.Clear();
         l.Add(type); Touch(i); return null;
     }
 
+    // Een gesleepte lijn: de vakken worden weg (of pad) en alleen onderling verbonden, in volgorde
+    public static int PlaceLine(List<int> line, string type)
+    {
+        int ok = 0;
+        for (int k = 0; k < line.Count; k++) { if (Place(line[k], type, false) == null) ok++; }
+        for (int k = 1; k < line.Count; k++) if (IsWalk(line[k - 1]) && IsWalk(line[k])) Link(line[k - 1], line[k]);
+        foreach (int i in line) Touch(i);
+        return ok;
+    }
+
     public static bool RemoveTop(int i)
     {
         if (!Cells.TryGetValue(i, out var l) || l.Count == 0) return false;
-        l.RemoveAt(l.Count - 1); if (l.Count == 0) Cells.Remove(i); Touch(i); return true;
+        l.RemoveAt(l.Count - 1); if (l.Count == 0) { Cells.Remove(i); Unlink(i); } Touch(i); return true;
     }
 
     public static void Touch(int i) { dirty.Add(i / ChunkN); foreach (int j in Planet.Cells[i].nb) dirty.Add(j / ChunkN); }
@@ -60,6 +85,7 @@ public static class PlanetCity
         {
             var sd = new PSaveData { m = Planet.M, r = Planet.R };
             foreach (var kv in Cells) if (kv.Value.Count > 0) sd.cells.Add(new PCellSave { i = kv.Key, items = kv.Value.ToArray() });
+            foreach (long k in Links) { sd.links.Add((int)(k >> 20)); sd.links.Add((int)(k & 0xFFFFF)); }
             File.WriteAllText(FilePath, JsonUtility.ToJson(sd));
         }
         catch (Exception e) { Debug.LogWarning("Opslaan mislukt: " + e.Message); }
@@ -73,6 +99,9 @@ public static class PlanetCity
             var sd = JsonUtility.FromJson<PSaveData>(File.ReadAllText(FilePath)); if (sd == null || sd.m != Planet.M) return false;
             Cells = new Dictionary<int, List<string>>();
             foreach (var c in sd.cells) if (c.items != null && c.items.Length > 0 && c.i >= 0 && c.i < Planet.Cells.Length) Cells[c.i] = new List<string>(c.items);
+            Links.Clear();
+            if (sd.links != null && sd.links.Count > 0) { for (int k = 0; k + 1 < sd.links.Count; k += 2) Link(sd.links[k], sd.links[k + 1]); }
+            else foreach (var kv in Cells) if (IsWalk(kv.Key)) foreach (int j in Planet.Cells[kv.Key].nb) if (IsWalk(j)) Link(kv.Key, j);   // oude opslag: alles naast elkaar verbonden
             TouchAll(); return true;
         }
         catch (Exception e) { Debug.LogWarning("Laden mislukt: " + e.Message); return false; }
@@ -215,11 +244,12 @@ public static class PlanetCity
         foreach (int j in Planet.Cells[i].nb)
         {
             Vector3 d3 = Planet.Cells[j].dir * Planet.R - fr.o; Vector2 q = new Vector2(Vector3.Dot(d3, fr.e), Vector3.Dot(d3, fr.n)) * 0.5f;
-            if (IsRoad(j)) arms.Add(q);
+            if (LinkedRoad(i, j)) arms.Add(q);
             else { float sc = (i * 7 + j) % 13 / 13f; if (sc > freeBest) { freeBest = sc; freeDir = q.normalized; } }
         }
-        int na = arms.Count; bool straight = false;
-        if (na == 2) { float dot = Vector2.Dot(arms[0].normalized, arms[1].normalized); straight = dot < -0.9f; }
+        int na = arms.Count; bool straight = false, chord = false;
+        if (na == 2) { float dot = Vector2.Dot(arms[0].normalized, arms[1].normalized); straight = dot < -0.9f; chord = dot < -0.3f; }   // 180° of 120°: recht van rand naar rand
+        if (chord) { Chord(M, fr, arms[0], arms[1]); LampAt(M, fr, freeBest, freeDir); return; }
         float coreA = na == 0 ? 3.3f : na == 1 ? 2.5f : straight ? 2.5f : na == 2 ? 3.0f : 3.4f;   // kern van het asfalt
         float coreS = coreA + 2.1f;
         const int S = 72;
@@ -256,13 +286,61 @@ public static class PlanetCity
             float L = arm.magnitude; Vector2 d = arm / L, r = new Vector2(d.y, -d.x);
             for (float s0 = (na == 2 && straight ? 0.4f : coreA + 0.3f); s0 + 1.2f < L; s0 += 2.6f) Strip(M("lijn"), fr, d, r, s0, s0 + 1.4f, 0.07f, 0.165f);
         }
-        if (na >= 3) { Disc(M("gras"), fr, 1.3f, 0.21f); Skirt(M("rand"), fr, 1.4f, 0.155f, 0.21f); }
-        if (freeBest > -1f)
+        if (na >= 3)
         {
-            Vector2 lp = freeDir * 4.0f;
-            Cone(M("paal"), fr, lp.x, lp.y, 0.08f, 0.09f, 5.2f, 0.06f);
-            Cone(M("lamp"), fr, lp.x, lp.y, 0.28f, 4.9f, 5.35f, 0.2f); Cap6(M("lamp"), fr, 0.2f, 5.35f);
+            Disc(M("gras"), fr, 1.3f, 0.21f); Skirt(M("rand"), fr, 1.4f, 0.155f, 0.21f);
+            foreach (var arm in arms)   // zebrapad over elke arm, vlak voor de kruising
+            {
+                float L = arm.magnitude; Vector2 d = arm / L, r = new Vector2(d.y, -d.x); if (L < 6.5f) continue;
+                for (int z = -2; z <= 2; z++) { Vector2 off = r * (z * 0.95f); Vector2 a = d * (L - 2.6f) + off - r * 0.28f, b = d * (L - 2.6f) + off + r * 0.28f, c = d * (L - 0.6f) + off + r * 0.28f, e = d * (L - 0.6f) + off - r * 0.28f; M("lijn").Quad(fr.P(a.x, 0.165f, a.y), fr.P(b.x, 0.165f, b.y), fr.P(c.x, 0.165f, c.y), fr.P(e.x, 0.165f, e.y), fr.u); }
+            }
         }
+        LampAt(M, fr, freeBest, freeDir);
+    }
+
+    static void LampAt(System.Func<string, MeshBuilder> M, Frame fr, float freeBest, Vector2 freeDir)
+    {
+        if (freeBest <= -1f) return; Vector2 lp = freeDir * 4.0f;
+        Cone(M("paal"), fr, lp.x, lp.y, 0.08f, 0.09f, 5.2f, 0.06f);
+        Cone(M("lamp"), fr, lp.x, lp.y, 0.28f, 4.9f, 5.35f, 0.2f); Cap6(M("lamp"), fr, 0.2f, 5.35f);
+    }
+
+    // Een recht stuk van rand naar rand (ook als de twee armen 120° maken: dan loopt de weg schuin door het vak, en vormt
+    // een rij van zulke vakken een kaarsrechte weg in een 30°-tussenrichting). De uiteinden worden langs de vakrand afgesneden.
+    static void Chord(System.Func<string, MeshBuilder> M, Frame fr, Vector2 e0, Vector2 e1)
+    {
+        Vector2 d = (e1 - e0).normalized, r = new Vector2(d.y, -d.x);
+        // zijlijnen van de strook snijden met de randlijn (loodrecht op de arm) aan elk uiteinde
+        System.Func<float, Vector2[]> quad = hw =>
+        {
+            var q = new Vector2[4];
+            for (int end = 0; end < 2; end++)
+            {
+                Vector2 e = end == 0 ? e0 : e1, en = e.normalized;   // randlijn: punten p met dot(p - e, en) = 0
+                for (int sd = 0; sd < 2; sd++)
+                {
+                    Vector2 p0 = r * (sd == 0 ? -hw : hw); float den = Vector2.Dot(d, en);
+                    float t = Mathf.Abs(den) < 1e-4f ? 0f : Vector2.Dot(e - p0, en) / den;
+                    q[end * 2 + sd] = p0 + d * t;
+                }
+            }
+            return q;
+        };
+        var st = quad(4.6f); var asf = quad(2.5f);
+        // stoep: vlak (als twee driehoeken) + schuine randen omlaag aan de zijkanten
+        M("stoep").Quad(fr.P(st[0].x, 0.095f, st[0].y), fr.P(st[1].x, 0.095f, st[1].y), fr.P(st[3].x, 0.095f, st[3].y), fr.P(st[2].x, 0.095f, st[2].y), fr.u);
+        M("stoep").Quad(fr.P(st[0].x, -0.35f, st[0].y), fr.P(st[2].x, -0.35f, st[2].y), fr.P(st[2].x, 0.095f, st[2].y), fr.P(st[0].x, 0.095f, st[0].y), fr.D(-r.x, 0, -r.y));
+        M("stoep").Quad(fr.P(st[1].x, -0.35f, st[1].y), fr.P(st[3].x, -0.35f, st[3].y), fr.P(st[3].x, 0.095f, st[3].y), fr.P(st[1].x, 0.095f, st[1].y), fr.D(r.x, 0, r.y));
+        // asfalt + stoeprand
+        M("asfalt").Quad(fr.P(asf[0].x, 0.155f, asf[0].y), fr.P(asf[1].x, 0.155f, asf[1].y), fr.P(asf[3].x, 0.155f, asf[3].y), fr.P(asf[2].x, 0.155f, asf[2].y), fr.u);
+        for (int sd = 0; sd < 2; sd++)
+        {
+            Vector2 a = asf[sd], b = asf[2 + sd], o = r * (sd == 0 ? -0.22f : 0.22f);
+            M("rand").Quad(fr.P(a.x, 0.155f, a.y), fr.P(b.x, 0.155f, b.y), fr.P(b.x + o.x, 0.23f, b.y + o.y), fr.P(a.x + o.x, 0.23f, a.y + o.y), fr.D(-o.x, 1f, -o.y));
+        }
+        // middenstreepjes
+        float len = Vector2.Distance(e0, e1); Vector2 mid = (e0 + e1) * 0.5f;
+        for (float s0 = -len / 2f + 0.6f; s0 + 1.2f < len / 2f; s0 += 2.6f) { Vector2 a = mid + d * s0, b = mid + d * (s0 + 1.4f); M("lijn").Quad(fr.P(a.x - r.x * 0.07f, 0.165f, a.y - r.y * 0.07f), fr.P(a.x + r.x * 0.07f, 0.165f, a.y + r.y * 0.07f), fr.P(b.x + r.x * 0.07f, 0.165f, b.y + r.y * 0.07f), fr.P(b.x - r.x * 0.07f, 0.165f, b.y - r.y * 0.07f), fr.u); }
     }
 
     // Een meertje: zand aan de kant, water iets lager, riet langs de oever. Grenst een buurvak ook aan een meer,
@@ -308,7 +386,7 @@ public static class PlanetCity
         Disc(M("pad"), fr, 1.3f, 0.1f); Skirt(M("pad"), fr, 1.3f, -0.3f, 0.1f);
         foreach (int j in Planet.Cells[i].nb)
         {
-            if (!IsWalk(j)) continue;
+            if (!LinkedWalk(i, j)) continue;
             Vector3 d3 = Planet.Cells[j].dir * Planet.R - fr.o;
             Vector2 q = new Vector2(Vector3.Dot(d3, fr.e), Vector3.Dot(d3, fr.n)) * 0.5f; float L = q.magnitude; Vector2 d = q / L, r = new Vector2(d.y, -d.x);
             float L2 = IsRoad(j) ? L - 4.4f : L;   // tot aan de stoep van een weg
