@@ -127,11 +127,11 @@
     for (const [q, r] of ch) SC.touched.add(q + ',' + r);
     if (ch.length) terrFlush();
   }
-  let sculptAcc = 0;
+  let sculptAcc = 0, sculptCost = 0;
   function sculptUpdate(dt) {   // elke frame zolang de knop is ingedrukt (niet bij de helling: die volgt de muis)
     if (!SC.on || tool === 'thelling') return;
-    sculptAcc += dt; if (sculptAcc < 0.05) return;   // 20 keer per seconde is genoeg
-    sculptStep(Math.min(0.15, sculptAcc)); sculptAcc = 0;
+    sculptAcc += dt; if (sculptAcc < Math.max(0.05, sculptCost * 3 / 1000)) return;   // 20 keer per seconde is genoeg; kost een stap veel, dan minder vaak (de rest van het spel blijft bewegen)
+    const t0 = performance.now(); sculptStep(Math.min(0.15, sculptAcc)); sculptAcc = 0; sculptCost = sculptCost * 0.6 + (performance.now() - t0) * 0.4;
     if (lastHover) updateGhost();
   }
   function sculptEnd() {

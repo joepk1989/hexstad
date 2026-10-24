@@ -78,8 +78,8 @@
   // (een dijk). Een hoekpunt of midden binnen het bereik van een weg komt op de hoogte van de weg: de driehoeken
   // onder en naast de weg liggen dan in het vlak van de weg en de flank begint precies aan de rand.
   const lpOn = () => terrQ === 'laag';
-  const LPC = new Map(), LPV = new Map(), LPR = new Map();
-  const lpClear = () => { LPC.clear(); LPV.clear(); LPR.clear(); };
+  const LPC = new Map(), LPV = new Map(), LPR = new Map(), LPRC = new Map();   // LPR en LPRC hangen alleen van de wegen af, niet van de hoogte van het terrein
+  const lpClear = () => { LPC.clear(); LPV.clear(); LPR.clear(); LPRC.clear(); };
   const LPA = [0, 1, 2, 3, 4, 5].map(i => { const a = (30 + 60 * i) * Math.PI / 180; return [Math.cos(a), Math.sin(a)]; });
   function lpCell(q, r) { const k = q + ',' + r; let v = LPC.get(k); if (!v) LPC.set(k, v = { g: gH(q, r), occ: terrOcc(q, r), cut: terrCut(q, r) }); return v; }
   function lpCorner(x, z, i) {   // basishoogte van hoekpunt i van het vak waarvan (x, z) het hoekpunt is
@@ -93,14 +93,14 @@
   }
   // Wegvak: een vak dat de weg (met stoep) raakt. Al zijn hoekpunten en zijn midden komen op weghoogte.
   function lpRoadCell(q, r) {
-    const C = lpCell(q, r); if (C.rc !== undefined) return C.rc;
-    C.rc = false; const c = cellToWorld(q, r), P = [[c.x, c.z]];
+    const kk = q + ',' + r, got = LPRC.get(kk); if (got !== undefined) return got;
+    LPRC.set(kk, false); const c = cellToWorld(q, r), P = [[c.x, c.z]];
     for (let i = 0; i < 6; i++) { const [ax, az] = LPA[i], [bx, bz] = LPA[(i + 1) % 6]; P.push([c.x + ax * R, c.z + az * R], [c.x + (ax + bx) * R / 2, c.z + (az + bz) * R / 2]); }
     for (const s of tRoadSegs) {
       const m = s[8] + R;
       if (c.x < Math.min(s[0], s[2]) - m || c.x > Math.max(s[0], s[2]) + m || c.z < Math.min(s[1], s[3]) - m || c.z > Math.max(s[1], s[3]) + m) continue;
       const dx = s[2] - s[0], dz = s[3] - s[1], l2 = dx * dx + dz * dz || 1e-9;
-      for (const [x, z] of P) { const f = Math.max(0, Math.min(1, ((x - s[0]) * dx + (z - s[1]) * dz) / l2)); if (Math.hypot(s[0] + dx * f - x, s[1] + dz * f - z) < s[8] + 0.3) { C.rc = true; return true; } }
+      for (const [x, z] of P) { const f = Math.max(0, Math.min(1, ((x - s[0]) * dx + (z - s[1]) * dz) / l2)); if (Math.hypot(s[0] + dx * f - x, s[1] + dz * f - z) < s[8] + 0.3) { LPRC.set(kk, true); return true; } }
     }
     return false;
   }
@@ -249,7 +249,7 @@
   }
   // Vakken veranderd: de stukken eromheen opnieuw (veld en tekening)
   function terrDirty(list) {
-    const seen = new Set(); lpClear();
+    const seen = new Set(); LPC.clear(); LPV.clear();   // wegen veranderen hier niet: hun hoogtes blijven in het geheugen
     for (const [q, r] of list) {
       const c = cellToWorld(q, r);
       for (let i = Math.floor((c.x - TREACH) / TSZ); i <= Math.floor((c.x + TREACH) / TSZ); i++) for (let j = Math.floor((c.z - TREACH) / TSZ); j <= Math.floor((c.z + TREACH) / TSZ); j++) {
