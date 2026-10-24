@@ -15,7 +15,7 @@
   } catch (e) {}
   cells = load() || null;
   // eerste keer: een klein voorbeeldstadje (de grote steden staan in het menu en op het welkomscherm)
-  if (!cells) { cells = load(MINE) || roofHouses(sampleCity()); slot = load(MINE) ? 'mijn' : 'klad'; slotName = slot === 'mijn' ? 'Mijn stad' : 'Voorbeeldstad'; if (!load(MINE)) { orbit.dist = 150; orbit.phi = 0.9; orbit.theta = 0.5; } }
+  if (!cells) { cells = load(MINE) || startCity(); slot = load(MINE) ? 'mijn' : 'klad'; slotName = slot === 'mijn' ? 'Mijn stad' : 'Startstadje'; if (!load(MINE)) { orbit.dist = 230; orbit.phi = 0.95; orbit.theta = 0.4; } }
   if (!hasMine() && slot === 'mijn') { try { localStorage.setItem(MINE, serialize(cells)); } catch (e) {} }
   if (!hasMine() && slot === 'klad' && !localStorage.getItem(SLOT)) { slot = 'mijn'; slotName = 'Mijn stad'; }
   const cleaned = sanitize(cells);
