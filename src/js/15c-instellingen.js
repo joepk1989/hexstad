@@ -73,3 +73,19 @@
   function openSettings() { renderSettings(); setSheet.hidden = false; }
   document.getElementById('setClose').addEventListener('click', () => { setSheet.hidden = true; });
   setSheet.addEventListener('click', e => { if (e.target === setSheet) setSheet.hidden = true; });
+
+  // ---------- Welkomscherm ----------
+  // Bij het starten (tenzij uitgezet), en via Menu → Welkom en uitleg. De grote knop gaat verder met de stad die open staat.
+  const welcomeSheet = document.getElementById('welcomeSheet'), WELCOME_KEY = 'hexstad-welkom';
+  function openWelcome() {
+    const n = [...cells.values()].reduce((s, v) => s + (Array.isArray(v) ? v.length : 0), 0);
+    document.getElementById('welcomeInfo').textContent = slotName + (n ? ' · ' + n + ' blokken' : '');
+    document.getElementById('welcomeSkip').checked = localStorage.getItem(WELCOME_KEY) === 'uit';
+    welcomeSheet.hidden = false;
+  }
+  const closeWelcome = () => { welcomeSheet.hidden = true; };
+  document.getElementById('welcomeGo').addEventListener('click', closeWelcome);
+  document.getElementById('welcomeSkip').addEventListener('change', e => { try { localStorage.setItem(WELCOME_KEY, e.target.checked ? 'uit' : 'aan'); } catch (err) {} });
+  welcomeSheet.querySelectorAll('[data-wact]').forEach(b => b.addEventListener('click', () => { closeWelcome(); doAct(b.dataset.wact); }));
+  welcomeSheet.addEventListener('click', e => { if (e.target === welcomeSheet) closeWelcome(); });
+  let showWelcome = true; try { showWelcome = localStorage.getItem(WELCOME_KEY) !== 'uit'; } catch (e) {}

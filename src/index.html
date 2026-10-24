@@ -207,6 +207,7 @@
     </div>
     <p class="sheet-sub">Leven in de stad</p>
     <div class="grid2">
+      <button class="btn" type="button" data-act="welcome" style="grid-column:1/-1">Welkom en uitleg</button>
       <button class="btn" type="button" data-act="settings" id="setBtn" style="grid-column:1/-1">⚙ Instellingen: beeld, prestaties en opties</button>
       <button class="btn" type="button" data-act="people" id="peopleBtn">Mensen: aan</button>
       <button class="btn" type="button" data-act="cars" id="carsBtn">Auto's: aan</button>
@@ -216,6 +217,23 @@
   </div>
 </div>
 
+<div class="sheet welcome" id="welcomeSheet" hidden>
+  <div class="sheet-card" role="dialog" aria-labelledby="welcomeTitle">
+    <div class="welcome-head"><span class="logo-hex big" aria-hidden="true"></span><div><h2 id="welcomeTitle">Raatstad</h2><p class="welcome-sub">Bouw een stad van zeshoeken en wandel er doorheen</p></div></div>
+    <ul class="welcome-list">
+      <li><b>Bouwen</b> — kies onderin een blok en tik op een vak. Huizen, kantoren, parken, wegen en trappen sluiten vanzelf op elkaar aan.</li>
+      <li><b>Lopen</b> — knop rechtsonder: loop door je eigen straten, open deuren en neem de trap naar het dak.</li>
+      <li><b>Leven</b> — auto's rijden, mensen wandelen; in de file komt de Hulk.</li>
+    </ul>
+    <div class="welcome-btns">
+      <button class="btn mine" type="button" id="welcomeGo"><span>Verder bouwen</span><small id="welcomeInfo"></small></button>
+      <button class="btn" type="button" data-wact="sample">Voorbeeldstad</button>
+      <button class="btn" type="button" data-wact="stad">Grote stad</button>
+      <button class="btn" type="button" data-wact="empty">Lege bouwgrond</button>
+    </div>
+    <label class="welcome-skip"><input type="checkbox" id="welcomeSkip"> Niet meer tonen bij het starten</label>
+  </div>
+</div>
 <div class="sheet" id="setSheet" hidden>
   <div class="sheet-card" role="dialog" aria-labelledby="setTitle">
     <h2 id="setTitle">Instellingen</h2>

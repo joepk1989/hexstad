@@ -36,6 +36,7 @@
   if (libRefreshed) { let n = 0; for (const m of modules) if (m.v === 2) n += syncModule(m); if (n) changed(); }   // vernieuwde standaardmodules ook in de stad
   selectTool('woning');
   applyOrbit();
+  if (showWelcome && !/[?&]start/.test(location.search)) openWelcome();   // ?start: meteen beginnen (tests)
   setTimeout(() => toast(cleaned
     ? `${cleaned} ${cleaned === 1 ? 'blok stond' : 'blokken stonden'} op een onlogische plek en ${cleaned === 1 ? 'is' : 'zijn'} weggehaald`
     : coarse
