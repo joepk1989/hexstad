@@ -10,9 +10,11 @@ public class PlanetWalker : MonoBehaviour
     const float Walk = 1.6f, Run = 5.5f, Accel = 10f, AirAccel = 2.5f, Gravity = 18f, JumpHeight = 1.0f, Eye = 1.65f, Fov = 72f, Step = 0.5f;
     Vector3 fwd = Vector3.forward, vel; float pitch, vy, lastGrounded = -1f, jumpPressed = -1f, bob; bool grounded;
     public Vector3 Forward => fwd;
+    AudioSource steps;
 
     public void Enter(Vector3 pos, Vector3 forward)
     {
+        if (steps == null) { steps = gameObject.AddComponent<AudioSource>(); steps.spatialBlend = 0f; steps.playOnAwake = false; }
         gameObject.SetActive(true); transform.position = pos; fwd = forward; pitch = 5f; vy = 0f; vel = Vector3.zero;
         Cam.transform.SetParent(transform, false); Cam.transform.localPosition = new Vector3(0, Eye, 0); Cam.transform.localRotation = Quaternion.identity; Cam.nearClipPlane = 0.05f; Cam.fieldOfView = Fov;
         Lock(true);
@@ -77,6 +79,7 @@ public class PlanetWalker : MonoBehaviour
         float rad = pos.magnitude; if (rad < Planet.R - 0.5f) { pos = pos.normalized * Planet.R; vy = 0f; grounded = true; }
 
         transform.position = pos; up = pos.normalized; fwd = (fwd - up * Vector3.Dot(fwd, up)).normalized;
+        if (grounded) Footsteps.Walked(steps, vel.magnitude * dt, vel.magnitude > 3f, PlanetCity.IsRoad(Planet.Nearest(pos)));
         transform.rotation = Quaternion.LookRotation(fwd, up);
         // hoofd: lichte deining bij het lopen
         float sp = vel.magnitude; bob = grounded && sp > 0.2f ? bob + dt * (sp > 3f ? 11f : 7.5f) : Mathf.Lerp(bob, Mathf.Round(bob / Mathf.PI) * Mathf.PI, dt * 8f);

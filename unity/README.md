@@ -45,6 +45,12 @@ Wandelen: WASD, muis, Shift rennen, Spatie springen. Wegen op hogere lagen kun j
 op elkaar aan), de camera schuift over de bol, en in wandelmodus wijst de zwaartekracht naar het middelpunt.
 Zet `PlanetMode` op `false` voor het platte raster met getekende wegen.
 
+## Op de planeet zit nu ook
+- Slepen om te bouwen (en te gummen), drie opslagslots (knoppen rechtsonder)
+- Meertjes met oevers, riet en water dat doorloopt naar buurmeren; uitgraving (3 m lager) en heuvel (3 m hoger)
+- Geluid: vogels (`Assets/Resources/vogels.mp3`), wind, stadsruis, voetstappen; M = geluid aan/uit
+- Schoonheidsscore linksonder (muis erop = de uitleg per onderdeel), blokken, hoogste punt, fps, pijl naar het centrum
+
 ## Controle zonder Unity
 `stub/check.sh` compileert alle scripts met `mcs` tegen een kleine stub van de Unity-API (alleen compilefouten,
 niet draaibaar); `stub/PlanetTest.cs` test de planeetgeometrie los van Unity.

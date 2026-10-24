@@ -45,7 +45,7 @@ public class Raatstad : MonoBehaviour
         {
             Planet.Build(); PlanetCity.Init(transform); PlanetCity.Load(); PlanetCity.Rebuild();
             var pb = gameObject.AddComponent<PlanetBuilder>(); pb.Cam = cam;
-            gameObject.AddComponent<DayNight>(); gameObject.AddComponent<Chatter>(); PlanetLife.I = gameObject.AddComponent<PlanetLife>();
+            gameObject.AddComponent<DayNight>(); gameObject.AddComponent<Chatter>(); PlanetLife.I = gameObject.AddComponent<PlanetLife>(); gameObject.AddComponent<Ambience>();
             return;
         }
 

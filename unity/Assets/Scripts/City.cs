@@ -7,11 +7,11 @@ using UnityEngine;
 public static class Blocks
 {
     // volgorde = toetsen 1-9 in de bouwmodus
-    public static readonly string[] Tools = { "weg", "woning", "kantoor", "park", "water", "meer", "pad", "dak", "heuvel", "blok", "gum" };
-    public static readonly string[] Names = { "Weg", "Woning", "Kantoor", "Park", "Gracht", "Meer", "Pad", "Dak", "Heuvel", "Blok", "Gum" };
+    public static readonly string[] Tools = { "weg", "woning", "kantoor", "park", "water", "meer", "pad", "dak", "heuvel", "kuil", "blok", "gum" };
+    public static readonly string[] Names = { "Weg", "Woning", "Kantoor", "Park", "Gracht", "Meer", "Pad", "Dak", "Heuvel", "Uitgraving", "Blok", "Gum" };
     public static float Height(string t)
     {
-        switch (t) { case "woning": case "kantoor": case "heuvel": case "blok": return 3f; case "dak": return 2.5f; case "pad": return 0.15f; case "park": return 0.05f; default: return 0f; }
+        switch (t) { case "woning": case "kantoor": case "heuvel": case "blok": return 3f; case "dak": return 2.5f; case "kuil": return -3f; case "pad": return 0.15f; case "park": return 0.05f; default: return 0f; }
     }
 }
 

@@ -48,7 +48,9 @@ public static class PlanetCity
     public static void Touch(int i) { dirty.Add(i / ChunkN); foreach (int j in Planet.Cells[i].nb) dirty.Add(j / ChunkN); }
     public static void TouchAll() { for (int c = 0; c * ChunkN < Planet.Cells.Length; c++) dirty.Add(c); }
 
-    static string FilePath => Path.Combine(Application.persistentDataPath, "planeet.json");
+    public static int Slot = 1;   // drie opslagslots: planeet1.json, planeet2.json, planeet3.json
+    static string FilePath => Path.Combine(Application.persistentDataPath, "planeet" + Slot + ".json");
+    public static bool SlotExists(int n) => File.Exists(Path.Combine(Application.persistentDataPath, "planeet" + n + ".json"));
 
     public static void Save()
     {
@@ -218,6 +220,42 @@ public static class PlanetCity
         }
     }
 
+    // Een meertje: zand aan de kant, water iets lager, riet langs de oever. Grenst een buurvak ook aan een meer,
+    // dan loopt het water door tot de gedeelde rand, zodat meerdere vakken één meer vormen.
+    static void Lake(Dictionary<string, MeshBuilder> mb, Frame fr, int i, float h, int hash)
+    {
+        System.Func<string, MeshBuilder> M = k => { if (!mb.TryGetValue(k, out var x)) { x = new MeshBuilder(); mb[k] = x; } return x; };
+        var c = Planet.Cells[i]; int n = fr.poly.Length;
+        Top(M("zand"), fr, 1.0f, h + 0.03f); Wall(M("zand"), fr, 1.0f, -0.2f, h + 0.03f);
+        // per rand: open naar een buurmeer? De buur met dezelfde richting als de rand (middelpunt van de rand ligt richting die buur)
+        var open = new bool[n];
+        for (int e = 0; e < n; e++)
+        {
+            Vector2 mid = (fr.poly[e] + fr.poly[(e + 1) % n]) * 0.5f; int best = -1; float bd = -1f;
+            foreach (int j in c.nb) { Vector3 d3 = Planet.Cells[j].dir * Planet.R - fr.o; Vector2 q = new Vector2(Vector3.Dot(d3, fr.e), Vector3.Dot(d3, fr.n)).normalized; float d = Vector2.Dot(q, mid.normalized); if (d > bd) { bd = d; best = j; } }
+            open[e] = best >= 0 && Cells.TryGetValue(best, out var l) && l.Count > 0 && l[0] == "meer";
+        }
+        // waterrand: hoekpunt op de rand als beide aangrenzende randen open zijn, anders naar binnen (golvend)
+        var wp = new Vector2[n]; var rnd = new System.Random(hash);
+        for (int k = 0; k < n; k++)
+        {
+            bool both = open[(k + n - 1) % n] && open[k];
+            float kk = both ? 1.0f : (open[(k + n - 1) % n] || open[k]) ? 0.9f : 0.68f + (float)rnd.NextDouble() * 0.1f;
+            wp[k] = fr.poly[k] * kk;
+        }
+        float wy = h - 0.35f;
+        for (int k = 0; k < n; k++)
+        {
+            Vector2 a = wp[k], b = wp[(k + 1) % n], am = open[k] ? (fr.poly[k] + fr.poly[(k + 1) % n]) * 0.5f : (a + b) * 0.5f * 0.95f;
+            M("water").Tri(fr.P(0, wy, 0), fr.P(a.x, wy, a.y), fr.P(am.x, wy, am.y), fr.u); M("water").Tri(fr.P(0, wy, 0), fr.P(am.x, wy, am.y), fr.P(b.x, wy, b.y), fr.u);
+            // oever: een helling van het zand (h+0.03) naar onder water (wy-0.3), en riet op gesloten randen
+            Vector2 oa = fr.poly[k] * 0.98f, ob = fr.poly[(k + 1) % n] * 0.98f;
+            if (!open[k]) { M("modder").Quad(fr.P(a.x, wy - 0.3f, a.y), fr.P(b.x, wy - 0.3f, b.y), fr.P(ob.x, h + 0.03f, ob.y), fr.P(oa.x, h + 0.03f, oa.y), fr.D(-am.x, 0.5f * am.magnitude, -am.y));
+                int reeds = 2 + rnd.Next(0, 3);
+                for (int r = 0; r < reeds; r++) { float t = 0.15f + (float)rnd.NextDouble() * 0.7f; Vector2 rp = Vector2.Lerp(a, b, t) * (0.97f + (float)rnd.NextDouble() * 0.06f); Cone(M("riet"), fr, rp.x, rp.y, 0.12f, wy - 0.1f, h + 0.9f + (float)rnd.NextDouble() * 0.5f, 0f); } }
+        }
+    }
+
     static Color ColorOf(string k)
     {
         switch (k)
@@ -229,6 +267,7 @@ public static class PlanetCity
             case "pad": return new Color(0.82f, 0.76f, 0.63f); case "blad": return new Color(0.20f, 0.50f, 0.22f);
             case "steen": return new Color(0.62f, 0.60f, 0.58f); case "stoep": return new Color(0.88f, 0.84f, 0.72f);
             case "asfalt": return new Color(0.27f, 0.28f, 0.30f); case "lijn": return Color.white;
+            case "modder": return new Color(0.45f, 0.38f, 0.26f); case "riet": return new Color(0.45f, 0.6f, 0.25f);
             default: return new Color(0.40f, 0.28f, 0.18f);
         }
     }
@@ -252,6 +291,7 @@ public static class PlanetCity
             if (!Cells.TryGetValue(i, out var list) || list.Count == 0) continue;
             var fr = new Frame(i);
             if (list[0] == "weg") { Road(mb, fr, i); continue; }
+            if (list.Count == 1 && list[0] == "meer") { Lake(mb, fr, i, 0f, i * 73856093); continue; }
             float h = 0f; int hash = i * 73856093;
             for (int k = 0; k < list.Count; k++)
             {
@@ -282,7 +322,10 @@ public static class PlanetCity
                         Top(M("water"), fr, 1.0f, h + 0.03f); if (k == 0) Wall(M("water"), fr, 1.0f, -0.2f, h + 0.03f);
                         break;
                     case "meer":
-                        Top(M("zand"), fr, 1.0f, h + 0.03f); if (k == 0) Wall(M("zand"), fr, 1.0f, -0.2f, h + 0.03f); Top(M("water"), fr, 0.8f, h + 0.045f);
+                        Lake(mb, fr, i, h, hash);
+                        break;
+                    case "kuil":   // uitgraving: de bodem 3 m lager, grashellingen naar de rand
+                        Cone(M("gras"), fr, 0, 0, fr.rad * 0.55f, h1, h, fr.rad * 1.0f); Cap6(M("gras"), fr, fr.rad * 0.55f, h1); Top(M("gras"), fr, 1.0f, h + 0.01f);
                         break;
                     case "pad":
                         Wall(M("pad"), fr, 0.72f, h0, h1); Top(M("pad"), fr, 0.72f, h1);

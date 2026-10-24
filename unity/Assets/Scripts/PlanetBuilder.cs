@@ -12,6 +12,10 @@ public class PlanetBuilder : MonoBehaviour
     int tool = 1, hover = -1; bool hasHover;
     readonly List<Dictionary<int, List<string>>> undo = new List<Dictionary<int, List<string>>>();
     LineRenderer outline; PlanetWalker walker; bool walking; string msg = ""; float msgT;
+    int lastPainted = -1; bool painting;                 // slepen: elk nieuw vak onder de muis krijgt het blok
+    Beauty.Result beauty; float beautyT = -99f, fps; int fpsN; float fpsT;
+    Vector3 centre; float centreT = -99f; bool hasCentre;   // middelpunt van de stad, voor de pijl
+    GUIStyle card, small, big;
 
     void Start()
     {
@@ -28,7 +32,7 @@ public class PlanetBuilder : MonoBehaviour
     void Update()
     {
         if (Inp.Down(K.Tab)) ToggleWalk();
-        if (Inp.Down(K.M)) { Babble.Muted = !Babble.Muted; Say(Babble.Muted ? "Stemmen uit (M)" : "Stemmen aan (M)"); }
+        if (Inp.Down(K.M)) { Babble.Muted = !Babble.Muted; Ambience.Muted = Babble.Muted; Say(Babble.Muted ? "Geluid uit (M)" : "Geluid aan (M)"); }
         if (walking) return;
         CameraControl();
 
@@ -43,18 +47,34 @@ public class PlanetBuilder : MonoBehaviour
             hover = Planet.Nearest(hit.point); hasHover = true;
             ShowOutline(hover);
             if (Inp.Down(K.X)) { Push(); if (PlanetCity.RemoveTop(hover)) Changed(); }
-            if (Inp.LeftDown)
+            if (Inp.LeftDown) { Push(); painting = true; lastPainted = -1; }
+            if (painting && Inp.LeftHeld && hover != lastPainted)
             {
-                Push();
-                string t = Blocks.Tools[tool];
-                if (t == "gum") { if (PlanetCity.RemoveTop(hover)) Changed(); else Say("Hier staat niets"); }
+                lastPainted = hover; string t = Blocks.Tools[tool];
+                if (t == "gum") { if (PlanetCity.RemoveTop(hover)) Changed(); else if (!Inp.LeftHeld || lastPainted == hover) Say("Hier staat niets"); }
                 else { string err = PlanetCity.Place(hover, t); if (err != null) Say(err); else Changed(); }
             }
         }
+        if (Inp.LeftUp) painting = false;
         outline.enabled = hasHover;
     }
 
-    bool OverBar => Inp.Pos.y < 54f;
+    bool OverBar => Inp.Pos.y < 54f || (Inp.Pos.y > Screen.height - 60f && Inp.Pos.x > Screen.width - 230f) || (Inp.Pos.y > Screen.height - 120f && Inp.Pos.x < 330f);
+
+    void SwitchSlot(int n)
+    {
+        if (n == PlanetCity.Slot) return;
+        PlanetCity.Save(); PlanetCity.Slot = n; undo.Clear();
+        if (!PlanetCity.Load()) { PlanetCity.Cells = new Dictionary<int, List<string>>(); PlanetCity.TouchAll(); }
+        PlanetCity.Rebuild(); beautyT = -99f; Say("Stad " + n + (PlanetCity.Cells.Count == 0 ? " (leeg)" : ""));
+    }
+
+    void CityCentre()
+    {
+        if (Time.time - centreT < 2f) return; centreT = Time.time;
+        Vector3 sum = Vector3.zero; int n = 0; foreach (var kv in PlanetCity.Cells) { sum += Planet.Cells[kv.Key].dir; n++; }
+        hasCentre = n > 0 && sum.sqrMagnitude > 1e-6f; if (hasCentre) centre = sum.normalized;
+    }
 
     void ShowOutline(int i)
     {
@@ -95,11 +115,30 @@ public class PlanetBuilder : MonoBehaviour
 
     void OnGUI()
     {
+        if (card == null)
+        {
+            card = new GUIStyle(GUI.skin.box) { alignment = TextAnchor.UpperLeft, fontSize = 13, richText = true, wordWrap = true }; card.normal.textColor = Color.white;
+            small = new GUIStyle(GUI.skin.label) { fontSize = 12 }; small.normal.textColor = Color.white;
+            big = new GUIStyle(GUI.skin.label) { fontSize = 22, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter }; big.normal.textColor = new Color(1f, 0.8f, 0.2f);
+        }
         var st = new GUIStyle(GUI.skin.label) { fontSize = 14 }; st.normal.textColor = DayNight.Night > 0.6f ? Color.white : Color.black;
         string help = walking ? "Wandelen op de planeet: WASD lopen · muis kijken · Shift rennen · Spatie springen · Esc muis los · Tab terug naar bouwen"
-            : "Planeet: klik een vak = blok plaatsen (1-9 of de balk) · X = bovenste blok weg · Ctrl+Z = ongedaan · WASD = schuiven · rechtermuis = draaien · scroll = zoom · Tab = wandelen";
+            : "Planeet: klik of sleep over vakken = blok plaatsen (1-9 of de balk) · X = bovenste blok weg · Ctrl+Z = ongedaan · WASD = schuiven · rechtermuis = draaien · scroll = zoom · Tab = wandelen · M = geluid";
         GUI.Label(new Rect(10, 8, Screen.width - 20, 24), help, st);
         if (Time.time < msgT) GUI.Label(new Rect(10, 32, Screen.width - 20, 24), msg, st);
+
+        // stadskaart linksonder: score, blokken, hoogste punt, fps
+        if (Time.time - beautyT > 3f) { beauty = Beauty.Compute(); beautyT = Time.time; }
+        fpsN++; if (Time.time - fpsT > 0.5f) { fps = fpsN / (Time.time - fpsT); fpsN = 0; fpsT = Time.time; }
+        var old = GUI.color; GUI.color = new Color(0.08f, 0.1f, 0.12f, 0.85f);
+        GUI.Box(new Rect(10, Screen.height - 112, 320, 62), ""); GUI.color = old;
+        if (beauty != null)
+        {
+            GUI.Label(new Rect(18, Screen.height - 108, 70, 50), beauty.score > 0 ? beauty.score.ToString() : "–", big);
+            GUI.Label(new Rect(90, Screen.height - 108, 230, 20), "<b>" + beauty.label + "</b> · stad " + PlanetCity.Slot, small);
+            GUI.Label(new Rect(90, Screen.height - 90, 230, 20), beauty.blocks + " blokken · hoogste punt " + beauty.top.ToString("0.#") + " m", small);
+            GUI.Label(new Rect(90, Screen.height - 72, 230, 20), Mathf.RoundToInt(fps) + " fps · " + (PlanetLife.I != null ? PlanetLife.I.People.Count + " mensen, " + PlanetLife.I.CarCount + " auto's" : ""), small);
+        }
         if (!walking)
         {
             float bw = 84f, x0 = (Screen.width - bw * Blocks.Tools.Length) / 2f;
@@ -109,6 +148,41 @@ public class PlanetBuilder : MonoBehaviour
                 var prev = GUI.color; GUI.color = i == tool ? new Color(1f, 0.8f, 0.2f) : Color.white;
                 if (GUI.Button(r, (i < 9 ? (i + 1) + "  " : "") + Blocks.Names[i])) tool = i;
                 GUI.color = prev;
+            }
+            // opslagslots rechtsonder
+            for (int n = 1; n <= 3; n++)
+            {
+                var r = new Rect(Screen.width - 230 + (n - 1) * 72, Screen.height - 46, 68, 40);
+                var prev = GUI.color; GUI.color = n == PlanetCity.Slot ? new Color(1f, 0.8f, 0.2f) : Color.white;
+                if (GUI.Button(r, "Stad " + n + (PlanetCity.SlotExists(n) || n == PlanetCity.Slot ? "" : " ·"))) SwitchSlot(n);
+                GUI.color = prev;
+            }
+            if (beauty != null && beauty.score > 0 && Inp.Pos.y < 120f && Inp.Pos.x < 330f)
+            {
+                string txt = ""; foreach (var row in beauty.rows) txt += "<b>" + row.name + "</b> " + (row.v < 0f ? "–" : Mathf.RoundToInt(row.v * 100f) + "%") + "  " + row.detail + "\n";
+                txt += "\n<i>" + beauty.tip + "</i>";
+                GUI.color = new Color(0.08f, 0.1f, 0.12f, 0.92f); GUI.Box(new Rect(10, Screen.height - 320, 420, 200), ""); GUI.color = Color.white;
+                GUI.Label(new Rect(18, Screen.height - 314, 404, 190), txt, card);
+            }
+        }
+        // pijl naar het midden van de stad als je er ver vandaan bent
+        CityCentre();
+        if (hasCentre)
+        {
+            Vector3 here = (walking ? walker.transform.position : focus * Planet.R).normalized;
+            float dist = Mathf.Acos(Mathf.Clamp(Vector3.Dot(here, centre), -1f, 1f)) * Planet.R;
+            if (dist > 120f)
+            {
+                Vector3 sp = Cam.WorldToScreenPoint(centre * (Planet.R + 20f)); Vector2 dir;
+                Vector2 c2 = new Vector2(Screen.width / 2f, Screen.height / 2f);
+                if (sp.z > 0f) dir = (new Vector2(sp.x, sp.y) - c2).normalized; else dir = -(new Vector2(sp.x, sp.y) - c2).normalized;
+                bool onScreen = sp.z > 0f && sp.x > 0 && sp.x < Screen.width && sp.y > 0 && sp.y < Screen.height;
+                Vector2 pos = onScreen ? new Vector2(sp.x, Screen.height - sp.y) : c2 + new Vector2(dir.x, -dir.y) * Mathf.Min(Screen.width, Screen.height) * 0.38f;
+                float ang = Mathf.Atan2(-dir.y, dir.x) * Mathf.Rad2Deg;
+                var m = GUI.matrix; GUIUtility.RotateAroundPivot(ang, pos);
+                GUI.color = new Color(1f, 0.8f, 0.2f); GUI.Label(new Rect(pos.x - 20, pos.y - 14, 40, 28), "➤", new GUIStyle(GUI.skin.label) { fontSize = 26, alignment = TextAnchor.MiddleCenter });
+                GUI.matrix = m; GUI.color = Color.white;
+                GUI.Label(new Rect(pos.x - 60, pos.y + 14, 120, 20), "Centrum · " + Mathf.RoundToInt(dist) + " m", new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 12 });
             }
         }
     }
