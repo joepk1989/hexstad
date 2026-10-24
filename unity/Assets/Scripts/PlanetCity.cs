@@ -48,6 +48,25 @@ public static class PlanetCity
     static bool IsNeighbour(int i, int j) => System.Array.IndexOf(Planet.Cells[i].nb, j) >= 0;
     // de twee vakken tussen i en j (afstand 2): de gemeenschappelijke buren
     public static List<int> Between(int i, int j) { var l = new List<int>(2); foreach (int x in Planet.Cells[i].nb) if (IsNeighbour(j, x)) l.Add(x); return l; }
+    // Het bezette deel van een half vak: de kant naar de weg toe, tot de middenlijn van het vak (de weg loopt langs de rand tussen twee halve vakken)
+    public static List<Vector3> HalfDirs(int i, Vector3 n)
+    {
+        var c = Planet.Cells[i]; float sc = Vector3.Dot(c.dir, n), sg = sc < 0f ? -1f : 1f, lim = Mathf.Abs(sc); var o = new List<Vector3>(); int m = c.corners.Length;
+        for (int k = 0; k < m; k++)
+        {
+            Vector3 a = c.corners[k], b = c.corners[(k + 1) % m]; float fa = sg * Vector3.Dot(a, n) - lim, fb = sg * Vector3.Dot(b, n) - lim;
+            if (fa <= 0f) o.Add(a);
+            if ((fa <= 0f) != (fb <= 0f)) o.Add(Vector3.Lerp(a, b, fa / (fa - fb)).normalized);
+        }
+        return o;
+    }
+    // het vlak van de weg die over dit halve vak loopt (normaal), uit de verbonden vakken ernaast
+    public static bool HalfNormal(int i, out Vector3 n)
+    {
+        n = Vector3.zero;
+        foreach (int a in Planet.Cells[i].nb) { if (!IsWalk(a)) continue; foreach (int b in Partners(a)) { if (b == a || IsNeighbour(a, b) || !Between(a, b).Contains(i)) continue; n = Vector3.Cross(Planet.Cells[a].dir, Planet.Cells[b].dir).normalized; return true; } }
+        return false;
+    }
     public static bool IsHalf(int i) => Cells.TryGetValue(i, out var l) && l.Count == 1 && l[0] == "wegdeel";
     static void ClearHalves(int i, int j) { foreach (int h in Between(i, j)) if (IsHalf(h)) { Cells.Remove(h); Touch(h); } }
     public static bool LinkedRoad(int i, int j) => IsRoad(j) && Linked(i, j);
@@ -606,7 +625,18 @@ public static class PlanetCity
             if (!Cells.TryGetValue(i, out var list) || list.Count == 0) continue;
             var fr = new Frame(i);
             if (list[0] == "weg") { Road(mb, fr, i); continue; }
-            if (list[0] == "wegdeel") { Top(M("zand"), fr, 0.97f, 0.06f); Wall(M("zand"), fr, 0.97f, -0.2f, 0.06f); continue; }   // bezet vak naast een schuine weg: zandkleurige vloer, zoals in de browser (het asfalt komt van de wegvakken ernaast)
+            if (list[0] == "wegdeel")   // half vak naast een schuine weg: alleen de helft naar de weg toe is zandvloer (het asfalt komt van de wegvakken ernaast)
+            {
+                if (!HalfNormal(i, out var hn)) { Top(M("zand"), fr, 0.97f, 0.06f); continue; }
+                var hd = HalfDirs(i, hn); var lp = new List<Vector3>();
+                foreach (var d in hd) { Vector3 w = d * Planet.R - fr.o; lp.Add(new Vector3(Vector3.Dot(w, fr.e), 0f, Vector3.Dot(w, fr.n))); }
+                for (int q = 1; q + 1 < lp.Count; q++)
+                {
+                    M("zand").Tri(fr.P(lp[0].x, 0.06f, lp[0].z), fr.P(lp[q].x, 0.06f, lp[q].z), fr.P(lp[q + 1].x, 0.06f, lp[q + 1].z), fr.u);
+                    M("zand").Tri(fr.P(lp[0].x, 0.06f, lp[0].z), fr.P(lp[q + 1].x, 0.06f, lp[q + 1].z), fr.P(lp[q].x, 0.06f, lp[q].z), fr.u);
+                }
+                continue;
+            }
             if (list.Count == 1 && list[0] == "meer") { Lake(mb, fr, i, 0f, i * 73856093); continue; }
             if (list.Count == 1 && list[0] == "pad") { Footpath(mb, fr, i); continue; }
             float h = 0f; int hash = i * 73856093;

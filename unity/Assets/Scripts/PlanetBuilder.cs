@@ -96,16 +96,28 @@ public class PlanetBuilder : MonoBehaviour
 
     void ShowPlan(List<int> plan0)
     {
-        List<int> plan = null;
-        if (plan0 != null) { plan = new List<int>(plan0); for (int k = 1; k < plan0.Count; k++) if (System.Array.IndexOf(Planet.Cells[plan0[k - 1]].nb, plan0[k]) < 0) plan.AddRange(PlanetCity.Between(plan0[k - 1], plan0[k])); }   // ook de halve vakken
-        int n = plan == null ? 0 : plan.Count;
+        // te tekenen vlakken: de vakken op de lijn heel, de halve vakken ernaast alleen de helft die de weg echt bezet
+        var polys = new List<Vector3[]>(); var hs = new List<float>();
+        if (plan0 != null)
+        {
+            for (int k = 0; k < plan0.Count; k++)
+            {
+                polys.Add(Planet.Cells[plan0[k]].corners); hs.Add(PlanetCity.StackHeight(plan0[k]) + 0.35f);
+                if (k > 0 && System.Array.IndexOf(Planet.Cells[plan0[k - 1]].nb, plan0[k]) < 0)
+                {
+                    Vector3 nn = Vector3.Cross(Planet.Cells[plan0[k - 1]].dir, Planet.Cells[plan0[k]].dir).normalized;
+                    foreach (int hc in PlanetCity.Between(plan0[k - 1], plan0[k])) { polys.Add(PlanetCity.HalfDirs(hc, nn).ToArray()); hs.Add(PlanetCity.StackHeight(hc) + 0.35f); }
+                }
+            }
+        }
+        int n = polys.Count;
         while (planLines.Count < n) { var l = new GameObject("Plan").AddComponent<LineRenderer>(); l.loop = true; l.widthMultiplier = 0.3f; l.material = Raatstad.MatOutline; l.useWorldSpace = true; planLines.Add(l); }
         for (int k = 0; k < planLines.Count; k++)
         {
             if (k >= n) { planLines[k].enabled = false; continue; }
-            var c = Planet.Cells[plan[k]]; float h = PlanetCity.StackHeight(plan[k]) + 0.35f; planLines[k].enabled = true;
-            if (planLines[k].positionCount != c.corners.Length) planLines[k].positionCount = c.corners.Length;
-            for (int q = 0; q < c.corners.Length; q++) planLines[k].SetPosition(q, c.corners[q] * (Planet.R + h));
+            var pc = polys[k]; planLines[k].enabled = true;
+            if (planLines[k].positionCount != pc.Length) planLines[k].positionCount = pc.Length;
+            for (int q = 0; q < pc.Length; q++) planLines[k].SetPosition(q, pc[q] * (Planet.R + hs[k]));
         }
     }
 
