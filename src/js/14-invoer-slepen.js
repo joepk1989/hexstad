@@ -303,9 +303,22 @@
   // Getekende weg trekken (Weg, Brede weg, Laan): een vrije lijn door de vakmiddens; kruisingen ontstaan vanzelf
   // Indrukken is het beginpunt, loslaten het eindpunt: de weg is altijd een rechte lijn daartussen (ook op een
   // touchscreen makkelijk). Een bocht maak je door een tweede weg vanaf het eindpunt te trekken; die sluit vanzelf aan.
+  // Sleeplijnen lopen alleen langs rasterhoeken (veelvouden van 30°): het eindvak schuift naar het dichtstbijzijnde vak op zo'n lijn
+  function vecAlignCell(from, cell) {
+    if (!from || (from[0] === cell[0] && from[1] === cell[1])) return cell;
+    const f = cellToWorld(from[0], from[1]), c = cellToWorld(cell[0], cell[1]); let best = cell, bd = 1e9;
+    for (let dq = -3; dq <= 3; dq++) for (let dr = -3; dr <= 3; dr++) {
+      const k = [cell[0] + dq, cell[1] + dr]; if (k[0] === from[0] && k[1] === from[1]) continue;
+      const w = cellToWorld(k[0], k[1]), a = Math.atan2(w.z - f.z, w.x - f.x) * 180 / Math.PI;
+      if (Math.abs(a / 30 - Math.round(a / 30)) * 30 > 1.5) continue;
+      const d = Math.hypot(w.x - c.x, w.z - c.z); if (d < bd) { bd = d; best = k; }
+    }
+    return best;
+  }
   function vecPaintTo(cell) {
     const D = roadDrag;
     if (!D.vp) { D.vp = { t: VEC_T[D.tool], l: 0, r: 0, p: [] }; D.vstart = cell; D.vcorners = []; D.voffs = []; D.voff0 = 0; D.voff = 0; pathsOf().push(D.vp); showDragH(true); }
+    cell = vecAlignCell(D.vfrom ? D.vfrom() : D.vstart, cell);
     const L = D.last; if (L && L[0] === cell[0] && L[1] === cell[1]) return;
     D.last = cell;
     // Even stilhouden tijdens het slepen zet een hoekpunt: daarna gaat de weg vanaf dat punt verder (een bocht in één sleep)
