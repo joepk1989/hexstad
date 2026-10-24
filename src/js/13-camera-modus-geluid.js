@@ -332,6 +332,38 @@
         src.connect(f); f.connect(g); g.connect(master); src.start(t0, Math.random() * 2, len + 0.05);
       },
       chime(x, z) { if (on && ctx) chime(x, z); },
+      // Stemmen: brabbeltaal (zoals in Animal Crossing). Elke lettergreep is een korte toon door twee formantfilters
+      // (klinker) met soms een ruisje ervoor (medeklinker); de toonhoogte zweeft per persoon en per zin. 'hi' = een kort
+      // groetje dat omhoog gaat; anders een zin van dur seconden met woordpauzes. Zachter naarmate het verder weg is.
+      talk(x, y, z, dur, pitch = 1, mood = 'chat') {
+        if (!on || !ctx) return 0;
+        const dist = Math.hypot(camera.position.x - x, camera.position.y - y, camera.position.z - z);
+        const vol = 0.22 / (1 + dist / 7); if (vol < 0.012 || dist > 28) return 0;
+        const t0 = ctx.currentTime + 0.02, base = 150 * pitch, g = ctx.createGain(); g.gain.value = 1; g.connect(master);
+        let t = 0, n = 0, word = 2 + Math.floor(Math.random() * 4), drift = 1;
+        const syl = (at, len, f0, strong) => {
+          const o = ctx.createOscillator(), f1 = ctx.createBiquadFilter(), f2 = ctx.createBiquadFilter(), e = ctx.createGain();
+          o.type = 'sawtooth'; o.frequency.setValueAtTime(f0 * 0.96, at); o.frequency.linearRampToValueAtTime(f0 * (strong ? 1.06 : 1.0), at + len * 0.6);
+          const v = [[600, 1100], [400, 2000], [300, 2400], [500, 900], [350, 700]][Math.floor(Math.random() * 5)];   // klinkers a, e, i, o, oe
+          f1.type = 'bandpass'; f1.frequency.value = v[0]; f1.Q.value = 5; f2.type = 'bandpass'; f2.frequency.value = v[1]; f2.Q.value = 6;
+          e.gain.setValueAtTime(0.0001, at); e.gain.exponentialRampToValueAtTime(vol * (strong ? 1 : 0.7), at + 0.02); e.gain.setValueAtTime(vol * (strong ? 1 : 0.7), at + len * 0.6); e.gain.exponentialRampToValueAtTime(0.0001, at + len);
+          o.connect(f1); o.connect(f2); f1.connect(e); f2.connect(e); e.connect(g); o.start(at); o.stop(at + len + 0.02);
+          if (Math.random() < 0.6) {   // medeklinker: een kort ruisje vooraf
+            const src = ctx.createBufferSource(), nf = ctx.createBiquadFilter(), ng = ctx.createGain();
+            src.buffer = noiseBuf; nf.type = 'bandpass'; nf.frequency.value = 1800 + Math.random() * 3000; nf.Q.value = 1.2;
+            ng.gain.setValueAtTime(vol * 0.5, at - 0.025); ng.gain.exponentialRampToValueAtTime(0.0001, at + 0.02);
+            src.connect(nf); nf.connect(ng); ng.connect(g); src.start(at - 0.025, Math.random() * 2, 0.06);
+          }
+        };
+        if (mood === 'hi') { syl(t0, 0.13, base * 1.1, true); syl(t0 + 0.14, 0.2, base * 1.45, true); return 0.4; }
+        while (t < dur) {
+          const len = 0.08 + Math.random() * 0.1, last = (n + 1) % word === 0;
+          syl(t0 + t, len, base * drift * (0.9 + Math.random() * 0.3) * (last && Math.random() < 0.5 ? 1.25 : 1), n % word === 0);
+          t += len + 0.02; n++;
+          if (last) { t += 0.08 + Math.random() * 0.2; word = 2 + Math.floor(Math.random() * 4); drift = 0.9 + Math.random() * 0.25; }
+        }
+        return t;
+      },
       // Donder: een lage rommel na de flits (later en zachter als het verder weg is)
       thunder(delay, vol) {
         if (!on || !ctx) return;
