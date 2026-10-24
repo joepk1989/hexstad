@@ -27,7 +27,46 @@
       float top = uWxOccP.w - (uWxOccNF.x + unpackRGBAToDepth(texture2D(uWxOcc, uv)) * (uWxOccNF.y - uWxOccNF.x));
       return smoothstep(-0.7, -0.25, w.y - top);
     }`;
+  // ---------- Bolle wereld (instelling): de stad als kleine planeet ----------
+  // Elk hoekpunt zakt met d² / (2·straal) weg, gemeten vanaf het punt waar je naar kijkt. Dat gebeurt in de shader
+  // (project_vertex en worldpos_vertex, dus ook in de schaduwen); het raster, bouwen en lopen blijven plat.
+  const CURVE = { on: false, R: 450, k: { value: 0 }, c: { value: new THREE.Vector2() } };
+  THREE.ShaderChunk.common = THREE.ShaderChunk.common + '\nuniform float curveK; uniform vec2 curveC;\n';
+  THREE.ShaderChunk.project_vertex = `vec4 mvPosition = vec4( transformed, 1.0 );
+#ifdef USE_INSTANCING
+	mvPosition = instanceMatrix * mvPosition;
+#endif
+{ vec4 cvW = modelMatrix * mvPosition; vec2 cvD = cvW.xz - curveC; cvW.y -= curveK * dot(cvD, cvD); mvPosition = viewMatrix * cvW; }
+gl_Position = projectionMatrix * mvPosition;`;
+  THREE.ShaderChunk.worldpos_vertex = THREE.ShaderChunk.worldpos_vertex.replace('worldPosition = modelMatrix * worldPosition;', 'worldPosition = modelMatrix * worldPosition;\n\t{ vec2 cvD = worldPosition.xz - curveC; worldPosition.y -= curveK * dot(cvD, cvD); }');
+  const curveUni = sh => { sh.uniforms.curveK = CURVE.k; sh.uniforms.curveC = CURVE.c; };
+  THREE.Material.prototype.onBeforeCompile = function (sh) { curveUni(sh); };
+  let groundFlatGeo = null, groundBolGeo = null;
+  function curveSet(on) {
+    CURVE.on = !!on; CURVE.k.value = on ? 1 / (2 * CURVE.R) : 0;
+    // de grond is één groot vlak; om mee te buigen heeft hij hoekpunten nodig (alleen in de bolle wereld)
+    if (!groundFlatGeo) groundFlatGeo = ground.geometry;
+    if (on && !groundBolGeo) { groundBolGeo = new THREE.PlaneGeometry(2400, 2400, 120, 120); }
+    ground.geometry = on ? groundBolGeo : groundFlatGeo; ground.frustumCulled = !on;
+  }
+  // Klikken in een bolle wereld: de kijkstraal volgt in de platte wereld een gebogen lijn; die in stukjes afzoeken
+  function curvedHits(rc, objs) {
+    if (!CURVE.on) return rc.intersectObjects(objs, true);
+    const o = rc.ray.origin.clone(), d = rc.ray.direction.clone(), flat = t => { const p = o.clone().addScaledVector(d, t), dx = p.x - CURVE.c.value.x, dz = p.z - CURVE.c.value.y; p.y += CURVE.k.value * (dx * dx + dz * dz); return p; };
+    const keep = { o: rc.ray.origin.clone(), d: rc.ray.direction.clone(), far: rc.far };
+    let t0 = 0, step = 2, hits = [];
+    for (let n = 0; n < 60 && t0 < 3000; n++) {
+      const t1 = t0 + step, a = flat(t0), b = flat(t1), seg = b.clone().sub(a), L = seg.length();
+      rc.ray.origin.copy(a); rc.ray.direction.copy(seg.normalize()); rc.near = 0; rc.far = L;
+      hits = rc.intersectObjects(objs, true);
+      if (hits.length) { for (const h of hits) h.distance += t0; break; }
+      t0 = t1; step = Math.min(80, step * 1.25);
+    }
+    rc.ray.origin.copy(keep.o); rc.ray.direction.copy(keep.d); rc.far = keep.far;
+    return hits;
+  }
   function wxPatch(sh, mat) {
+    curveUni(sh);
     if (mat && mat.userData.noWx) return;
     Object.assign(sh.uniforms, WXU);
     sh.vertexShader = 'varying vec3 vWxW;\n' + sh.vertexShader.replace('#include <project_vertex>', `#include <project_vertex>

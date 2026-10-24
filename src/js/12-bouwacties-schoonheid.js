@@ -256,7 +256,7 @@
   function pick(cx, cy) {
     ndc.set(cx / window.innerWidth * 2 - 1, -(cy / window.innerHeight) * 2 + 1);
     raycaster.setFromCamera(ndc, camera);
-    const hits = hudPickFilter(raycaster.intersectObjects([ground, terrGroup, blocks, ...(tool === 'module' || tool === 'gum' ? [...modGroups.values()].map(e => e.group) : [])], true));   // laagkiezer: wat erboven ligt is doorzichtig en niet aan te klikken
+    const hits = hudPickFilter(curvedHits(raycaster, [ground, terrGroup, blocks, ...(tool === 'module' || tool === 'gum' ? [...modGroups.values()].map(e => e.group) : [])]));   // laagkiezer: wat erboven ligt is doorzichtig en niet aan te klikken
     if (!hits.length) return null;
     const h = hits[0];
     if (mode === 'walk' && h.distance > REACH) return null;

@@ -32,9 +32,11 @@
   }
   function setPerf(v) { setState.perf = !!v; perfEl.hidden = !v; }
   setPerf(setState.perf);
+  curveSet(setState.wereld === "bol");
   const SET_ROWS = [
     { sub: 'Beeld en prestaties' },
     { id: 'terr', name: 'Terrein', note: 'Low poly: de driehoeken van het raster, strak en het snelst', opts: [['hoog', 'Hoog'], ['normaal', 'Normaal'], ['laag', 'Low poly']], get: () => setState.terr, set: v => { setState.terr = v; terrQuality(v); } },
+    { id: 'wereld', name: 'Wereld', note: 'Bol: de stad als kleine planeet, de horizon buigt weg (bouwen blijft gewoon)', opts: [['plat', 'Plat'], ['bol', 'Bol']], get: () => setState.wereld || 'plat', set: v => { setState.wereld = v; curveSet(v === 'bol'); } },
     { id: 'shadow', name: 'Schaduwen', opts: [['zacht', 'Zacht'], ['eenvoudig', 'Eenvoudig'], ['uit', 'Uit']], get: () => setState.shadow, set: v => { setState.shadow = v; applyShadow(v); } },
     { id: 'res', name: 'Beeldscherpte', note: 'Snel tekent minder pixels', opts: [['scherp', 'Scherp'], ['normaal', 'Normaal'], ['snel', 'Snel']], get: () => setState.res, set: v => { setState.res = v; applyRes(v); } },
     { id: 'crowd', name: 'Drukte', note: "Minder mensen en auto's is lichter voor een telefoon", opts: [[1, 'Vol'], [0.5, 'Rustig'], [0.25, 'Weinig']], get: () => setState.crowd || 1, set: v => { setState.crowd = v; PERF.crowd = v; peopleDirty = true; carsDirty = true; } },

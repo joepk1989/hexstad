@@ -15,7 +15,7 @@
   function hotStep(d) { if (HUD) HUD.step(d); }
   function hotSelect(i) { if (HUD) HUD.select(i); }
   function toggleCatalog(open) { if (HUD) HUD.catalog(open); }
-  function hudRender() { if (HUD && hudLayer() !== null) HUD.renderLayered(); else renderer.render(scene, camera); }
+  function hudRender() { if (CURVE.on) CURVE.c.value.set(mode === 'walk' ? player.x : orbit.target.x, mode === 'walk' ? player.z : orbit.target.z); if (HUD && hudLayer() !== null) HUD.renderLayered(); else renderer.render(scene, camera); }
   HUD = (() => {
     const hotbar = document.getElementById('hotbar'), hotName = document.getElementById('hotName'), catOpen = document.getElementById('catOpen');
     const rTools = document.getElementById('rTools'), layerPick = document.getElementById('layerPick');

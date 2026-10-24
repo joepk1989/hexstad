@@ -206,7 +206,7 @@
     ndc.set(cx / window.innerWidth * 2 - 1, -(cy / window.innerHeight) * 2 + 1);
     raycaster.setFromCamera(ndc, camera);
     const objs = pathGroup ? [ground, terrGroup, blocks, pathGroup] : [ground, terrGroup, blocks];
-    return raycaster.intersectObjects(objs, true)[0] || null;
+    return curvedHits(raycaster, objs)[0] || null;
   }
   function groundCellAt(cx, cy) { const h = groundHit(cx, cy); return h ? worldToCell(h.point.x, h.point.z) : null; }
   function groundPointAt(cx, cy) { const h = groundHit(cx, cy); return h ? { x: h.point.x, z: h.point.z } : null; }
