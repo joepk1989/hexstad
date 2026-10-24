@@ -188,14 +188,18 @@
   window.__INC = INC;
   const people = (() => {
     const MAX = 160;
+    const FACES = false;   // low poly stijl: gezichten zonder ogen en mond (zet op true voor ogen, wenkbrauwen en lach)
     // ---------- Lichaamsvormen ----------
     // Low poly: draaiprofielen (lathe) met weinig segmenten en platte vlakken (geen gedeelde normalen), zoals de
     // rest van de stad. Ledematen met spierbolling, een romp met borst, taille en heupen, een hoofd met kaak, neus,
     // oren, ogen, wenkbrauwen en mond; sommigen met bril of baard. Maten in meters, volwassene ~1,78 m.
     const V2 = (x, y) => new THREE.Vector2(x, y);
-    const lathe = (pts, seg = 7) => new THREE.LatheGeometry(pts, Math.min(seg, 8));
+    const lathe = (pts, seg = 6) => new THREE.LatheGeometry(pts, Math.min(seg, 6));   // stijl: hoekig, weinig vlakken (zoals de low poly superheld)
     const flat = g => { const n = g.index ? g.toNonIndexed() : g; n.computeVertexNormals(); return n; };   // platte vlakken
-    function limb(len, rt, rb, bulge = 0, bulgeAt = 0.35, seg = 12) {   // van y=0 (gewricht) naar y=-len, met ronde doppen
+    function limb(len, rt, rb, bulge = 0, bulgeAt = 0.35, seg = 5) {   // van y=0 (gewricht) naar y=-len: vijfkantig, met een spierknik
+      return lathe([V2(0, rt * 0.55), V2(rt * 0.95, rt * 0.15), V2(rt + bulge * 1.6, -len * bulgeAt), V2(rb, -len * 0.92), V2(0, -len - rb * 0.45)].reverse(), seg);
+    }
+    function limbRound(len, rt, rb, bulge = 0, bulgeAt = 0.35, seg = 12) {
       const pts = [V2(0, rt * 0.9)];
       for (let i = 1; i <= 2; i++) { const a = Math.PI / 2 * (1 - i / 2); pts.push(V2(rt * Math.cos(a), rt * Math.sin(a) * 0.9)); }
       for (let i = 1; i < 6; i++) {
@@ -206,7 +210,7 @@
       pts[pts.length - 1].x = 0;
       return lathe(pts.reverse(), seg);
     }
-    const sphere = (r, sx, sy, sz, x, y, z, ws = 8, hs = 6) => new THREE.SphereGeometry(r, Math.min(ws, 9), Math.min(hs, 7)).scale(sx, sy, sz).translate(x, y, z);
+    const sphere = (r, sx, sy, sz, x, y, z, ws = 6, hs = 4) => new THREE.SphereGeometry(r, Math.min(ws, 6), Math.min(hs, 4)).scale(sx, sy, sz).translate(x, y, z);
     const colored = (g, hex) => {   // vertex-kleur voor onderdelen met meerdere kleuren (ogen, mond)
       const n = (g.index ? g.toNonIndexed() : g), c = new THREE.Color(hex), arr = new Float32Array(n.attributes.position.count * 3);
       for (let i = 0; i < arr.length; i += 3) { arr[i] = c.r; arr[i + 1] = c.g; arr[i + 2] = c.b; }
@@ -218,18 +222,19 @@
       g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(cols), 3)); return g;
     };
     // Romp (vanaf de heupgewrichten, y=0, tot de nek op 0,57): man en vrouw
-    const torsoProfile = (waist, chest, shoulder, hip) => [V2(0, -0.075), V2(hip * 0.97, -0.07), V2(hip * 1.01, 0.0), V2(hip * 1.01, 0.07), V2(waist, 0.19), V2(waist * 1.06, 0.27),
-      V2(chest, 0.37), V2(chest * 1.02, 0.44), V2(shoulder, 0.5), V2(shoulder * 0.8, 0.545), V2(0.075, 0.57), V2(0, 0.575)];
-    const torsoM = lathe(torsoProfile(0.15, 0.18, 0.17, 0.155), 16).scale(1.08, 1, 0.6);
-    const torsoF = mergeGeos([lathe(torsoProfile(0.125, 0.152, 0.145, 0.163), 16).scale(1.0, 1, 0.62),
+    // Romp als een hoekige V: brede borst en schouders, smalle taille (stijl van de low poly superheld)
+    const torsoProfile = (waist, chest, shoulder, hip) => [V2(0, -0.075), V2(hip, -0.06), V2(waist, 0.2),
+      V2(chest * 1.04, 0.42), V2(shoulder, 0.52), V2(0.07, 0.57), V2(0, 0.575)];
+    const torsoM = lathe(torsoProfile(0.14, 0.19, 0.17, 0.15), 6).rotateY(Math.PI / 6).scale(1.12, 1, 0.58);
+    const torsoF = mergeGeos([lathe(torsoProfile(0.12, 0.155, 0.145, 0.16), 6).rotateY(Math.PI / 6).scale(1.0, 1, 0.62),
       sphere(0.05, 1.05, 0.85, 0.6, -0.05, 0.375, 0.058), sphere(0.05, 1.05, 0.85, 0.6, 0.05, 0.375, 0.058)]);
-    const hipsGeo = lathe([V2(0, -0.1), V2(0.085, -0.095), V2(0.135, -0.05), V2(0.148, 0.0), V2(0.148, 0.06), V2(0, 0.065)], 16).scale(1.05, 1, 0.66);
+    const hipsGeo = lathe([V2(0, -0.1), V2(0.11, -0.085), V2(0.15, 0.0), V2(0.15, 0.06), V2(0, 0.065)], 6).rotateY(Math.PI / 6).scale(1.05, 1, 0.66);
     // Jas: een iets ruimere schil om romp en heupen, tot halverwege de dij, met een kraagje
-    const coatGeo = lathe([V2(0.175, -0.36), V2(0.18, -0.12), V2(0.172, 0.02), V2(0.16, 0.19), V2(0.178, 0.3), V2(0.195, 0.44), V2(0.185, 0.5), V2(0.12, 0.555), V2(0.085, 0.6), V2(0.075, 0.6)], 16).scale(1.1, 1, 0.66);
+    const coatGeo = lathe([V2(0.175, -0.36), V2(0.18, -0.12), V2(0.172, 0.02), V2(0.16, 0.19), V2(0.178, 0.3), V2(0.195, 0.44), V2(0.185, 0.5), V2(0.12, 0.555), V2(0.085, 0.6), V2(0.075, 0.6)], 6).rotateY(Math.PI / 6).scale(1.1, 1, 0.66);
     const skirtGeo = lathe([V2(0.14, 0.05), V2(0.165, -0.05), V2(0.2, -0.2), V2(0.25, -0.36), V2(0.27, -0.46)], 16).scale(1, 1, 0.78);
     // Hoofd: schedel, kaak en kin, neus en oren in één vorm
     // Eén vloeiende hoofdvorm: een bol die onderaan smaller wordt (kaak) en een kin naar voren krijgt
-    const skull = new THREE.SphereGeometry(0.105, 10, 8), sp = skull.attributes.position;
+    const skull = new THREE.SphereGeometry(0.105, 6, 5), sp = skull.attributes.position;   // hoekig hoofd met kaak
     for (let i = 0; i < sp.count; i++) {
       let x = sp.getX(i), y = sp.getY(i), z = sp.getZ(i);
       const low = Math.max(0, -y / 0.105);                       // 0 boven, 1 bij de kin
@@ -255,16 +260,16 @@
     const beardGeo = lathe([V2(0, -0.01), V2(0.07, -0.01), V2(0.085, -0.05), V2(0.06, -0.095), V2(0, -0.1)], 8).scale(1.05, 1, 0.72).translate(0, -0.04, 0.03);
     const browGeo = mergeGeos([new THREE.BoxGeometry(0.038, 0.008, 0.012).rotateZ(0.12).translate(-0.038, 0.048, 0.1), new THREE.BoxGeometry(0.038, 0.008, 0.012).rotateZ(-0.12).translate(0.038, 0.048, 0.1)]);
     // Kapsels (allemaal ten opzichte van het hoofd)
-    const cap = (r = 0.112) => new THREE.SphereGeometry(r, 9, 6, 0, Math.PI * 2, 0, Math.PI * 0.5).scale(1.02, 1.12, 1.08).rotateX(-0.42).translate(0, 0.02, -0.006);
+    const cap = (r = 0.112) => new THREE.SphereGeometry(r, 6, 3, 0, Math.PI * 2, 0, Math.PI * 0.5).scale(1.02, 1.12, 1.08).rotateX(-0.42).translate(0, 0.02, -0.006);
     const HAIRS = {
       short: cap(),
       long: mergeGeos([cap(), lathe([V2(0.1, 0.02), V2(0.112, -0.06), V2(0.105, -0.17), V2(0.085, -0.24), V2(0, -0.245)], 14).scale(1.05, 1, 0.7).translate(0, 0, -0.04)]),
       bun: mergeGeos([cap(), sphere(0.05, 1, 0.9, 1, 0, 0.07, -0.1)]),
       tail: mergeGeos([cap(), new THREE.ConeGeometry(0.035, 0.22, 10).rotateX(Math.PI * 0.92).translate(0, -0.05, -0.135)]),
-      curly: new THREE.IcosahedronGeometry(0.128, 1).scale(1.05, 1.0, 1.05).translate(0, 0.045, -0.015),
+      curly: new THREE.IcosahedronGeometry(0.128, 0).scale(1.05, 1.0, 1.05).translate(0, 0.045, -0.015),
     };
-    const shoeGeo = mergeGeos([sphere(0.046, 1, 1.0, 2.6, 0, -0.035, 0.05, 14, 10), sphere(0.046, 1, 0.3, 2.65, 0, -0.068, 0.05, 14, 6)]);   // schoen met zool
-    const handGeo = mergeGeos([sphere(0.042, 1, 2.0, 0.55, 0, -0.07, 0, 10, 8), sphere(0.016, 1, 2.2, 1, 0.032, -0.05, 0.012, 6, 5).rotateZ(-0.35)]);
+    const shoeGeo = mergeGeos([new THREE.BoxGeometry(0.09, 0.07, 0.24).translate(0, -0.04, 0.05), new THREE.BoxGeometry(0.095, 0.02, 0.25).translate(0, -0.075, 0.05)]);   // hoekige schoen met zool   // schoen met zool
+    const handGeo = new THREE.CylinderGeometry(0.03, 0.04, 0.13, 4).rotateY(Math.PI / 4).scale(1, 1, 0.55).translate(0, -0.07, 0);   // hand als een plat wigje
     const PARTS = {
       thigh:    { geo: limb(0.44, 0.082, 0.056, 0.012, 0.25), per: 2 },
       shin:     { geo: limb(0.44, 0.056, 0.038, 0.014, 0.28), per: 2 },
@@ -273,7 +278,7 @@
       torsoM:   { geo: torsoM, per: 1 },
       torsoF:   { geo: torsoF, per: 1 },
       coat:     { geo: coatGeo, per: 1 },
-      neck:     { geo: new THREE.CylinderGeometry(0.043, 0.05, 0.12, 10).translate(0, 0.05, 0), per: 1 },
+      neck:     { geo: new THREE.CylinderGeometry(0.043, 0.05, 0.12, 5).translate(0, 0.05, 0), per: 1 },
       head:     { geo: headGeo, per: 1 },
       face:     { geo: faceGeo, per: 1, vc: true, noShadow: true },
       brows:    { geo: browGeo, per: 1, noShadow: true },
@@ -789,11 +794,10 @@
       if (a.pack) { M.copy(pose.chest).multiply(tr(0, 0.33, -0.17)); put('pack', M, a.pack); }
       put('neck', pose.neck, a.skin);
       put('head', pose.head, a.skin);
-      put('face', pose.head, '#ffffff');
-      put('brows', pose.head, a.old ? a.hair : a.hair);
+      if (FACES) { put('face', pose.head, '#ffffff'); put('brows', pose.head, a.old ? a.hair : a.hair); }
       if (a.glasses) put('glasses', pose.head, '#2b2b2b');
       if (a.beard) put('beard', pose.head, a.hair);
-      if (a.smileT > 0) put('smile', pose.head, '#ffffff');
+      if (FACES && a.smileT > 0) put('smile', pose.head, '#ffffff');
       if (a.hairStyle) put('hair' + a.hairStyle[0].toUpperCase() + a.hairStyle.slice(1), pose.head, a.hair);
       if (a.umb && a.state !== 'rag' && a.state !== 'getup') {   // paraplu boven het hoofd, iets voor je uit en schuin tegen de wind
         const e = pose.head.elements, fx = Math.sin(a.heading), fz = Math.cos(a.heading), sc = a.scale || 1;
