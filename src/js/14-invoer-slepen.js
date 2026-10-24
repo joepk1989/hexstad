@@ -417,6 +417,20 @@
   for (const m of [vecNode, vecHover]) { m.visible = false; m.renderOrder = 4; m.userData.noOcc = true; scene.add(m); }
   const vecNodeAt = (m, cell) => { const c = cellToWorld(cell[0], cell[1]); m.position.set(c.x, Math.max(gH(cell[0], cell[1]), terrainHeightAt(c.x, c.z)) + 0.3, c.z); m.visible = true; };
   function vecChainTmpOff() { const C = vecChain; if (!C.tmp) return false; const i = pathsOf().indexOf(C.tmp); if (i >= 0) pathsOf().splice(i, 1); C.tmp = null; C.hover = null; return true; }
+  // Eén klik vult een vak al met weg: een kort stukje (ronde kop) op die plek; de volgende klik trekt het door.
+  // Zonder klik laat de hover hetzelfde stukje zien, alsof het er al ligt.
+  function vecStubPts(cell) {
+    const c = cellToWorld(cell[0], cell[1]), k = manualDir !== null ? manualDir : viewDirIndex(), n = NEIGH[k], d = cellToWorld(cell[0] + n[0], cell[1] + n[1]), L = Math.hypot(d.x - c.x, d.z - c.z) || 1, h = 1.5;
+    const a = [c.x - (d.x - c.x) / L * h, c.z - (d.z - c.z) / L * h], b = [c.x + (d.x - c.x) / L * h, c.z + (d.z - c.z) / L * h];
+    return [a, b].map(p => [Math.round(p[0] * 100) / 100, Math.round(p[1] * 100) / 100]);
+  }
+  const vecPre = { tmp: null, key: '' };
+  function vecPreClear() { if (!vecPre.tmp) return; const i = pathsOf().indexOf(vecPre.tmp); vecPre.tmp = null; vecPre.key = ''; if (i >= 0) { pathsOf().splice(i, 1); buildPathNet(true); } }
+  function vecPreShow(cell, t) {
+    const kk = cell[0] + ',' + cell[1] + ',' + t + ',' + (manualDir !== null ? manualDir : viewDirIndex()); if (vecPre.tmp && vecPre.key === kk) return;
+    const i = vecPre.tmp ? pathsOf().indexOf(vecPre.tmp) : -1; if (i >= 0) pathsOf().splice(i, 1);
+    vecPre.tmp = { t, l: 0, r: 0, p: vecStubPts(cell) }; vecPre.key = kk; pathsOf().push(vecPre.tmp); buildPathNet(true);
+  }
   function vecChainEnd(quiet) {
     const C = vecChain; if (!C.on) return;
     const had = vecChainTmpOff(); vecCells.visible = false; C.on = false; C.path = null; C.node = null; vecNode.visible = false; vecHover.visible = false;
@@ -440,6 +454,8 @@
       const { best } = vecClickPlan(cell, t);
       C.on = true; C.t = t; C.path = best ? best.p : null; C.end = best ? best.end : -1;
       C.node = best ? worldToCell(best.p.p[best.end][0], best.p.p[best.end][1]) : cell;
+      vecPreClear(); C.stub = false;
+      if (!best) { C.path = { t, l: 0, r: 0, p: vecStubPts(cell) }; C.end = 1; C.stub = true; pathsOf().push(C.path); vecClearUnder([C.path]); buildPathNet(); changed(); }
       vecNodeAt(vecNode, C.node); vecHover.visible = false; C.hover = null;
       toast(best ? TYPES[tool].name + ' gaat hier verder · klik op het volgende vak' : 'Knooppunt · klik op het volgende vak voor een stuk ' + TYPES[tool].name.toLowerCase() + ' · klik hier nog eens of Esc om te stoppen', 2600);
       return;
@@ -448,7 +464,8 @@
     // vastleggen: het stuk van het knooppunt naar dit vak
     vecChainTmpOff();
     const c = cellToWorld(cell[0], cell[1]), W = vecSnap([Math.round(c.x * 100) / 100, Math.round(c.z * 100) / 100], C.path);
-    if (C.path) { const p = C.path; if (C.end === 0) { p.p.unshift(W); if (p.y) p.y.unshift(0); } else { p.p.push(W); if (p.y) p.y.push(0); C.end = p.p.length - 1; } }
+    if (C.path && C.stub) { C.path.p = [C.path.p[0], W]; C.stub = false; C.end = 1; const n0 = cellToWorld(C.node[0], C.node[1]); C.path.p[0] = [Math.round(n0.x * 100) / 100, Math.round(n0.z * 100) / 100]; }
+    else if (C.path) { const p = C.path; if (C.end === 0) { p.p.unshift(W); if (p.y) p.y.unshift(0); } else { p.p.push(W); if (p.y) p.y.push(0); C.end = p.p.length - 1; } }
     else { const n = cellToWorld(C.node[0], C.node[1]); C.path = { t, l: 0, r: 0, p: [[Math.round(n.x * 100) / 100, Math.round(n.z * 100) / 100], W] }; C.end = 1; pathsOf().push(C.path); }
     const gone = vecClearUnder([C.path]);
     C.node = cell; vecNodeAt(vecNode, cell); vecHover.visible = false; C.hover = null;
