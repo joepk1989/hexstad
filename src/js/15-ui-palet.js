@@ -301,6 +301,15 @@
     if (act === 'stad') { cells = hexstadCity(); rebuildAll(); changed(); orbit.target.set(0, 0, 0); orbit.dist = 520; orbit.phi = 0.9; orbit.theta = 0.5; applyOrbit(); toast('Hexstad geladen: rotonde in het midden, zes buurten binnen de ringweg · je eigen stad staat veilig onder Mijn stad', 3500); }
     if (act === 'file') { cells = fileCity(); rebuildAll(); changed(); orbit.target.set(0, 0, 0); orbit.dist = 230; orbit.phi = 0.95; orbit.theta = 0.4; applyOrbit(); toast('Filestad geladen: één drukke kruising met zes takken · wacht een minuutje op de file … en op de Hulk', 4000); }
     if (act === 'mall') { cells = mallCity(); rebuildAll(); changed(); orbit.target.set(0, 6, 0); orbit.dist = 220; orbit.phi = 0.95; orbit.theta = 0.6; applyOrbit(); toast('Winkelcentrum geladen: hex-modules in vier lagen · klik op een dak om erop te bouwen', 3500); }
+    if (act === 'copycity') {
+      const txt = serialize(cells), done = () => toast('Stad gekopieerd (' + cells.size + ' vakken) · plak de code ergens om te delen', 2400);
+      try { navigator.clipboard.writeText(txt).then(done, () => { toast('Kopiëren mislukt: klembord niet toegestaan', 2400); }); } catch (e) { toast('Kopiëren mislukt', 2000); }
+      return;
+    }
+    if (act === 'pastecity') {
+      try { navigator.clipboard.readText().then(t => { const m = parseCity((t || '').trim()); if (!m || !m.size && !(m.paths && m.paths.length)) return toast('Geen stadscode in het klembord', 2400); cells = roofHouses(m); sheet.hidden = true; rebuildAll(); changed(); buildPathNet(); toast('Stad geplakt: ' + m.size + ' vakken', 2000); }, () => toast('Plakken mislukt: klembord niet toegestaan', 2400)); } catch (e) { toast('Plakken mislukt', 2000); }
+      return;
+    }
     if (act === 'start') { cells = startCity(); rebuildAll(); changed(); orbit.target.set(0, 0, 0); orbit.dist = 230; orbit.phi = 0.95; orbit.theta = 0.4; applyOrbit(); toast('Startstadje geladen: rotonde en ringweg'); }
     if (act === 'sample') { cells = roofHouses(sampleCity()); rebuildAll(); changed(); toast('Voorbeeldstad geladen · je eigen stad staat veilig onder Mijn stad'); }
     if (act === 'ring') { cells = ringStad(); rebuildAll(); changed(); orbit.target.set(0, 0, 0); orbit.dist = 1500; orbit.phi = 0.9; applyOrbit(); toast('Ringstad geladen · je eigen stad staat veilig onder Mijn stad'); }
