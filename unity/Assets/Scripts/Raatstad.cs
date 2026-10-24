@@ -8,7 +8,7 @@ public class Raatstad : MonoBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void Boot()
     {
-        if (FindFirstObjectByType<Raatstad>() != null) return;
+        if (FindAnyObjectByType<Raatstad>() != null) return;
         var go = new GameObject("Raatstad"); go.AddComponent<Raatstad>();
     }
 
@@ -29,7 +29,7 @@ public class Raatstad : MonoBehaviour
         MatWall = Mat(new Color(0.55f, 0.55f, 0.52f)); MatGround = Mat(new Color(0.64f, 0.78f, 0.45f));
         MatGrid = Mat(new Color(1f, 1f, 1f, 0.5f), true); MatOutline = Mat(new Color(1f, 0.75f, 0.1f), true);
 
-        if (FindFirstObjectByType<Light>() == null)
+        if (FindAnyObjectByType<Light>() == null)
         {
             var l = new GameObject("Zon").AddComponent<Light>(); l.type = LightType.Directional; l.transform.rotation = Quaternion.Euler(50, -30, 0); l.shadows = LightShadows.Soft;
         }

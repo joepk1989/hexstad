@@ -28,7 +28,7 @@ public static class Inp
     public static bool LeftUp => Mouse_() != null && Mouse_().leftButton.wasReleasedThisFrame;
     public static bool RightHeld => Mouse_() != null && Mouse_().rightButton.isPressed;
     public static Vector2 Delta => Mouse_() != null ? Mouse_().delta.ReadValue() : Vector2.zero;
-    public static float Scroll => Mouse_() != null ? Mouse_().scroll.ReadValue().y / 120f : 0f;
+    public static float Scroll { get { if (Mouse_() == null) return 0f; float y = Mouse_().scroll.ReadValue().y; return Mathf.Abs(y) > 10f ? y / 120f : y; } }   // per klikje ±1 (oude Input System-versies geven ±120)
 #else
     static KeyCode Map(K k)
     {
