@@ -52,7 +52,7 @@ public class PlanetBuilder : MonoBehaviour
             ShowOutline(hover);
             if (Inp.Down(K.X)) { Push(); if (PlanetCity.RemoveTop(hover)) Changed(); }
             if (Inp.RightDown) { rightAt = Inp.Pos; rightCell = hover; }
-            if (Inp.RightUp && rightCell >= 0 && Vector2.Distance(Inp.Pos, rightAt) < 6f) { Push(); if (PlanetCity.Clear(hover)) { Changed(); Say("Vak leeggemaakt"); } rightCell = -1; }
+            if (Inp.RightUp && rightCell >= 0 && Vector2.Distance(Inp.Pos, rightAt) < 6f) { Push(); if (PlanetCity.Clear(hover)) { Changed(); Say("Vak leeggemaakt"); } else if (PlanetCity.IsHalf(hover)) Say("Hier loopt een weg overheen: klik met rechts op een wegvak van die weg"); rightCell = -1; }
             bool roadTool = Blocks.Tools[tool] == "weg" || Blocks.Tools[tool] == "pad";
             if (Inp.LeftDown) { Push(); painting = !roadTool; lastPainted = -1; lineStart = roadTool ? hover : -1; linePlan = null; }
             if (lineStart >= 0 && Inp.LeftHeld) { linePlan = hover == lineStart ? null : PlanetCity.LinePlan(lineStart, hover); ShowPlan(linePlan); }
@@ -94,8 +94,10 @@ public class PlanetBuilder : MonoBehaviour
         hasCentre = n > 0 && sum.sqrMagnitude > 1e-6f; if (hasCentre) centre = sum.normalized;
     }
 
-    void ShowPlan(List<int> plan)
+    void ShowPlan(List<int> plan0)
     {
+        List<int> plan = null;
+        if (plan0 != null) { plan = new List<int>(plan0); for (int k = 1; k < plan0.Count; k++) if (System.Array.IndexOf(Planet.Cells[plan0[k - 1]].nb, plan0[k]) < 0) plan.AddRange(PlanetCity.Between(plan0[k - 1], plan0[k])); }   // ook de halve vakken
         int n = plan == null ? 0 : plan.Count;
         while (planLines.Count < n) { var l = new GameObject("Plan").AddComponent<LineRenderer>(); l.loop = true; l.widthMultiplier = 0.3f; l.material = Raatstad.MatOutline; l.useWorldSpace = true; planLines.Add(l); }
         for (int k = 0; k < planLines.Count; k++)

@@ -18,7 +18,7 @@ public static class PlanetCity
     static readonly Dictionary<int, Transform> chunks = new Dictionary<int, Transform>();
     static readonly HashSet<int> dirty = new HashSet<int>();
 
-    public static void ResetAll() { Cells = new Dictionary<int, List<string>>(); Links.Clear(); chunks.Clear(); groundChunks.Clear(); dirty.Clear(); root = null; groundRoot = null; grid = null; GridOn = true; Slot = 1; }
+    public static void ResetAll() { Cells = new Dictionary<int, List<string>>(); Links.Clear(); partners.Clear(); chunks.Clear(); groundChunks.Clear(); dirty.Clear(); root = null; groundRoot = null; grid = null; GridOn = true; Slot = 1; }
     public static bool IsRoad(int i) => Cells.TryGetValue(i, out var l) && l.Count > 0 && l[0] == "weg";
     public static bool IsPath(int i) => Cells.TryGetValue(i, out var l) && l.Count == 1 && l[0] == "pad";
     public static bool IsWalk(int i) => IsRoad(i) || IsPath(i);
@@ -26,15 +26,35 @@ public static class PlanetCity
     // Verbindingen tussen weg- en padvakken. Twee wegvakken naast elkaar zijn alleen verbonden als ze in dezelfde lijn
     // gesleept zijn of met een klik aan elkaar gezet; zo kunnen twee wegen naast elkaar lopen zonder in elkaar over te gaan.
     public static readonly HashSet<long> Links = new HashSet<long>();
+    static readonly Dictionary<int, List<int>> partners = new Dictionary<int, List<int>>();
+    static readonly List<int> none = new List<int>();
     static long Key(int i, int j) => i < j ? ((long)i << 20) | (uint)j : ((long)j << 20) | (uint)i;
     public static bool Linked(int i, int j) => Links.Contains(Key(i, j));
-    public static void Link(int i, int j) { if (i != j && System.Array.IndexOf(Planet.Cells[i].nb, j) >= 0) Links.Add(Key(i, j)); }
-    public static void Unlink(int i) { foreach (int j in Planet.Cells[i].nb) Links.Remove(Key(i, j)); }
+    // de vakken waarmee i verbonden is (buren, of vakken op afstand 2 recht door de hoek: dan loopt de weg over twee halve vakken)
+    public static List<int> Partners(int i) => partners.TryGetValue(i, out var l) ? l : none;
+    public static bool Adjacent2(int i, int j) => System.Array.IndexOf(Planet.Cells[i].nb, j) >= 0 || System.Array.IndexOf(Planet.Cells[i].across, j) >= 0;
+    public static void Link(int i, int j)
+    {
+        if (i == j || !Adjacent2(i, j) || !Links.Add(Key(i, j))) return;
+        if (!partners.TryGetValue(i, out var a)) partners[i] = a = new List<int>(6); a.Add(j);
+        if (!partners.TryGetValue(j, out var b)) partners[j] = b = new List<int>(6); b.Add(i);
+    }
+    public static void Unlink(int i)
+    {
+        if (!partners.TryGetValue(i, out var a)) return;
+        foreach (int j in a) { Links.Remove(Key(i, j)); if (partners.TryGetValue(j, out var b)) b.Remove(i); if (!IsNeighbour(i, j)) ClearHalves(i, j); }
+        partners.Remove(i);
+    }
+    static bool IsNeighbour(int i, int j) => System.Array.IndexOf(Planet.Cells[i].nb, j) >= 0;
+    // de twee vakken tussen i en j (afstand 2): de gemeenschappelijke buren
+    public static List<int> Between(int i, int j) { var l = new List<int>(2); foreach (int x in Planet.Cells[i].nb) if (IsNeighbour(j, x)) l.Add(x); return l; }
+    public static bool IsHalf(int i) => Cells.TryGetValue(i, out var l) && l.Count == 1 && l[0] == "wegdeel";
+    static void ClearHalves(int i, int j) { foreach (int h in Between(i, j)) if (IsHalf(h)) { Cells.Remove(h); Touch(h); } }
     public static bool LinkedRoad(int i, int j) => IsRoad(j) && Linked(i, j);
     public static bool LinkedWalk(int i, int j) => IsWalk(j) && Linked(i, j);
-    public static int LinkCount(int i) { int n = 0; foreach (int j in Planet.Cells[i].nb) if (Linked(i, j) && IsWalk(j)) n++; return n; }
+    public static int LinkCount(int i) { int n = 0; foreach (int j in Partners(i)) if (IsWalk(j)) n++; return n; }
     // een heel vak leegmaken (rechtermuisknop)
-    public static bool Clear(int i) { if (!Cells.ContainsKey(i)) return false; Cells.Remove(i); Unlink(i); Touch(i); return true; }
+    public static bool Clear(int i) { if (!Cells.ContainsKey(i) || IsHalf(i)) return false; Cells.Remove(i); Unlink(i); Touch(i); return true; }
     public static float StackHeight(int i) { float h = 0f; if (Cells.TryGetValue(i, out var l)) foreach (var t in l) h += Blocks.Height(t); return h; }
     public static int RoadCount() { int n = 0; foreach (var kv in Cells) if (kv.Value.Count > 0 && kv.Value[0] == "weg") n++; return n; }
 
@@ -47,10 +67,11 @@ public static class PlanetCity
     public static string Place(int i, string type, bool autoLink = true)
     {
         if (!Cells.TryGetValue(i, out var l)) { l = new List<string>(); Cells[i] = l; }
-        if (type == "weg") { if (l.Count > 0 && !(l.Count == 1 && l[0] == "weg")) return "Eerst het vak leegmaken (rechtermuisknop) voor een weg"; if (l.Count == 0) l.Add("weg"); if (autoLink) foreach (int j in Planet.Cells[i].nb) if (IsWalk(j)) Link(i, j); Touch(i); return null; }
+        if (type == "weg") { if (l.Count == 1 && l[0] == "wegdeel") l.Clear(); if (l.Count > 0 && !(l.Count == 1 && l[0] == "weg")) return "Eerst het vak leegmaken (rechtermuisknop) voor een weg"; if (l.Count == 0) l.Add("weg"); if (autoLink) foreach (int j in Planet.Cells[i].nb) if (IsWalk(j)) Link(i, j); Touch(i); return null; }
         if (type == "pad" && l.Count == 0) { l.Add("pad"); if (autoLink) foreach (int j in Planet.Cells[i].nb) if (IsWalk(j)) Link(i, j); Touch(i); return null; }
         if (type == "pad" && l.Count == 1 && l[0] == "pad") { if (autoLink) foreach (int j in Planet.Cells[i].nb) if (IsWalk(j)) Link(i, j); Touch(i); return null; }
         if (l.Count > 0 && l[0] == "weg") return "Op een weg kun je niet bouwen; haal de weg eerst weg (rechtermuisknop)";
+        if (l.Count > 0 && l[0] == "wegdeel") return "Hier loopt een weg overheen; haal die weg eerst weg (rechtermuisknop op een wegvak)";
         if (l.Count >= 8) return "Hoger kan niet";
         if ((type == "water" || type == "meer") && l.Count > 0) l.Clear();
         if (l.Count > 0 && (l[l.Count - 1] == "water" || l[l.Count - 1] == "meer")) l.Clear();
@@ -62,7 +83,12 @@ public static class PlanetCity
     {
         int ok = 0;
         for (int k = 0; k < line.Count; k++) { if (Place(line[k], type, false) == null) ok++; }
-        for (int k = 1; k < line.Count; k++) if (IsWalk(line[k - 1]) && IsWalk(line[k])) Link(line[k - 1], line[k]);
+        for (int k = 1; k < line.Count; k++)
+        {
+            int a = line[k - 1], b = line[k]; if (!IsWalk(a) || !IsWalk(b)) continue;
+            Link(a, b);
+            if (!IsNeighbour(a, b)) foreach (int h in Between(a, b)) { if (!Cells.ContainsKey(h) || Cells[h].Count == 0) { Cells[h] = new List<string> { "wegdeel" }; Touch(h); } }
+        }
         foreach (int i in line) Touch(i);
         return ok;
     }
@@ -70,6 +96,7 @@ public static class PlanetCity
     public static bool RemoveTop(int i)
     {
         if (!Cells.TryGetValue(i, out var l) || l.Count == 0) return false;
+        if (IsHalf(i)) return false;
         l.RemoveAt(l.Count - 1); if (l.Count == 0) { Cells.Remove(i); Unlink(i); } Touch(i); return true;
     }
 
@@ -116,9 +143,9 @@ public static class PlanetCity
         var A = Planet.Cells[a]; Vector3 da = A.dir, db = Planet.Cells[b].dir;
         Vector3 t = db - da; t -= da * Vector3.Dot(t, da); if (t.sqrMagnitude < 1e-8f) return null; t.Normalize();
         // de 12 richtingen: naar de buren (6) en daar precies tussenin (6); op een vijfhoek 5 + 5
-        var dirs = new List<Vector3>(); foreach (int j in A.nb) { Vector3 d = Planet.Cells[j].dir - da; d -= da * Vector3.Dot(d, da); dirs.Add(d.normalized); }
-        dirs.Sort((p, q) => Mathf.Atan2(Vector3.Dot(p, A.north), Vector3.Dot(p, A.east)).CompareTo(Mathf.Atan2(Vector3.Dot(q, A.north), Vector3.Dot(q, A.east))));   // op volgorde rondom
-        int nd = dirs.Count; for (int k = 0; k < nd; k++) { Vector3 m = dirs[k] + dirs[(k + 1) % nd]; if (m.sqrMagnitude > 1e-6f) dirs.Add(m.normalized); }
+        var dirs = new List<Vector3>();
+        foreach (int j in A.nb) { Vector3 d = Planet.Cells[j].dir - da; d -= da * Vector3.Dot(d, da); dirs.Add(d.normalized); }
+        foreach (int j in A.across) { if (j < 0) continue; Vector3 d = Planet.Cells[j].dir - da; d -= da * Vector3.Dot(d, da); dirs.Add(d.normalized); }   // door de hoek: over twee halve vakken
         Vector3 ray = dirs[0]; float bestDot = -2f; foreach (var d in dirs) { float v = Vector3.Dot(d, t); if (v > bestDot) { bestDot = v; ray = d; } }
         Vector3 n = Vector3.Cross(da, ray).normalized;
         float total = Mathf.Acos(Mathf.Clamp(Vector3.Dot(da, db), -1f, 1f));
@@ -126,11 +153,12 @@ public static class PlanetCity
         for (int step = 0; step < 120; step++)
         {
             Vector3 dc = Planet.Cells[cur].dir, fwd = Vector3.Cross(n, dc).normalized; int best = -1; float bs = -1e9f;
-            foreach (int j in Planet.Cells[cur].nb)
+            var cc = Planet.Cells[cur]; var cand = new List<int>(cc.nb); foreach (int x in cc.across) if (x >= 0) cand.Add(x);
+            foreach (int j in cand)
             {
                 Vector3 dj = Planet.Cells[j].dir; float prog = Vector3.Dot(dj - dc, fwd); if (prog <= 1e-6f) continue;
                 float off = Mathf.Abs(Vector3.Dot(dj, n)) * Planet.R;   // afstand tot de grootcirkel in meters
-                float sc = prog * 10f - off; if (sc > bs) { bs = sc; best = j; }
+                float sc = -off * 4f + prog * 0.5f; if (sc > bs) { bs = sc; best = j; }   // vooral: op de lijn blijven
             }
             if (best < 0) break;
             float along = Mathf.Acos(Mathf.Clamp(Vector3.Dot(da, Planet.Cells[best].dir), -1f, 1f));
@@ -348,7 +376,7 @@ public static class PlanetCity
     public static bool ChordDirWorld(int j, out Vector3 dir)
     {
         dir = Vector3.zero; var arms = new List<Vector3>();
-        foreach (int k in Planet.Cells[j].nb) if (LinkedRoad(j, k)) arms.Add(((Planet.Cells[j].dir + Planet.Cells[k].dir) * 0.5f).normalized);
+        foreach (int k in Partners(j)) if (IsRoad(k)) arms.Add(((Planet.Cells[j].dir + Planet.Cells[k].dir) * 0.5f).normalized);
         if (arms.Count != 2) return false;
         Vector3 cj = Planet.Cells[j].dir; if (Vector3.Dot((arms[0] - cj).normalized, (arms[1] - cj).normalized) >= -0.3f) return false;
         dir = (arms[1] - arms[0]).normalized; return true;
@@ -357,7 +385,7 @@ public static class PlanetCity
     static bool ChordDirOf(int j, Frame fr, Vector2 e, out Vector2 dir)
     {
         dir = (-e).normalized; var arms = new List<Vector3>();
-        foreach (int k in Planet.Cells[j].nb) if (LinkedRoad(j, k)) arms.Add(((Planet.Cells[j].dir + Planet.Cells[k].dir) * 0.5f).normalized * Planet.R);
+        foreach (int k in Partners(j)) if (IsRoad(k)) arms.Add(((Planet.Cells[j].dir + Planet.Cells[k].dir) * 0.5f).normalized * Planet.R);
         if (arms.Count != 2) return false;
         Vector3 cj = Planet.Cells[j].dir * Planet.R; Vector3 a0 = arms[0] - cj, a1 = arms[1] - cj;
         if (Vector3.Dot(a0.normalized, a1.normalized) >= -0.3f) return false;
@@ -373,11 +401,19 @@ public static class PlanetCity
     {
         System.Func<string, MeshBuilder> M = k => { if (!mb.TryGetValue(k, out var x)) { x = new MeshBuilder(); mb[k] = x; } return x; };
         var ends = new List<Vector2>(); var dirs = new List<Vector2>(); Vector2 freeDir = new Vector2(0, 1); float freeBest = -2f;
-        foreach (int j in Planet.Cells[i].nb)
+        foreach (int j in Partners(i))
         {
+            if (!IsRoad(j)) continue;
             Vector3 d3 = Planet.Cells[j].dir * Planet.R - fr.o; Vector2 q = new Vector2(Vector3.Dot(d3, fr.e), Vector3.Dot(d3, fr.n)) * 0.5f;
-            if (LinkedRoad(i, j)) { ends.Add(q); ChordDirOf(j, fr, q, out Vector2 dir); dirs.Add(dir); }
-            else { float sc = (i * 7 + j) % 13 / 13f; if (sc > freeBest) { freeBest = sc; freeDir = q.normalized; } }
+            ends.Add(q); ChordDirOf(j, fr, q, out Vector2 dir); dirs.Add(dir);
+        }
+        foreach (int j in Planet.Cells[i].nb)   // lantaarn: aan een kant zonder weg
+        {
+            if (IsRoad(j) && Linked(i, j)) continue;
+            Vector3 d3 = Planet.Cells[j].dir * Planet.R - fr.o; Vector2 q = new Vector2(Vector3.Dot(d3, fr.e), Vector3.Dot(d3, fr.n));
+            bool under = false; foreach (int p2 in Partners(i)) if (!IsNeighbour(i, p2) && Between(i, p2).Contains(j)) under = true;   // onder een schuine arm: geen lantaarn
+            if (under) continue;
+            float sc = (i * 7 + j) % 13 / 13f; if (sc > freeBest) { freeBest = sc; freeDir = q.normalized; }
         }
         int na = ends.Count;
         if (na == 2 && Vector2.Dot(ends[0].normalized, ends[1].normalized) < -0.3f) { Chord(M, fr, ends[0], ends[1]); LampAt(M, fr, freeBest, freeDir); return; }
@@ -522,9 +558,9 @@ public static class PlanetCity
     {
         System.Func<string, MeshBuilder> M = k => { if (!mb.TryGetValue(k, out var x)) { x = new MeshBuilder(); mb[k] = x; } return x; };
         Disc(M("pad"), fr, 1.3f, 0.1f); Skirt(M("pad"), fr, 1.3f, -0.3f, 0.1f);
-        foreach (int j in Planet.Cells[i].nb)
+        foreach (int j in Partners(i))
         {
-            if (!LinkedWalk(i, j)) continue;
+            if (!IsWalk(j)) continue;
             Vector3 d3 = Planet.Cells[j].dir * Planet.R - fr.o;
             Vector2 q = new Vector2(Vector3.Dot(d3, fr.e), Vector3.Dot(d3, fr.n)) * 0.5f; float L = q.magnitude; Vector2 d = q / L, r = new Vector2(d.y, -d.x);
             float L2 = IsRoad(j) ? L - 4.4f : L;   // tot aan de stoep van een weg
@@ -570,6 +606,7 @@ public static class PlanetCity
             if (!Cells.TryGetValue(i, out var list) || list.Count == 0) continue;
             var fr = new Frame(i);
             if (list[0] == "weg") { Road(mb, fr, i); continue; }
+            if (list[0] == "wegdeel") continue;   // half vak onder een schuine weg: het asfalt komt van de wegvakken ernaast
             if (list.Count == 1 && list[0] == "meer") { Lake(mb, fr, i, 0f, i * 73856093); continue; }
             if (list.Count == 1 && list[0] == "pad") { Footpath(mb, fr, i); continue; }
             float h = 0f; int hash = i * 73856093;

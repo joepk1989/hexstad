@@ -28,7 +28,7 @@ public class PlanetLife : MonoBehaviour
     // volgend wegvak vanaf a, liefst niet terug naar prev
     static int NextRoad(int a, int prev, bool walk = false)
     {
-        var opts = new List<int>(6); foreach (int j in Planet.Cells[a].nb) if ((walk ? PlanetCity.LinkedWalk(a, j) : PlanetCity.LinkedRoad(a, j)) && j != prev) opts.Add(j);
+        var opts = new List<int>(6); foreach (int j in PlanetCity.Partners(a)) if ((walk ? PlanetCity.IsWalk(j) : PlanetCity.IsRoad(j)) && j != prev) opts.Add(j);
         if (opts.Count == 0) return prev >= 0 && (walk ? PlanetCity.LinkedWalk(a, prev) : PlanetCity.LinkedRoad(a, prev)) ? prev : a;
         return opts[Random.Range(0, opts.Count)];
     }

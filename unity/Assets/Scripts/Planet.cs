@@ -14,7 +14,8 @@ public static class Planet
     {
         public Vector3 dir;           // eenheidsvector van het middelpunt (middelpunt = dir * R)
         public Vector3[] corners;     // hoekpunten als eenheidsvectoren, op volgorde rondom
-        public int[] nb;              // buurvakken (5 of 6)
+        public int[] nb;              // buurvakken (5 of 6), op volgorde rondom
+        public int[] across;          // per hoek (tussen nb[k] en nb[k+1]): het vak daar voorbij, op afstand 2 (de 'halve-vakken'-richtingen)
         public Vector3 east, north;   // raakvlak-assen
         public Vector2[] local;       // hoekpunten in het raakvlak (oost, noord) in meters
         public float radius;          // gemiddelde afstand middelpunt-hoekpunt
@@ -105,6 +106,18 @@ public static class Planet
             Cells[v] = c;
         }
 
+        // buren op volgorde rondom, en per hoek het vak erachter (de gemeenschappelijke buur van twee opeenvolgende buren)
+        for (int v = 0; v < nV; v++)
+        {
+            var c = Cells[v];
+            System.Array.Sort(c.nb, (p, q) => { Vector3 dp = Cells[p].dir - c.dir, dq = Cells[q].dir - c.dir; return Mathf.Atan2(Vector3.Dot(dp, c.north), Vector3.Dot(dp, c.east)).CompareTo(Mathf.Atan2(Vector3.Dot(dq, c.north), Vector3.Dot(dq, c.east))); });
+            c.across = new int[c.nb.Length];
+            for (int k = 0; k < c.nb.Length; k++)
+            {
+                int n1 = c.nb[k], n2 = c.nb[(k + 1) % c.nb.Length]; c.across[k] = -1;
+                foreach (int x in Cells[n1].nb) if (x != v && System.Array.IndexOf(Cells[n2].nb, x) >= 0) { c.across[k] = x; break; }
+            }
+        }
         // startplekken: het midden van elk van de 20 icosaëdervlakken ligt het verst van de vijfhoeken (de 12 hoekpunten)
         Starts = new int[20];
         for (int face = 0; face < 20; face++)
