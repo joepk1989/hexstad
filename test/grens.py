@@ -1,0 +1,32 @@
+import asyncio, os
+from playwright.async_api import async_playwright
+HERE=os.path.dirname(os.path.abspath(__file__)); DIST=os.path.join(HERE,'..','dist','hexstad.html'); THREE=os.path.join(HERE,'node_modules','three','build','three.min.js'); EMB=os.path.join(HERE,'out','emb.html'); os.makedirs(os.path.join(HERE,'out'),exist_ok=True); os.chdir(os.path.join(HERE,'out'))
+src=open(DIST,encoding='utf-8').read().replace('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js','file://'+THREE).replace('<head>','<head><meta charset="utf-8">',1)
+open(EMB,'w',encoding='utf-8').write(src)
+import random
+random.seed(3)
+cells={}
+for (q,r) in [(0,0),(1,0),(-1,0),(0,1),(1,-1),(-1,1),(0,-1),(2,-1),(1,1),(-2,1),(2,0)]:
+    cells[f"{q},{r}"]=['water1']
+for (q,r) in [(3,0),(4,0)]:
+    cells[f"{q},{r}"]=['water']
+cells["-3,3"]=['water1']
+cells["3,-2"]=['park']; cells["-2,-1"]=['woning','dak']
+paths=[{'t':'weg','l':0,'r':0,'p':[[-60,-30],[60,-30]]},{'t':'weg','l':0,'r':0,'p':[[-40,0],[40,0]]}]
+async def main():
+    async with async_playwright() as p:
+        b=await p.chromium.launch(args=['--use-gl=swiftshader','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader'])
+        pg=await b.new_page(viewport={"width":900,"height":700}); errs=[]
+        pg.on('pageerror',lambda e:errs.append(str(e)))
+        await pg.add_init_script("localStorage.setItem('hexstad-set', JSON.stringify({tv:1, terr:'laag', wereld:'plat'})); localStorage.setItem('hexstad-welkom','1');"); await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
+        await pg.evaluate("()=>{window.__SC().doAct('empty'); try{localStorage.setItem('hexstad-welkom','1')}catch(e){} document.getElementById('welcomeSheet').hidden=true; const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true;}"); await pg.wait_for_timeout(300)
+        await pg.evaluate("([c,P])=>{const S=window.__SC(); S.setCells(c); const m=S.getCells(); m.paths=P; S.buildPathNet();}",[cells,paths])
+        await pg.evaluate("()=>{const S=window.__SC(); S.orbit.target.set(600,0,500); S.orbit.dist=90; S.orbit.phi=1.0; S.applyOrbit();}")
+        await pg.wait_for_timeout(2500)
+        print(await pg.evaluate("()=>{const S=window.__SC(); return [Math.round(S.orbit.target.x),Math.round(S.orbit.target.z)]}"))
+        print(await pg.evaluate("()=>{const a=document.querySelector('.city-arrow'); return [a.hidden, a.textContent, a.style.left, a.style.top]}"))
+        await pg.screenshot(path='/tmp/claude-0/-home-claude/a9c426b4-318e-5e8e-b268-3cfa354d5acb/scratchpad/grens.png')
+        await pg.click('.city-arrow'); await pg.wait_for_timeout(6000)
+        print(await pg.evaluate("()=>{const S=window.__SC(); const a=document.querySelector('.city-arrow'); return [Math.round(S.orbit.target.x),Math.round(S.orbit.target.z), a.hidden]}"))
+        print(errs[:3]); await b.close()
+asyncio.run(main())
