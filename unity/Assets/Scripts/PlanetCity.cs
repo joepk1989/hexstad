@@ -195,7 +195,21 @@ public static class PlanetCity
         groundRoot = new GameObject("Bodem").transform; groundRoot.SetParent(parent, false);
         chunks.Clear(); groundChunks.Clear();
         for (int c0 = 0; c0 < Planet.Cells.Length; c0 += ChunkN) BuildGround(c0 / ChunkN);
+        BuildGrid(parent);
     }
+
+    // Rasterlijnen langs alle vakranden (één lijnenmesh, 6 cm boven de bodem). G = aan/uit; in wandelmodus verborgen.
+    static GameObject grid; public static bool GridOn = true;
+    static void BuildGrid(Transform parent)
+    {
+        var v = new List<Vector3>(); var idx = new List<int>();
+        foreach (var c in Planet.Cells)
+            for (int k = 0; k < c.corners.Length; k++) { idx.Add(v.Count); v.Add(c.corners[k] * (Planet.R + 0.06f)); idx.Add(v.Count); v.Add(c.corners[(k + 1) % c.corners.Length] * (Planet.R + 0.06f)); }
+        var m = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 }; m.SetVertices(v); m.SetIndices(idx, MeshTopology.Lines, 0); m.RecalculateBounds();
+        grid = new GameObject("Raster"); grid.transform.SetParent(parent, false); grid.AddComponent<MeshFilter>().sharedMesh = m;
+        var mr = grid.AddComponent<MeshRenderer>(); mr.sharedMaterial = Raatstad.MatGrid; mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; mr.receiveShadows = false;
+    }
+    public static void ShowGrid(bool on) { if (grid != null) grid.SetActive(on); }
 
     // De bodem van één deel. Vakken met een meer of een uitgraving krijgen geen bodem (die zit er anders doorheen).
     static void BuildGround(int ch)

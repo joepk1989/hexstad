@@ -40,6 +40,7 @@ public class PlanetBuilder : MonoBehaviour
 
         K[] dk = { K.D1, K.D2, K.D3, K.D4, K.D5, K.D6, K.D7, K.D8, K.D9 };
         for (int i = 0; i < dk.Length; i++) if (Inp.Down(dk[i])) { tool = i; Say("Gereedschap: " + Blocks.Names[i]); }
+        if (Inp.Down(K.G)) { PlanetCity.GridOn = !PlanetCity.GridOn; PlanetCity.ShowGrid(PlanetCity.GridOn && !walking); Say(PlanetCity.GridOn ? "Raster aan (G)" : "Raster uit (G)"); }
         if (Inp.Down(K.H)) { CityCentre(); if (hasCentre) { focus = centre; Say("Naar het midden van de stad (H)"); } }
         if (Inp.Down(K.Z) && Inp.Held(K.Ctrl) && undo.Count > 0) { PlanetCity.Cells = undo[undo.Count - 1]; undo.RemoveAt(undo.Count - 1); PlanetCity.TouchAll(); Changed(); Say("Ongedaan gemaakt"); }
 
@@ -132,7 +133,7 @@ public class PlanetBuilder : MonoBehaviour
 
     void ToggleWalk()
     {
-        walking = !walking;
+        walking = !walking; PlanetCity.ShowGrid(PlanetCity.GridOn && !walking);
         if (walking)
         {
             outline.enabled = false;
@@ -211,7 +212,7 @@ public class PlanetBuilder : MonoBehaviour
                 "<b>Wegen en paden</b>  zijn ook blokken: zet ze op aangrenzende vakken en ze sluiten vanzelf aan\n" +
                 "<b>Camera</b>  WASD schuiven (Shift sneller) · rechtermuis draaien · scroll zoomen · H naar het midden van je stad\n" +
                 "<b>Wandelen</b>  Tab · WASD · Shift rennen · Spatie springen · Esc muis los\n" +
-                "<b>Weer en tijd</b>  R volgend weer (vast) · N zon stilzetten · M geluid aan/uit\n" +
+                "<b>Weer en tijd</b>  R volgend weer (vast) · N zon stilzetten · M geluid aan/uit · G raster aan/uit\n" +
                 "<b>Planeet</b>  21.162 vakken, omtrek 3,8 km. Oranje: de 12 vijfhoeken. Lichtblauw: de 20 startplekken.");
         }
 

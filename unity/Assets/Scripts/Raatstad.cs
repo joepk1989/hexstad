@@ -12,7 +12,7 @@ public class Raatstad : MonoBehaviour
     public static Material MatLine => mLine ? mLine : (mLine = MakeMat(Color.white));
     public static Material MatWall => mWall ? mWall : (mWall = MakeMat(new Color(0.55f, 0.55f, 0.52f)));
     public static Material MatGround => mGround ? mGround : (mGround = MakeMat(new Color(0.64f, 0.78f, 0.45f)));
-    public static Material MatGrid => mGrid ? mGrid : (mGrid = MakeMat(new Color(1f, 1f, 1f, 0.5f), true));
+    public static Material MatGrid => mGrid ? mGrid : (mGrid = MakeMat(new Color(1f, 1f, 1f, 0.28f), true));
     public static Material MatOutline => mOutline ? mOutline : (mOutline = MakeMat(new Color(1f, 0.75f, 0.1f), true));
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -30,6 +30,12 @@ public class Raatstad : MonoBehaviour
         var m = new Material(s) { color = c };
         if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", c);
         if (m.HasProperty("_Smoothness")) m.SetFloat("_Smoothness", 0.1f);
+        if (c.a < 0.999f)   // doorschijnend (URP: oppervlak op transparant zetten)
+        {
+            if (m.HasProperty("_Surface")) m.SetFloat("_Surface", 1f); if (m.HasProperty("_Blend")) m.SetFloat("_Blend", 0f);
+            if (m.HasProperty("_SrcBlend")) m.SetFloat("_SrcBlend", 5f); if (m.HasProperty("_DstBlend")) m.SetFloat("_DstBlend", 10f); if (m.HasProperty("_ZWrite")) m.SetFloat("_ZWrite", 0f);
+            m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT"); m.renderQueue = 3000;
+        }
         return m;
     }
 
