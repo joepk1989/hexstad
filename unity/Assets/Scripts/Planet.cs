@@ -21,6 +21,7 @@ public static class Planet
         public float distort;         // 0 = regelmatige zeshoek, ~0,17 = het meest vervormd (naast een vijfhoek)
     }
     public static Cell[] Cells;
+    public static int[] Starts;   // 20 startplekken: de vakken het verst van alle vijfhoeken (het midden van elk icosaëdervlak)
     public static bool Ready => Cells != null;
 
     static Dictionary<int, List<int>> buckets;
@@ -104,6 +105,14 @@ public static class Planet
             Cells[v] = c;
         }
 
+        // startplekken: het midden van elk van de 20 icosaëdervlakken ligt het verst van de vijfhoeken (de 12 hoekpunten)
+        Starts = new int[20];
+        for (int face = 0; face < 20; face++)
+        {
+            Vector3 mid = (iv[f[face, 0]] + iv[f[face, 1]] + iv[f[face, 2]]).normalized; int best = 0; float bd = -2f;
+            for (int v = 0; v < nV; v++) { float d = Vector3.Dot(verts[v], mid); if (d > bd) { bd = d; best = v; } }
+            Starts[face] = best;
+        }
         // opzoektabel op breedte- en lengtegraad
         buckets = new Dictionary<int, List<int>>();
         for (int v = 0; v < nV; v++) { int key = BucketKey(Cells[v].dir); if (!buckets.TryGetValue(key, out var l)) { l = new List<int>(2); buckets[key] = l; } l.Add(v); }

@@ -15,7 +15,7 @@ public class PlanetBuilder : MonoBehaviour
 
     void Start()
     {
-        focus = Planet.Cells[0].dir; fwd = Planet.Cells[0].north;   // beginnen boven een vijfhoek, dan zie je meteen dat het een bol is
+        int s0 = Planet.Starts[Random.Range(0, Planet.Starts.Length)]; focus = Planet.Cells[s0].dir; fwd = Planet.Cells[s0].north;   // elke speler begint op een startplek: zo ver mogelijk van de vijfhoeken
         outline = new GameObject("Hover").AddComponent<LineRenderer>(); outline.loop = true; outline.positionCount = 6; outline.widthMultiplier = 0.35f; outline.material = Raatstad.MatOutline; outline.useWorldSpace = true;
         walker = new GameObject("Wandelaar").AddComponent<PlanetWalker>(); walker.Cam = Cam; walker.gameObject.SetActive(false);
         Say("Planeet: " + Planet.Cells.Length + " vakken, omtrek " + Mathf.RoundToInt(2f * Mathf.PI * Planet.R) + " m · toets 1-9 of de balk kiest een blok · klik een vak");
@@ -60,6 +60,7 @@ public class PlanetBuilder : MonoBehaviour
     {
         var c = Planet.Cells[i]; float h = PlanetCity.StackHeight(i) + 0.3f;
         if (c.corners.Length == 5 && Time.time > msgT) Say("Dit is een van de 12 vijfhoeken (oranje): op een bol passen niet alleen zeshoeken");
+        else if (Time.time > msgT && System.Array.IndexOf(Planet.Starts, i) >= 0) Say("Startplek (een van de 20): zo ver mogelijk van de vijfhoeken, hier is het raster het netst");
         if (outline.positionCount != c.corners.Length) outline.positionCount = c.corners.Length;
         for (int k = 0; k < c.corners.Length; k++) outline.SetPosition(k, c.corners[k] * (Planet.R + h));
     }

@@ -27,6 +27,9 @@ public static class PlanetTest {
     // hoekpunten op volgorde: opeenvolgende hoeken moeten dicht bij elkaar liggen
     int order = 0; foreach (var c in Planet.Cells) for (int k = 0; k < c.corners.Length; k++) { double d = Vector3.Distance(c.corners[k], c.corners[(k + 1) % c.corners.Length]) * Planet.R; if (d > 14) order++; }
     Console.WriteLine("hoekvolgorde-problemen " + order);
+    // startplekken: afstand tot de dichtstbijzijnde vijfhoek
+    foreach (int st in Planet.Starts) { float bd = -2; foreach (var c in Planet.Cells) if (c.nb.Length == 5) bd = Math.Max(bd, Vector3.Dot(c.dir, Planet.Cells[st].dir)); Console.Write(((float)Math.Acos(bd) * Planet.R).ToString("F0") + " "); }
+    Console.WriteLine("m tot dichtstbijzijnde vijfhoek (per startplek); zeshoek? " + (Planet.Cells[Planet.Starts[0]].nb.Length == 6));
     // vlak-coördinaten: lokale hoekpunten rond nul
     var c0 = Planet.Cells[1234]; Console.Write("lokale hoeken vak 1234:"); foreach (var l in c0.local) Console.Write(" (" + l.x.ToString("F1") + "," + l.y.ToString("F1") + ")"); Console.WriteLine();
   }

@@ -85,12 +85,22 @@ public static class PlanetCity
             // De bodem per vak; de kleur loopt van gewoon gras (regelmatige zeshoek) naar fel oranje (het meest vervormd, naast een vijfhoek)
             const int Steps = 8; var ms = new MeshBuilder[Steps]; for (int k = 0; k < Steps; k++) ms[k] = new MeshBuilder();
             var pm = new MeshBuilder();   // de vijfhoeken zelf
+            var sm = new MeshBuilder();   // de startplekken
             for (int i = c0; i < Mathf.Min(n, c0 + ChunkN); i++)
             {
                 var c = Planet.Cells[i]; Vector3 mid = c.dir * Planet.R; bool pent = c.corners.Length == 5;
                 float kk = Mathf.Pow(Mathf.Clamp01((c.distort - 0.04f) / 0.125f), 1.4f);
-                var mb0 = pent ? pm : ms[Mathf.Clamp(Mathf.RoundToInt(kk * (Steps - 1)), 0, Steps - 1)];
+                bool start = System.Array.IndexOf(Planet.Starts, i) >= 0;
+                var mb0 = pent ? pm : start ? sm : ms[Mathf.Clamp(Mathf.RoundToInt(kk * (Steps - 1)), 0, Steps - 1)];
                 for (int k = 0; k < c.corners.Length; k++) mb0.Tri(mid, c.corners[k] * Planet.R, c.corners[(k + 1) % c.corners.Length] * Planet.R, c.dir);
+                if (start)   // startplek: lichtblauw vak met een witte paal van 30 m en een vlaggetje
+                {
+                    Vector3 top = c.dir * (Planet.R + 30f);
+                    for (int k = 0; k < 6; k++) { Vector3 a = Vector3.Lerp(c.corners[k], c.dir, 0.93f) * (Planet.R + 0.3f), b = Vector3.Lerp(c.corners[(k + 1) % 6], c.dir, 0.93f) * (Planet.R + 0.3f); sm.Tri(a, b, top, (a + b) * 0.5f - c.dir * Planet.R + c.dir * 0.05f); }
+                    Vector3 fl = c.dir * (Planet.R + 27f) + c.east * 6f, fb = c.dir * (Planet.R + 24f);
+                    sm.Tri(top, fl, fb, c.north); sm.Tri(top, fb, fl, -c.north);
+                    for (int k = 0; k < 6; k++) { Vector3 a = c.corners[k], b = c.corners[(k + 1) % 6]; Vector3 am = (a + b) * 0.5f; Vector3 ai = Vector3.Lerp(a, c.dir, 0.08f), bi = Vector3.Lerp(b, c.dir, 0.08f); sm.Quad(a * Planet.R, b * Planet.R, bi * (Planet.R + 0.25f), ai * (Planet.R + 0.25f), am - c.dir); }
+                }
                 if (pent)   // baken: een slanke oranje punt van 60 m, zodat je de vijfhoeken ook vanuit de ruimte vindt
                 {
                     Vector3 apex = c.dir * (Planet.R + 60f);
@@ -104,6 +114,12 @@ public static class PlanetCity
                 var pg = new GameObject("Vijfhoeken " + (c0 / ChunkN)); pg.transform.SetParent(groundRoot, false);
                 var pmesh = pm.Build(); pg.AddComponent<MeshFilter>().sharedMesh = pmesh; pg.AddComponent<MeshRenderer>().sharedMaterial = Mats.Get("p_vijfhoek", new Color(1f, 0.5f, 0.1f));
                 pg.AddComponent<MeshCollider>().sharedMesh = pmesh;
+            }
+            if (sm.v.Count > 0)
+            {
+                var sg = new GameObject("Startplekken " + (c0 / ChunkN)); sg.transform.SetParent(groundRoot, false);
+                var smesh = sm.Build(); sg.AddComponent<MeshFilter>().sharedMesh = smesh; sg.AddComponent<MeshRenderer>().sharedMaterial = Mats.Get("p_start", new Color(0.55f, 0.8f, 1f));
+                sg.AddComponent<MeshCollider>().sharedMesh = smesh;
             }
             Color grass = new Color(0.64f, 0.78f, 0.45f), hot = new Color(1f, 0.6f, 0.2f);
             for (int k = 0; k < Steps; k++)
