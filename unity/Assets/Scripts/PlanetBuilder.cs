@@ -38,6 +38,7 @@ public class PlanetBuilder : MonoBehaviour
 
         K[] dk = { K.D1, K.D2, K.D3, K.D4, K.D5, K.D6, K.D7, K.D8, K.D9 };
         for (int i = 0; i < dk.Length; i++) if (Inp.Down(dk[i])) { tool = i; Say("Gereedschap: " + Blocks.Names[i]); }
+        if (Inp.Down(K.D0) || Inp.Down(K.G)) { tool = System.Array.IndexOf(Blocks.Tools, "gum"); Say("Gum: klik of sleep over blokken om ze weg te halen (X doet hetzelfde zonder van gereedschap te wisselen)"); }
         if (Inp.Down(K.Z) && Inp.Held(K.Ctrl) && undo.Count > 0) { PlanetCity.Cells = undo[undo.Count - 1]; undo.RemoveAt(undo.Count - 1); PlanetCity.TouchAll(); Changed(); Say("Ongedaan gemaakt"); }
 
         // aanwijzen: het vak onder de muis
@@ -123,7 +124,7 @@ public class PlanetBuilder : MonoBehaviour
         }
         var st = new GUIStyle(GUI.skin.label) { fontSize = 14 }; st.normal.textColor = DayNight.Night > 0.6f ? Color.white : Color.black;
         string help = walking ? "Wandelen op de planeet: WASD lopen · muis kijken · Shift rennen · Spatie springen · Esc muis los · Tab terug naar bouwen"
-            : "Planeet: klik of sleep over vakken = blok plaatsen (1-9 of de balk) · X = bovenste blok weg · Ctrl+Z = ongedaan · WASD = schuiven · rechtermuis = draaien · scroll = zoom · Tab = wandelen · M = geluid";
+            : "Planeet: klik of sleep over vakken = blok plaatsen (1-9 of de balk) · X of 0/G = weghalen (gum) · Ctrl+Z = ongedaan · WASD = schuiven · rechtermuis = draaien · scroll = zoom · Tab = wandelen · M = geluid";
         GUI.Label(new Rect(10, 8, Screen.width - 20, 24), help, st);
         if (Time.time < msgT) GUI.Label(new Rect(10, 32, Screen.width - 20, 24), msg, st);
 
@@ -141,12 +142,12 @@ public class PlanetBuilder : MonoBehaviour
         }
         if (!walking)
         {
-            float bw = 84f, x0 = (Screen.width - bw * Blocks.Tools.Length) / 2f;
+            float bw = Mathf.Min(84f, (Screen.width - 250f) / Blocks.Tools.Length), x0 = 10f;   // past altijd op het scherm, ook met de gum erbij
             for (int i = 0; i < Blocks.Tools.Length; i++)
             {
                 var r = new Rect(x0 + i * bw, Screen.height - 46, bw - 4, 40);
                 var prev = GUI.color; GUI.color = i == tool ? new Color(1f, 0.8f, 0.2f) : Color.white;
-                if (GUI.Button(r, (i < 9 ? (i + 1) + "  " : "") + Blocks.Names[i])) tool = i;
+                if (GUI.Button(r, (i < 9 ? (i + 1) + " " : Blocks.Tools[i] == "gum" ? "0 " : "") + Blocks.Names[i])) tool = i;
                 GUI.color = prev;
             }
             // opslagslots rechtsonder
