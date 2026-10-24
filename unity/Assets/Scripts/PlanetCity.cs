@@ -205,34 +205,63 @@ public static class PlanetCity
         }
     }
 
+    // Een wegvak: één nette omtrek per laag (stoep, asfalt) in plaats van losse schijven en stroken. De omtrek wordt
+    // rondom bemonsterd: in elke richting de verste rand van de armen naar de buurwegen, met een kern die bochten
+    // afrondt. Daarop: stoeprand, middenstreepjes op rechte armen, een eilandje op kruisingen en een lantaarn.
     static void Road(Dictionary<string, MeshBuilder> mb, Frame fr, int i)
     {
         System.Func<string, MeshBuilder> M = k => { if (!mb.TryGetValue(k, out var x)) { x = new MeshBuilder(); mb[k] = x; } return x; };
-        Disc(M("stoep"), fr, 4.6f, 0.08f); Skirt(M("stoep"), fr, 4.6f, -0.35f, 0.08f);
-        Disc(M("asfalt"), fr, 3.3f, 0.14f);
-        int rn = 0; Vector2 freeDir = new Vector2(0, 1); float freeBest = -2f;
+        var arms = new List<Vector2>(); Vector2 freeDir = new Vector2(0, 1); float freeBest = -2f;
         foreach (int j in Planet.Cells[i].nb)
         {
-            Vector3 d3 = Planet.Cells[j].dir * Planet.R - fr.o; Vector2 q = new Vector2(Vector3.Dot(d3, fr.e), Vector3.Dot(d3, fr.n)).normalized;
-            if (IsRoad(j)) rn++;
-            else { float sc = (i * 7 + j) % 13 / 13f; if (sc > freeBest) { freeBest = sc; freeDir = q; } }
+            Vector3 d3 = Planet.Cells[j].dir * Planet.R - fr.o; Vector2 q = new Vector2(Vector3.Dot(d3, fr.e), Vector3.Dot(d3, fr.n)) * 0.5f;
+            if (IsRoad(j)) arms.Add(q);
+            else { float sc = (i * 7 + j) % 13 / 13f; if (sc > freeBest) { freeBest = sc; freeDir = q.normalized; } }
         }
-        if (rn >= 3) { Disc(M("gras"), fr, 1.4f, 0.2f); Skirt(M("stoep"), fr, 1.5f, 0.14f, 0.19f); }   // kruising: een klein rotonde-eiland
-        if (freeBest > -1f)   // lantaarnpaal op de stoep aan een vrije kant
+        int na = arms.Count; bool straight = false;
+        if (na == 2) { float dot = Vector2.Dot(arms[0].normalized, arms[1].normalized); straight = dot < -0.9f; }
+        float coreA = na == 0 ? 3.3f : na == 1 ? 2.5f : straight ? 2.5f : na == 2 ? 3.0f : 3.4f;   // kern van het asfalt
+        float coreS = coreA + 2.1f;
+        const int S = 72;
+        System.Func<float, float, Vector2[]> Outline = (hw, core) =>
+        {
+            var pts = new Vector2[S];
+            for (int k = 0; k < S; k++)
+            {
+                float th = k * Mathf.PI * 2f / S; Vector2 u = new Vector2(Mathf.Cos(th), Mathf.Sin(th)); float r = core;
+                foreach (var arm in arms)
+                {
+                    float L = arm.magnitude; Vector2 ad = arm / L; float c = Vector2.Dot(u, ad); if (c <= 0.02f) continue;
+                    float sn = Mathf.Abs(u.x * ad.y - u.y * ad.x);
+                    float ra = Mathf.Min(L / c, sn < 1e-4f ? 1e9f : hw / sn);   // tot het eind van de arm, of tot de lange zijkant
+                    if (ra > r) r = ra;
+                }
+                pts[k] = u * r;
+            }
+            return pts;
+        };
+        Vector2[] stoep = Outline(4.6f, coreS), asfalt = Outline(2.5f, coreA);
+        // stoep: vlak + schuine rand omlaag naar de bodem
+        for (int k = 0; k < S; k++) { Vector2 a = stoep[k], b = stoep[(k + 1) % S]; M("stoep").Tri(fr.P(0, 0.095f, 0), fr.P(a.x, 0.095f, a.y), fr.P(b.x, 0.095f, b.y), fr.u); Vector2 mid = (a + b) * 0.5f; M("stoep").Quad(fr.P(a.x, -0.35f, a.y), fr.P(b.x, -0.35f, b.y), fr.P(b.x, 0.095f, b.y), fr.P(a.x, 0.095f, a.y), fr.D(mid.x, 0, mid.y)); }
+        // asfalt met een lage schuine stoeprand (8 cm) eromheen
+        for (int k = 0; k < S; k++)
+        {
+            Vector2 a = asfalt[k], b = asfalt[(k + 1) % S]; M("asfalt").Tri(fr.P(0, 0.155f, 0), fr.P(a.x, 0.155f, a.y), fr.P(b.x, 0.155f, b.y), fr.u);
+            Vector2 ao = a * (1f + 0.22f / a.magnitude), bo = b * (1f + 0.22f / b.magnitude), mid = (a + b) * 0.5f;
+            M("rand").Quad(fr.P(a.x, 0.155f, a.y), fr.P(b.x, 0.155f, b.y), fr.P(bo.x, 0.23f, bo.y), fr.P(ao.x, 0.23f, ao.y), fr.D(-mid.x, 3f, -mid.y));
+        }
+        // middenstreepjes op de armen (niet op kruisingen), en een eilandje op een kruising
+        if (na <= 2) foreach (var arm in arms)
+        {
+            float L = arm.magnitude; Vector2 d = arm / L, r = new Vector2(d.y, -d.x);
+            for (float s0 = (na == 2 && straight ? 0.4f : coreA + 0.3f); s0 + 1.2f < L; s0 += 2.6f) Strip(M("lijn"), fr, d, r, s0, s0 + 1.4f, 0.07f, 0.165f);
+        }
+        if (na >= 3) { Disc(M("gras"), fr, 1.3f, 0.21f); Skirt(M("rand"), fr, 1.4f, 0.155f, 0.21f); }
+        if (freeBest > -1f)
         {
             Vector2 lp = freeDir * 4.0f;
-            Cone(M("paal"), fr, lp.x, lp.y, 0.08f, 0.08f, 5.2f, 0.06f);
+            Cone(M("paal"), fr, lp.x, lp.y, 0.08f, 0.09f, 5.2f, 0.06f);
             Cone(M("lamp"), fr, lp.x, lp.y, 0.28f, 4.9f, 5.35f, 0.2f); Cap6(M("lamp"), fr, 0.2f, 5.35f);
-        }
-        foreach (int j in Planet.Cells[i].nb)
-        {
-            if (!IsRoad(j)) continue;
-            Vector3 d3 = Planet.Cells[j].dir * Planet.R - fr.o;
-            Vector2 q = new Vector2(Vector3.Dot(d3, fr.e), Vector3.Dot(d3, fr.n)) * 0.5f;   // tot het midden van de gedeelde rand
-            float L = q.magnitude; Vector2 d = q / L, r = new Vector2(d.y, -d.x);
-            Strip(M("stoep"), fr, d, r, 0f, L, 4.6f, 0.095f); StripSides(M("stoep"), fr, d, r, 0f, L, 4.6f, -0.35f, 0.095f);
-            Strip(M("asfalt"), fr, d, r, 0f, L, 2.5f, 0.155f);
-            Strip(M("lijn"), fr, d, r, 3.3f, L, 0.08f, 0.165f);
         }
     }
 
@@ -293,7 +322,7 @@ public static class PlanetCity
         {
             case "muur": case "muur0": return new Color(0.93f, 0.86f, 0.72f); case "muur1": return new Color(0.72f, 0.42f, 0.32f); case "muur2": return new Color(0.88f, 0.88f, 0.84f); case "muur3": return new Color(0.55f, 0.5f, 0.45f);
             case "dak": case "dak0": return new Color(0.65f, 0.30f, 0.22f); case "dak1": return new Color(0.35f, 0.33f, 0.36f);
-            case "paal": return new Color(0.25f, 0.27f, 0.3f); case "lamp": return new Color(0.85f, 0.85f, 0.8f);
+            case "paal": return new Color(0.25f, 0.27f, 0.3f); case "rand": return new Color(0.7f, 0.68f, 0.62f); case "lamp": return new Color(0.85f, 0.85f, 0.8f);
             case "kantoor": return new Color(0.58f, 0.68f, 0.78f); case "glas": return new Color(0.20f, 0.30f, 0.40f);
             case "plat": return new Color(0.50f, 0.50f, 0.53f); case "gras": return new Color(0.52f, 0.74f, 0.33f);
             case "water": return new Color(0.20f, 0.50f, 0.78f); case "zand": return new Color(0.86f, 0.79f, 0.55f);
