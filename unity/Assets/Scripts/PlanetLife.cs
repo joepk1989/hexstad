@@ -8,7 +8,7 @@ public class PlanetLife : MonoBehaviour
 {
     public static PlanetLife I;
     public readonly List<Person> People = new List<Person>();
-    class Car { public Transform root; public int a, b, prev; public float t, speed; public AudioSource audio; }
+    class Car { public Transform root; public int a, b, c, n; public float s, speed, v; public AudioSource audio; public Vector3 fwd; }   // rijdt over een boog: rand(a,b) → hart b → rand(b,c)
     readonly List<Car> cars = new List<Car>();
     public int CarCount => cars.Count;
     readonly List<int> roads = new List<int>(), walks = new List<int>();
@@ -62,8 +62,8 @@ public class PlanetLife : MonoBehaviour
 
     Car SpawnCar()
     {
-        var c = new Car { a = roads[Random.Range(0, roads.Count)], prev = -1, speed = 6f + Random.value * 4f, t = Random.value };
-        c.b = NextRoad(c.a, -1);
+        var c = new Car { b = roads[Random.Range(0, roads.Count)], speed = 7f + Random.value * 4f, s = Random.value };
+        c.a = NextRoad(c.b, -1); c.c = NextRoad(c.b, c.a); c.n = NextRoad(c.c, c.b); c.v = c.speed;
         var root = new GameObject("Auto").transform; root.SetParent(transform, false); c.root = root;
         int k = Random.Range(0, Paint.Length);
         Box(root, new Vector3(0, 0.55f, 0), new Vector3(1.8f, 0.6f, 4.2f), Mats.Get("auto" + k, Paint[k]));
@@ -95,11 +95,45 @@ public class PlanetLife : MonoBehaviour
         go.transform.SetParent(parent, false); go.transform.localPosition = pos; go.transform.localScale = size; go.GetComponent<MeshRenderer>().sharedMaterial = m;
     }
 
+    // Positie op de boog door vak b: een kwadratische Bézier van het midden van rand a-b, via het hart van b, naar het midden van rand b-c.
+    // Rechtdoor is dat een rechte lijn; in een bocht van 60° een vloeiende boog. De auto houdt rechts (zijwaarts langs de raaklijn).
+    static void Arc(int a, int b, int cc, float s, float side, float h, out Vector3 pos, out Vector3 fwd, out Vector3 up)
+    {
+        Vector3 P0 = ((Planet.Cells[a].dir + Planet.Cells[b].dir) * 0.5f).normalized, P1 = Planet.Cells[b].dir, P2 = ((Planet.Cells[b].dir + Planet.Cells[cc].dir) * 0.5f).normalized;
+        float u = 1f - s; Vector3 d = P0 * (u * u) + P1 * (2f * u * s) + P2 * (s * s); up = d.normalized;
+        Vector3 tan = (P1 - P0) * (2f * u) + (P2 - P1) * (2f * s);
+        fwd = tan - up * Vector3.Dot(tan, up); if (fwd.sqrMagnitude < 1e-10f) fwd = Planet.Cells[b].north; fwd.Normalize();
+        Vector3 right = Vector3.Cross(up, fwd);
+        pos = up * (Planet.R + h) + right * side;
+    }
+    static float ArcLen(int a, int b, int cc) => (Vector3.Distance(Planet.Cells[a].dir, Planet.Cells[b].dir) + Vector3.Distance(Planet.Cells[b].dir, Planet.Cells[cc].dir)) * 0.5f * Planet.R;
+    static float Bend(int a, int b, int cc)   // 0 = rechtdoor, 1 = haakse of scherpere bocht
+    {
+        Vector3 d1 = (Planet.Cells[b].dir - Planet.Cells[a].dir).normalized, d2 = (Planet.Cells[cc].dir - Planet.Cells[b].dir).normalized;
+        return Mathf.Clamp01(Mathf.Acos(Mathf.Clamp(Vector3.Dot(d1, d2), -1f, 1f)) * Mathf.Rad2Deg / 90f);
+    }
+
     void PlaceCar(Car c, float dt)
     {
-        Where(c.a, c.b, c.t, 1.25f, 0.16f, out Vector3 pos, out Vector3 fwd, out Vector3 up);
-        c.root.position = pos; Quaternion target = Quaternion.LookRotation(fwd, up);
-        c.root.rotation = dt <= 0f ? target : Quaternion.Slerp(c.root.rotation, target, Mathf.Min(1f, dt * 8f));
+        Arc(c.a, c.b, c.c, c.s, 1.25f, 0.16f, out Vector3 pos, out Vector3 fwd, out Vector3 up);
+        c.root.position = pos; c.fwd = fwd; Quaternion target = Quaternion.LookRotation(fwd, up);
+        c.root.rotation = dt <= 0f ? target : Quaternion.Slerp(c.root.rotation, target, Mathf.Min(1f, dt * 10f));
+    }
+
+    // Snelheid: afremmen voor een bocht en voor een auto vlak vooruit; weer optrekken op een recht stuk
+    void DriveCar(Car c, float dt)
+    {
+        float want = c.speed * Mathf.Lerp(1f, 0.45f, Mathf.Max(Bend(c.a, c.b, c.c) * (c.s < 0.6f ? 1f : 0.3f), c.s > 0.6f ? Bend(c.b, c.c, c.n) : 0f));
+        foreach (var o in cars)
+        {
+            if (o == c) continue; Vector3 d = o.root.position - c.root.position; float ahead = Vector3.Dot(d, c.fwd);
+            if (ahead < 0.5f || ahead > 11f) continue; float lat = (d - c.fwd * ahead).magnitude; if (lat > 2.2f) continue;
+            want = Mathf.Min(want, Mathf.Max(0f, (ahead - 4.5f) * 1.2f));
+        }
+        c.v = Mathf.MoveTowards(c.v, want, (want > c.v ? 4f : 9f) * dt);
+        float len = Mathf.Max(1f, ArcLen(c.a, c.b, c.c)); c.s += c.v * dt / len;
+        while (c.s >= 1f) { c.s -= 1f; c.a = c.b; c.b = c.c; c.c = PlanetCity.IsRoad(c.n) ? c.n : NextRoad(c.b, c.a); c.n = NextRoad(c.c, c.b); }
+        if (c.audio != null) c.audio.pitch = 0.85f + c.v / 22f;
     }
 
     // een stap langs de boog van a naar b; aan het eind het volgende vak kiezen
@@ -150,7 +184,9 @@ public class PlanetLife : MonoBehaviour
         for (int i = cars.Count - 1; i >= 0; i--)
         {
             var c = cars[i];
-            if (!Advance(ref c.a, ref c.b, ref c.prev, ref c.t, c.speed, dt)) { Destroy(c.root.gameObject); cars.RemoveAt(i); continue; }
+            if (!PlanetCity.IsRoad(c.b)) { Destroy(c.root.gameObject); cars.RemoveAt(i); continue; }
+            if (!PlanetCity.IsRoad(c.a)) c.a = c.b; if (!PlanetCity.IsRoad(c.c)) { c.c = NextRoad(c.b, c.a); c.n = NextRoad(c.c, c.b); }
+            DriveCar(c, dt);
             PlaceCar(c, dt); if (c.audio != null) c.audio.volume = Ambience.Muted ? 0f : 0.35f;
         }
 
