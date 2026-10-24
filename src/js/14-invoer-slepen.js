@@ -386,8 +386,9 @@
   function vecClickPlan(cell, t) {   // wat een klik zou doen: {best: {p, end}, from, to} (ook voor het voorbeeld)
     const c = cellToWorld(cell[0], cell[1]), W = [Math.round(c.x * 100) / 100, Math.round(c.z * 100) / 100];
     let best = null, bd = 1e9;
-    for (const p of pathsOf()) {
-      if (p.t !== t || !p.p || p.p.length < 2 || p === vecPre.tmp) continue;
+    for (const p0 of pathsOf()) {
+      const p = p0 === vecPre.tmp ? vecPre.orig : p0;
+      if (!p || p.t !== t || !p.p || p.p.length < 2) continue;
       for (const end of [0, p.p.length - 1]) { const e = p.p[end], d = Math.hypot(e[0] - c.x, e[1] - c.z); if (d < 1 || d > R * SQ3 * 1.05) continue; if (d < bd) { bd = d; best = { p, end }; } }
     }
     if (best) return { best, W, from: best.p.p[best.end], to: W };
@@ -435,12 +436,23 @@
     const a = [c.x - (d.x - c.x) / L * h, c.z - (d.z - c.z) / L * h], b = [c.x + (d.x - c.x) / L * h, c.z + (d.z - c.z) / L * h];
     return [a, [c.x, c.z], b].map(p => [Math.round(p[0] * 100) / 100, Math.round(p[1] * 100) / 100]);
   }
-  const vecPre = { tmp: null, key: '' };
-  function vecPreClear() { if (!vecPre.tmp) return; const i = pathsOf().indexOf(vecPre.tmp); vecPre.tmp = null; vecPre.key = ''; if (i >= 0) { pathsOf().splice(i, 1); buildPathNet(true); } }
-  function vecPreShow(cell, t, pts) {
-    const kk = cell[0] + ',' + cell[1] + ',' + t + ',' + (manualDir !== null ? manualDir : viewDirIndex()) + (pts ? 'c' + pts[0] : ''); if (vecPre.tmp && vecPre.key === kk) return;
-    const i = vecPre.tmp ? pathsOf().indexOf(vecPre.tmp) : -1; if (i >= 0) pathsOf().splice(i, 1);
-    vecPre.tmp = { t, l: 0, r: 0, p: pts || vecStubPts(cell) }; vecPre.key = kk; pathsOf().push(vecPre.tmp); buildPathNet(true);
+  const vecPre = { tmp: null, key: '', orig: null };
+  function vecPreClear() {
+    if (!vecPre.tmp) return; const i = pathsOf().indexOf(vecPre.tmp);
+    if (i >= 0) { if (vecPre.orig) pathsOf()[i] = vecPre.orig; else pathsOf().splice(i, 1); }
+    vecPre.tmp = null; vecPre.orig = null; vecPre.key = ''; buildPathNet(true);
+  }
+  function vecPreShow(cell, t, plan) {   // voorbeeld: precies wat een klik zou geven (bij doortrekken: de verlengde weg zelf)
+    const kk = cell[0] + ',' + cell[1] + ',' + t + ',' + (manualDir !== null ? manualDir : viewDirIndex()) + (plan && plan.best ? 'c' + plan.best.end + plan.best.p.p.length : '');
+    if (vecPre.tmp && vecPre.key === kk) return;
+    if (vecPre.tmp) vecPreClear();
+    if (plan && plan.best) {
+      const o = plan.best.p, cl = { t: o.t, l: o.l, r: o.r, p: o.p.map(q => q.slice()), tipS: o.tipS, tipE: o.tipE }; if (o.y) cl.y = o.y.slice();
+      const i = pathsOf().indexOf(o); if (i < 0) return;
+      pathsOf()[i] = cl; vecPre.tmp = cl; vecPre.orig = o;
+      const res = vecExtendPath(cl, plan.best.end, plan.W); if (res.same) { pathsOf()[i] = o; vecPre.tmp = null; vecPre.orig = null; return; }
+    } else { vecPre.tmp = { t, l: 0, r: 0, p: vecStubPts(cell) }; pathsOf().push(vecPre.tmp); }
+    vecPre.key = kk; buildPathNet(true);
   }
   function vecChainEnd(quiet) {
     const C = vecChain; if (!C.on) return;
@@ -462,6 +474,25 @@
   // weg (van dezelfde soort), dan sluit het daar op aan; anders begint er een nieuwe weg. Er is geen "knooppunt" dat je moet afsluiten.
   // Een weg heeft een staartje (half vak) voorbij zijn laatste vak, zodat het vak vol zit; dat schuift bij het doorklikken mee.
   const HALF = 0.15, r2 = v => Math.round(v * 100) / 100;
+  // Verleng een weg bij zijn begin (end 0) of eind met het vak op Wc; ook voor het voorbeeld (dan op een kopie)
+  function vecExtendPath(path, end, Wc) {
+    const atStart = end === 0, P = path.p, tipOn = atStart ? path.tipS : path.tipE;
+    const inner = tipOn ? (atStart ? P[1] : P[P.length - 2]) : P[atStart ? 0 : P.length - 1];
+    if (Math.hypot(inner[0] - Wc[0], inner[1] - Wc[1]) < 3) return { same: true };
+    const W = vecSnap(Wc, path), snapped = W[0] !== Wc[0] || W[1] !== Wc[1];
+    if (tipOn) { if (atStart) P.shift(); else P.pop(); if (path.y) { if (atStart) path.y.shift(); else path.y.pop(); } }
+    if (P.length === 2 && tipOn) {   // het beginstukje (één vak): het andere staartje draait mee richting de nieuwe klik
+      const cc = atStart ? P[0] : P[1], dx = W[0] - cc[0], dz = W[1] - cc[1], L = Math.hypot(dx, dz) || 1, o = [r2(cc[0] - dx / L * HALF), r2(cc[1] - dz / L * HALF)];
+      if (atStart) P[1] = o; else P[0] = o;
+    }
+    if (atStart) { P.unshift(W); if (path.y) path.y.unshift(0); } else { P.push(W); if (path.y) path.y.push(0); }
+    if (!snapped) {
+      const a = atStart ? P[1] : P[P.length - 2], b = atStart ? P[0] : P[P.length - 1], dx = b[0] - a[0], dz = b[1] - a[1], L = Math.hypot(dx, dz) || 1, tp = [r2(b[0] + dx / L * HALF), r2(b[1] + dz / L * HALF)];
+      if (atStart) { P.unshift(tp); path.tipS = true; } else { P.push(tp); path.tipE = true; }
+      if (path.y) { if (atStart) path.y.unshift(0); else path.y.push(0); }
+    } else if (atStart) path.tipS = false; else path.tipE = false;
+    return { snapped };
+  }
   function vecChainClick(cell) {
     const t = VEC_T[tool]; if (!cell) return;
     vecChainEnd(true); vecPreClear();
@@ -472,19 +503,7 @@
     if (!plan.best) {
       path = { t, l: 0, r: 0, p: vecStubPts(cell) }; path.tipS = path.tipE = true; pathsOf().push(path);
     } else {
-      path = plan.best.p; const atStart = plan.best.end === 0, P = path.p, tipOn = atStart ? path.tipS : path.tipE;
-      const inner = tipOn ? (atStart ? P[1] : P[P.length - 2]) : P[atStart ? 0 : P.length - 1];
-      if (Math.hypot(inner[0] - Wc[0], inner[1] - Wc[1]) < 3) { toast('Hier ligt al weg', 900); return; }
-      const W = vecSnap(Wc, path); snapped = W[0] !== Wc[0] || W[1] !== Wc[1];
-      if (tipOn) { if (atStart) P.shift(); else P.pop(); if (path.y) { if (atStart) path.y.shift(); else path.y.pop(); } }
-      if (P.length === 2 && tipOn) {   // het beginstukje (één vak): het andere staartje draait mee richting de nieuwe klik
-        const cc = atStart ? P[0] : P[1], dx = W[0] - cc[0], dz = W[1] - cc[1], L = Math.hypot(dx, dz) || 1, o = [r2(cc[0] - dx / L * HALF), r2(cc[1] - dz / L * HALF)];
-        if (atStart) P[1] = o; else P[0] = o;
-      }
-      if (atStart) { P.unshift(W); if (path.y) path.y.unshift(0); } else { P.push(W); if (path.y) path.y.push(0); }
-      const tip = () => { const a = atStart ? P[1] : P[P.length - 2], b = atStart ? P[0] : P[P.length - 1], dx = b[0] - a[0], dz = b[1] - a[1], L = Math.hypot(dx, dz) || 1; return [r2(b[0] + dx / L * HALF), r2(b[1] + dz / L * HALF)]; };
-      if (!snapped) { const tp = tip(); if (atStart) { P.unshift(tp); path.tipS = true; } else { P.push(tp); path.tipE = true; } if (path.y) { if (atStart) path.y.unshift(0); else path.y.push(0); } }
-      else if (atStart) path.tipS = false; else path.tipE = false;
+      path = plan.best.p; const r = vecExtendPath(path, plan.best.end, Wc); if (r.same) { toast('Hier ligt al weg', 900); return; } snapped = r.snapped;
     }
     gone = vecClearUnder([path]);
     buildPathNet(); changed();
