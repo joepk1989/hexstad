@@ -197,7 +197,7 @@
     const lathe = (pts, seg = 6) => new THREE.LatheGeometry(pts, Math.min(seg, 6));   // stijl: hoekig, weinig vlakken (zoals de low poly superheld)
     const flat = g => { const n = g.index ? g.toNonIndexed() : g; n.computeVertexNormals(); return n; };   // platte vlakken
     function limb(len, rt, rb, bulge = 0, bulgeAt = 0.35, seg = 5) {   // van y=0 (gewricht) naar y=-len: vijfkantig, met een spierknik
-      return lathe([V2(0, rt * 0.55), V2(rt * 0.95, rt * 0.15), V2(rt + bulge * 1.6, -len * bulgeAt), V2(rb, -len * 0.92), V2(0, -len - rb * 0.45)].reverse(), seg);
+      return lathe([V2(0, rt * 0.35), V2(rt * 0.97, rt * 0.08), V2(rt + bulge * 1.6, -len * bulgeAt), V2(rb, -len * 0.95), V2(0, -len - rb * 0.3)].reverse(), seg);
     }
     function limbRound(len, rt, rb, bulge = 0, bulgeAt = 0.35, seg = 12) {
       const pts = [V2(0, rt * 0.9)];
@@ -292,6 +292,7 @@
       // paraplu: een achtkantig scherm met een stok; het handvat zit ongeveer bij de hand
       umbrella: { geo: mergeGeos([new THREE.ConeGeometry(0.56, 0.24, 8, 1, true).translate(0, 0.12, 0), new THREE.CylinderGeometry(0.012, 0.012, 0.95, 5).translate(0, -0.35, 0), new THREE.SphereGeometry(0.03, 5, 3).translate(0, 0.26, 0)]), per: 1 },
     };
+    PARTS.joint = { geo: new THREE.IcosahedronGeometry(1, 1), per: 12 };   // gewrichtsbol (per gewricht geschaald): de delen lopen in elkaar over
     PARTS.smile = { geo: smileGeo, per: 1, vc: true, noShadow: true };
     PARTS.glasses = { geo: glassesGeo, per: 1, noShadow: true };
     PARTS.beard = { geo: beardGeo, per: 1 };
@@ -719,6 +720,8 @@
       if (owner[name][i] !== key) { owner[name][i] = key; col.set(color); mesh.setColorAt(i, col); dirtyCol[name] = true; }
     }
     const tr = (x, y, z) => T.makeTranslation(x, y, z);
+    const JS = new THREE.Vector3(), JM = new THREE.Matrix4();
+    const joint = (m, r, color) => { JM.copy(m).scale(JS.set(r, r, r)); put('joint', JM, color); };
     const VH = new THREE.Vector3(), VF = new THREE.Vector3(), VK = new THREE.Vector3(), VU = new THREE.Vector3(), VN = new THREE.Vector3(), VFw = new THREE.Vector3(), VKf = new THREE.Vector3();
     const BX = new THREE.Vector3(), BY = new THREE.Vector3(), BZ = new THREE.Vector3();
     function boneTo(m, A, Bp, fwd, s) {   // bot van A naar Bp (geometrie hangt langs -y), knie/elleboog-richting = fwd
@@ -799,6 +802,9 @@
         put('upperArm', pose.upperArm[si], a.coat ? a.coatCol : a.shirt);
         put('foreArm', pose.foreArm[si], a.coat ? a.coatCol : a.shortSleeves ? a.skin : a.shirt);
         put('hand', pose.hand[si], a.skin);
+        // gewrichten: een bol in de kleur van het onderliggende deel, zodat boven- en onderdeel één geheel vormen
+        joint(pose.thigh[si], 0.068, a.dress ? a.legs : a.pants); joint(pose.shin[si], 0.049, a.legs); joint(pose.shoe[si], 0.032, a.legs);
+        joint(pose.upperArm[si], 0.043, a.coat ? a.coatCol : a.shirt); joint(pose.foreArm[si], 0.035, a.coat ? a.coatCol : a.shortSleeves ? a.skin : a.shirt); joint(pose.hand[si], 0.025, a.skin);
       }
       put(a.female ? 'torsoF' : 'torsoM', pose.chest, a.dress ? a.dressCol : a.shirt);
       if (a.coat) put('coat', pose.chest, a.coatCol);
