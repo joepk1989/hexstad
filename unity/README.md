@@ -38,3 +38,13 @@ Wandelen: WASD, muis, Shift rennen, Spatie springen. Wegen op hogere lagen kun j
 - Hexraster, wegen (klik/sleep, 30°-hoeken, lagen), blokken: woning, kantoor, park, gracht, meer, pad, dak, heuvel, blok; opslaan/laden (JSON)
 - Eerste persoon wandelen (Tab), dag/nacht (N), mensen (lopen, groeten, praatjes), auto's, brabbeltaal (M = stem uit), spreekballonnen met kleur
 - Toetsen: 1-9 gereedschap (klikbalk onderin heeft ze allemaal), X weghalen, Ctrl+Z ongedaan
+
+## Planeet (standaard aan)
+`Raatstad.PlanetMode = true` maakt de wereld een echte bol: een Goldberg-veelvlak van 21.162 vakken (21.150 zeshoeken en
+12 vijfhoeken), straal 600 m, omtrek 3,8 km. Bouwen gaat per vak (een weg is ook een blok; wegvakken sluiten vanzelf
+op elkaar aan), de camera schuift over de bol, en in wandelmodus wijst de zwaartekracht naar het middelpunt.
+Zet `PlanetMode` op `false` voor het platte raster met getekende wegen.
+
+## Controle zonder Unity
+`stub/check.sh` compileert alle scripts met `mcs` tegen een kleine stub van de Unity-API (alleen compilefouten,
+niet draaibaar); `stub/PlanetTest.cs` test de planeetgeometrie los van Unity.

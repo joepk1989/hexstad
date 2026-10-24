@@ -174,7 +174,7 @@ public static class BlockMesher
     {
         foreach (Transform ch in parent) UnityEngine.Object.Destroy(ch.gameObject);
         var mb = new Dictionary<string, MeshBuilder>();
-        MeshBuilder M(string k) { if (!mb.TryGetValue(k, out var x)) { x = new MeshBuilder(); mb[k] = x; } return x; }
+        System.Func<string, MeshBuilder> M = k => { if (!mb.TryGetValue(k, out var x)) { x = new MeshBuilder(); mb[k] = x; } return x; };
 
         foreach (var kv in cells)
         {

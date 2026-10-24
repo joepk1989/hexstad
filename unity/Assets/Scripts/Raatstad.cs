@@ -3,6 +3,8 @@ using UnityEngine;
 // Opstart: er is geen scene-opbouw nodig. Maak een lege scene, zet dit script (alle scripts) in het project en druk op Play.
 public class Raatstad : MonoBehaviour
 {
+    public static bool PlanetMode = true;   // true: een echte bol van zeshoeken; false: het platte raster met getekende wegen
+
     // Materialen worden bij het eerste gebruik gemaakt (en opnieuw als ze na een hercompilatie tijdens Play weg zijn)
     static Material mWalk, mAsph, mLine, mWall, mGround, mGrid, mOutline;
     public static Material MatWalk => mWalk ? mWalk : (mWalk = MakeMat(new Color(0.88f, 0.84f, 0.72f)));
@@ -38,7 +40,14 @@ public class Raatstad : MonoBehaviour
             var l = new GameObject("Zon").AddComponent<Light>(); l.type = LightType.Directional; l.transform.rotation = Quaternion.Euler(50, -30, 0); l.shadows = LightShadows.Soft;
         }
         var cam = Camera.main; if (cam == null) { var c = new GameObject("Camera"); c.tag = "MainCamera"; cam = c.AddComponent<Camera>(); c.AddComponent<AudioListener>(); }
-        cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = new Color(0.68f, 0.84f, 0.95f); cam.farClipPlane = 2000f;
+        cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = new Color(0.68f, 0.84f, 0.95f); cam.farClipPlane = PlanetMode ? 5000f : 2000f;
+        if (PlanetMode)
+        {
+            Planet.Build(); PlanetCity.Init(transform); PlanetCity.Load(); PlanetCity.Rebuild();
+            var pb = gameObject.AddComponent<PlanetBuilder>(); pb.Cam = cam;
+            gameObject.AddComponent<DayNight>(); gameObject.AddComponent<Chatter>(); PlanetLife.I = gameObject.AddComponent<PlanetLife>();
+            return;
+        }
 
         // grond met rasterlijnen
         var ground = GameObject.CreatePrimitive(PrimitiveType.Cube); ground.name = "Grond"; ground.transform.localScale = new Vector3(2000, 1, 2000); ground.transform.position = new Vector3(0, -0.5f, 0);

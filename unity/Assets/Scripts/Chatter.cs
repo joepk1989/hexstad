@@ -48,6 +48,18 @@ public class Chatter : MonoBehaviour
     Review Measure()
     {
         var n = new Review();
+        if (Raatstad.PlanetMode)
+        {
+            foreach (var kv in PlanetCity.Cells)
+            {
+                if (kv.Value.Count > 0 && kv.Value[0] == "weg") { n.wegen++; continue; }
+                n.cellen++;
+                foreach (var t in kv.Value) switch (t) { case "woning": n.woning++; break; case "kantoor": n.kantoor++; break; case "park": n.park++; break; case "water": n.water++; break; case "meer": n.meer++; break; case "pad": n.pad++; break; }
+                if (kv.Value.Count >= 4) n.hoog++;
+            }
+            n.bouw = n.woning + n.kantoor; n.autos = PlanetLife.I != null ? PlanetLife.I.CarCount : 0; n.mensen = PlanetLife.I != null ? PlanetLife.I.People.Count : 0;
+            return n;
+        }
         foreach (var kv in City.Cells)
         {
             n.cellen++;
@@ -133,7 +145,7 @@ public class Chatter : MonoBehaviour
         var old = GUI.color;
         foreach (var b in live)
         {
-            Vector3 sp = cam.WorldToScreenPoint(b.who.Head + Vector3.up * 0.3f); if (sp.z < 0.5f) continue;
+            Vector3 sp = cam.WorldToScreenPoint(b.who.Head + b.who.root.up * 0.3f); if (sp.z < 0.5f) continue;
             float d = sp.z; if (d > Range) continue;
             float fade = Mathf.Clamp01((Range - d) / 12f) * Mathf.Clamp01(Mathf.Min(b.t / 0.18f, (b.dur - b.t) / 0.25f));
             style.fontStyle = b.lomp ? FontStyle.Bold : FontStyle.Normal; style.fontSize = Mathf.RoundToInt(Mathf.Clamp(14f / Mathf.Max(6f, d) * 13f + 7f, 10f, 15f));

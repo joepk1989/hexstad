@@ -64,7 +64,8 @@ public class Person
     public bool paused; public float pauseT, chatT, talkT, greetCool, socT, waveT, yaw;
     public Person partner; public Vector2 lookAt; public bool hasLook;
     public AudioSource audio;
-    public Vector3 Head => root.position + Vector3.up * (1.95f * scale);
+    public int cellA = -1, cellB = -1, prevCell = -1; public float ct;   // op de planeet: van vak A naar vak B
+    public Vector3 Head => root.position + root.up * (1.95f * scale);
 }
 
 // Lopende mensen: low-poly lichaam van driehoeken, lopen over de stoepen, groeten elkaar en doen een praatje
@@ -116,12 +117,20 @@ public class People : MonoBehaviour
 
     Person Spawn(RoadPath p)
     {
+        var a = MakePerson(transform);
+        a.path = p; a.s = Random.value * Nav.Length(p); a.dir = Random.value < 0.5f ? 1 : -1;
+        Place(a, 0f); return a;
+    }
+
+    // Een mens met lichaam en stem, nog zonder plek (ook voor de planeet)
+    public static Person MakePerson(Transform parent)
+    {
         Meshes();
-        var a = new Person { path = p, s = Random.value * Nav.Length(p), dir = Random.value < 0.5f ? 1 : -1, speed = 1.1f + Random.value * 0.5f, phase = Random.value * 6.28f };
+        var a = new Person { speed = 1.1f + Random.value * 0.5f, phase = Random.value * 6.28f };
         a.female = Random.value < 0.5f; a.kid = Random.value < 0.12f; a.lomp = Random.value < 0.28f; a.friendly = Random.value < 0.6f;
         a.scale = a.kid ? 0.68f : (0.92f + Random.value * 0.14f); if (a.kid) a.speed *= 0.85f;
         a.voice = (a.female ? 1.55f : 1f) * (a.kid ? 1.5f : 1f) * (0.85f + Random.value * 0.3f);
-        var root = new GameObject("Mens").transform; root.SetParent(transform, false); a.root = root; root.localScale = Vector3.one * a.scale;
+        var root = new GameObject("Mens").transform; root.SetParent(parent, false); a.root = root; root.localScale = Vector3.one * a.scale;
         int sk = Random.Range(0, Skin.Length), sh = Random.Range(0, Shirt.Length), pa = Random.Range(0, Pants.Length);
         Material mSkin = Mats.Get("skin" + sk, Skin[sk]), mShirt = Mats.Get("shirt" + sh, Shirt[sh]), mPants = Mats.Get("pants" + pa, Pants[pa]);
         Part(root, "romp", mTorso, mShirt, new Vector3(0, 0.88f, 0));
@@ -129,7 +138,7 @@ public class People : MonoBehaviour
         a.legL = Part(root, "beenL", mLeg, mPants, new Vector3(-0.09f, 0.9f, 0)); a.legR = Part(root, "beenR", mLeg, mPants, new Vector3(0.09f, 0.9f, 0));
         a.armL = Part(root, "armL", mLimb, mShirt, new Vector3(-0.25f, 1.42f, 0)); a.armR = Part(root, "armR", mLimb, mShirt, new Vector3(0.25f, 1.42f, 0));
         a.audio = root.gameObject.AddComponent<AudioSource>(); a.audio.spatialBlend = 1f; a.audio.rolloffMode = AudioRolloffMode.Linear; a.audio.minDistance = 2f; a.audio.maxDistance = 30f; a.audio.volume = 0.6f; a.audio.playOnAwake = false;
-        Place(a, 0f); return a;
+        return a;
     }
 
     static Transform Part(Transform parent, string n, Mesh m, Material mat, Vector3 pos)
@@ -150,7 +159,7 @@ public class People : MonoBehaviour
         a.root.rotation = Quaternion.Euler(0, a.yaw, 0);
     }
 
-    void Animate(Person a, float dt, bool moving)
+    public static void Animate(Person a, float dt, bool moving)
     {
         float sw = moving ? Mathf.Sin(a.phase) * 38f : 0f;
         a.legL.localRotation = Quaternion.Euler(sw, 0, 0); a.legR.localRotation = Quaternion.Euler(-sw, 0, 0);

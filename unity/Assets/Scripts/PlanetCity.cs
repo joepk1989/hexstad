@@ -1,0 +1,272 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using UnityEngine;
+
+// De stad op de planeet: per vak een stapel blokken; een vak waarvan het onderste blok "weg" is, is een wegvak.
+// Wegvakken sluiten vanzelf op elkaar aan (asfalt van hart naar hart, stoep eromheen). Alles wordt in het
+// assenstelsel van het vak gebouwd, zodat gebouwen overal recht op de bol staan. De bodem is één mesh per
+// deel (1024 vakken); blokken en wegen worden per deel opnieuw gemaakt als er iets verandert.
+[Serializable] public class PCellSave { public int i; public string[] items; }
+[Serializable] public class PSaveData { public int m; public float r; public List<PCellSave> cells = new List<PCellSave>(); }
+
+public static class PlanetCity
+{
+    public static Dictionary<int, List<string>> Cells = new Dictionary<int, List<string>>();
+    public const int ChunkN = 1024;
+    static Transform root, groundRoot;
+    static readonly Dictionary<int, Transform> chunks = new Dictionary<int, Transform>();
+    static readonly HashSet<int> dirty = new HashSet<int>();
+
+    public static bool IsRoad(int i) => Cells.TryGetValue(i, out var l) && l.Count > 0 && l[0] == "weg";
+    public static float StackHeight(int i) { float h = 0f; if (Cells.TryGetValue(i, out var l)) foreach (var t in l) h += Blocks.Height(t); return h; }
+    public static int RoadCount() { int n = 0; foreach (var kv in Cells) if (kv.Value.Count > 0 && kv.Value[0] == "weg") n++; return n; }
+
+    public static Dictionary<int, List<string>> Clone(Dictionary<int, List<string>> src)
+    {
+        var d = new Dictionary<int, List<string>>(); foreach (var kv in src) d[kv.Key] = new List<string>(kv.Value); return d;
+    }
+
+    // plaatsen; geeft een melding terug als het niet kan (anders null)
+    public static string Place(int i, string type)
+    {
+        if (!Cells.TryGetValue(i, out var l)) { l = new List<string>(); Cells[i] = l; }
+        if (type == "weg") { if (l.Count > 0) return "Eerst het vak leegmaken (gum) voor een weg"; l.Add("weg"); Touch(i); return null; }
+        if (l.Count > 0 && l[0] == "weg") return "Op een weg kun je niet bouwen; haal de weg eerst weg (gum)";
+        if (l.Count >= 8) return "Hoger kan niet";
+        if ((type == "water" || type == "meer") && l.Count > 0) l.Clear();
+        if (l.Count > 0 && (l[l.Count - 1] == "water" || l[l.Count - 1] == "meer")) l.Clear();
+        l.Add(type); Touch(i); return null;
+    }
+
+    public static bool RemoveTop(int i)
+    {
+        if (!Cells.TryGetValue(i, out var l) || l.Count == 0) return false;
+        l.RemoveAt(l.Count - 1); if (l.Count == 0) Cells.Remove(i); Touch(i); return true;
+    }
+
+    public static void Touch(int i) { dirty.Add(i / ChunkN); foreach (int j in Planet.Cells[i].nb) dirty.Add(j / ChunkN); }
+    public static void TouchAll() { for (int c = 0; c * ChunkN < Planet.Cells.Length; c++) dirty.Add(c); }
+
+    static string FilePath => Path.Combine(Application.persistentDataPath, "planeet.json");
+
+    public static void Save()
+    {
+        try
+        {
+            var sd = new PSaveData { m = Planet.M, r = Planet.R };
+            foreach (var kv in Cells) if (kv.Value.Count > 0) sd.cells.Add(new PCellSave { i = kv.Key, items = kv.Value.ToArray() });
+            File.WriteAllText(FilePath, JsonUtility.ToJson(sd));
+        }
+        catch (Exception e) { Debug.LogWarning("Opslaan mislukt: " + e.Message); }
+    }
+
+    public static bool Load()
+    {
+        try
+        {
+            if (!File.Exists(FilePath)) return false;
+            var sd = JsonUtility.FromJson<PSaveData>(File.ReadAllText(FilePath)); if (sd == null || sd.m != Planet.M) return false;
+            Cells = new Dictionary<int, List<string>>();
+            foreach (var c in sd.cells) if (c.items != null && c.items.Length > 0 && c.i >= 0 && c.i < Planet.Cells.Length) Cells[c.i] = new List<string>(c.items);
+            TouchAll(); return true;
+        }
+        catch (Exception e) { Debug.LogWarning("Laden mislukt: " + e.Message); return false; }
+    }
+
+    // ---------- bodem ----------
+    public static void Init(Transform parent)
+    {
+        root = new GameObject("Planeetstad").transform; root.SetParent(parent, false);
+        groundRoot = new GameObject("Bodem").transform; groundRoot.SetParent(parent, false);
+        int n = Planet.Cells.Length;
+        for (int c0 = 0; c0 < n; c0 += ChunkN)
+        {
+            var m = new MeshBuilder();
+            for (int i = c0; i < Mathf.Min(n, c0 + ChunkN); i++)
+            {
+                var c = Planet.Cells[i]; Vector3 mid = c.dir * Planet.R;
+                for (int k = 0; k < c.corners.Length; k++) m.Tri(mid, c.corners[k] * Planet.R, c.corners[(k + 1) % c.corners.Length] * Planet.R, c.dir);
+            }
+            var go = new GameObject("Bodem " + (c0 / ChunkN)); go.transform.SetParent(groundRoot, false);
+            var mesh = m.Build(); go.AddComponent<MeshFilter>().sharedMesh = mesh; go.AddComponent<MeshRenderer>().sharedMaterial = Raatstad.MatGround;
+            go.AddComponent<MeshCollider>().sharedMesh = mesh;
+        }
+    }
+
+    // ---------- blokken en wegen per deel ----------
+    class Frame
+    {
+        public Vector3 o, e, u, n; public Vector2[] poly; public float rad;
+        public Frame(int i) { var c = Planet.Cells[i]; u = c.dir; e = c.east; n = c.north; o = c.dir * Planet.R; poly = c.local; rad = c.radius; }
+        public Vector3 P(float x, float y, float z) => o + e * x + u * y + n * z;
+        public Vector3 D(float x, float y, float z) => e * x + u * y + n * z;
+    }
+
+    static Vector2 C(Frame f, int i, float k) => f.poly[i % f.poly.Length] * k;
+    static void Wall(MeshBuilder m, Frame f, float k, float y0, float y1)
+    {
+        for (int i = 0; i < f.poly.Length; i++) { Vector2 a = C(f, i, k), b = C(f, i + 1, k), mid = (a + b) * 0.5f; m.Quad(f.P(a.x, y0, a.y), f.P(b.x, y0, b.y), f.P(b.x, y1, b.y), f.P(a.x, y1, a.y), f.D(mid.x, 0, mid.y)); }
+    }
+    static void Top(MeshBuilder m, Frame f, float k, float y)
+    {
+        for (int i = 0; i < f.poly.Length; i++) { Vector2 a = C(f, i, k), b = C(f, i + 1, k); m.Tri(f.P(0, y, 0), f.P(a.x, y, a.y), f.P(b.x, y, b.y), f.u); }
+    }
+    static void Windows(MeshBuilder m, Frame f, float k, float y0, float y1, float f0, float f1)
+    {
+        for (int i = 0; i < f.poly.Length; i++)
+        {
+            Vector2 a = C(f, i, k), b = C(f, i + 1, k), outw = ((a + b) * 0.5f).normalized;
+            Vector2 p0 = Vector2.Lerp(a, b, f0) + outw * 0.04f, p1 = Vector2.Lerp(a, b, f1) + outw * 0.04f;
+            m.Quad(f.P(p0.x, y0, p0.y), f.P(p1.x, y0, p1.y), f.P(p1.x, y1, p1.y), f.P(p0.x, y1, p0.y), f.D(outw.x, 0, outw.y));
+        }
+    }
+    static void Cone(MeshBuilder m, Frame f, float cx, float cz, float r, float y0, float y1, float rTop)
+    {
+        for (int i = 0; i < 6; i++)
+        {
+            float a0 = i * Mathf.PI / 3f, a1 = (i + 1) * Mathf.PI / 3f, am = (a0 + a1) * 0.5f;
+            Vector3 b0 = f.P(cx + Mathf.Cos(a0) * r, y0, cz + Mathf.Sin(a0) * r), b1 = f.P(cx + Mathf.Cos(a1) * r, y0, cz + Mathf.Sin(a1) * r);
+            Vector3 outw = f.D(Mathf.Cos(am), (r - rTop) / Mathf.Max(0.01f, y1 - y0), Mathf.Sin(am));
+            if (rTop <= 0.001f) m.Tri(b0, b1, f.P(cx, y1, cz), outw);
+            else m.Quad(b0, b1, f.P(cx + Mathf.Cos(a1) * rTop, y1, cz + Mathf.Sin(a1) * rTop), f.P(cx + Mathf.Cos(a0) * rTop, y1, cz + Mathf.Sin(a0) * rTop), outw);
+        }
+    }
+    static void Roof(MeshBuilder m, Frame f, float k, float y1)
+    {
+        Vector3 apex = f.P(0, y1 + 2.4f, 0);
+        for (int i = 0; i < f.poly.Length; i++) { Vector2 a = C(f, i, k), b = C(f, i + 1, k), mid = (a + b) * 0.5f; m.Tri(f.P(a.x, y1, a.y), f.P(b.x, y1, b.y), apex, f.D(mid.x, 0.6f * mid.magnitude, mid.y)); }
+    }
+    static void Cap6(MeshBuilder m, Frame f, float r, float y)
+    {
+        for (int i = 0; i < 6; i++) { float a0 = i * Mathf.PI / 3f, a1 = (i + 1) * Mathf.PI / 3f; m.Tri(f.P(0, y, 0), f.P(Mathf.Cos(a0) * r, y, Mathf.Sin(a0) * r), f.P(Mathf.Cos(a1) * r, y, Mathf.Sin(a1) * r), f.u); }
+    }
+    static void Disc(MeshBuilder m, Frame f, float r, float y)
+    {
+        for (int i = 0; i < 12; i++) { float a0 = i * Mathf.PI / 6f, a1 = (i + 1) * Mathf.PI / 6f; m.Tri(f.P(0, y, 0), f.P(Mathf.Cos(a0) * r, y, Mathf.Sin(a0) * r), f.P(Mathf.Cos(a1) * r, y, Mathf.Sin(a1) * r), f.u); }
+    }
+    static void Skirt(MeshBuilder m, Frame f, float r, float y0, float y1)
+    {
+        for (int i = 0; i < 12; i++) { float a0 = i * Mathf.PI / 6f, a1 = (i + 1) * Mathf.PI / 6f, am = (a0 + a1) * 0.5f; m.Quad(f.P(Mathf.Cos(a0) * r, y0, Mathf.Sin(a0) * r), f.P(Mathf.Cos(a1) * r, y0, Mathf.Sin(a1) * r), f.P(Mathf.Cos(a1) * r, y1, Mathf.Sin(a1) * r), f.P(Mathf.Cos(a0) * r, y1, Mathf.Sin(a0) * r), f.D(Mathf.Cos(am), 0, Mathf.Sin(am))); }
+    }
+    static void Strip(MeshBuilder m, Frame f, Vector2 d, Vector2 r, float s0, float s1, float hw, float y)
+    {
+        Vector2 a = d * s0 - r * hw, b = d * s0 + r * hw, c = d * s1 + r * hw, e = d * s1 - r * hw;
+        m.Quad(f.P(a.x, y, a.y), f.P(b.x, y, b.y), f.P(c.x, y, c.y), f.P(e.x, y, e.y), f.u);
+    }
+    static void StripSides(MeshBuilder m, Frame f, Vector2 d, Vector2 r, float s0, float s1, float hw, float y0, float y1)
+    {
+        for (int sg = -1; sg <= 1; sg += 2)
+        {
+            Vector2 a = d * s0 + r * (hw * sg), b = d * s1 + r * (hw * sg);
+            m.Quad(f.P(a.x, y0, a.y), f.P(b.x, y0, b.y), f.P(b.x, y1, b.y), f.P(a.x, y1, a.y), f.D(r.x * sg, 0, r.y * sg));
+        }
+    }
+
+    static void Road(Dictionary<string, MeshBuilder> mb, Frame fr, int i)
+    {
+        System.Func<string, MeshBuilder> M = k => { if (!mb.TryGetValue(k, out var x)) { x = new MeshBuilder(); mb[k] = x; } return x; };
+        Disc(M("stoep"), fr, 4.6f, 0.08f); Skirt(M("stoep"), fr, 4.6f, -0.35f, 0.08f);
+        Disc(M("asfalt"), fr, 3.3f, 0.14f);
+        foreach (int j in Planet.Cells[i].nb)
+        {
+            if (!IsRoad(j)) continue;
+            Vector3 d3 = Planet.Cells[j].dir * Planet.R - fr.o;
+            Vector2 q = new Vector2(Vector3.Dot(d3, fr.e), Vector3.Dot(d3, fr.n)) * 0.5f;   // tot het midden van de gedeelde rand
+            float L = q.magnitude; Vector2 d = q / L, r = new Vector2(d.y, -d.x);
+            Strip(M("stoep"), fr, d, r, 0f, L, 4.6f, 0.095f); StripSides(M("stoep"), fr, d, r, 0f, L, 4.6f, -0.35f, 0.095f);
+            Strip(M("asfalt"), fr, d, r, 0f, L, 2.5f, 0.155f);
+            Strip(M("lijn"), fr, d, r, 3.3f, L, 0.08f, 0.165f);
+        }
+    }
+
+    static Color ColorOf(string k)
+    {
+        switch (k)
+        {
+            case "muur": return new Color(0.93f, 0.86f, 0.72f); case "dak": return new Color(0.65f, 0.30f, 0.22f);
+            case "kantoor": return new Color(0.58f, 0.68f, 0.78f); case "glas": return new Color(0.20f, 0.30f, 0.40f);
+            case "plat": return new Color(0.50f, 0.50f, 0.53f); case "gras": return new Color(0.52f, 0.74f, 0.33f);
+            case "water": return new Color(0.20f, 0.50f, 0.78f); case "zand": return new Color(0.86f, 0.79f, 0.55f);
+            case "pad": return new Color(0.82f, 0.76f, 0.63f); case "blad": return new Color(0.20f, 0.50f, 0.22f);
+            case "steen": return new Color(0.62f, 0.60f, 0.58f); case "stoep": return new Color(0.88f, 0.84f, 0.72f);
+            case "asfalt": return new Color(0.27f, 0.28f, 0.30f); case "lijn": return Color.white;
+            default: return new Color(0.40f, 0.28f, 0.18f);
+        }
+    }
+
+    public static void Rebuild()
+    {
+        if (dirty.Count == 0) return;
+        foreach (int ch in dirty) BuildChunk(ch);
+        dirty.Clear();
+    }
+
+    static void BuildChunk(int ch)
+    {
+        if (chunks.TryGetValue(ch, out var old) && old != null) UnityEngine.Object.Destroy(old.gameObject);
+        chunks.Remove(ch);
+        var mb = new Dictionary<string, MeshBuilder>();
+        System.Func<string, MeshBuilder> M = k => { if (!mb.TryGetValue(k, out var x)) { x = new MeshBuilder(); mb[k] = x; } return x; };
+        int i0 = ch * ChunkN, i1 = Mathf.Min(Planet.Cells.Length, i0 + ChunkN);
+        for (int i = i0; i < i1; i++)
+        {
+            if (!Cells.TryGetValue(i, out var list) || list.Count == 0) continue;
+            var fr = new Frame(i);
+            if (list[0] == "weg") { Road(mb, fr, i); continue; }
+            float h = 0f; int hash = i * 73856093;
+            for (int k = 0; k < list.Count; k++)
+            {
+                string t = list[k]; bool top = k == list.Count - 1; float h1 = h + Blocks.Height(t), h0 = k == 0 ? -0.2f : h;   // onderste blok iets de bodem in (de bol loopt af naar de hoeken)
+                switch (t)
+                {
+                    case "woning":
+                        Wall(M("muur"), fr, 0.78f, h0, h1); Windows(M("glas"), fr, 0.78f, h + 1.0f, h + 2.0f, 0.18f, 0.40f); Windows(M("glas"), fr, 0.78f, h + 1.0f, h + 2.0f, 0.60f, 0.82f);
+                        if (top) { Roof(M("dak"), fr, 0.84f, h1); Top(M("dak"), fr, 0.84f, h1 - 0.02f); } else Top(M("muur"), fr, 0.78f, h1);
+                        break;
+                    case "kantoor":
+                        Wall(M("kantoor"), fr, 0.9f, h0, h1); Windows(M("glas"), fr, 0.9f, h + 0.5f, h + 1.2f, 0.08f, 0.92f); Windows(M("glas"), fr, 0.9f, h + 1.7f, h + 2.4f, 0.08f, 0.92f);
+                        Top(M("plat"), fr, 0.9f, h1); if (top) { Wall(M("plat"), fr, 0.9f, h1, h1 + 0.25f); Top(M("plat"), fr, 0.9f, h1 + 0.25f); }
+                        break;
+                    case "dak":
+                        Cone(M("dak"), fr, 0, 0, fr.rad * 0.95f, h, h1, fr.rad * 0.5f); Top(M("dak"), fr, 0.5f, h1);
+                        break;
+                    case "park":
+                        Top(M("gras"), fr, 0.98f, h + 0.05f); if (k == 0) Wall(M("gras"), fr, 0.98f, -0.2f, h + 0.05f);
+                        for (int j = 0; j < 3; j++)
+                        {
+                            float a = ((hash >> (j * 5)) & 31) / 31f * 6.28f + j * 2.1f, rr = (0.25f + ((hash >> (j * 3 + 2)) & 7) / 7f * 0.45f) * fr.rad;
+                            float tx = Mathf.Cos(a) * rr, tz = Mathf.Sin(a) * rr;
+                            Cone(M("stam"), fr, tx, tz, 0.22f, h + 0.05f, h + 1.2f, 0.18f); Cone(M("blad"), fr, tx, tz, 1.5f, h + 1.0f, h + 4.0f, 0f);
+                        }
+                        break;
+                    case "water":
+                        Top(M("water"), fr, 1.0f, h + 0.03f); if (k == 0) Wall(M("water"), fr, 1.0f, -0.2f, h + 0.03f);
+                        break;
+                    case "meer":
+                        Top(M("zand"), fr, 1.0f, h + 0.03f); if (k == 0) Wall(M("zand"), fr, 1.0f, -0.2f, h + 0.03f); Top(M("water"), fr, 0.8f, h + 0.045f);
+                        break;
+                    case "pad":
+                        Wall(M("pad"), fr, 0.72f, h0, h1); Top(M("pad"), fr, 0.72f, h1);
+                        break;
+                    case "heuvel":
+                        Cone(M("gras"), fr, 0, 0, fr.rad * 1.0f, h0, h1, fr.rad * 0.55f); Cap6(M("gras"), fr, fr.rad * 0.55f, h1);
+                        break;
+                    case "blok":
+                        Wall(M("steen"), fr, 0.96f, h0, h1); Top(M("steen"), fr, 0.96f, h1);
+                        break;
+                }
+                h = h1;
+            }
+        }
+        if (mb.Count == 0) return;
+        var go = new GameObject("Deel " + ch); go.transform.SetParent(root, false); chunks[ch] = go.transform;
+        foreach (var kv in mb)
+        {
+            if (kv.Value.v.Count == 0) continue;
+            var child = new GameObject(kv.Key); child.transform.SetParent(go.transform, false);
+            var mesh = kv.Value.Build(); child.AddComponent<MeshFilter>().sharedMesh = mesh; child.AddComponent<MeshRenderer>().sharedMaterial = Mats.Get("p_" + kv.Key, ColorOf(kv.Key));
+            if (kv.Key != "water" && kv.Key != "zand" && kv.Key != "lijn") child.AddComponent<MeshCollider>().sharedMesh = mesh;
+        }
+    }
+}
