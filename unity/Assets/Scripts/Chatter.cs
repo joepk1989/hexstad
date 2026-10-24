@@ -79,6 +79,8 @@ public class Chatter : MonoBehaviour
     string Pick(Person a, out int mood)
     {
         var n = rv; mood = 2;
+        if (Weather.Snow > 0.3f && UnityEngine.Random.value < 0.5f) { mood = 0; return Rand(ChatterData.Snow); }
+        if (Weather.Rain > 0.3f && UnityEngine.Random.value < 0.6f) { mood = 1; return Rand(ChatterData.Wet); }
         if (DayNight.Night > 0.7f && UnityEngine.Random.value < 0.25f) { mood = 0; return Rand(ChatterData.Night); }
         if (UnityEngine.Random.value < 0.4f)
         {

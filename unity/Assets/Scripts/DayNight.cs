@@ -22,10 +22,12 @@ public class DayNight : MonoBehaviour
         if (sun != null)
         {
             sun.transform.rotation = Quaternion.Euler(Mathf.Clamp(ang, 5f, 175f), -30f, 0f);
-            sun.intensity = Mathf.Lerp(1.15f, 0.18f, Night); sun.color = Color.Lerp(Color.Lerp(new Color(1f, 0.62f, 0.4f), new Color(1f, 0.96f, 0.9f), Mathf.Clamp01(elev * 3f)), new Color(0.3f, 0.35f, 0.6f), Night);
+            sun.intensity = Mathf.Lerp(1.15f, 0.18f, Night) * (1f - 0.55f * Weather.Cloud) + Weather.Flash * 2f; sun.color = Color.Lerp(Color.Lerp(new Color(1f, 0.62f, 0.4f), new Color(1f, 0.96f, 0.9f), Mathf.Clamp01(elev * 3f)), new Color(0.3f, 0.35f, 0.6f), Night);
         }
         Color day = new Color(0.68f, 0.84f, 0.95f), dusk = new Color(0.95f, 0.6f, 0.4f), night = new Color(0.04f, 0.06f, 0.14f);
         Color sky = Color.Lerp(Color.Lerp(dusk, day, Mathf.Clamp01(elev * 3f)), night, Night);
+        sky = Color.Lerp(sky, new Color(0.6f, 0.63f, 0.68f) * (1f - 0.85f * Night), Weather.Cloud * 0.7f);
+        Mats.Get("p_lamp", Color.white).color = Color.Lerp(new Color(0.85f, 0.85f, 0.8f), new Color(1f, 0.88f, 0.5f), Mathf.Clamp01(Night * 1.5f + Weather.Cloud * 0.3f));   // lantaarns gaan aan
         if (cam != null) cam.backgroundColor = sky;
         RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat; RenderSettings.ambientLight = Color.Lerp(new Color(0.55f, 0.58f, 0.62f), new Color(0.2f, 0.22f, 0.32f), Night);
         RenderSettings.fog = false;

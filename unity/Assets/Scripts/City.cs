@@ -106,6 +106,11 @@ public static class Mats
         if (cache.TryGetValue(name, out var m) && m != null) return m;
         m = Raatstad.MakeMat(c); cache[name] = m; return m;
     }
+    public static Material GetUnlit(string name, Color c)
+    {
+        if (cache.TryGetValue(name, out var m) && m != null) return m;
+        m = Raatstad.MakeMat(c, true); cache[name] = m; return m;
+    }
 }
 
 // Plat gearceerde (low-poly) meshes: elke driehoek krijgt zijn eigen normaal

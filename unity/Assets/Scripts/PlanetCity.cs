@@ -19,6 +19,8 @@ public static class PlanetCity
     static readonly HashSet<int> dirty = new HashSet<int>();
 
     public static bool IsRoad(int i) => Cells.TryGetValue(i, out var l) && l.Count > 0 && l[0] == "weg";
+    public static bool IsPath(int i) => Cells.TryGetValue(i, out var l) && l.Count == 1 && l[0] == "pad";
+    public static bool IsWalk(int i) => IsRoad(i) || IsPath(i);
     public static float StackHeight(int i) { float h = 0f; if (Cells.TryGetValue(i, out var l)) foreach (var t in l) h += Blocks.Height(t); return h; }
     public static int RoadCount() { int n = 0; foreach (var kv in Cells) if (kv.Value.Count > 0 && kv.Value[0] == "weg") n++; return n; }
 
@@ -208,6 +210,20 @@ public static class PlanetCity
         System.Func<string, MeshBuilder> M = k => { if (!mb.TryGetValue(k, out var x)) { x = new MeshBuilder(); mb[k] = x; } return x; };
         Disc(M("stoep"), fr, 4.6f, 0.08f); Skirt(M("stoep"), fr, 4.6f, -0.35f, 0.08f);
         Disc(M("asfalt"), fr, 3.3f, 0.14f);
+        int rn = 0; Vector2 freeDir = new Vector2(0, 1); float freeBest = -2f;
+        foreach (int j in Planet.Cells[i].nb)
+        {
+            Vector3 d3 = Planet.Cells[j].dir * Planet.R - fr.o; Vector2 q = new Vector2(Vector3.Dot(d3, fr.e), Vector3.Dot(d3, fr.n)).normalized;
+            if (IsRoad(j)) rn++;
+            else { float sc = (i * 7 + j) % 13 / 13f; if (sc > freeBest) { freeBest = sc; freeDir = q; } }
+        }
+        if (rn >= 3) { Disc(M("gras"), fr, 1.4f, 0.2f); Skirt(M("stoep"), fr, 1.5f, 0.14f, 0.19f); }   // kruising: een klein rotonde-eiland
+        if (freeBest > -1f)   // lantaarnpaal op de stoep aan een vrije kant
+        {
+            Vector2 lp = freeDir * 4.0f;
+            Cone(M("paal"), fr, lp.x, lp.y, 0.08f, 0.08f, 5.2f, 0.06f);
+            Cone(M("lamp"), fr, lp.x, lp.y, 0.28f, 4.9f, 5.35f, 0.2f); Cap6(M("lamp"), fr, 0.2f, 5.35f);
+        }
         foreach (int j in Planet.Cells[i].nb)
         {
             if (!IsRoad(j)) continue;
@@ -256,11 +272,28 @@ public static class PlanetCity
         }
     }
 
+    // Een pad: smal, zandkleurig, sluit aan op buurpaden en wegen
+    static void Footpath(Dictionary<string, MeshBuilder> mb, Frame fr, int i)
+    {
+        System.Func<string, MeshBuilder> M = k => { if (!mb.TryGetValue(k, out var x)) { x = new MeshBuilder(); mb[k] = x; } return x; };
+        Disc(M("pad"), fr, 1.3f, 0.1f); Skirt(M("pad"), fr, 1.3f, -0.3f, 0.1f);
+        foreach (int j in Planet.Cells[i].nb)
+        {
+            if (!IsWalk(j)) continue;
+            Vector3 d3 = Planet.Cells[j].dir * Planet.R - fr.o;
+            Vector2 q = new Vector2(Vector3.Dot(d3, fr.e), Vector3.Dot(d3, fr.n)) * 0.5f; float L = q.magnitude; Vector2 d = q / L, r = new Vector2(d.y, -d.x);
+            float L2 = IsRoad(j) ? L - 4.4f : L;   // tot aan de stoep van een weg
+            Strip(M("pad"), fr, d, r, 0f, L2, 1.1f, 0.105f); StripSides(M("pad"), fr, d, r, 0f, L2, 1.1f, -0.3f, 0.105f);
+        }
+    }
+
     static Color ColorOf(string k)
     {
         switch (k)
         {
-            case "muur": return new Color(0.93f, 0.86f, 0.72f); case "dak": return new Color(0.65f, 0.30f, 0.22f);
+            case "muur": case "muur0": return new Color(0.93f, 0.86f, 0.72f); case "muur1": return new Color(0.72f, 0.42f, 0.32f); case "muur2": return new Color(0.88f, 0.88f, 0.84f); case "muur3": return new Color(0.55f, 0.5f, 0.45f);
+            case "dak": case "dak0": return new Color(0.65f, 0.30f, 0.22f); case "dak1": return new Color(0.35f, 0.33f, 0.36f);
+            case "paal": return new Color(0.25f, 0.27f, 0.3f); case "lamp": return new Color(0.85f, 0.85f, 0.8f);
             case "kantoor": return new Color(0.58f, 0.68f, 0.78f); case "glas": return new Color(0.20f, 0.30f, 0.40f);
             case "plat": return new Color(0.50f, 0.50f, 0.53f); case "gras": return new Color(0.52f, 0.74f, 0.33f);
             case "water": return new Color(0.20f, 0.50f, 0.78f); case "zand": return new Color(0.86f, 0.79f, 0.55f);
@@ -292,6 +325,7 @@ public static class PlanetCity
             var fr = new Frame(i);
             if (list[0] == "weg") { Road(mb, fr, i); continue; }
             if (list.Count == 1 && list[0] == "meer") { Lake(mb, fr, i, 0f, i * 73856093); continue; }
+            if (list.Count == 1 && list[0] == "pad") { Footpath(mb, fr, i); continue; }
             float h = 0f; int hash = i * 73856093;
             for (int k = 0; k < list.Count; k++)
             {
@@ -299,8 +333,9 @@ public static class PlanetCity
                 switch (t)
                 {
                     case "woning":
-                        Wall(M("muur"), fr, 0.78f, h0, h1); Windows(M("glas"), fr, 0.78f, h + 1.0f, h + 2.0f, 0.18f, 0.40f); Windows(M("glas"), fr, 0.78f, h + 1.0f, h + 2.0f, 0.60f, 0.82f);
-                        if (top) { Roof(M("dak"), fr, 0.84f, h1); Top(M("dak"), fr, 0.84f, h1 - 0.02f); } else Top(M("muur"), fr, 0.78f, h1);
+                        { string mu = "muur" + ((hash >> 3) & 3), dk = "dak" + ((hash >> 7) & 1);
+                        Wall(M(mu), fr, 0.78f, h0, h1); Windows(M("glas"), fr, 0.78f, h + 1.0f, h + 2.0f, 0.18f, 0.40f); Windows(M("glas"), fr, 0.78f, h + 1.0f, h + 2.0f, 0.60f, 0.82f);
+                        if (top) { Roof(M(dk), fr, 0.84f, h1); Top(M(dk), fr, 0.84f, h1 - 0.02f); } else Top(M(mu), fr, 0.78f, h1); }
                         break;
                     case "kantoor":
                         Wall(M("kantoor"), fr, 0.9f, h0, h1); Windows(M("glas"), fr, 0.9f, h + 0.5f, h + 1.2f, 0.08f, 0.92f); Windows(M("glas"), fr, 0.9f, h + 1.7f, h + 2.4f, 0.08f, 0.92f);
@@ -346,8 +381,8 @@ public static class PlanetCity
         {
             if (kv.Value.v.Count == 0) continue;
             var child = new GameObject(kv.Key); child.transform.SetParent(go.transform, false);
-            var mesh = kv.Value.Build(); child.AddComponent<MeshFilter>().sharedMesh = mesh; child.AddComponent<MeshRenderer>().sharedMaterial = Mats.Get("p_" + kv.Key, ColorOf(kv.Key));
-            if (kv.Key != "water" && kv.Key != "zand" && kv.Key != "lijn") child.AddComponent<MeshCollider>().sharedMesh = mesh;
+            var mesh = kv.Value.Build(); child.AddComponent<MeshFilter>().sharedMesh = mesh; child.AddComponent<MeshRenderer>().sharedMaterial = kv.Key == "lamp" ? Mats.GetUnlit("p_lamp", ColorOf(kv.Key)) : Mats.Get("p_" + kv.Key, ColorOf(kv.Key));
+            if (kv.Key != "water" && kv.Key != "zand" && kv.Key != "lijn" && kv.Key != "lamp" && kv.Key != "riet") child.AddComponent<MeshCollider>().sharedMesh = mesh;
         }
     }
 }

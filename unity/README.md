@@ -51,6 +51,9 @@ Zet `PlanetMode` op `false` voor het platte raster met getekende wegen.
 - Geluid: vogels (`Assets/Resources/vogels.mp3`), wind, stadsruis, voetstappen; M = geluid aan/uit
 - Schoonheidsscore linksonder (muis erop = de uitleg per onderdeel), blokken, hoogste punt, fps, pijl naar het centrum
 
+- Weer (R: zon, bewolkt, regen, onweer, mist, sneeuw; anders wisselend), lantaarns die 's avonds aangaan, rotonde-eilandje op kruisingen,
+  paden die op elkaar en op wegen aansluiten (mensen lopen er ook over), huizen in vier muurkleuren, autogezoem, H = naar het midden van de stad
+
 ## Controle zonder Unity
 `stub/check.sh` compileert alle scripts met `mcs` tegen een kleine stub van de Unity-API (alleen compilefouten,
 niet draaibaar); `stub/PlanetTest.cs` test de planeetgeometrie los van Unity.

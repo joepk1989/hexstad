@@ -8,10 +8,11 @@ public class PlanetLife : MonoBehaviour
 {
     public static PlanetLife I;
     public readonly List<Person> People = new List<Person>();
-    class Car { public Transform root; public int a, b, prev; public float t, speed; }
+    class Car { public Transform root; public int a, b, prev; public float t, speed; public AudioSource audio; }
     readonly List<Car> cars = new List<Car>();
     public int CarCount => cars.Count;
-    readonly List<int> roads = new List<int>();
+    readonly List<int> roads = new List<int>(), walks = new List<int>();
+    static AudioClip hum;
     float roadsT, spawnT, idleT = 4f;
     PlanetWalker walker;
     static readonly Color[] Paint = { new Color(0.8f, 0.2f, 0.2f), new Color(0.2f, 0.4f, 0.75f), new Color(0.9f, 0.85f, 0.3f), new Color(0.9f, 0.9f, 0.92f), new Color(0.2f, 0.2f, 0.22f), new Color(0.25f, 0.6f, 0.4f) };
@@ -20,14 +21,14 @@ public class PlanetLife : MonoBehaviour
 
     void RefreshRoads()
     {
-        roads.Clear(); foreach (var kv in PlanetCity.Cells) if (kv.Value.Count > 0 && kv.Value[0] == "weg") roads.Add(kv.Key);
+        roads.Clear(); walks.Clear(); foreach (var kv in PlanetCity.Cells) { if (kv.Value.Count > 0 && kv.Value[0] == "weg") { roads.Add(kv.Key); walks.Add(kv.Key); } else if (kv.Value.Count == 1 && kv.Value[0] == "pad") walks.Add(kv.Key); }
     }
 
     // volgend wegvak vanaf a, liefst niet terug naar prev
-    static int NextRoad(int a, int prev)
+    static int NextRoad(int a, int prev, bool walk = false)
     {
-        var opts = new List<int>(6); foreach (int j in Planet.Cells[a].nb) if (PlanetCity.IsRoad(j) && j != prev) opts.Add(j);
-        if (opts.Count == 0) return PlanetCity.IsRoad(prev) ? prev : a;
+        var opts = new List<int>(6); foreach (int j in Planet.Cells[a].nb) if ((walk ? PlanetCity.IsWalk(j) : PlanetCity.IsRoad(j)) && j != prev) opts.Add(j);
+        if (opts.Count == 0) return (walk ? PlanetCity.IsWalk(prev) : PlanetCity.IsRoad(prev)) ? prev : a;
         return opts[Random.Range(0, opts.Count)];
     }
 
@@ -45,13 +46,14 @@ public class PlanetLife : MonoBehaviour
     Person SpawnPerson()
     {
         var a = global::People.MakePerson(transform);
-        a.cellA = roads[Random.Range(0, roads.Count)]; a.prevCell = -1; a.cellB = NextRoad(a.cellA, -1); a.ct = Random.value;
+        a.cellA = walks[Random.Range(0, walks.Count)]; a.prevCell = -1; a.cellB = NextRoad(a.cellA, -1, true); a.ct = Random.value;
         PlacePerson(a, 0f); return a;
     }
 
     void PlacePerson(Person a, float dt)
     {
-        Where(a.cellA, a.cellB, a.ct, 3.5f, 0.1f, out Vector3 pos, out Vector3 fwd, out Vector3 up);
+        float side = PlanetCity.IsRoad(a.cellA) && PlanetCity.IsRoad(a.cellB) ? 3.5f : (PlanetCity.IsRoad(a.cellA) || PlanetCity.IsRoad(a.cellB)) ? 1.8f : 0.35f;
+        Where(a.cellA, a.cellB, a.ct, side, 0.12f, out Vector3 pos, out Vector3 fwd, out Vector3 up);
         a.root.position = pos;
         if (a.paused && a.partner != null) { Vector3 to = a.partner.root.position - pos; to -= up * Vector3.Dot(to, up); if (to.sqrMagnitude > 1e-6f) fwd = to.normalized; }
         Quaternion target = Quaternion.LookRotation(fwd, up);
@@ -68,7 +70,23 @@ public class PlanetLife : MonoBehaviour
         Box(root, new Vector3(0, 1.1f, -0.2f), new Vector3(1.5f, 0.5f, 2.2f), Mats.Get("autoglas", new Color(0.18f, 0.25f, 0.32f)));
         Box(root, new Vector3(0, 0.25f, 1.3f), new Vector3(1.9f, 0.3f, 0.5f), Mats.Get("autowiel", new Color(0.1f, 0.1f, 0.1f)));
         Box(root, new Vector3(0, 0.25f, -1.3f), new Vector3(1.9f, 0.3f, 0.5f), Mats.Get("autowiel", new Color(0.1f, 0.1f, 0.1f)));
+        if (hum == null) hum = MakeHum();
+        c.audio = root.gameObject.AddComponent<AudioSource>(); c.audio.clip = hum; c.audio.loop = true; c.audio.spatialBlend = 1f; c.audio.rolloffMode = AudioRolloffMode.Linear; c.audio.minDistance = 4f; c.audio.maxDistance = 70f; c.audio.volume = 0.35f; c.audio.pitch = 0.9f + c.speed / 25f; c.audio.Play();
         PlaceCar(c, 0f); return c;
+    }
+
+    // Elektrisch gezoem: zaagtand met een kwint erboven, laag gefilterd, plus wat bandengeruis
+    static AudioClip MakeHum()
+    {
+        int sr = 22050, n = sr * 2; var d = new float[n]; var rnd = new System.Random(5); float ph1 = 0, ph2 = 0, lp = 0, nz = 0;
+        for (int i = 0; i < n; i++)
+        {
+            ph1 += 110f / sr; if (ph1 > 1f) ph1 -= 1f; ph2 += 165f / sr; if (ph2 > 1f) ph2 -= 1f;
+            float x = (ph1 * 2f - 1f) * 0.5f + Mathf.Sin(ph2 * 6.2832f) * 0.4f; lp += 0.06f * (x - lp);
+            float w = (float)rnd.NextDouble() * 2f - 1f; nz += 0.12f * (w - nz);
+            d[i] = lp * 0.8f + nz * 0.25f;
+        }
+        var clip = AudioClip.Create("zoem", n, 1, sr, false); clip.SetData(d, 0); return clip;
     }
 
     static void Box(Transform parent, Vector3 pos, Vector3 size, Material m)
@@ -85,12 +103,13 @@ public class PlanetLife : MonoBehaviour
     }
 
     // een stap langs de boog van a naar b; aan het eind het volgende vak kiezen
-    static bool Advance(ref int a, ref int b, ref int prev, ref float t, float speed, float dt)
+    static bool Advance(ref int a, ref int b, ref int prev, ref float t, float speed, float dt, bool walk = false)
     {
-        if (a == b || !PlanetCity.IsRoad(a) || !PlanetCity.IsRoad(b)) { if (!PlanetCity.IsRoad(a)) return false; b = NextRoad(a, prev); t = 0f; if (a == b) return true; }
+        System.Func<int, bool> ok = walk ? (System.Func<int, bool>)PlanetCity.IsWalk : PlanetCity.IsRoad;
+        if (a == b || !ok(a) || !ok(b)) { if (!ok(a)) return false; b = NextRoad(a, prev, walk); t = 0f; if (a == b) return true; }
         float len = Vector3.Distance(Planet.Cells[a].dir, Planet.Cells[b].dir) * Planet.R;
         t += speed * dt / Mathf.Max(0.1f, len);
-        while (t >= 1f) { t -= 1f; prev = a; a = b; b = NextRoad(a, prev); if (a == b) { t = 0f; break; } }
+        while (t >= 1f) { t -= 1f; prev = a; a = b; b = NextRoad(a, prev, walk); if (a == b) { t = 0f; break; } }
         return true;
     }
 
@@ -99,12 +118,12 @@ public class PlanetLife : MonoBehaviour
         float dt = Mathf.Min(Time.deltaTime, 0.05f);
         if (walker == null) walker = FindAnyObjectByType<PlanetWalker>(FindObjectsInactive.Include);
         roadsT -= dt; if (roadsT <= 0f) { roadsT = 2f; RefreshRoads(); }
-        int targetP = Mathf.Clamp(roads.Count / 2, 0, 40), targetC = Mathf.Clamp(roads.Count / 6, 0, 16);
+        int targetP = Mathf.Clamp(walks.Count / 2, 0, 40), targetC = Mathf.Clamp(roads.Count / 6, 0, 16);
         spawnT -= dt;
-        if (roads.Count > 0 && spawnT <= 0f)
+        if (spawnT <= 0f)
         {
-            if (People.Count < targetP) { People.Add(SpawnPerson()); spawnT = 0.4f; }
-            else if (cars.Count < targetC) { cars.Add(SpawnCar()); spawnT = 0.7f; }
+            if (walks.Count > 0 && People.Count < targetP) { People.Add(SpawnPerson()); spawnT = 0.4f; }
+            else if (roads.Count > 0 && cars.Count < targetC) { cars.Add(SpawnCar()); spawnT = 0.7f; }
         }
         while (People.Count > targetP) { Destroy(People[People.Count - 1].root.gameObject); People.RemoveAt(People.Count - 1); }
         while (cars.Count > targetC) { Destroy(cars[cars.Count - 1].root.gameObject); cars.RemoveAt(cars.Count - 1); }
@@ -113,7 +132,7 @@ public class PlanetLife : MonoBehaviour
         {
             var a = People[i];
             if (a.greetCool > 0) a.greetCool -= dt; if (a.waveT > 0) a.waveT -= dt;
-            if (!PlanetCity.IsRoad(a.cellA)) { Destroy(a.root.gameObject); People.RemoveAt(i); continue; }   // de weg is weg
+            if (!PlanetCity.IsWalk(a.cellA)) { Destroy(a.root.gameObject); People.RemoveAt(i); continue; }   // de weg is weg
             if (a.paused)
             {
                 a.pauseT -= dt; if (a.pauseT <= 0f) { a.paused = false; a.partner = null; a.chatT = 0f; }
@@ -124,7 +143,7 @@ public class PlanetLife : MonoBehaviour
                 }
                 global::People.Animate(a, dt, false); PlacePerson(a, dt); continue;
             }
-            Advance(ref a.cellA, ref a.cellB, ref a.prevCell, ref a.ct, a.speed, dt); a.phase += a.speed * dt * 5.2f;
+            Advance(ref a.cellA, ref a.cellB, ref a.prevCell, ref a.ct, a.speed, dt, true); a.phase += a.speed * dt * 5.2f;
             global::People.Animate(a, dt, a.cellA != a.cellB); PlacePerson(a, dt);
             a.socT -= dt; if (a.socT <= 0f) { a.socT = 0.4f; Social(a); }
         }
@@ -132,7 +151,7 @@ public class PlanetLife : MonoBehaviour
         {
             var c = cars[i];
             if (!Advance(ref c.a, ref c.b, ref c.prev, ref c.t, c.speed, dt)) { Destroy(c.root.gameObject); cars.RemoveAt(i); continue; }
-            PlaceCar(c, dt);
+            PlaceCar(c, dt); if (c.audio != null) c.audio.volume = Ambience.Muted ? 0f : 0.35f;
         }
 
         // af en toe een opmerking van iemand dichtbij de camera

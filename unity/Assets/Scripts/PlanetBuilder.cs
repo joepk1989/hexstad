@@ -39,6 +39,7 @@ public class PlanetBuilder : MonoBehaviour
         K[] dk = { K.D1, K.D2, K.D3, K.D4, K.D5, K.D6, K.D7, K.D8, K.D9 };
         for (int i = 0; i < dk.Length; i++) if (Inp.Down(dk[i])) { tool = i; Say("Gereedschap: " + Blocks.Names[i]); }
         if (Inp.Down(K.D0) || Inp.Down(K.G)) { tool = System.Array.IndexOf(Blocks.Tools, "gum"); Say("Gum: klik of sleep over blokken om ze weg te halen (X doet hetzelfde zonder van gereedschap te wisselen)"); }
+        if (Inp.Down(K.H)) { CityCentre(); if (hasCentre) { focus = centre; Say("Naar het midden van de stad (H)"); } }
         if (Inp.Down(K.Z) && Inp.Held(K.Ctrl) && undo.Count > 0) { PlanetCity.Cells = undo[undo.Count - 1]; undo.RemoveAt(undo.Count - 1); PlanetCity.TouchAll(); Changed(); Say("Ongedaan gemaakt"); }
 
         // aanwijzen: het vak onder de muis
@@ -124,7 +125,7 @@ public class PlanetBuilder : MonoBehaviour
         }
         var st = new GUIStyle(GUI.skin.label) { fontSize = 14 }; st.normal.textColor = DayNight.Night > 0.6f ? Color.white : Color.black;
         string help = walking ? "Wandelen op de planeet: WASD lopen · muis kijken · Shift rennen · Spatie springen · Esc muis los · Tab terug naar bouwen"
-            : "Planeet: klik of sleep over vakken = blok plaatsen (1-9 of de balk) · X of 0/G = weghalen (gum) · Ctrl+Z = ongedaan · WASD = schuiven · rechtermuis = draaien · scroll = zoom · Tab = wandelen · M = geluid";
+            : "Planeet: klik of sleep over vakken = blok plaatsen (1-9 of de balk) · X of 0/G = weghalen (gum) · Ctrl+Z = ongedaan · WASD = schuiven · rechtermuis = draaien · scroll = zoom · Tab = wandelen · M = geluid · R = weer · H = naar de stad";
         GUI.Label(new Rect(10, 8, Screen.width - 20, 24), help, st);
         if (Time.time < msgT) GUI.Label(new Rect(10, 32, Screen.width - 20, 24), msg, st);
 
