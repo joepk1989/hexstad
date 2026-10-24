@@ -346,7 +346,8 @@
       const { x, z } = cellToWorld(q, r);
       previewGroup.position.set(x, gH(q, r), z);
       let yy = baseY;
-      items.forEach((it, j) => { previewGroup.add(makeBlock(it, q, r, n0 + j, yy, x, z, { surfaces: [], walls: [] })); yy += TY(it).h; });
+      doors.muted = true;   // een voorbeeld laat geen deurbladen achter
+      try { items.forEach((it, j) => { previewGroup.add(makeBlock(it, q, r, n0 + j, yy, x, z, { surfaces: [], walls: [] })); yy += TY(it).h; }); } finally { doors.muted = false; }
     } finally {
       st.length = n0; if (!had) cells.delete(k);
       [pathLinks, pathIfs, pathCorners, cornerVia] = saved;

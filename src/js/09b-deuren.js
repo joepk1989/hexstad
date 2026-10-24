@@ -19,7 +19,7 @@
     const ck = (x, z) => worldToCell(x, z).join(',');
     // hx,hz: scharnier; tx,tz: richting van het dichte blad; inx,inz: naar binnen; y: onderkant; w, h; col: kleur
     function add(owner, d) {
-      if (list.length >= MAXD) return;
+      if (list.length >= MAXD || api.muted) return;
       d.owner = owner; d.open = 0; d.hot = 0;
       { const th = Math.atan2(-d.tz, d.tx), px = -Math.sin(th), pz = -Math.cos(th); d.sgn = (px * d.inx + pz * d.inz) >= 0 ? 1 : -1; }   // welke draairichting naar binnen is
       list.push(d); let L = byOwner.get(owner); if (!L) byOwner.set(owner, L = []); L.push(d);
@@ -54,6 +54,6 @@
     }
     function lift(owner, dy) { if (!dy) return; const L = byOwner.get(owner); if (L) for (const d of L) d.y += dy; dirty = true; }   // het vak staat op het terrein: de deuren mee omhoog
     function clearCells() { for (const o of [...byOwner.keys()]) if (typeof o === 'string') clear(o); }   // alle deuren van vakken (nieuwe stad)
-    const api = { add, clear, clearCells, lift, update, get count() { return list.length; }, list };
+    const api = { muted: false, add, clear, clearCells, lift, update, get count() { return list.length; }, list };
     window.__doors = api; return api;
   })();
