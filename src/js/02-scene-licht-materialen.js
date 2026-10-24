@@ -30,7 +30,7 @@
   // ---------- Bolle wereld (instelling): de stad als kleine planeet ----------
   // Elk hoekpunt zakt met d² / (2·straal) weg, gemeten vanaf het punt waar je naar kijkt. Dat gebeurt in de shader
   // (project_vertex en worldpos_vertex, dus ook in de schaduwen); het raster, bouwen en lopen blijven plat.
-  const CURVE = { on: false, R: 450, k: { value: 0 }, c: { value: new THREE.Vector2() } };
+  const CURVE = { on: false, R: 800, k: { value: 0 }, c: { value: new THREE.Vector2() } };
   THREE.ShaderChunk.common = THREE.ShaderChunk.common + '\nuniform float curveK; uniform vec2 curveC;\n';
   THREE.ShaderChunk.project_vertex = `vec4 mvPosition = vec4( transformed, 1.0 );
 #ifdef USE_INSTANCING
