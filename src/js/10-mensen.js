@@ -295,7 +295,19 @@
     PARTS.smile = { geo: smileGeo, per: 1, vc: true, noShadow: true };
     PARTS.glasses = { geo: glassesGeo, per: 1, noShadow: true };
     PARTS.beard = { geo: beardGeo, per: 1 };
-    for (const k in PARTS) PARTS[k].geo = flat(PARTS[k].geo);
+    // Echte driehoeken: elk hoekpunt schuift een klein beetje (vast per plek, dus naden blijven dicht). Daardoor liggen de
+    // twee driehoeken van een vierkant vlak niet meer in één vlak en zie je de facetten, zoals bij een handgemaakt model.
+    const FACET = { thigh: 0.012, shin: 0.01, hips: 0.012, torsoM: 0.016, torsoF: 0.014, coat: 0.016, skirt: 0.016, neck: 0.006, head: 0.009,
+      hairShort: 0.008, hairLong: 0.01, hairBun: 0.008, hairTail: 0.008, hairCurly: 0.01, upperArm: 0.009, foreArm: 0.008, beard: 0.006 };
+    const facet = (g, amt) => {
+      const P = g.attributes.position, nz = (x, y, z, k) => { const v = Math.sin(x * 127.1 + y * 311.7 + z * 74.7 + k * 19.3) * 43758.5453; return (v - Math.floor(v)) * 2 - 1; };
+      for (let i = 0; i < P.count; i++) {
+        const x = Math.round(P.getX(i) * 1000) / 1000, y = Math.round(P.getY(i) * 1000) / 1000, z = Math.round(P.getZ(i) * 1000) / 1000;
+        P.setXYZ(i, P.getX(i) + nz(x, y, z, 1) * amt, P.getY(i) + nz(x, y, z, 2) * amt * 0.6, P.getZ(i) + nz(x, y, z, 3) * amt);
+      }
+      return g;
+    };
+    for (const k in PARTS) PARTS[k].geo = flat(FACET[k] ? facet(PARTS[k].geo.index ? PARTS[k].geo : PARTS[k].geo, FACET[k]) : PARTS[k].geo);
     const mat = new THREE.MeshLambertMaterial({ color: '#ffffff', side: THREE.DoubleSide });
     const matV = new THREE.MeshLambertMaterial({ color: '#ffffff', vertexColors: true });
     const meshes = {};
