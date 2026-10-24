@@ -51,10 +51,10 @@
       for (const wx of [-WHEEL_X, WHEEL_X]) { const dx = x - wx; if (Math.abs(dx) < ARCH_R) b = Math.max(b, 0.36 + Math.sqrt(ARCH_R * ARCH_R - dx * dx)); }   // wielkast
       return { b, t: bodyTop(x), w: planW(x), n: 4.5, tumble: 0.14 };
     };
-    const bodyGeo = loft(-2.25, 2.25, 120, 40, bodyAt);
+    const bodyGeo = loft(-2.25, 2.25, 56, 28, bodyAt);
     // Glazen koepel: achterruit, dak, lange schuine voorruit
     const glassTop = curve([[-1.72, 0.95], [-1.4, 1.22], [-0.95, 1.39], [0.05, 1.42], [0.5, 1.34], [1.05, 0.92]]);
-    const canopyGeo = loft(-1.72, 1.05, 70, 32, x => {
+    const canopyGeo = loft(-1.72, 1.05, 36, 20, x => {
       const xn = (x - (-1.72 + 1.05) / 2) / ((1.05 + 1.72) / 2);
       return { b: bodyTop(x) - 0.06, t: Math.max(bodyTop(x) - 0.06, glassTop(x)), w: 0.78 * Math.pow(Math.max(0, 1 - Math.pow(Math.abs(xn), 6)), 1 / 6), n: 3.2, tumble: 0.3 };
     });
@@ -80,18 +80,18 @@
     // dunne lichtlijn langs de flank, tussen de wielkasten, net buiten de lak
     const gz = bodyHalfW(0, 0.58) + 0.008;
     const sideGlow = mergeGeos([barGeo(1.75, 0.022, 0.016).translate(0, 0.58, gz), barGeo(1.75, 0.022, 0.016).translate(0, 0.58, -gz)]);
-    const tireGeo = new THREE.CylinderGeometry(WR, WR, 0.24, 32).rotateX(Math.PI / 2);
-    const rimGeo = mergeGeos([new THREE.CylinderGeometry(0.25, 0.25, 0.25, 28).rotateX(Math.PI / 2)]);
+    const tireGeo = new THREE.CylinderGeometry(WR, WR, 0.24, 18).rotateX(Math.PI / 2);
+    const rimGeo = mergeGeos([new THREE.CylinderGeometry(0.25, 0.25, 0.25, 16).rotateX(Math.PI / 2)]);
     // vijf gaten in de velg aan beide kanten: zo zie je de wielen draaien
     const holes = [];
     for (let k = 0; k < 5; k++) for (const side of [-1, 1]) {
       const a = k / 5 * Math.PI * 2;
-      holes.push(new THREE.CylinderGeometry(0.052, 0.052, 0.01, 12).rotateX(Math.PI / 2).translate(Math.cos(a) * 0.15, Math.sin(a) * 0.15, side * 0.126));
+      holes.push(new THREE.CylinderGeometry(0.052, 0.052, 0.01, 6).rotateX(Math.PI / 2).translate(Math.cos(a) * 0.15, Math.sin(a) * 0.15, side * 0.126));
     }
     const holeGeo = mergeGeos(holes);
     // donkere wielkasten en onderkant: door de wielkast kijk je niet meer naar de overkant
     const underGeo = mergeGeos([barGeo(3.5, 0.4, 1.22).translate(0, 0.52, 0), barGeo(0.84, 0.34, 1.56).translate(WHEEL_X, 0.6, 0), barGeo(0.84, 0.34, 1.56).translate(-WHEEL_X, 0.6, 0)]);
-    const hubGeo = new THREE.TorusGeometry(0.19, 0.018, 6, 24);   // gloeiende ring in de velg
+    const hubGeo = new THREE.TorusGeometry(0.19, 0.018, 4, 14);   // gloeiende ring in de velg
     const PARTS = {
       body:   { geo: bodyGeo, mat: new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.28, metalness: 0.35 }), per: 1, color: true },
       canopy: { geo: canopyGeo, mat: new THREE.MeshStandardMaterial({ color: '#16202b', roughness: 0.2, metalness: 0.6 }), per: 1 },

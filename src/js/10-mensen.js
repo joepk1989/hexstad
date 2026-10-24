@@ -197,12 +197,12 @@
     const flat = g => { const n = g.index ? g.toNonIndexed() : g; n.computeVertexNormals(); return n; };   // platte vlakken
     function limb(len, rt, rb, bulge = 0, bulgeAt = 0.35, seg = 12) {   // van y=0 (gewricht) naar y=-len, met ronde doppen
       const pts = [V2(0, rt * 0.9)];
-      for (let i = 1; i <= 4; i++) { const a = Math.PI / 2 * (1 - i / 4); pts.push(V2(rt * Math.cos(a), rt * Math.sin(a) * 0.9)); }
-      for (let i = 1; i < 10; i++) {
-        const t = i / 10, rr = rt + (rb - rt) * t + bulge * Math.exp(-Math.pow((t - bulgeAt) / 0.22, 2));
+      for (let i = 1; i <= 2; i++) { const a = Math.PI / 2 * (1 - i / 2); pts.push(V2(rt * Math.cos(a), rt * Math.sin(a) * 0.9)); }
+      for (let i = 1; i < 6; i++) {
+        const t = i / 6, rr = rt + (rb - rt) * t + bulge * Math.exp(-Math.pow((t - bulgeAt) / 0.22, 2));
         pts.push(V2(rr, -len * t));
       }
-      for (let i = 0; i <= 4; i++) { const a = -Math.PI / 2 * (i / 4); pts.push(V2(rb * Math.cos(a), -len + rb * Math.sin(a) * 0.9)); }
+      for (let i = 0; i <= 2; i++) { const a = -Math.PI / 2 * (i / 2); pts.push(V2(rb * Math.cos(a), -len + rb * Math.sin(a) * 0.9)); }
       pts[pts.length - 1].x = 0;
       return lathe(pts.reverse(), seg);
     }

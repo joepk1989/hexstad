@@ -42,7 +42,7 @@
       ? 'Tik om te bouwen · sleep om te draaien · knijp om te zoomen'
       : 'Klik bouwt · rechtsklik wist · sleep om te draaien · rechts slepen schuift · scroll zoomt · Shift+scroll wisselt', 5000), 400);
 
-  let last = performance.now(), frameNo = 0;
+  let last = performance.now(), frameNo = 0, shadowN = 0;
   const mmAppEl = document.getElementById('mmApp');
   function frame(now) {
     if (mmAppEl && !mmAppEl.hidden) { last = now; requestAnimationFrame(frame); return; }   // module maker open: de stad staat stil (scheelt veel rekenwerk)
@@ -77,6 +77,7 @@
       lodUpdate(mode === 'walk' ? player.x : orbit.target.x, mode === 'walk' ? player.z : orbit.target.z, chg);
     }
     DN.place(camera.position);
+    renderer.shadowMap.autoUpdate = false; renderer.shadowMap.needsUpdate = (shadowN++ & 1) === 0;   // schaduwkaart om het andere beeld: scheelt een hele renderronde
     hudRender();   // gewoon, of in twee keer met de laagkiezer (15d)
     requestAnimationFrame(frame);
   }
