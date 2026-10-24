@@ -3,7 +3,15 @@ using UnityEngine;
 // Opstart: er is geen scene-opbouw nodig. Maak een lege scene, zet dit script (alle scripts) in het project en druk op Play.
 public class Raatstad : MonoBehaviour
 {
-    public static Material MatWalk, MatAsphalt, MatLine, MatWall, MatGround, MatGrid, MatOutline;
+    // Materialen worden bij het eerste gebruik gemaakt (en opnieuw als ze na een hercompilatie tijdens Play weg zijn)
+    static Material mWalk, mAsph, mLine, mWall, mGround, mGrid, mOutline;
+    public static Material MatWalk => mWalk ? mWalk : (mWalk = Mat(new Color(0.88f, 0.84f, 0.72f)));
+    public static Material MatAsphalt => mAsph ? mAsph : (mAsph = Mat(new Color(0.27f, 0.28f, 0.30f)));
+    public static Material MatLine => mLine ? mLine : (mLine = Mat(Color.white));
+    public static Material MatWall => mWall ? mWall : (mWall = Mat(new Color(0.55f, 0.55f, 0.52f)));
+    public static Material MatGround => mGround ? mGround : (mGround = Mat(new Color(0.64f, 0.78f, 0.45f)));
+    public static Material MatGrid => mGrid ? mGrid : (mGrid = Mat(new Color(1f, 1f, 1f, 0.5f), true));
+    public static Material MatOutline => mOutline ? mOutline : (mOutline = Mat(new Color(1f, 0.75f, 0.1f), true));
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void Boot()
@@ -25,10 +33,6 @@ public class Raatstad : MonoBehaviour
 
     void Awake()
     {
-        MatWalk = Mat(new Color(0.88f, 0.84f, 0.72f)); MatAsphalt = Mat(new Color(0.27f, 0.28f, 0.30f)); MatLine = Mat(Color.white);
-        MatWall = Mat(new Color(0.55f, 0.55f, 0.52f)); MatGround = Mat(new Color(0.64f, 0.78f, 0.45f));
-        MatGrid = Mat(new Color(1f, 1f, 1f, 0.5f), true); MatOutline = Mat(new Color(1f, 0.75f, 0.1f), true);
-
         if (FindAnyObjectByType<Light>() == null)
         {
             var l = new GameObject("Zon").AddComponent<Light>(); l.type = LightType.Directional; l.transform.rotation = Quaternion.Euler(50, -30, 0); l.shadows = LightShadows.Soft;
