@@ -31,8 +31,8 @@ public static class Ui
         labelDim = new GUIStyle(label); labelDim.normal.textColor = new Color(0.78f, 0.82f, 0.86f); labelDim.fontSize = 12;
         big = new GUIStyle { fontSize = 26, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter }; big.normal.textColor = Amber;
         button = new GUIStyle { border = ro, fontSize = 13, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, richText = true, padding = new RectOffset { left = 8, right = 8, top = 4, bottom = 4 } };
-        button.normal.background = round; button.normal.textColor = Color.white; button.hover.background = round; button.hover.textColor = Color.white; button.active.background = round; button.active.textColor = Color.white;
-        buttonOn = new GUIStyle(button); buttonOn.normal.textColor = Ink; buttonOn.hover.textColor = Ink; buttonOn.active.textColor = Ink;
+        button.normal.textColor = Color.white;
+        buttonOn = new GUIStyle(button); buttonOn.normal.textColor = Ink;
         toast = new GUIStyle(label) { alignment = TextAnchor.MiddleCenter, fontSize = 14 };
         swatch = new GUIStyle { border = new RectOffset { left = 8, right = 8, top = 8, bottom = 8 } }; swatch.normal.background = round;
         help = new GUIStyle(label) { fontSize = 13 };
@@ -50,8 +50,12 @@ public static class Ui
     public static void Big(Rect r, string s) { Init(); GUI.Label(r, s, big); }
     public static bool Button(Rect r, string s, bool on = false, Color? tint = null)
     {
-        Init(); var old = GUI.color; GUI.color = on ? Amber : (tint ?? new Color(0.2f, 0.26f, 0.31f, 0.95f));
-        bool hit = GUI.Button(r, s, on ? buttonOn : button); GUI.color = old; return hit;
+        Init(); var old = GUI.color;
+        bool hover = r.Contains(new Vector2(Inp.Pos.x, Screen.height - Inp.Pos.y));
+        Color bg = on ? Amber : (tint ?? new Color(0.2f, 0.26f, 0.31f, 0.95f)); if (hover && !on) bg = Color.Lerp(bg, Color.white, 0.12f);
+        GUI.color = bg; GUI.Box(r, "", card);                       // achtergrond in de tintkleur
+        GUI.color = Color.white; GUI.Label(r, s, on ? buttonOn : button);   // tekst los, anders kleurt de tint de tekst mee
+        GUI.color = old; return GUI.Button(r, "", GUIStyle.none);
     }
     // Gereedschapsknop: gekleurd vlakje met naam en toets
     public static bool Tool(Rect r, string name, string key, Color color, bool on)

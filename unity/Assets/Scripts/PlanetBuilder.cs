@@ -142,10 +142,10 @@ public class PlanetBuilder : MonoBehaviour
         // ---- bovenbalk rechts: klok, weer, geluid, hulp
         float x = W - 12;
         if (Ui.Button(new Rect(x - 40, 12, 40, 40), "?", showHelp)) showHelp = !showHelp; x -= 48;
-        if (Ui.Button(new Rect(x - 44, 12, 44, 40), Babble.Muted ? "🔇" : "🔊")) { Babble.Muted = !Babble.Muted; Ambience.Muted = Babble.Muted; } x -= 52;
+        if (Ui.Button(new Rect(x - 44, 12, 44, 40), Babble.Muted ? "Stil" : "Geluid")) { Babble.Muted = !Babble.Muted; Ambience.Muted = Babble.Muted; } x -= 52;
         if (Weather.I != null) { if (Ui.Button(new Rect(x - 120, 12, 120, 40), Weather.Names[(int)Weather.I.Current] + (Weather.I.Wissel ? "" : " ·"))) { Weather.I.Set((Weather.Kind)(((int)Weather.I.Current + 1) % 6), true); } x -= 128; }
         var dn = GetComponent<DayNight>();
-        if (Ui.Button(new Rect(x - 96, 12, 96, 40), "☀ " + DayNight.Clock + (dn != null && dn.Frozen ? " ·" : ""))) { Inp.Fake(K.N); }
+        if (Ui.Button(new Rect(x - 96, 12, 96, 40), DayNight.Clock + (dn != null && dn.Frozen ? " ·" : ""))) { Inp.Fake(K.N); }
         // fps linksonder boven de balk
         Ui.Dim(new Rect(16, H - 92, 200, 16), Mathf.RoundToInt(fps) + " fps · " + (PlanetLife.I != null ? PlanetLife.I.People.Count + " mensen · " + PlanetLife.I.CarCount + " auto's" : ""));
 
@@ -162,7 +162,7 @@ public class PlanetBuilder : MonoBehaviour
                 if (Ui.Tool(new Rect(x0 + i * bw, H - 68, bw - 6, 58), Blocks.Names[i], key, Ui.ToolColor(Blocks.Tools[i]), i == tool)) tool = i;
             }
             float sx = W - 12;
-            if (Ui.Button(new Rect(sx - 110, H - 56, 110, 44), "🚶 Lopen  <size=10>Tab</size>", false, Ui.Amber)) ToggleWalk(); sx -= 118;
+            if (Ui.Button(new Rect(sx - 110, H - 56, 110, 44), "Lopen  <size=10>Tab</size>", false, Ui.Amber)) ToggleWalk(); sx -= 118;
             for (int k = 3; k >= 1; k--) { if (Ui.Button(new Rect(sx - 64, H - 56, 64, 44), "Stad " + k, k == PlanetCity.Slot)) SwitchSlot(k); sx -= 70; }
         }
         else
