@@ -95,7 +95,7 @@ gl_Position = projectionMatrix * mvPosition;`;
   THREE.MeshStandardMaterial.prototype.onBeforeCompile = function (sh) { wxPatch(sh, this); };
   THREE.MeshStandardMaterial.prototype.customProgramCacheKey = function () { return this.userData.noWx ? 'nowx' : 'wx'; };
   const GROUND_COL = '#8eab69';
-  const HORIZON = '#dde5e1';
+  const HORIZON = '#c2dbee';   // lichtblauw aan de horizon (was grijs)
   scene.background = new THREE.Color(HORIZON);
   scene.fog = new THREE.Fog(HORIZON, 380, 1150);
   // Hemelkoepel: een bol rond de camera met een verloop naar de kijkhoogte (horizon → zenit), een gloed rond de zon
