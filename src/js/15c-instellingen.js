@@ -3,7 +3,7 @@
   // beeldscherpte, wolken) en de opties die ook in de balk staan (raster, tijd, mensen, auto's, geluid).
   // Beeld en prestaties worden bewaard in localStorage 'hexstad-set'.
   const SET_KEY = 'hexstad-set';
-  const setState = (() => { const d = { terr: 'laag', shadow: 'zacht', res: 'scherp', clouds: true, contour: true }; try { const o = Object.assign(d, JSON.parse(localStorage.getItem(SET_KEY) || '{}')); if (!o.tv) { o.terr = 'laag'; o.tv = 1; } return o; } catch (e) { return d; } })();   // low poly is de standaard; tv = opgeslagen na die wissel
+  const setState = (() => { const d = { terr: 'laag', shadow: 'zacht', res: 'scherp', clouds: true, contour: true }; try { const o = Object.assign(d, JSON.parse(localStorage.getItem(SET_KEY) || '{}')); if (COARSE && !o.mob) { o.mob = 1; o.shadow = 'eenvoudig'; o.res = 'normaal'; o.crowd = 0.5; o.clouds = true; } if (!o.tv) { o.terr = 'laag'; o.tv = 1; } return o; } catch (e) { return d; } })();   // low poly is de standaard; tv = opgeslagen na die wissel
   const saveSet = () => { try { localStorage.setItem(SET_KEY, JSON.stringify(setState)); } catch (e) { /* geen opslag */ } };
   function applyShadow(v) {
     sun.castShadow = v !== 'uit';
@@ -16,11 +16,29 @@
   function applyRes(v) { const d = window.devicePixelRatio || 1; renderer.setPixelRatio(v === 'snel' ? Math.min(d, 1) * 0.75 : v === 'normaal' ? Math.min(d, 1) : Math.min(d, 2)); resize(); }
   // bij het opstarten (het terrein leest zijn detail zelf al in, zie 07b)
   applyShadow(setState.shadow); if (setState.res !== 'scherp') applyRes(setState.res); clouds.setOn(setState.clouds);
+  PERF.crowd = setState.crowd || 1;
+  // Prestatiemeter: beelden per seconde, tekenopdrachten, driehoeken en de videokaart die de browser gebruikt
+  const perfEl = document.createElement('div'); perfEl.id = 'perf'; perfEl.hidden = true; document.body.appendChild(perfEl);
+  const gpuName = (() => { try { const gl = renderer.getContext(), x = gl.getExtension('WEBGL_debug_renderer_info'); return x ? gl.getParameter(x.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER); } catch (e) { return '?'; } })();
+  let perfN = 0, perfT = performance.now(), perfMin = 1e9, perfLast = performance.now();
+  function perfTick() {
+    if (perfEl.hidden) return;
+    const now = performance.now(); perfN++; perfMin = Math.min(perfMin, now - perfLast); perfLast = now;
+    if (now - perfT < 500) return;
+    const fps = perfN * 1000 / (now - perfT), i = renderer.info.render;
+    const soft = /swiftshader|llvmpipe|software|mesa offscreen/i.test(gpuName);
+    perfEl.innerHTML = `<b>${fps.toFixed(0)} fps</b> · ${i.calls} tekenopdrachten · ${(i.triangles / 1000).toFixed(0)}k driehoeken · ${renderer.getPixelRatio().toFixed(2)}× · ${people.count} mensen · ${cars.list.length} auto's<br><small>${gpuName}${soft ? ' — LET OP: geen videokaart, de processor tekent' : ''}</small>`;
+    perfN = 0; perfT = now; perfMin = 1e9;
+  }
+  function setPerf(v) { setState.perf = !!v; perfEl.hidden = !v; }
+  setPerf(setState.perf);
   const SET_ROWS = [
     { sub: 'Beeld en prestaties' },
     { id: 'terr', name: 'Terrein', note: 'Low poly: de driehoeken van het raster, strak en het snelst', opts: [['hoog', 'Hoog'], ['normaal', 'Normaal'], ['laag', 'Low poly']], get: () => setState.terr, set: v => { setState.terr = v; terrQuality(v); } },
     { id: 'shadow', name: 'Schaduwen', opts: [['zacht', 'Zacht'], ['eenvoudig', 'Eenvoudig'], ['uit', 'Uit']], get: () => setState.shadow, set: v => { setState.shadow = v; applyShadow(v); } },
     { id: 'res', name: 'Beeldscherpte', note: 'Snel tekent minder pixels', opts: [['scherp', 'Scherp'], ['normaal', 'Normaal'], ['snel', 'Snel']], get: () => setState.res, set: v => { setState.res = v; applyRes(v); } },
+    { id: 'crowd', name: 'Drukte', note: "Minder mensen en auto's is lichter voor een telefoon", opts: [[1, 'Vol'], [0.5, 'Rustig'], [0.25, 'Weinig']], get: () => setState.crowd || 1, set: v => { setState.crowd = v; PERF.crowd = v; peopleDirty = true; carsDirty = true; } },
+    { id: 'perf', name: 'Prestatiemeter', note: 'Beelden per seconde en wat de videokaart tekent', opts: [[true, 'Aan'], [false, 'Uit']], get: () => !!setState.perf, set: v => setPerf(v) },
     { id: 'clouds', name: 'Wolken', opts: [[true, 'Aan'], [false, 'Uit']], get: () => setState.clouds, set: v => { setState.clouds = v; clouds.setOn(v); } },
     { sub: 'Bouwen' },
     { id: 'grid', name: 'Raster', opts: [[true, 'Aan'], [false, 'Uit']], get: () => gridOn, set: v => { if (v !== gridOn) optGrid.click(); } },

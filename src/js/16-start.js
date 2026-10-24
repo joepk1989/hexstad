@@ -78,7 +78,7 @@
     }
     DN.place(camera.position);
     renderer.shadowMap.autoUpdate = false; renderer.shadowMap.needsUpdate = (shadowN++ & 1) === 0;   // schaduwkaart om het andere beeld: scheelt een hele renderronde
-    hudRender();   // gewoon, of in twee keer met de laagkiezer (15d)
+    hudRender(); perfTick();   // gewoon, of in twee keer met de laagkiezer (15d)
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

@@ -163,6 +163,8 @@ button:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
 .sw-hofhelling { background: linear-gradient(90deg, transparent 0 55%, #c0876f 55% 75%, transparent 75%), radial-gradient(circle, #8a4b3a 0 45%, #b9ad96 46%); }
 .sw-helling { background: linear-gradient(90deg, #d3c8b4 0 30%, transparent 30% 70%, #d3c8b4 70%), linear-gradient(0deg, #6b3a2d, #c0876f); }
 
+#perf { position: fixed; left: 16px; top: 112px; z-index: 40; background: rgba(20,24,28,.82); color: #fff; font: 12px/1.4 system-ui, sans-serif; padding: 6px 10px; border-radius: 8px; pointer-events: none; max-width: 70vw; }
+#perf small { color: #cfd4d8; }
 .toast {
   position: fixed; z-index: 6;
   left: 50%; transform: translateX(-50%);

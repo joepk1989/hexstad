@@ -1,6 +1,8 @@
   // ---------- Three.js ----------
   const canvas = document.getElementById('scene');
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  const COARSE = window.matchMedia('(pointer: coarse)').matches;   // telefoon of tablet: lichtere stand (zie 15c)
+  const PERF = { crowd: 1 };   // hoeveel mensen en auto's (0,25–1; instelling 'Drukte')
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: !COARSE });   // antialias is op een telefoon een flinke kostenpost
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;

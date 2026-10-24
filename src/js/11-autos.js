@@ -227,7 +227,7 @@
       vecGraph();
       // hoe meer huizen en kantoren, hoe meer verkeer; nooit voller dan de wegen aankunnen
       const pop = cityCounts(), nRoad = VG.totalLen / 15.6, druk = cells.druk || 1;   // druk: extra verkeer (Filestad)
-      const want = Math.round((nRoad / 14 + pop.homes * 0.3 + pop.offices * 0.2) * druk);
+      const want = Math.round((nRoad / 14 + pop.homes * 0.3 + pop.offices * 0.2) * druk * PERF.crowd);
       let target = on && nRoad >= 3 ? Math.min(MAX, Math.max(1, Math.min(want, Math.floor(nRoad / 2.5 * druk)))) : 0;
       if (forceN) target = Math.min(MAX, forceN);   // alleen voor de simulatietest
       while (list.length > target) list.pop();

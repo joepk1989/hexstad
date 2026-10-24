@@ -678,7 +678,7 @@
       const vLen = cars.vecGraph().totalLen;   // getekende wegen tellen mee per lengte
       const shops = (cells.inst || []).filter(I => I.m && I.m.v === 2 && /^(Winkel|Horeca)/.test(I.m.cat || '')).length;   // winkels en winkelcentra trekken bezoekers
       const want = Math.min(8, nodeList.length * 0.05 + vLen / 40) + pop.homes * 1.6 + pop.offices * 1.2 + shops * 0.9;
-      const target = on ? Math.min(MAX, Math.round(Math.min(want, nodeList.length * 0.8 + vLen / 20))) : 0;
+      const target = on ? Math.min(MAX, Math.round(Math.min(want, nodeList.length * 0.8 + vLen / 20) * PERF.crowd)) : 0;
       for (const a of agents) {   // wie op een verdwenen plek stond (of: een hele nieuwe stad), begint ergens anders opnieuw
         const n = a.node && graph.get(a.node.key);
         if (!n || wholeNew) { if (nodeList.length) place(a, pick(nodeList), false); continue; }
