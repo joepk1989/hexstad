@@ -13,19 +13,19 @@
     const roads = c.paths.filter(p => p.t !== 'rot').map(p => ({ def: PATH_DEF[p.t], pts: smoothPts(p.p) }));
     const roadDist = (x, z) => { let d = 1e9; for (const r of roads) d = Math.min(d, distPoly(x, z, r.pts) - r.def.hw - r.def.walk); return Math.min(d, Math.hypot(x, z) - 22); };
     for (let q = -9; q <= 9; q++) for (let r = -9; r <= 9; r++) {
-      const w = cellToWorld(q, r), rad = Math.hypot(w.x, w.z); if (rad > 100 || has(q, r)) continue;
-      const d = roadDist(w.x, w.z); if (d < 1.5) continue;
+      const w = cellToWorld(q, r), rad = Math.hypot(w.x, w.z); if (rad > 108 || has(q, r)) continue;
+      const d = roadDist(w.x, w.z); if (d < 8.5) continue;   // het vak is zelf ~9 m breed: het midden moet zo ver van de weg liggen dat de rand de stoep niet raakt
       const h = ((q * 7 + r * 13 + q * r * 3) & 15), ang = Math.atan2(w.z, w.x);
-      const street = d < 7;
-      if (rad < RING - 8) {   // binnen de ring: aan de rotondekant een parkje met vijver, verder huizen aan de straat
+      const street = d < 15;
+      if (rad < RING - 14) {   // binnen de ring: aan de rotondekant een parkje met vijver, verder huizen aan de straat
         if (ang > 1.9 && ang < 3.0 && rad < 48) { set(q, r, [h === 6 ? 'water' : h < 4 ? 'park1' : 'park']); continue; }
-        if (street) set(q, r, h < 4 ? Array(2 + (h % 2)).fill('kantoor') : h < 12 ? Array(1 + (h % 2)).fill('woning') : ['park']);
-        else if (h < 9) set(q, r, ['woning']);
+        if (street) set(q, r, h < 3 ? Array(2 + (h % 2)).fill('kantoor') : h < 14 ? Array(1 + (h % 2)).fill('woning') : ['park']);
+        else set(q, r, h < 12 ? ['woning'] : ['park']);
         continue;
       }
-      if (rad > RING + 8 && rad < 100) {   // buiten de ring: alleen aan de straat, en wat groen
-        if (street) set(q, r, h < 3 ? ['kantoor', 'kantoor', 'kantoor'] : h < 11 ? ['woning', 'woning'] : [h === 15 ? 'park2' : 'park']);
-        else if (h < 5 && rad < 90) set(q, r, ['park']);
+      if (rad > RING + 14 && rad < 108) {   // buiten de ring: alleen aan de straat, en wat groen
+        if (street) set(q, r, h < 3 ? ['kantoor', 'kantoor', 'kantoor'] : h < 13 ? ['woning', 'woning'] : [h === 15 ? 'park2' : 'park']);
+        else if (h < 8 && rad < 100) set(q, r, h < 4 ? ['woning'] : ['park']);
       }
     }
     return roofHouses(c);
