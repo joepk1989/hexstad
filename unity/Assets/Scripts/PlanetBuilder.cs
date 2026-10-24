@@ -41,6 +41,8 @@ public class PlanetBuilder : MonoBehaviour
         K[] dk = { K.D1, K.D2, K.D3, K.D4, K.D5, K.D6, K.D7, K.D8, K.D9 };
         for (int i = 0; i < dk.Length; i++) if (Inp.Down(dk[i])) { tool = i; Say("Gereedschap: " + Blocks.Names[i]); }
         if (Inp.Down(K.G)) { PlanetCity.GridOn = !PlanetCity.GridOn; PlanetCity.ShowGrid(PlanetCity.GridOn && !walking); Say(PlanetCity.GridOn ? "Raster aan (G)" : "Raster uit (G)"); }
+        if (Blocks.Tools[tool] == "weg") { if (Inp.Down(K.B)) CycleStyle(); if (Inp.Down(K.O)) ToggleOneWay(); }
+        if (Inp.Down(K.L)) ToggleLights();
         if (Inp.Down(K.H)) { CityCentre(); if (hasCentre) { focus = centre; Say("Naar het midden van de stad (H)"); } }
         if (Inp.Down(K.Z) && Inp.Held(K.Ctrl) && undo.Count > 0) { PlanetCity.Cells = undo[undo.Count - 1]; undo.RemoveAt(undo.Count - 1); PlanetCity.TouchAll(); Changed(); Say("Ongedaan gemaakt"); }
 
@@ -77,13 +79,18 @@ public class PlanetBuilder : MonoBehaviour
         outline.enabled = hasHover;
     }
 
-    bool OverBar => Inp.Pos.y < 96f || (Inp.Pos.y > Screen.height - 70f) || showHelp;
+    bool OverBar => Inp.Pos.y < 96f || (Inp.Pos.y > Screen.height - 70f) || showHelp || (Blocks.Tools[tool] == "weg" && Inp.Pos.x < 612f && Inp.Pos.y > 96f && Inp.Pos.y < 152f);
+
+    static readonly string[] StyleNames = { "Gewone weg", "Brede weg", "Laan" };
+    void CycleStyle() { PlanetCity.DragStyle = (byte)((PlanetCity.DragStyle + 1) % 3); Say("Wegtype: " + StyleNames[PlanetCity.DragStyle] + " (B) · sleep of klik om aan te leggen; een weg over water of een uitgraving wordt een brug"); }
+    void ToggleOneWay() { PlanetCity.DragOneWay = !PlanetCity.DragOneWay; Say(PlanetCity.DragOneWay ? "Eenrichtingsverkeer (O): de weg die je sleept is eenrichting, in de sleeprichting" : "Weer in twee richtingen (O)"); }
+    void ToggleLights() { PlanetCity.Lights = !PlanetCity.Lights; PlanetCity.TouchAll(); PlanetCity.Rebuild(); Say(PlanetCity.Lights ? "Verkeerslichten aan (L)" : "Verkeerslichten uit (L)"); }
 
     void SwitchSlot(int n)
     {
         if (n == PlanetCity.Slot) return;
         PlanetCity.Save(); PlanetCity.Slot = n; undo.Clear();
-        if (!PlanetCity.Load()) { PlanetCity.Cells = new Dictionary<int, List<string>>(); PlanetCity.Links.Clear(); PlanetCity.TouchAll(); }
+        if (!PlanetCity.Load()) { PlanetCity.Cells = new Dictionary<int, List<string>>(); PlanetCity.ClearLinks(); PlanetCity.TouchAll(); }
         PlanetCity.Rebuild(); beautyT = -99f; Say("Stad " + n + (PlanetCity.Cells.Count == 0 ? " (leeg)" : ""));
     }
 
@@ -204,6 +211,13 @@ public class PlanetBuilder : MonoBehaviour
                 string key = i < 9 ? (i + 1).ToString() : null;
                 if (Ui.Tool(new Rect(x0 + i * bw, H - 68, bw - 6, 58), Blocks.Names[i], key, Ui.ToolColor(Blocks.Tools[i]), i == tool)) tool = i;
             }
+            if (Blocks.Tools[tool] == "weg")
+            {
+                var pr = Ui.Card(new Rect(12, H - 146, 600, 46), 0.9f); float bx = pr.x;
+                if (Ui.Button(new Rect(bx, pr.y, 210, 30), "Type: " + StyleNames[PlanetCity.DragStyle] + "  <size=10>B</size>", PlanetCity.DragStyle != 0)) CycleStyle(); bx += 216;
+                if (Ui.Button(new Rect(bx, pr.y, 180, 30), (PlanetCity.DragOneWay ? "Eenrichting" : "Twee richtingen") + "  <size=10>O</size>", PlanetCity.DragOneWay)) ToggleOneWay(); bx += 186;
+                if (Ui.Button(new Rect(bx, pr.y, 150, 30), "Lichten: " + (PlanetCity.Lights ? "aan" : "uit") + "  <size=10>L</size>", PlanetCity.Lights)) ToggleLights();
+            }
             float sx = W - 12;
             if (Ui.Button(new Rect(sx - 110, H - 56, 110, 44), "Lopen  <size=10>Tab</size>", false, Ui.Amber)) ToggleWalk(); sx -= 118;
             for (int k = 3; k >= 1; k--) { if (Ui.Button(new Rect(sx - 64, H - 56, 64, 44), "Stad " + k, k == PlanetCity.Slot)) SwitchSlot(k); sx -= 70; }
@@ -217,12 +231,13 @@ public class PlanetBuilder : MonoBehaviour
         // ---- hulp
         if (showHelp)
         {
-            var hr = Ui.Card(new Rect(W / 2 - 260, 90, 520, 300), 0.95f);
+            var hr = Ui.Card(new Rect(W / 2 - 260, 90, 520, 380), 0.95f);
             Ui.Title(new Rect(hr.x, hr.y, 300, 26), "Bediening");
             if (Ui.Button(new Rect(hr.x + hr.width - 150, hr.y, 150, 30), "Voorbeeldstad hier")) { Push(); PlanetCity.Sample(Planet.Nearest(focus)); Changed(); showHelp = false; Say("Voorbeeldstad geplaatst (Ctrl+Z haalt hem weg)"); }
-            Ui.Help(new Rect(hr.x, hr.y + 32, hr.width, 250),
+            Ui.Help(new Rect(hr.x, hr.y + 32, hr.width, 330),
                 "<b>Bouwen</b>  klik of sleep over vakken (1-9 kiest een blok) · rechtermuisknop maakt een vak helemaal leeg · X haalt het bovenste blok weg · Ctrl+Z maakt ongedaan\n" +
                 "<b>Wegen en paden slepen</b>  klik een vak en sleep: een rechte lijn in een van de 12 richtingen (30°). Alleen de vakken in de lijn worden verbonden; twee wegen naast elkaar blijven los. Een klik verbindt met alle buurwegen.\n" +
+                "<b>Wegtypes</b>  bij de weg kies je met B gewone weg, brede weg of laan (met bomen), met O eenrichtingsverkeer (in de sleeprichting; pijlen op het asfalt) en met L verkeerslichten. Sleep een weg over water of een uitgraving: dan wordt het een brug. Een weg in een tussenrichting laat de helft van de vakken ernaast vrij voor gebouwen.\n" +
                 "<b>Wegen en paden</b>  zijn ook blokken: zet ze op aangrenzende vakken en ze sluiten vanzelf aan\n" +
                 "<b>Camera</b>  WASD schuiven (Shift sneller) · rechtermuis draaien · scroll zoomen · H naar het midden van je stad\n" +
                 "<b>Wandelen</b>  Tab · WASD · Shift rennen · Spatie springen · Esc muis los\n" +

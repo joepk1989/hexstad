@@ -18,7 +18,7 @@ public class PlanetLife : MonoBehaviour
     PlanetWalker walker;
     static readonly Color[] Paint = { new Color(0.8f, 0.2f, 0.2f), new Color(0.2f, 0.4f, 0.75f), new Color(0.9f, 0.85f, 0.3f), new Color(0.9f, 0.9f, 0.92f), new Color(0.2f, 0.2f, 0.22f), new Color(0.25f, 0.6f, 0.4f) };
 
-    void Awake() { I = this; }
+    void Awake() { I = this; if (GetComponent<Traffic>() == null) gameObject.AddComponent<Traffic>(); }
 
     void RefreshRoads()
     {
@@ -28,9 +28,16 @@ public class PlanetLife : MonoBehaviour
     // volgend wegvak vanaf a, liefst niet terug naar prev
     static int NextRoad(int a, int prev, bool walk = false)
     {
-        var opts = new List<int>(6); foreach (int j in PlanetCity.Partners(a)) if ((walk ? PlanetCity.IsWalk(j) : PlanetCity.IsRoad(j)) && j != prev) opts.Add(j);
-        if (opts.Count == 0) return prev >= 0 && (walk ? PlanetCity.LinkedWalk(a, prev) : PlanetCity.LinkedRoad(a, prev)) ? prev : a;
+        var opts = new List<int>(6); foreach (int j in PlanetCity.Partners(a)) if ((walk ? PlanetCity.IsWalk(j) : PlanetCity.IsRoad(j) && PlanetCity.CanDrive(a, j)) && j != prev) opts.Add(j);   // auto's volgen het eenrichtingsverkeer
+        if (opts.Count == 0) return prev >= 0 && (walk ? PlanetCity.LinkedWalk(a, prev) : PlanetCity.LinkedRoad(a, prev) && PlanetCity.CanDrive(a, prev)) ? prev : a;
         return opts[Random.Range(0, opts.Count)];
+    }
+
+    // een vak waar verkeer vandaan naar b mag komen
+    static int PrevRoad(int b)
+    {
+        var opts = new List<int>(6); foreach (int j in PlanetCity.Partners(b)) if (PlanetCity.IsRoad(j) && PlanetCity.CanDrive(j, b)) opts.Add(j);
+        return opts.Count > 0 ? opts[Random.Range(0, opts.Count)] : NextRoad(b, -1);
     }
 
     // plek op de bol tussen vak a en b, met een zijwaartse afstand (rechts van de looprichting)
@@ -53,7 +60,7 @@ public class PlanetLife : MonoBehaviour
 
     void PlacePerson(Person a, float dt)
     {
-        float side = PlanetCity.IsRoad(a.cellA) && PlanetCity.IsRoad(a.cellB) ? 3.5f : (PlanetCity.IsRoad(a.cellA) || PlanetCity.IsRoad(a.cellB)) ? 1.8f : 0.35f;
+        float side = PlanetCity.IsRoad(a.cellA) && PlanetCity.IsRoad(a.cellB) ? (PlanetCity.WalkOffset(a.cellA) + PlanetCity.WalkOffset(a.cellB)) * 0.5f : PlanetCity.IsRoad(a.cellA) ? PlanetCity.WalkOffset(a.cellA) * 0.5f : PlanetCity.IsRoad(a.cellB) ? PlanetCity.WalkOffset(a.cellB) * 0.5f : 0.35f;
         Where(a.cellA, a.cellB, a.ct, side, 0.12f, out Vector3 pos, out Vector3 fwd, out Vector3 up);
         a.root.position = pos;
         if (a.paused && a.partner != null) { Vector3 to = a.partner.root.position - pos; to -= up * Vector3.Dot(to, up); if (to.sqrMagnitude > 1e-6f) fwd = to.normalized; }
@@ -64,7 +71,7 @@ public class PlanetLife : MonoBehaviour
     Car SpawnCar()
     {
         var c = new Car { b = roads[Random.Range(0, roads.Count)], speed = 7f + Random.value * 4f, s = Random.value };
-        c.a = NextRoad(c.b, -1); c.c = NextRoad(c.b, c.a); c.n = NextRoad(c.c, c.b); c.v = c.speed;
+        c.a = PrevRoad(c.b); c.c = NextRoad(c.b, c.a); c.n = NextRoad(c.c, c.b); c.v = c.speed;
         var root = new GameObject("Auto").transform; root.SetParent(transform, false); c.root = root; root.gameObject.layer = Layers.Mens;
         int k = Random.Range(0, Paint.Length);
         Box(root, new Vector3(0, 0.55f, 0), new Vector3(1.8f, 0.6f, 4.2f), Mats.Get("auto" + k, Paint[k]));
@@ -128,9 +135,11 @@ public class PlanetLife : MonoBehaviour
         return Mathf.Clamp01(Mathf.Acos(Mathf.Clamp(Vector3.Dot(d1, d2), -1f, 1f)) * Mathf.Rad2Deg / 90f);
     }
 
+    static float Lane(int x, int y) => (PlanetCity.LaneOffset(x) + PlanetCity.LaneOffset(y)) * 0.5f;   // rijbaan: breder wegen, verder van het midden
+
     void PlaceCar(Car c, float dt)
     {
-        Arc(c.a, c.b, c.c, c.s, 1.25f, 0.16f, out Vector3 pos, out Vector3 fwd, out Vector3 up);
+        Arc(c.a, c.b, c.c, c.s, Mathf.Lerp(Lane(c.a, c.b), Lane(c.b, c.c), c.s), 0.16f, out Vector3 pos, out Vector3 fwd, out Vector3 up);
         c.root.position = pos; c.fwd = fwd; Quaternion target = Geo.Look(fwd, up);
         c.root.rotation = dt <= 0f ? target : Quaternion.Slerp(c.root.rotation, target, Mathf.Min(1f, dt * 10f));
     }
@@ -145,8 +154,18 @@ public class PlanetLife : MonoBehaviour
             if (ahead < 0.5f || ahead > 11f) continue; float lat = (d - c.fwd * ahead).magnitude; if (lat > 2.2f) continue;
             want = Mathf.Min(want, Mathf.Max(0f, (ahead - 4.5f) * 1.2f));
         }
+        float len = Mathf.Max(1f, ArcLen(c.a, c.b, c.c));
+        if (c.c != c.b && Traffic.IsJunction(c.c))   // verkeerslicht aan het eind van deze boog: remmen voor rood, en voor geel als dat nog kan
+        {
+            var ts = Traffic.State(c.c, c.b);
+            if (ts != Traffic.S.Groen)
+            {
+                float d = Mathf.Max(0f, (1f - c.s) * len - 1.2f);
+                if (ts == Traffic.S.Rood || d > c.v * c.v / 10f) want = Mathf.Min(want, Mathf.Sqrt(2f * 4f * d));
+            }
+        }
         c.v = Mathf.MoveTowards(c.v, want, (want > c.v ? 4f : 9f) * dt);
-        float len = Mathf.Max(1f, ArcLen(c.a, c.b, c.c)); c.s += c.v * dt / len;
+        c.s += c.v * dt / len;
         while (c.s >= 1f) { c.s -= 1f; c.a = c.b; c.b = c.c; c.c = PlanetCity.IsRoad(c.n) ? c.n : NextRoad(c.b, c.a); c.n = NextRoad(c.c, c.b); }
         if (c.audio != null) c.audio.pitch = 0.85f + c.v / 22f;
     }
@@ -199,7 +218,7 @@ public class PlanetLife : MonoBehaviour
         for (int i = cars.Count - 1; i >= 0; i--)
         {
             var c = cars[i];
-            if (!PlanetCity.IsRoad(c.b)) { Destroy(c.root.gameObject); cars.RemoveAt(i); continue; }
+            if (!PlanetCity.IsRoad(c.b) || (c.c == c.b && c.s > 0.5f)) { Destroy(c.root.gameObject); cars.RemoveAt(i); continue; }   // weg weg, of doodlopend eenrichtingsstuk
             if (!PlanetCity.IsRoad(c.a)) c.a = c.b; if (!PlanetCity.IsRoad(c.c)) { c.c = NextRoad(c.b, c.a); c.n = NextRoad(c.c, c.b); }
             DriveCar(c, dt);
             PlaceCar(c, dt); if (c.audio != null) c.audio.volume = Ambience.Muted ? 0f : 0.35f;

@@ -20,7 +20,7 @@ public static class Beauty
         {
             var st = kv.Value; if (st.Count == 0) continue; int i = kv.Key; var cell = Planet.Cells[i];
             res.blocks += st.Count;
-            if (st[0] == "wegdeel") continue;
+            if (st[0] == "wegdeel") { if (st.Count == 1) continue; st = st.GetRange(1, st.Count - 1); }   // half vak: telt mee voor wat erop staat
             if (st[0] == "weg")
             {
                 roads++; int rn = 0; foreach (int j in PlanetCity.Partners(i)) if (PlanetCity.IsRoad(j)) rn++;
