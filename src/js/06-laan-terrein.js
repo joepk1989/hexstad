@@ -116,7 +116,8 @@
       }
     } else if (t === 'park') {
       const tg = edgeTargets(q, r, baseY, GREEN);
-      const geo = cachedField('p' + JSON.stringify(tg), () => fieldHexGeo(fieldFn(GREEN, tg)));
+      const sm = (i === 0 && cells.sec && cells.sec[key(q, r)]) || 63;   // park in stukjes langs een weg (randvulling)
+      const geo = cachedField('p' + sm + JSON.stringify(tg), () => fieldHexGeo(fieldFn(GREEN, tg), 12, null, sm));
       add(geo, M.grass);
       col.surfaces.push({ kind: 'tris', cx, cz, B: geo.userData.tb, base: baseY, bottom: baseY });
       if (!G.parkBench) { G.parkBench = new THREE.BoxGeometry(1.8, 0.08, 0.45).translate(0, 0.52, 0); G.parkLeg = new THREE.BoxGeometry(0.08, 0.5, 0.4).translate(0, 0.25, 0); G.parkPost = new THREE.CylinderGeometry(0.06, 0.08, 3.4, 6).translate(0, 1.7, 0); G.parkLampTop = new THREE.SphereGeometry(0.22, 8, 6).translate(0, 3.45, 0);
@@ -125,7 +126,11 @@
         M.lampLit = new THREE.MeshBasicMaterial({ color: '#fff1c4' }); M.flower = ['#e0573e', '#f2b233', '#d96cb0', '#f1efe6'].map(c => std({ color: c })); M.sand = std({ color: '#d6c69a' }); M.play = std({ color: '#2f6690' }); M.playRed = std({ color: '#c8553d' }); M.reed = std({ color: '#5a7f3a' }); }
       const pk = (g, m, x, z, ry) => { const mm = add(g, m); mm.position.set(x, FLAT, z); if (ry) mm.rotation.y = ry; return mm; };
       let n = 3 + (hv % 2), base = (hv % 6) * Math.PI / 3, only = null;
-      if (parkV === 1) {   // bankjes en lantaarns rond een pleintje, één boom
+      if (sm < 63) {   // alleen bomen, in de aanwezige taartpunten (om en om als er veel zijn)
+        const am = []; for (let s = 0; s < 6; s++) if ((sm >> s) & 1) am.push((60 + 60 * s) * Math.PI / 180);
+        only = []; am.forEach((a, k) => { if (am.length <= 3 || k % 2 === (hv & 1)) only.push([Math.cos(a) * 4.6, Math.sin(a) * 4.6]); });
+        n = only.length;
+      } else if (parkV === 1) {   // bankjes en lantaarns rond een pleintje, één boom
         for (let k = 0; k < 3; k++) { const a = base + k * Math.PI * 2 / 3, bx = Math.cos(a) * 4.2, bz = Math.sin(a) * 4.2; pk(G.parkBench, M.bench, bx, bz, -a + Math.PI / 2); pk(G.parkLeg, M.bench, bx + Math.cos(a + Math.PI / 2) * 0.7, bz + Math.sin(a + Math.PI / 2) * 0.7, -a + Math.PI / 2); pk(G.parkLeg, M.bench, bx - Math.cos(a + Math.PI / 2) * 0.7, bz - Math.sin(a + Math.PI / 2) * 0.7, -a + Math.PI / 2); }
         for (let k = 0; k < 2; k++) { const a = base + Math.PI / 3 + k * Math.PI, lx = Math.cos(a) * 5.4, lz = Math.sin(a) * 5.4; pk(G.parkPost, M.tlBody, lx, lz); const lm = pk(G.parkLampTop, M.lampLit, lx, lz); litMats.push([lm.material, 0]); }
         n = 1; only = [[Math.cos(base + Math.PI) * 1.0, Math.sin(base + Math.PI) * 1.0]];

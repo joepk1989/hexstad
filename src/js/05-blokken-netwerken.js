@@ -724,7 +724,7 @@
   }
   // Zeshoek als driehoeksraster met hoogteveld fn, plus een rand naar beneden waar het vlak boven 0 uitkomt
   // keep(x, z) (optioneel): alleen driehoeken met een hoekpunt of zwaartepunt waarvoor keep waar is
-  function fieldHexGeo(fn, N = 12, keep = null) {
+  function fieldHexGeo(fn, N = 12, keep = null, mask = 63) {
     const pos = [], idx = [], map = new Map();
     const C = j => { const a = (30 + 60 * j) * Math.PI / 180; return [R * Math.cos(a), R * Math.sin(a)]; };
     const V = (x, z) => {
@@ -742,6 +742,7 @@
       if (ny >= 0) idx.push(a, b, c); else idx.push(a, c, b);
     };
     for (let s = 0; s < 6; s++) {
+      if (!((mask >> s) & 1)) continue;
       const A = C(s), B = C(s + 1);
       const P = (i, j) => V((A[0] * i + B[0] * j) / N, (A[1] * i + B[1] * j) / N);
       for (let i = 0; i < N; i++) for (let j = 0; j < N - i; j++) {
@@ -751,6 +752,7 @@
     }
     // rand: eigen hoekpunten (eigen normalen), naar buiten gericht
     for (let s = 0; s < 6; s++) {
+      if (!((mask >> s) & 1)) continue;
       const A = C(s), B = C(s + 1), mx = (A[0] + B[0]) / 2, mz = (A[1] + B[1]) / 2;
       for (let i = 0; i < N; i++) {
         const x0 = A[0] + (B[0] - A[0]) * i / N, z0 = A[1] + (B[1] - A[1]) * i / N;

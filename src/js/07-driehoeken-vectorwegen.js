@@ -105,6 +105,25 @@
     }
     return out;
   }
+  // Randvulling: van een vak dat deels op een weg ligt blijven de zes taartpunten (sectoren, 0..5) over die vrij van
+  // wegen en stoep zijn. Geeft een bitmasker (0 = geen enkele punt vrij, 63 = het hele vak is vrij).
+  function secMaskOf(P, q, r, margin = 0.4) {
+    const items = [];
+    for (const path of P || []) {
+      if (path.t === 'rot' && path.p && path.p.length) items.push({ c: path.p[0], off: ROT.Ro + 2.3 });
+      else { const def = PATH_DEF[path.t]; if (def && path.p && path.p.length >= 2) items.push({ pts: smoothPts(path.p), off: def.hw + def.walk }); }
+    }
+    const c = cellToWorld(q, r), gap = (x, z) => { let g = 1e9; for (const it of items) g = Math.min(g, (it.c ? Math.hypot(x - it.c[0], z - it.c[1]) : distPoly(x, z, it.pts)) - it.off); return g; };
+    let mask = 0;
+    for (let s = 0; s < 6; s++) {
+      const a0 = (30 + 60 * s) * Math.PI / 180, a1 = a0 + Math.PI / 3, am = (a0 + a1) / 2;
+      const pts = [[0.55, am], [0.87, am], [1, a0], [1, a1]];
+      let ok = true;
+      for (const [rr, an] of pts) if (gap(c.x + Math.cos(an) * R * rr, c.z + Math.sin(an) * R * rr) < margin) { ok = false; break; }
+      if (ok) mask |= 1 << s;
+    }
+    return mask;
+  }
   // Vakken waar een weg niet doorheen mag: gebouwen en alles wat hoger is dan de grond, en water
   // (water en een uitgraving mogen: daar wordt de weg een brug)
   const vecObstacle = (q, r) => { if (modCellOccupied(q, r)) return true; const st = stackOf(q, r); if (!st.length) return false; const b = baseOf(st[0]); if (b === 'water' || b === 'kuil') return st.length > 1; if (b === 'heuvel') return !terrOnly(q, r); return columnTop(q, r) > 0.5; };   // over een heuvel mag een weg: hij volgt het terrein

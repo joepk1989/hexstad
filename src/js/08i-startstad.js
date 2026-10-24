@@ -28,5 +28,13 @@
         else if (h < 8 && rad < 100) set(q, r, h < 4 ? ['woning'] : ['park']);
       }
     }
+    // Randvulling: vakken die half op de weg liggen worden een park in stukjes (alleen de taartpunten die vrij zijn)
+    c.sec = {};
+    for (let q = -9; q <= 9; q++) for (let r = -9; r <= 9; r++) {
+      const w = cellToWorld(q, r), rad = Math.hypot(w.x, w.z); if (rad > 108 || has(q, r)) continue;
+      const m = secMaskOf(c.paths, q, r); let n = 0; for (let s = 0; s < 6; s++) n += (m >> s) & 1;
+      if (n < 2 || m === 63) continue;
+      set(q, r, ['park']); c.sec[key(q, r)] = m;
+    }
     return roofHouses(c);
   }

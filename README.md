@@ -272,3 +272,6 @@ Nog te doen:
 ## Testen
 
 In `test/` staan de simulaties en controles (Playwright, headless Chromium): verkeer op losse wegvormen en in de voorbeeldstad, een stad met alle bouwonderdelen, de module maker, de standaardbibliotheek en lint. Zie `test/README.md`.
+
+## Randvulling langs wegen (v116)
+Een vak dat deels op een weg of stoep ligt, kan nu een park in stukjes worden: alleen de taartpunten (zesde delen van het zeshoekige vak) die vrij van de weg zijn, worden gras met bomen. Het masker staat per vak in `cells.sec` (opgeslagen als `__s`). Het startstadje is hiermee gevuld; zelf bouwen: kies Park en tik een vak naast de weg.

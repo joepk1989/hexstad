@@ -126,7 +126,7 @@
     const st = stackOf(q, r);
     const top = st[st.length - 1];
     t = toolBase(t);
-    if (vecCover.has(key(q, r)) && !st.length && t !== 'pad' && t !== 'heuvel') return 'Hier ligt een weg';
+    if (vecCover.has(key(q, r)) && !st.length && t !== 'pad' && t !== 'heuvel' && !(t === 'park' && secMaskOf(cells.paths, q, r))) return 'Hier ligt een weg';
     if (t === 'heuvel' && terrN(q, r) >= TERR_MAX) return 'Hoger dan ' + TERR_MAX * 3 + ' m kan niet';
     if (modCellOccupied(q, r)) return 'Hier staat een module';
     if ((t === 'kuil' || t === 'water') && gH(q, r) > 0.3) return (t === 'kuil' ? 'Een uitgraving' : 'Water') + ' kan alleen op vlakke grond (hoogte 0)';
@@ -215,7 +215,9 @@
     const k = key(q, r);
     const st = cells.get(k) || [];
     const y0 = columnTop(q, r);
+    const first = T === 'park' && !st.length, sm = first && vecCover.has(k) ? secMaskOf(cells.paths, q, r) : 63;   // park langs een weg: alleen de vrije taartpunten
     st.push(...itemsFor(q, r, tool, DIRECTIONAL.has(T) ? viewDirIndex() : 0)); cells.set(k, st);
+    if (first) { if (sm < 63) { (cells.sec || (cells.sec = {}))[k] = sm; toast('Park in stukjes: de rand langs de weg blijft vrij', 1800); } else if (cells.sec) delete cells.sec[k]; }
     if (T === 'woning' && columnTop(q, r) + TY('dak').h <= MAX_H + 0.01) st.push('dak');   // een huis krijgt standaard een dak
     rebuildAround(q, r); if (T === 'heuvel' || T === 'kuil') terrainChanged([[q, r]]); changed();
     if (T === 'heuvel' && terrN(q, r) > 1) toast('Verhoogd tot ' + terrN(q, r) * 3 + ' m', 900);
@@ -226,7 +228,7 @@
     if (!st || !st.length) return;
     st.pop();
     while (st.length && (baseOf(st[st.length - 1]) === 'brug' || baseOf(st[st.length - 1]) === 'brugp')) st.pop();   // een brug zonder weg erop hoort er niet te blijven
-    if (!st.length) cells.delete(k);
+    if (!st.length) { cells.delete(k); if (cells.sec) delete cells.sec[k]; }
     rebuildAround(q, r); terrainChanged([[q, r]]); changed();
   }
 
