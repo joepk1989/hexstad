@@ -329,7 +329,11 @@
   const vecCells = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: '#f2b233', transparent: true, opacity: 0.9, depthTest: false }));
   vecCells.visible = false; vecCells.renderOrder = 5; vecCells.frustumCulled = false; vecCells.userData.noOcc = true; scene.add(vecCells);
   function showVecCells(t, a, b) {
-    const set = vecCoverOf([{ t, p: [a, b] }], false), P = [];
+    // alleen de vakken waar de weg echt doorheen loopt: het vak van elk uiteinde en vakken waarvan het midden bijna op de lijn ligt
+    const set = new Set(), len = Math.hypot(b[0] - a[0], b[1] - a[1]), ends = len < R * SQ3 * 0.9 ? [[(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]] : [a, b];
+    for (const e of ends) set.add(worldToCell(e[0], e[1]).join(','));
+    if (len >= R * SQ3 * 0.9) { const [q0, r0] = worldToCell((a[0] + b[0]) / 2, (a[1] + b[1]) / 2), n = Math.ceil(len / R) + 1; for (let dq = -n; dq <= n; dq++) for (let dr = -n; dr <= n; dr++) { const c = cellToWorld(q0 + dq, r0 + dr); if (distPoly(c.x, c.z, [a, b]) < R * 0.55) set.add((q0 + dq) + ',' + (r0 + dr)); } }
+    const P = [];
     for (const k of set) {
       const [q, r] = k.split(',').map(Number), c = cellToWorld(q, r), y = Math.max(gH(q, r), terrainHeightAt(c.x, c.z)) + 0.4;
       for (let i = 0; i < 6; i++) { const a0 = (30 + 60 * i) * Math.PI / 180, a1 = a0 + Math.PI / 3; P.push(c.x + Math.cos(a0) * R * 0.96, y, c.z + Math.sin(a0) * R * 0.96, c.x + Math.cos(a1) * R * 0.96, y, c.z + Math.sin(a1) * R * 0.96); }
