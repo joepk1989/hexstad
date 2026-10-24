@@ -49,6 +49,7 @@ Eerst bouwen: `node build.js` in de hoofdmap. Daarna, vanuit `test/`:
 | `python trap_module.py [mall stad lib]` | de speler loopt elke moduletrap op (lib = alle bibliotheekmodules met een trap) |
 | `python ring_uit.py` | Hexstad: lopen van de ring naar buiten en terug in 36 richtingen |
 | `python brug_auto.py` | auto's onder een viaduct door springen niet op het dek |
+| `python speler_val.py` | speler-lichaam: loopt mee, aangereden → valt, camera in het hoofd, besturing uit, opstaan, ongelukjes +1; auto die op de speler afrijdt (reckless) |
 | `python wegklik.py` | wegen klikken: knooppunt, voorbeeld bij hover, stuk per klik, stoppen, slepen werkt nog (`out/wegklik_*.png`) |
 | `python deuren.py` | deuren: aantal, open bij de speler, dicht erna, close-ups (`out/deur_*.png`) |
 | `python bediening.py` | bediening v100: snelbalk, catalogus, ongedaan maken, lopen, laagkiezer op het winkelcentrum, telefoon (`out/bed_*.png`) |

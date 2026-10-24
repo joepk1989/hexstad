@@ -314,6 +314,8 @@
     // Wie geraakt wordt valt om; wie al ligt (of net opstaat) wordt weer meegesleurd of opzij geduwd.
     function hitPeople(c, dt, peds, lying, vx, vz) {
       const sp = Math.hypot(vx, vz);
+      // de speler zelf (met een eigen lichaam): netjes rijdend verkeer raakt je niet op de stoep, een auto die je raakt laat je vallen
+      if (sp > 2.5 && mode === 'walk' && !player.down && player.y - baseOf_(c) < 0.2 && player.y - baseOf_(c) > -1 && inside(c, player.x, player.z, 0.15, 0.2)) people.hitPlayer(vx * 1.1, vz * 1.1);
       for (const a of peds) {
         { const ly = lvlOf(a, c); if (ly >= (reckless ? 0.3 : 0.2) || ly < -1 || !inside(c, a.x, a.z, 0.15, 0.2)) continue; }   // netjes rijdend verkeer raakt niemand op de stoep
         if (sp > 2) { if (crashLog.length < 40) crashLog.push({ hit: 1, car: [+c.x.toFixed(1), +c.z.toFixed(1), +c.h.toFixed(2), c.eid, c.kind, +sp.toFixed(1), c.next && c.next.kind], ped: [+a.x.toFixed(1), +a.z.toFixed(1), +a.y.toFixed(2), a.node && a.node.key, a.wps.length, a.wps[0] && a.wps[0].map(v => +v.toFixed(1))] }); people.hit(a, vx * 1.1, vz * 1.1); sound.carHit(Math.min(1, (sp - 2) / 10), a.x, 0.8, a.z); sound.grunt(a.x, 0.9, a.z, Math.min(1, (sp - 2) / 10), a.kid ? 'k' : a.female ? 'v' : a.old ? 'o' : 'm'); }
@@ -592,7 +594,7 @@
               if (al > -1 && al < 14 && Math.abs(lat) < 4.2 && a.spd > 0.3) want = Math.min(want, 4.5);
             }
           }
-          if (mode === 'walk' && player.y < 1.0) {
+          if (mode === 'walk' && player.y < 1.0 && !reckless && !player.down) {   // in de gekkenhuis-stand sparen ze jou ook niet
             const before = want; ahead(player.x, player.z, 1.7, 4);
             // staat de auto op jou te wachten? na anderhalve seconde een vriendelijk signaaltje
             if (want < before && want < 1.5) { c.youWait = (c.youWait || 0) + dt; if (c.youWait > 1.5 && (c.lastChime || 0) < performance.now() - 7000) { c.lastChime = performance.now(); sound.chime(c.x, c.z); } }

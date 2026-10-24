@@ -295,7 +295,7 @@
     const matV = new THREE.MeshLambertMaterial({ color: '#ffffff', vertexColors: true });
     const meshes = {};
     for (const [name, pdef] of Object.entries(PARTS)) {
-      const n = MAX * pdef.per, m = new THREE.InstancedMesh(pdef.geo, pdef.vc ? matV : mat, n);
+      const n = (MAX + 2) * pdef.per, m = new THREE.InstancedMesh(pdef.geo, pdef.vc ? matV : mat, n);
       m.frustumCulled = false; m.castShadow = !pdef.noShadow; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       const white = new THREE.Color('#ffffff'); for (let i = 0; i < n; i++) m.setColorAt(i, white);   // kleurbuffer vóór de eerste render
       m.count = 0; m.userData.noOcc = true; scene.add(m); meshes[name] = m;
@@ -572,7 +572,7 @@
       a.follow += (follow - a.follow) * Math.min(1, dt * 5);
     }
     let agentId = 0;
-    function newAgent() {
+    function mkAgent() {
       const r = Math.random, kid = r() < 0.1, old = !kid && r() < 0.13, female = r() < 0.5;
       const dress = female && !kid && r() < 0.35, coat = !kid && r() < (old ? 0.6 : 0.25);
       const hairStyle = old && !female ? (r() < 0.4 ? null : 'short') : kid ? (female ? pick(['tail', 'long', 'bun']) : pick(['short', 'curly'])) :
@@ -595,6 +595,10 @@
       };
       a.dressCol = dress ? (r() < 0.5 ? a.shirt : pick(SHIRTS)) : null;
       a.legs = dress ? (r() < 0.5 ? a.skin : '#2b2b2b') : a.shorts ? a.skin : a.pants;
+      return a;
+    }
+    function newAgent() {
+      const a = mkAgent(), r = Math.random;
       const n = doorList.length && r() < 0.4 ? pick(doorList) : pick(nodeList);
       place(a, n, n.kind.b === 'door');
       return a;
@@ -974,6 +978,7 @@
       const R2 = a.rag, p = R2.p;
       a.rag = null;
       const px = p[6], pz = p[8], py = p[7];
+      if (a.isPB) { beginGetup(a, p, groundAt(px, pz, py), null); return; }
       if (R2.wet) { a.state = 'inside'; a.timer = 3 + Math.random() * 4; return; }   // uit de gracht geklommen, ergens anders verder
       // dichtstbijzijnde punt van het netwerk op ongeveer deze hoogte
       let best = null, bd = 1e9;
@@ -989,6 +994,9 @@
         if (d < bd) { bd = d; best = n; }
       }
       if (!best || bd > 16) { a.state = 'inside'; a.timer = 2 + Math.random() * 3; return; }
+      beginGetup(a, p, gy, best);
+    }
+    function beginGetup(a, p, gy, best) {
       // Overeind komen: eerst op handen en knieën, even bijkomen, dan rechtop (3 s), daarna loopt hij verder.
       // Hij staat op boven zijn voeten en kijkt de kant op waar zijn hoofd lag.
       const fmx = (p[39] + p[42]) / 2, fmz = (p[41] + p[44]) / 2;
@@ -1012,6 +1020,96 @@
       a.rag = { p: new Float32Array(p) };
       a.state = 'getup';
     }
+    function ragTick(a, dt) {
+          if (a.state === 'getup') {
+            const G2 = a.gu; G2.t += dt;
+            // 1 s overeind op handen en knieën, 0,8 s even zo blijven zitten, 1,2 s rechtop komen
+            const T = Math.min(1, G2.t / (a.isPB ? 2.4 : 3.0)), sm = x => x * x * (3 - 2 * x);
+            const [A, B2, k] = T < 0.33 ? [G2.from, G2.kneel, sm(T / 0.33)] : T < 0.6 ? [G2.kneel, G2.kneel, 1] : [G2.kneel, G2.stand, sm((T - 0.6) / 0.4)];
+            for (let i = 0; i < NP * 3; i++) a.rag.p[i] = A[i] + (B2[i] - A[i]) * k;
+            if (T >= 1 && a.isPB) { pbUp(a); return; }
+            if (T >= 1) { a.rag = null; a.gu = null; a.node = G2.node; a.prev = null; a.wps = [centerOf(G2.node, null, a)]; a.state = 'walk'; initFeet(a); }
+            return;
+          }
+          if (a.state === 'rag') {
+            const R2 = a.rag; R2.acc += dt; R2.t += dt;
+            let v = 0;
+            if (R2.frozen) R2.acc = 0; else while (R2.acc >= STEP) { v = ragStep(a); R2.acc -= STEP; }
+            R2.still = v < 0.35 ? R2.still + dt : 0;
+            // eerst uitrollen, dan een flinke tijd blijven liggen (bijkomen), dan pas opstaan
+            if (R2.still > R2.lie || R2.t > R2.lie + (a.isPB ? 3 : 8)) standUp(a);
+          }
+    }
+
+    // ---------- Het lichaam van de speler ----------
+    // Tijdens het lopen heeft de speler een eigen pop (romp, armen, benen met echte voetstappen). Het hoofd hangt net achter de
+    // camera. Wordt de speler aangereden, dan neemt dezelfde ragdoll als bij voetgangers het over: de camera zit dan in het hoofd.
+    let PB = null;
+    const PBV = { fy: new THREE.Vector3(), x: new THREE.Vector3(), z: new THREE.Vector3(), q: new THREE.Quaternion(), m: new THREE.Matrix4(), pos: new THREE.Vector3(), has: false };
+    function pbMake() {
+      const a = mkAgent();
+      Object.assign(a, { isPB: true, kid: false, old: false, female: false, dress: false, coat: false, glasses: false, beard: false, hairStyle: 'short', scale: 1, build: 1.03,
+        stride: 1.45 * 1.2, lean: 0.04, shortSleeves: false, shorts: false, pack: null, fade: 1, state: 'walk', inv: 0, hideR: false, lx: undefined });
+      a.legs = a.pants; return a;
+    }
+    function pbPlace(a) {
+      a.x = player.x; a.y = player.y; a.z = player.z; a.heading = player.yaw + Math.PI; a.lx = undefined; a.spd = 0; a.vx = 0; a.vz = 0; a.lpx = player.x; a.lpz = player.z; initFeet(a);
+    }
+    function pbReset() { if (PB && PB.state !== 'walk') { PB.rag = null; PB.gu = null; PB.state = 'walk'; } if (PB) PB.fresh = true; player.down = false; PBV.has = false; }
+    function pbUp(a) {   // overeind: de speler heeft weer de leiding
+      const gu = a.gu; a.rag = null; a.gu = null; a.state = 'walk'; a.inv = 3;
+      player.x = a.x; player.z = a.z; player.y = a.y; player.vy = 0; player.grounded = true; player.yaw = a.heading - Math.PI; player.pitch = -0.05; player.down = false; PBV.has = false;
+      pbPlace(a); void gu;
+    }
+    function pbTick(dt) {
+      if (mode !== 'walk') { if (PB) pbReset(); return; }
+      if (!PB) PB = pbMake();
+      const P = PB; curA = P;
+      if (P.fresh || P.lx === undefined && P.state === 'walk') { P.fresh = false; pbPlace(P); }
+      if (P.inv > 0) P.inv -= dt;
+      if (P.state === 'walk') {
+        if (Math.hypot(player.x - P.x, player.z - P.z) > 3) pbPlace(P);
+        const sp = Math.min(8, Math.hypot(player.x - P.lpx, player.z - P.lpz) / Math.max(dt, 1e-3)); P.lpx = player.x; P.lpz = player.z;
+        // het lichaam staat iets achter de camera, hoe verder je omlaag kijkt hoe meer: zo zit je niet in je eigen romp
+        const back = 0.13 + 0.3 * Math.max(0, -player.pitch);
+        P.x = player.x + Math.sin(player.yaw) * back; P.z = player.z + Math.cos(player.yaw) * back; P.y = player.y; P.heading = player.yaw + Math.PI;
+        P.spd += (sp - P.spd) * Math.min(1, dt * 8); P.walkAmt = Math.min(1, P.spd / 1.0);
+        try { P.hideR = hand !== 'kijken'; } catch (e) { P.hideR = false; }
+        stepFeet(P, dt);
+      } else {
+        ragTick(P, dt);
+        if (P.rag && P.state !== 'walk') {   // de speler zelf ligt waar het lichaam ligt
+          const p = P.rag.p; player.x = p[6]; player.z = p[8]; player.y = Math.max(groundAt(p[6], p[8], p[7] + 0.3), 0); player.vy = 0;
+        }
+      }
+    }
+    // de camera in het hoofd van het lichaam dat op de grond ligt
+    function pbCamera(cam, dt) {
+      if (!PB || !PB.rag) return false;
+      const p = PB.rag.p, e = PBV;
+      const yA = e.fy.set(p[3] - p[6], p[4] - p[7], p[5] - p[8]).normalize();
+      const xA = e.x.set(p[12] - p[9], p[13] - p[10], p[14] - p[11]); xA.addScaledVector(yA, -xA.dot(yA)).normalize();
+      const zA = e.z.crossVectors(xA, yA);
+      e.m.makeBasis(xA.clone().negate(), yA, zA.clone().negate());
+      e.q.setFromRotationMatrix(e.m);
+      e.pos.set(p[0] + zA.x * 0.07, p[1] + zA.y * 0.07 + 0.02, p[2] + zA.z * 0.07);
+      const k = e.has ? 1 - Math.exp(-dt * 14) : 1;
+      if (!e.has) { cam.quaternion.copy(e.q); cam.position.copy(e.pos); } else { cam.quaternion.slerp(e.q, k); cam.position.lerp(e.pos, k); }
+      e.has = true; return true;
+    }
+    function emitPB(a) {
+      curId = a.id;
+      put('hips', pose.pelvis, a.pants);
+      for (let si = 0; si < 2; si++) {
+        put('thigh', pose.thigh[si], a.pants); put('shin', pose.shin[si], a.legs); put('shoe', pose.shoe[si], a.shoes);
+        if (si === 1 && a.hideR && a.state === 'walk') continue;   // de rechterhand is het gereedschap
+        put('upperArm', pose.upperArm[si], a.shirt); put('foreArm', pose.foreArm[si], a.shirt); put('hand', pose.hand[si], a.skin);
+      }
+      put('torsoM', pose.chest, a.shirt);
+      pose.head.multiply(tr(0, -0.04, -0.24));   // net achter de camera: geen hoofd in beeld, wel in de schaduw
+      put('head', pose.head, a.skin);
+      put('hairShort', pose.head, a.hair);
+    }
     function render() {
       for (const k in meshes) cnt[k] = 0;
       for (const a of agents) {
@@ -1019,6 +1117,7 @@
         if (a.state === 'rag' || a.state === 'getup') ragPose(a); else animPose(a);
         emit(a);
       }
+      if (PB && mode === 'walk') { if (PB.state === 'rag' || PB.state === 'getup') ragPose(PB); else animPose(PB); emitPB(PB); }
       for (const k in meshes) { const m = meshes[k]; m.count = cnt[k]; m.instanceMatrix.needsUpdate = true; if (dirtyCol[k]) { m.instanceColor.needsUpdate = true; dirtyCol[k] = false; } }
     }
     let lastPX = 0, lastPZ = 0, lastMode = '';
@@ -1029,7 +1128,20 @@
       hit(a, vx, vz) { a.ragWhy = 'car'; if (a.state === 'walk' || a.state === 'pause') { startRagdoll(a, vx, 2.2 + Math.hypot(vx, vz) * 0.25, vz, 0.05); startle(a.x, a.z, 14, a); } },
       kick,
       // bekken van iemand die ligt of aan het opstaan is (voor auto's die moeten remmen)
-      lying() { return agents.filter(a => (a.state === 'rag' || a.state === 'getup') && a.rag); },
+      lying() { const l = agents.filter(a => (a.state === 'rag' || a.state === 'getup') && a.rag); if (PB && PB.rag && (PB.state === 'rag' || PB.state === 'getup')) l.push(PB); return l; },
+      // De speler zelf: aangereden door een auto → vallen. Geeft true als de klap aankwam.
+      hitPlayer(vx, vz) {
+        const P = PB; if (!P || P.state !== 'walk' || P.inv > 0 || mode !== 'walk') return false;
+        const sp = Math.hypot(vx, vz); P.ragWhy = 'car'; curA = P;
+        startRagdoll(P, vx * 0.9, 2.4 + sp * 0.25, vz * 0.9, 0.05);
+        P.rag.lie = 2.2 + Math.min(1.5, sp * 0.1); player.down = true; PBV.has = false;
+        startle(P.x, P.z, 14, P);
+        sound.carHit(Math.min(1, sp / 15), P.x, P.y + 0.8, P.z);
+        return true;
+      },
+      pbCamera, pbReset,
+      get pb() { return PB; },
+      pbCols() { return PB ? { shirt: PB.shirt, skin: PB.skin } : null; },
       get on() { return on; },
       get count() { return agents.length; },
       get agents() { return agents; }, graph() { return graph; },   // voor tests
@@ -1057,7 +1169,8 @@
       update(dt) {
         incTick();
         if (peopleDirty) { peopleDirty = false; rebuild(); }
-        if (!agents.length) { for (const k in meshes) meshes[k].count = 0; return; }
+        pbTick(Math.min(dt, 0.1));
+        if (!agents.length) { if (PB && mode === 'walk') render(); else for (const k in meshes) meshes[k].count = 0; return; }
         dt = Math.min(dt, 0.1);
         // snelheid van de speler, om te bepalen of je iemand opzij duwt of omver loopt
         const walking = mode === 'walk' && lastMode === 'walk';
@@ -1073,24 +1186,7 @@
           a.t += dt; a.lookPhase += dt;
           if (a.fade < 1) a.fade = Math.min(1, a.fade + dt * 1.5);
           if (a.state === 'inside') { a.timer -= dt; if (a.timer <= 0 && nodeList.length) { const n = doorList.length ? pick(doorList) : pick(nodeList); place(a, n, true); } continue; }
-          if (a.state === 'getup') {
-            const G2 = a.gu; G2.t += dt;
-            // 1 s overeind op handen en knieën, 0,8 s even zo blijven zitten, 1,2 s rechtop komen
-            const T = Math.min(1, G2.t / 3.0), sm = x => x * x * (3 - 2 * x);
-            const [A, B2, k] = T < 0.33 ? [G2.from, G2.kneel, sm(T / 0.33)] : T < 0.6 ? [G2.kneel, G2.kneel, 1] : [G2.kneel, G2.stand, sm((T - 0.6) / 0.4)];
-            for (let i = 0; i < NP * 3; i++) a.rag.p[i] = A[i] + (B2[i] - A[i]) * k;
-            if (T >= 1) { a.rag = null; a.gu = null; a.node = G2.node; a.prev = null; a.wps = [centerOf(G2.node, null, a)]; a.state = 'walk'; initFeet(a); }
-            continue;
-          }
-          if (a.state === 'rag') {
-            const R2 = a.rag; R2.acc += dt; R2.t += dt;
-            let v = 0;
-            if (R2.frozen) R2.acc = 0; else while (R2.acc >= STEP) { v = ragStep(a); R2.acc -= STEP; }
-            R2.still = v < 0.35 ? R2.still + dt : 0;
-            // eerst uitrollen, dan een flinke tijd blijven liggen (bijkomen), dan pas opstaan
-            if (R2.still > R2.lie || R2.t > R2.lie + 8) standUp(a);
-            continue;
-          }
+          if (a.state === 'getup' || a.state === 'rag') { ragTick(a, dt); continue; }
           // tegen de speler aan?
           if (walking) {
             const dx = a.x - player.x, dz = a.z - player.z, d = Math.hypot(dx, dz);
