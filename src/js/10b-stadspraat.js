@@ -80,6 +80,63 @@
       ['Je hoeft niets te regelen, geen burgemeester? Gek.', 'Zou er een burgemeester zijn voor ons?'],
     ];
     const tone = a => a.tone || (a.tone = ((Math.sin((a.id || 1) * 12.9898) * 43758.5453) % 1 + 1) % 1 < 0.28 ? 'lomp' : 'zacht');
+    // Handgeschreven gemis [lomp, subtiel], met de grappigste bovenaan
+    const FUNNY = [
+      ['Waar haal ik nu mijn flat white? Geen koffietentje hier!', 'Een flat white op het hoekje, dat zou het hem zijn...'],
+      ['Er is geen supermarkt hier, moet ik gras gaan eten dan?', 'Ik zocht net een supermarkt... misschien is het gras wel lekker?'],
+      ['Waar haal ik de aardappelen nu zonder de markt?', 'Zou er ooit een markt komen voor de aardappelen...'],
+      ['Geen bakker. Ik ruik nergens brood. Wat een ellende.', 'Het ruikt hier nergens naar vers brood...'],
+      ['Geen frietkot?! Hoe overleef ik de vrijdagavond?', 'Een frietje na een lange dag, dat zou heerlijk zijn...'],
+      ['Geen kapper. Ik zie eruit als een hooiberg.', 'Mijn haar zou best een kapper kunnen gebruiken...'],
+      ['Waar is de pinautomaat? Ik heb alleen maar bladeren.', 'Ik heb geen contant geld... en geen pinautomaat te zien...'],
+      ['Geen toilet te vinden. Dit loopt slecht af.', 'Weet iemand waar hier een toilet is...'],
+      ['Geen WiFi. Hoe moet ik nu mijn mails checken?', 'Ik zoek nog steeds een stukje bereik...'],
+      ['Waar is mijn pakketje? Geen postbode in deze stad!', 'Ik wacht op een pakketje, maar zie nergens een postbode...'],
+      ['Geen fietsenmaker. Mijn band is al drie weken lek.', 'Mijn band is lek, zou hier ergens een fietsenmaker zijn...'],
+      ['Geen parkeerplek en geen parkeergarage. Prachtig.', 'Parkeren is hier nog wat lastig...'],
+      ['Geen laadpaal. Mijn auto is al zo lang leeg als mijn portemonnee.', 'Een laadpaal zou fijn zijn voor mijn auto...'],
+      ['Waar is de Hema? Ik moet worst en een tompouce.', 'Een tompouce, dat zou ik nu wel willen...'],
+      ['Waar kan ik een rondje bier halen? Geen kroeg!', 'Een biertje op het terras, dat mis ik nog...'],
+      ['Geen terrasje. Waar moet ik dan zitten met mijn kop koffie?', 'Een terrasje zou het perfect maken...'],
+      ['Geen snackbar, dus geen frikandel speciaal. Dit is een misdaad.', 'Een frikandel speciaal... zou dat hier ergens zijn...'],
+      ['Geen kermis. Hoe krijg ik dan mijn oliebollen?', 'Oliebollen... maar zonder kermis, zucht...'],
+      ['Geen bibliotheek, dus geen boeken. Wat denken jullie wel.', 'Een bibliotheek zou hier goed passen...'],
+      ['Geen bioscoop. Dan maar kijken naar de muur.', 'Een avondje bioscoop zou best leuk zijn...'],
+      ['Geen speeltuin. Mijn kinderen klimmen nu op alles.', 'Mijn kinderen zouden dol zijn op een speeltuin...'],
+      ['Geen dierenarts. Mijn kat gaat nu naar de buurman.', 'Mijn kat zou een dierenarts kunnen gebruiken...'],
+      ['Geen belastingdienst, dat vind ik nog het enige goede.', 'Eigenlijk best fijn, geen belastingdienst... of toch niet...'],
+      ['Geen politie. Wie schrijft mijn parkeerboete uit?', 'Het is wel erg stil zonder politie...'],
+      ['Geen brandweer. Ik hoop dat niemand een kaars aansteekt.', 'Ik hoop dat er hier nooit brand uitbreekt...'],
+      ['Waar is de glasbak? Ik zit tot mijn nek in lege flessen.', 'Een glasbak zou hier mooi staan...'],
+      ['Geen afval ophalen. Ik moet mijn vuilniszak zelf begraven.', 'Mijn vuilnis staat al weken, zou er een vuilniswagen komen...'],
+      ['Geen kerstmarkt. December wordt droevig.', 'Ik denk al aan de kerstmarkt, helaas...'],
+      ['Geen speciaalbier. Alleen water uit de gracht.', 'Een lokaal biertje, daar zou ik voor in de rij staan...'],
+      ['Waar zijn de ijsjes? Het is toch zomer?', 'Een ijsje, dat zou ik nu willen...'],
+      ['Geen carnaval. Nu kan ik mijn pak niet kwijt.', 'Mijn carnavalspak hangt nog in de kast...'],
+      ['Geen tankstation. Ik loop leeg, net als mijn humeur.', 'Ik zoek nog een plek om te tanken...'],
+      ['Waar is het openbaar vervoer? Mijn benen zijn op.', 'Mijn benen zijn moe, zou er een bus rijden...'],
+      ['Geen tuincentrum. Mijn plantjes zijn dood.', 'Mijn plantjes zouden een tuincentrum waarderen...'],
+      ['Een stad zonder IKEA. Hoe moet ik mijn kast in elkaar zetten?', 'Hier ergens een IKEA zou ik lang rondlopen...'],
+      ['Geen pannenkoekenhuis. Wat een stad.', 'Pannenkoeken met spek en stroop, dat zou ik nu willen...'],
+      ['Geen stroopwafels! Wat een barbarij.', 'Een warme stroopwafel is hier te vinden, hoop ik...'],
+      ['Waar is de bruine kroeg? Ik wil klagen met een biertje.', 'Een bruine kroeg zou de stad zo gezellig maken...'],
+      ['Geen postkantoor. Hoe verstuur ik mijn brief naar tante Ria?', 'Mijn brief aan tante Ria ligt nog klaar...'],
+      ['Waar zijn de eendjes? Geen vijver zonder eendjes!', 'Eendjes in de vijver, dat zou mooi zijn...'],
+      ['Geen tandarts. Ik blijf maar op mijn kiezen bijten.', 'Mijn kies zeurt een beetje, zou hier een tandarts zijn...'],
+      ['Geen kledingwinkel. Ik loop al weken in dezelfde broek.', 'Ik zou graag een nieuwe jas willen, maar waar...'],
+    ];
+    // Generator: dingen die een stad nodig heeft; '*' = zonder lidwoord (meervoud of stofnaam)
+    const MISSING = ('koffietentje|kapper|bakker|slager|groenteboer|supermarkt|markt|*stroopwafels|*bitterballen|*verse croissants|*haring|cafetaria|snackbar|frietkot|ijssalon|pannenkoekenhuis|pizzeria|sushirestaurant|shoarmazaak|döner-tent|vegaburgertent|pinautomaat|bankfiliaal|postkantoor|apotheek|huisarts|tandarts|dierenarts|ziekenhuis|school|kinderopvang|bibliotheek|museum|theater|bioscoop|karaokebar|discotheek|bruine kroeg|biercafé|wijnbar|terras|*terrasjes|speeltuin|skatepark|voetbalveld|tennisbaan|zwembad|sauna|sportschool|yogastudio|klimhal|bowlingbaan|casino|kermis|pretpark|dierentuin|kinderboerderij|vijver met eendjes|eendenkooi|hondenuitlaatplek|dierenwinkel|bloemist|tuincentrum|bouwmarkt|ijzerhandel|schoenmaker|stomerij|wasserette|kringloopwinkel|tweedehandsboekwinkel|platenzaak|speelgoedwinkel|fietsenmaker|autogarage|tankstation|laadpaal|parkeergarage|taxistandplaats|busstation|treinstation|tramhalte|metrolijn|veerpont|haven|*bootjes|jachthaven|vliegveld|helikopterplatform|fietsenstalling|*bankjes|*prullenbakken|glasbak|openbaar toilet|drinkfontein|fontein|standbeeld|kunstwerk|muurschildering|*graffiti|bandstand|muziektent|marktkraam|bakkerij met vers brood|bezorger|pakketpunt|*zebrapaden|rotonde met kunst|verkeersagent|politiebureau|brandweerkazerne|ambulance|gemeentehuis|burgemeester|stadsomroeper|stadswacht|hoveniers-bedrijf|straatveger|vuilnisman|*wifi|*5G-bereik|telefooncel|kerk|moskee|synagoge|tempel|begraafplaats|crematorium|huwelijksbootje|trouwlocatie|camping|hotel|hostel|bed & breakfast|toeristeninformatie|souvenirwinkel|ansichtkaart|kermisbotsauto|draaimolen|reuzenrad|rodelbaan|schaatsbaan|*ijsvloer|strandje|*palmbomen|*bloemperken|*kerstverlichting|kerstboom|sinterklaasintocht|oranjefeest|carnavalsoptocht|bakfiets|*steegjes|*fietspaden met bloemen|*meeuwen|*duiven|*eekhoorns|kat in het raam|hond aan de lijn|brug met slotjes|*zwanen|kaasboer|poffertjeskraam|oliebollenkraam|kebabkraam|ijscoman|bloemenkiosk|krantenkiosk|*kranten|tabakszaak|*sigaren|slijterij|drogist|opticien|juwelier|horlogemaker|naaiatelier|stoffenwinkel|breiwinkel|hobbywinkel|spellenwinkel|stripwinkel|comicshop|computerwinkel|telefoonwinkel|elektronicazaak|koffiebranderij|theewinkel|chocolatier|banketbakker|notarisbureau|makelaar|verzekeringskantoor|uitzendbureau|coworking-ruimte|startup-hub|hackerspace|repair café|buurthuis|jongerencentrum|seniorencomplex|wijkcentrum|speeltuinvereniging|schaakclub|biljartclub|*vogelhuisjes|*nestkastjes|imker|*bijenhotels|moestuin|kasteel|windmolen|watertoren|vuurtoren|brandtrap|dakterras|zonnepaneel-veld|*bomen langs de weg|speelweide|picknickplek|barbecueplek|*stoplichten die altijd groen zijn|parkeerwachter|bushokje|*regenbogen|*wolken die ook echt regenen|zonsopgang-uitkijkpunt|sterrenwacht|planetarium|aquarium|*vlinders|*kikkers|ijsbaan|skipiste|*bergen|*strandstoelen|duinen|*schapen op het gras|*koeien in de wei|kippenhok').split('|');
+    const art = x => x[0] === '*' ? x.slice(1) : 'een ' + x;
+    const mass = x => x[0] === '*' ? x.slice(1) : x;
+    const GEN_BLUNT = [x => `Geen ${mass(x)}?! Wie heeft deze stad bedacht?`, x => `Een stad zonder ${mass(x)}? Dat is toch geen stad.`, x => `Jullie vergaten ${mass(x)}. Weer.`, x => `Geen ${mass(x)}. Dit is gewoon een schande.`, x => `Zonder ${mass(x)} word ik hier echt niet gelukkig.`, x => `Ik mis ${mass(x)} enorm. Doe er wat aan!`];
+    const GEN_SOFT = [x => `Zou er ooit ${art(x)} komen...`, x => `Met ${art(x)} zou het hier nog fijner zijn...`, x => `Ik denk soms aan ${art(x)}, zou dat hier kunnen...`, x => `Stilletjes hoop ik op ${art(x)}...`, x => `Misschien is er ergens ${art(x)}, ik heb nog niet gezocht...`];
+    function funnyPick(a) {
+      const lomp = tone(a) === 'lomp';
+      if (Math.random() < 0.4) { const f = FUNNY.filter(([l]) => !recent.includes(l)); if (f.length) { const [l, z] = f[Math.floor(Math.random() * f.length)]; recent.push(l); return lomp ? l : z; } }
+      const x = MISSING[Math.floor(Math.random() * MISSING.length)], g = lomp ? GEN_BLUNT : GEN_SOFT;
+      return g[Math.floor(Math.random() * g.length)](x);
+    }
     const WET = ['Wat een rotweer...', 'Kon ik maar naar binnen!', 'Fijn, een buitje... niet.', 'Snel naar huis!'];
     const SNOW = ['Wat mooi, sneeuw!', 'Een witte stad, prachtig.'];
     const NIGHT = ['De stad is mooi bij nacht.', 'Zo stil in het donker.'];
@@ -90,10 +147,10 @@
       if (WXK.snow > 0.3 && Math.random() < 0.5) return SNOW[Math.floor(Math.random() * SNOW.length)];
       if (WXK.rain > 0.3 && Math.random() < 0.6) return WET[Math.floor(Math.random() * WET.length)];
       if (typeof nightK !== 'undefined' && nightK > 0.7 && Math.random() < 0.25) return NIGHT[Math.floor(Math.random() * NIGHT.length)];
-      if (Math.random() < 0.38) { const g = GAME.filter(([l, z]) => !recent.includes(l)); if (g.length) { const [l, z] = g[Math.floor(Math.random() * g.length)]; recent.push(l); if (recent.length > 12) recent.shift(); return tone(a) === 'lomp' ? l : z; } }
+      if (Math.random() < 0.4) { if (Math.random() < 0.18) { const g = GAME.filter(([l, z]) => !recent.includes(l)); if (g.length) { const [l, z] = g[Math.floor(Math.random() * g.length)]; recent.push(l); if (recent.length > 40) recent.shift(); return tone(a) === 'lomp' ? l : z; } } const t0 = funnyPick(a); recent.push(t0); if (recent.length > 40) recent.shift(); return t0; }
       const ok = LINES.filter(([t, f]) => !recent.includes(t) && f(n));
       const t = ok.length ? ok[Math.floor(Math.random() * ok.length)][0] : NEUTRAL[Math.floor(Math.random() * NEUTRAL.length)];
-      recent.push(t); if (recent.length > 8) recent.shift();
+      recent.push(t); if (recent.length > 40) recent.shift();
       return t;
     }
     function say(a, text, dur, cls) {
@@ -106,14 +163,16 @@
       return true;
     }
     // Een zin over de stad laten zeggen door deze persoon; geeft de duur terug (voor het brabbelgeluid)
+    const GOOD = new Set([...LINES.slice(0, 12).map(l => l[0]), ...SNOW, ...NIGHT, ...HI]);
+    const moodOf = t => GOOD.has(t) ? 'pos' : (/(\?|\.\.\.)$/.test(t) || NEUTRAL.includes(t)) ? 'mid' : 'neg';
     function opine(a) {
       const now = performance.now();
       if (now - reviewT > 6000 || !review) { review = measure(); reviewT = now; }
       const text = pick(a); if (!text) return 0;
       const dur = Math.max(1.8, Math.min(4.8, 1.2 + text.length * 0.07));
-      return say(a, text, dur, tone(a) === 'lomp' ? 'lomp' : '') ? dur : 0;
+      return say(a, text, dur, moodOf(text) + (tone(a) === 'lomp' ? ' lomp' : '')) ? dur : 0;
     }
-    function greet(a) { if (live.length >= MAXB - 2) return; say(a, HI[Math.floor(Math.random() * HI.length)], 1.4, 'hi'); }
+    function greet(a) { if (live.length >= MAXB - 2) return; say(a, HI[Math.floor(Math.random() * HI.length)], 1.4, 'hi pos'); }
     const v = new THREE.Vector3();
     function update(dt) {
       const cp = camera.position;

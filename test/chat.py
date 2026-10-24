@@ -16,7 +16,7 @@ async def main():
         await pg.evaluate("()=>{window.__SC().doAct('empty'); try{localStorage.setItem('hexstad-welkom','1')}catch(e){} document.getElementById('welcomeSheet').hidden=true; const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true;}"); await pg.wait_for_timeout(300)
         await pg.evaluate("([c,P])=>{const S=window.__SC(); S.setCells(c); const m=S.getCells(); m.paths=P; S.buildPathNet();}",[cells,paths])
         r=await pg.evaluate("""()=>{const S=window.__SC(); const A=S.people.agents; const out=[]; const m=S.getCells(); 
-          S.orbit.target.set(A[0].x,A[0].y+1,A[0].z); S.orbit.dist=14; S.applyOrbit();
+          S.orbit.target.set(A[0].x,A[0].y+1,A[0].z); S.orbit.dist=14; A.forEach((a,i)=>{a.x=A[0].x+(i%4)*2.2-3;a.z=A[0].z+Math.floor(i/4)*2.4;}); S.applyOrbit();
           for(const a of A.slice(0,8)){ out.push(S.chatter.opine(a)); }
           return [A.length,out,S.chatter.live.length,S.chatter.live.map(b=>b.el.textContent)]; }""")
         print(r)
