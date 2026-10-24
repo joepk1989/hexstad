@@ -40,7 +40,9 @@
 gl_Position = projectionMatrix * mvPosition;`;
   THREE.ShaderChunk.worldpos_vertex = THREE.ShaderChunk.worldpos_vertex.replace('worldPosition = modelMatrix * worldPosition;', 'worldPosition = modelMatrix * worldPosition;\n\t{ vec2 cvD = worldPosition.xz - curveC; worldPosition.y -= curveK * dot(cvD, cvD); }');
   const curveUni = sh => { sh.uniforms.curveK = CURVE.k; sh.uniforms.curveC = CURVE.c; };
-  THREE.Material.prototype.onBeforeCompile = function (sh) { curveUni(sh); };
+  // three zet viewMatrix niet voor lijn-, punt- en sprite-materialen (die gebruiken normaal alleen modelViewMatrix); de
+  // bolling heeft hem wel nodig, dus die krijgen de camera-matrix als eigen uniform. Zonder dit verdwenen de rasterlijnen.
+  THREE.Material.prototype.onBeforeCompile = function (sh) { curveUni(sh); if (this.isLineBasicMaterial || this.isLineDashedMaterial || this.isPointsMaterial || this.isSpriteMaterial) sh.uniforms.viewMatrix = { value: camera.matrixWorldInverse }; };
   let groundFlatGeo = null, groundBolGeo = null;
   function curveSet(on) {
     CURVE.on = !!on; CURVE.k.value = on ? 1 / (2 * CURVE.R) : 0; skyU.bol.value = on ? 1 : 0;
