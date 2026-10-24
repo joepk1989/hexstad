@@ -383,12 +383,28 @@
     const k = manualDir !== null ? manualDir : viewDirIndex(), n = NEIGH[k], c2 = cellToWorld(cell[0] + n[0], cell[1] + n[1]);
     return { best: null, W, from: W, to: [Math.round(c2.x * 100) / 100, Math.round(c2.z * 100) / 100] };
   }
+  // Aansluiten: een nieuw wegeinde dat dicht bij een andere weg komt, schuift naar het dichtstbijzijnde punt van die weg
+  // (of naar zijn uiteinde), zodat apart getekende wegen een echte T-aansluiting of verlenging krijgen.
+  function vecSnap(W, self) {
+    const lim = R * SQ3 * 1.05; let best = null, bd = lim;
+    for (const q of pathsOf()) {
+      if (q === self || !q.p || q.p.length < 2 || !PATH_DEF[q.t]) continue;
+      const pts = smoothPts(q.p);
+      for (let j = 0; j < pts.length - 1; j++) {
+        const a = pts[j], b = pts[j + 1], dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz || 1;
+        const f = Math.max(0, Math.min(1, ((W[0] - a[0]) * dx + (W[1] - a[1]) * dz) / l2)), px = a[0] + dx * f, pz = a[1] + dz * f, d = Math.hypot(W[0] - px, W[1] - pz);
+        if (d < bd) { bd = d; best = [px, pz]; }
+      }
+      for (const e of [q.p[0], q.p[q.p.length - 1]]) { const d = Math.hypot(W[0] - e[0], W[1] - e[1]); if (d < bd + 1.5 && d < lim) { bd = Math.min(bd, d); best = [e[0], e[1]]; break; } }
+    }
+    return best ? [Math.round(best[0] * 100) / 100, Math.round(best[1] * 100) / 100] : W;
+  }
   function vecClick(cell, t) {
     if (!cell) return;
     const { best, W, to } = vecClickPlan(cell, t);
     let made;
     if (best) { const p = best.p; if (best.end === 0) { p.p.unshift(W); if (p.y) p.y.unshift(0); } else { p.p.push(W); if (p.y) p.y.push(0); } made = p; }
-    else { made = { t, l: 0, r: 0, p: [W, to] }; pathsOf().push(made); }
+    else { made = { t, l: 0, r: 0, p: [W, to] }; made.p[1] = vecSnap(made.p[1], made); pathsOf().push(made); }
     const gone = vecClearUnder([made]);
     buildPathNet(); changed(); toast((best ? TYPES[tool].name + ' doorgetrokken' : TYPES[tool].name + ': klik op het volgende vak om door te trekken, of sleep') + (gone ? ' · ' + gone + ' weggehaald' : ''), 1800);
   }
@@ -403,7 +419,7 @@
   function vecChainTmpOff() { const C = vecChain; if (!C.tmp) return false; const i = pathsOf().indexOf(C.tmp); if (i >= 0) pathsOf().splice(i, 1); C.tmp = null; C.hover = null; return true; }
   function vecChainEnd(quiet) {
     const C = vecChain; if (!C.on) return;
-    const had = vecChainTmpOff(); C.on = false; C.path = null; C.node = null; vecNode.visible = false; vecHover.visible = false;
+    const had = vecChainTmpOff(); vecCells.visible = false; C.on = false; C.path = null; C.node = null; vecNode.visible = false; vecHover.visible = false;
     if (had) buildPathNet();
     if (!quiet) toast('Weg klaar', 900);
   }
@@ -414,7 +430,7 @@
     vecChainTmpOff(); C.hover = cell;
     if (same) { vecHover.visible = false; buildPathNet(true); return; }
     const W = c => { const w = cellToWorld(c[0], c[1]); return [Math.round(w.x * 100) / 100, Math.round(w.z * 100) / 100]; };
-    C.tmp = { t: C.t, l: 0, r: 0, p: [W(C.node), W(cell)] }; pathsOf().push(C.tmp);
+    C.tmp = { t: C.t, l: 0, r: 0, p: [W(C.node), vecSnap(W(cell), C.path)] }; pathsOf().push(C.tmp); showVecCells(C.t, C.tmp.p[0], C.tmp.p[1]);
     vecNodeAt(vecHover, cell); buildPathNet(true);
   }
   function vecChainClick(cell) {
@@ -431,12 +447,23 @@
     if (cell[0] === C.node[0] && cell[1] === C.node[1]) { vecChainEnd(); return; }
     // vastleggen: het stuk van het knooppunt naar dit vak
     vecChainTmpOff();
-    const c = cellToWorld(cell[0], cell[1]), W = [Math.round(c.x * 100) / 100, Math.round(c.z * 100) / 100];
+    const c = cellToWorld(cell[0], cell[1]), W = vecSnap([Math.round(c.x * 100) / 100, Math.round(c.z * 100) / 100], C.path);
     if (C.path) { const p = C.path; if (C.end === 0) { p.p.unshift(W); if (p.y) p.y.unshift(0); } else { p.p.push(W); if (p.y) p.y.push(0); C.end = p.p.length - 1; } }
     else { const n = cellToWorld(C.node[0], C.node[1]); C.path = { t, l: 0, r: 0, p: [[Math.round(n.x * 100) / 100, Math.round(n.z * 100) / 100], W] }; C.end = 1; pathsOf().push(C.path); }
     const gone = vecClearUnder([C.path]);
     C.node = cell; vecNodeAt(vecNode, cell); vecHover.visible = false; C.hover = null;
+    // sluit het nieuwe eind aan op een andere weg (of op de eigen weg: een lus)? Dan is deze weg klaar.
+    const closes = (() => {
+      const def = PATH_DEF[t]; if (!def) return false;
+      for (const q of pathsOf()) {
+        if (!q.p || q.p.length < 2) continue;
+        if (q === C.path) { const old = q.p.slice(0, -2); if (old.length && distPoly(W[0], W[1], old.length > 1 ? smoothPts(old) : [old[0], old[0]]) < (def.hw + 1.5)) return true; continue; }
+        if (q.t === 'rot' ? Math.hypot(W[0] - q.p[0][0], W[1] - q.p[0][1]) < ROT.Ro + 3 : distPoly(W[0], W[1], smoothPts(q.p)) < (PATH_DEF[q.t] ? PATH_DEF[q.t].hw : 3) + 1.0) return true;
+      }
+      return false;
+    })();
     buildPathNet(); changed();
+    if (closes) { vecChainEnd(true); toast('Weg sluit aan · klaar' + (gone ? ' · ' + gone + ' weggehaald' : ''), 1800); return; }
     toast('Stuk ' + TYPES[tool].name.toLowerCase() + ' gelegd · klik verder, of klik hier nog eens om te stoppen' + (gone ? ' · ' + gone + ' weggehaald (Ctrl+Z zet terug)' : ''), gone ? 2600 : 1600);
   }
   function roadPaintTo(cell) {

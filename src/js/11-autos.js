@@ -582,6 +582,15 @@
               if (ped) { const w = brakeTo(sa - 0.3); if (w < want) { want = w; c.why = 'ahead'; } break; }
             }
           }
+          // laatste vangnet: staat de neus van een andere auto straks in mijn voorkant, dan stop ik (ook in een keerlus of bocht)
+          if (!reckless && c.v > 0.3 && !(c.ghost > 0 && c.v < 1)) {
+            const nz = 2.5 + c.v * 0.35;
+            for (const o of list) {
+              if (o === c || o.crash || o.fly || Math.abs((o.sy ?? 0) - (c.sy ?? 0)) >= 2 || Math.abs(o.x - c.x) > 9 || Math.abs(o.z - c.z) > 9) continue;
+              if (c.ghost > 0 && o.v < 0.5) continue;
+              if (inside(o, c.x + ch * nz, c.z + sh * nz, 0.15, 0.25) || inside(o, c.x + ch * nz * 0.55 + sh * 0.7, c.z + sh * nz * 0.55 - ch * 0.7, 0, 0) || inside(o, c.x + ch * nz * 0.55 - sh * 0.7, c.z + sh * nz * 0.55 + ch * 0.7, 0, 0)) { if (o.yieldTo !== c.id) { want = 0; c.why = 'ahead'; c.aheadOf = o; } break; }
+            }
+          }
           c.held = held;
           const patient = (c.pwait || 0) < 6;   // na 6 s wachten stapvoets verder; mensen stappen dan opzij
           // iemand ligt op straat: netjes remmen (roekeloos: gewoon doorrijden)

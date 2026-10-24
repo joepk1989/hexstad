@@ -325,6 +325,17 @@
   const ghostNone = new THREE.MeshBasicMaterial({ visible: false });
   // voorbeeld van een getekende weg (klik) of rotonde: een platte strook of ring in de kleur van het spookblok
   const vecGhostBox = new THREE.BoxGeometry(1, 0.3, 1), vecGhostRing = new THREE.RingGeometry(8.25, 13.75, 36).rotateX(-Math.PI / 2);
+  // Voorbeeld van de bezette vakken: omtrek van elk zeshoekig vak dat de nieuwe weg (mee)neemt
+  const vecCells = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: '#f2b233', transparent: true, opacity: 0.9, depthTest: false }));
+  vecCells.visible = false; vecCells.renderOrder = 5; vecCells.frustumCulled = false; vecCells.userData.noOcc = true; scene.add(vecCells);
+  function showVecCells(t, a, b) {
+    const set = vecCoverOf([{ t, p: [a, b] }], false), P = [];
+    for (const k of set) {
+      const [q, r] = k.split(',').map(Number), c = cellToWorld(q, r), y = Math.max(gH(q, r), terrainHeightAt(c.x, c.z)) + 0.4;
+      for (let i = 0; i < 6; i++) { const a0 = (30 + 60 * i) * Math.PI / 180, a1 = a0 + Math.PI / 3; P.push(c.x + Math.cos(a0) * R * 0.96, y, c.z + Math.sin(a0) * R * 0.96, c.x + Math.cos(a1) * R * 0.96, y, c.z + Math.sin(a1) * R * 0.96); }
+    }
+    vecCells.geometry.dispose(); vecCells.geometry = new THREE.BufferGeometry(); vecCells.geometry.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); vecCells.visible = P.length > 0;
+  }
   const vecGhost = new THREE.Mesh(vecGhostBox, ghostMat); vecGhost.visible = false; vecGhost.renderOrder = 4; vecGhost.userData.noOcc = true; scene.add(vecGhost);
   const crosshairEl = document.querySelector('.crosshair');
   const previewGroup = new THREE.Group(); scene.add(previewGroup);
@@ -367,7 +378,7 @@
   function updateGhost(cx, cy) {
     if (cx == null) { if (!lastHover) return; [cx, cy] = lastHover; }
     lastHover = [cx, cy];
-    ghostArrow.visible = false;
+    ghostArrow.visible = false; vecCells.visible = false;
     const res = pick(cx, cy); lastPickRes = res;
     edgeGhost.visible = false; moduleGhost.visible = false;
     if (terrHover(res, cx, cy)) { previewActive = false; ghost.visible = false; ghostEdges.visible = false; return; }
@@ -379,7 +390,7 @@
       if (tool === 'vrot') { const c = cellToWorld(res.place[0], res.place[1]); vecGhost.geometry = vecGhostRing; vecGhost.position.set(c.x, gH(res.place[0], res.place[1]) + 0.3, c.z); vecGhost.rotation.y = 0; vecGhost.scale.set(1, 1, 1); vecGhost.visible = true; return; }
       const { from, to } = vecClickPlan(res.place, VEC_T[tool]), dx = to[0] - from[0], dz = to[1] - from[1], len = Math.hypot(dx, dz) || 1, hw = PATH_DEF[VEC_T[tool]].hw;
       vecGhost.geometry = vecGhostBox; vecGhost.position.set((from[0] + to[0]) / 2, Math.max(gH(res.place[0], res.place[1]), terrainHeightAt((from[0] + to[0]) / 2, (from[1] + to[1]) / 2)) + 0.3, (from[1] + to[1]) / 2);
-      vecGhost.rotation.y = -Math.atan2(dz, dx); vecGhost.scale.set(len + hw, 1, hw * 2); vecGhost.visible = true; return;
+      vecGhost.rotation.y = -Math.atan2(dz, dx); vecGhost.scale.set(len + hw, 1, hw * 2); vecGhost.visible = true; showVecCells(VEC_T[tool], from, to); return;
     }
     vecGhost.visible = false;
     if (tool === 'module') { previewActive = false; ghost.visible = false; ghostEdges.visible = false; if (res.place) { const a = anchorOf(res); showModuleGhost(a[0], a[1], hudLayer() !== null ? hudLayer() : res.inst && !res.side ? res.lv : 0); } return; }
