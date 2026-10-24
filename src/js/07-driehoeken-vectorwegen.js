@@ -565,9 +565,20 @@
     const m = new THREE.Mesh(g, mat); m.receiveShadow = true; m.userData.own = true; return m;
   }
   // Terrein veranderd onder of naast een weg: de weg (hoogteprofiel) opnieuw opbouwen
-  function terrainChanged(list) {
-    for (const [q, r] of list) for (const [dq, dr] of [[0, 0], ...NEIGH]) if (vecCover.has((q + dq) + ',' + (r + dr))) { buildPathNet(); return true; }
-    return false;
+  // Wegprofielen vóór een terreinwijziging onthouden (zie terrainChanged)
+  function roadProfSnap() { const m = new Map(); for (const p of cells.paths || []) { const P = profCache.get(p); if (P) m.set(p, P.h.slice()); } return m; }
+  // Het hele wegennet wordt alleen opnieuw gebouwd als het terrein onder of naast een weg is veranderd ÉN een weg daardoor
+  // echt een ander hoogteprofiel krijgt (prev: de profielen van vóór de wijziging). Anders is het terrein tekenen genoeg.
+  function terrainChanged(list, prev) {
+    let near = false;
+    outer: for (const [q, r] of list) for (const [dq, dr] of [[0, 0], ...NEIGH]) if (vecCover.has((q + dq) + ',' + (r + dr))) { near = true; break outer; }
+    if (!near) return false;
+    if (prev) {
+      let diff = false;
+      for (const p of cells.paths || []) { const old = prev.get(p), nw = pathProf(p).h; if (!old || old.length !== nw.length || nw.some((v, i) => Math.abs(v - old[i]) > 0.005)) { diff = true; break; } }
+      if (!diff) return false;
+    }
+    buildPathNet(); return true;
   }
   // quick: tijdens het slepen alleen de tekening; botsing en het maaiveld langs de weg pas bij het loslaten
   function buildPathNet(quick) {

@@ -139,8 +139,9 @@
     SC.on = false; sculptAcc = 0; guideLine.hide();
     if (!SC.touched.size) return;
     const list = [...SC.touched].map(k => k.split(',').map(Number));
+    const prevProf = roadProfSnap();
     terrVer++;   // wegprofielen volgen het nieuwe terrein
-    if (!terrainChanged(list)) terrFlush();
+    if (!terrainChanged(list, prevProf)) terrFlush();
     peopleDirty = true; carsDirty = true; changed();
     const name = { tophoog: SC.inv ? 'Afgegraven' : 'Opgehoogd', tafgraaf: SC.inv ? 'Opgehoogd' : 'Afgegraven', tvlak: 'Geëgaliseerd', tglad: 'Gladgestreken', thelling: 'Helling gemaakt' }[tool];
     toast(name + ': ' + list.length + (list.length === 1 ? ' vak' : ' vakken'), 1000);
@@ -150,5 +151,5 @@
     const raise = tool !== 'tafgraaf', list = [];
     for (const [cq, cr, d] of brushCells(q, r)) { if (!terrFree(cq, cr)) continue; const h = gH(cq, cr), w = brushW(d); list.push([cq, cr, tool === 'tglad' ? h + ([...NEIGH].reduce((s, [dq, dr]) => s + gH(cq + dq, cr + dr), 0) / 6 - h) * 0.6 * w : tool === 'tvlak' ? gH(q, r) : h + (raise ? 1.5 : -1.5) * w]); }
     const ch = terrSet(list); if (!ch.length) return toast('Hier ligt iets: het terrein blijft liggen');
-    terrVer++; if (!terrainChanged(ch)) terrFlush(); peopleDirty = true; carsDirty = true; changed();
+    const prevProf = roadProfSnap(); terrVer++; if (!terrainChanged(ch, prevProf)) terrFlush(); peopleDirty = true; carsDirty = true; changed();
   }
