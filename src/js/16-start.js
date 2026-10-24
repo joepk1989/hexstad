@@ -14,7 +14,8 @@
     if (sv && (sv.slot === 'mijn' || sv.slot === 'klad')) { slot = sv.slot; slotName = sv.slotName || (slot === 'mijn' ? 'Mijn stad' : 'Andere stad'); }
   } catch (e) {}
   cells = load() || null;
-  if (!cells) { cells = load(MINE) || ringStad(); slot = load(MINE) ? 'mijn' : 'klad'; slotName = slot === 'mijn' ? 'Mijn stad' : 'Ringstad'; if (!load(MINE)) { orbit.dist = 1500; orbit.phi = 0.9; } }
+  // eerste keer: een klein voorbeeldstadje (de grote steden staan in het menu en op het welkomscherm)
+  if (!cells) { cells = load(MINE) || roofHouses(sampleCity()); slot = load(MINE) ? 'mijn' : 'klad'; slotName = slot === 'mijn' ? 'Mijn stad' : 'Voorbeeldstad'; if (!load(MINE)) { orbit.dist = 150; orbit.phi = 0.9; orbit.theta = 0.5; } }
   if (!hasMine() && slot === 'mijn') { try { localStorage.setItem(MINE, serialize(cells)); } catch (e) {} }
   if (!hasMine() && slot === 'klad' && !localStorage.getItem(SLOT)) { slot = 'mijn'; slotName = 'Mijn stad'; }
   const cleaned = sanitize(cells);
