@@ -124,6 +124,7 @@ public static class Planet
     // het vak waar een wereldpunt (of richting) het dichtst bij ligt
     public static int Nearest(Vector3 world)
     {
+        if (Cells == null || buckets == null) Build();   // na een hercompilatie tijdens Play zijn de statics weg
         Vector3 d = world.normalized; LatLon(d, out int la, out int lo);
         float lat = Mathf.Asin(Mathf.Clamp(d.y, -1f, 1f));
         int span = Mathf.Min(LonN / 2, Mathf.CeilToInt(2f / Mathf.Max(0.02f, Mathf.Cos(lat))));
