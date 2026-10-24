@@ -127,11 +127,13 @@ gl_Position = projectionMatrix * mvPosition;`;
     }
     const tex = new THREE.CanvasTexture(c);
     const group = new THREE.Group(), list = [], SPAN = 4000, mats = [];
-    for (let n = 0; n < 40; n++) {
-      const cl = new THREE.Group(), size = 110 + Math.random() * 170, puffs = 4 + Math.floor(Math.random() * 5);
+    // Zuinig: één materiaal per wolk (niet per vlok) en minder, kleinere vlokken. Wolken zijn doorzichtig en liggen over
+    // elkaar; naar de lucht kijken kostte vooral pixels (overdraw) en tekenopdrachten.
+    for (let n = 0; n < 26; n++) {
+      const cl = new THREE.Group(), size = 110 + Math.random() * 150, puffs = 3 + Math.floor(Math.random() * 3);
+      const m = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, fog: false, opacity: 0.9, color: '#ffffff', alphaTest: 0.02 }); mats.push({ m, shade: 0.82 + Math.random() * 0.18 }); cl.userData.mat = m;
       for (let i = 0; i < puffs; i++) {
-        const m = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, fog: false, opacity: 0.9, color: '#ffffff' }); mats.push({ m, shade: 0.82 + Math.random() * 0.18 });
-        const sp = new THREE.Sprite(m), k = size * (0.55 + Math.random() * 0.6); sp.scale.set(k * 1.6, k, 1);
+        const sp = new THREE.Sprite(m), k = size * (0.6 + Math.random() * 0.5); sp.scale.set(k * 1.6, k, 1);
         sp.position.set((Math.random() - 0.5) * size * 1.6, (Math.random() - 0.3) * size * 0.25, (Math.random() - 0.5) * size * 0.9); sp.renderOrder = -5; cl.add(sp);
       }
       cl.position.set((Math.random() - 0.5) * SPAN, 380 + Math.random() * 200, (Math.random() - 0.5) * SPAN); cl.renderOrder = -5;
@@ -146,12 +148,12 @@ gl_Position = projectionMatrix * mvPosition;`;
           for (const ax of ['x', 'z']) { let d = cl.position[ax] - cam[ax]; if (d > SPAN / 2) cl.position[ax] -= SPAN; else if (d < -SPAN / 2) cl.position[ax] += SPAN; }
           const dist = Math.hypot(cl.position.x - cam.x, cl.position.z - cam.z), fade = (1 - Math.max(0, Math.min(1, (dist - 1200) / 700)))
             * Math.max(0, Math.min(1, (cl.position.y - cam.y - 60) / 140));   // alleen boven je: van hoog boven de stad kijk je er niet doorheen
-          for (const sp of cl.children) sp.material.opacity = sp.userData.base * fade;
+          const op = (cl.userData.base ?? 0.9) * fade; cl.userData.mat.opacity = op; cl.visible = op > 0.02;   // onzichtbare wolken niet tekenen
         }
       },
       setOn(v) { group.visible = !!v; },
       get on() { return group.visible; },
-      tint(c, opacity) { for (const { m, shade } of mats) { col.copy(c).multiplyScalar(shade); m.color.copy(col); } for (const cl of list) for (const sp of cl.children) sp.userData.base = opacity; },
+      tint(c, opacity) { for (const { m, shade } of mats) { col.copy(c).multiplyScalar(shade); m.color.copy(col); } for (const cl of list) cl.userData.base = opacity; },
     };
   })();
 
