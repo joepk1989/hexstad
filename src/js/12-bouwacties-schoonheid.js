@@ -389,7 +389,7 @@
       if (!res.place || roadDrag.on) { vecGhost.visible = false; vecPreClear(); return; }
       if (vecChain.on && VEC_T[tool] === vecChain.t) { vecGhost.visible = false; vecChainHover(res.place); return; }
       if (tool === 'vrot') { const c = cellToWorld(res.place[0], res.place[1]); vecGhost.geometry = vecGhostRing; vecGhost.position.set(c.x, gH(res.place[0], res.place[1]) + 0.3, c.z); vecGhost.rotation.y = 0; vecGhost.scale.set(1, 1, 1); vecGhost.visible = true; return; }
-      if (VEC_TOOLS.has(tool)) { const plan = vecClickPlan(res.place, VEC_T[tool]); if (!plan.best) { vecGhost.visible = false; vecPreShow(res.place, VEC_T[tool]); showVecCells(VEC_T[tool], ...vecStubPts(res.place)); return; } vecPreClear(); }
+      if (VEC_TOOLS.has(tool)) { const plan = vecClickPlan(res.place, VEC_T[tool]); vecGhost.visible = false; if (!plan.best) { vecPreShow(res.place, VEC_T[tool]); showVecCells(VEC_T[tool], ...vecStubPts(res.place)); } else { const pp = [plan.from.slice(), plan.to.slice()]; vecPreShow(res.place, VEC_T[tool], pp); showVecCells(VEC_T[tool], pp[0], pp[1]); } return; }
       const { from, to } = vecClickPlan(res.place, VEC_T[tool]), dx = to[0] - from[0], dz = to[1] - from[1], len = Math.hypot(dx, dz) || 1, hw = PATH_DEF[VEC_T[tool]].hw;
       vecGhost.geometry = vecGhostBox; vecGhost.position.set((from[0] + to[0]) / 2, Math.max(gH(res.place[0], res.place[1]), terrainHeightAt((from[0] + to[0]) / 2, (from[1] + to[1]) / 2)) + 0.3, (from[1] + to[1]) / 2);
       vecGhost.rotation.y = -Math.atan2(dz, dx); vecGhost.scale.set(len + hw, 1, hw * 2); vecGhost.visible = true; showVecCells(VEC_T[tool], from, to); return;

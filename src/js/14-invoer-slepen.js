@@ -420,16 +420,16 @@
   // Eén klik vult een vak al met weg: een kort stukje (ronde kop) op die plek; de volgende klik trekt het door.
   // Zonder klik laat de hover hetzelfde stukje zien, alsof het er al ligt.
   function vecStubPts(cell) {
-    const c = cellToWorld(cell[0], cell[1]), k = manualDir !== null ? manualDir : viewDirIndex(), n = NEIGH[k], d = cellToWorld(cell[0] + n[0], cell[1] + n[1]), L = Math.hypot(d.x - c.x, d.z - c.z) || 1, h = 1.5;
+    const c = cellToWorld(cell[0], cell[1]), k = manualDir !== null ? manualDir : viewDirIndex(), n = NEIGH[k], d = cellToWorld(cell[0] + n[0], cell[1] + n[1]), L = Math.hypot(d.x - c.x, d.z - c.z) || 1, h = R * SQ3 / 2;   // van vakrand tot vakrand: het vak zit vol weg
     const a = [c.x - (d.x - c.x) / L * h, c.z - (d.z - c.z) / L * h], b = [c.x + (d.x - c.x) / L * h, c.z + (d.z - c.z) / L * h];
     return [a, b].map(p => [Math.round(p[0] * 100) / 100, Math.round(p[1] * 100) / 100]);
   }
   const vecPre = { tmp: null, key: '' };
   function vecPreClear() { if (!vecPre.tmp) return; const i = pathsOf().indexOf(vecPre.tmp); vecPre.tmp = null; vecPre.key = ''; if (i >= 0) { pathsOf().splice(i, 1); buildPathNet(true); } }
-  function vecPreShow(cell, t) {
-    const kk = cell[0] + ',' + cell[1] + ',' + t + ',' + (manualDir !== null ? manualDir : viewDirIndex()); if (vecPre.tmp && vecPre.key === kk) return;
+  function vecPreShow(cell, t, pts) {
+    const kk = cell[0] + ',' + cell[1] + ',' + t + ',' + (manualDir !== null ? manualDir : viewDirIndex()) + (pts ? 'c' + pts[0] : ''); if (vecPre.tmp && vecPre.key === kk) return;
     const i = vecPre.tmp ? pathsOf().indexOf(vecPre.tmp) : -1; if (i >= 0) pathsOf().splice(i, 1);
-    vecPre.tmp = { t, l: 0, r: 0, p: vecStubPts(cell) }; vecPre.key = kk; pathsOf().push(vecPre.tmp); buildPathNet(true);
+    vecPre.tmp = { t, l: 0, r: 0, p: pts || vecStubPts(cell) }; vecPre.key = kk; pathsOf().push(vecPre.tmp); buildPathNet(true);
   }
   function vecChainEnd(quiet) {
     const C = vecChain; if (!C.on) return;

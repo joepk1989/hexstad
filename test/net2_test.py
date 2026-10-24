@@ -11,7 +11,7 @@ async def main():
         await pg.evaluate("()=>{const s=document.getElementById('welcomeSheet'); if(s) s.hidden=true;}")
         await pg.evaluate("()=>window.__SC().doAct('empty')"); await pg.wait_for_timeout(500)
         r=await pg.evaluate("""()=>{const S=window.__SC(),o={}; S.selectTool('vweg'); S.orbit.target.set(0,0,0); S.orbit.phi=0.6; S.orbit.dist=120; S.applyOrbit();
-          S.place(0,0); o.a=JSON.stringify(S.getCells().paths.map(p=>p.p)); S.place(1,0); S.place(2,1); o.b=JSON.stringify(S.getCells().paths.map(p=>p.p)); return o}""")
+          S.place(0,0); o.a=JSON.stringify(S.getCells().paths.map(p=>p.p));  o.b=JSON.stringify(S.getCells().paths.map(p=>p.p)); return o}""")
         print(r); await pg.wait_for_timeout(2500)
         await pg.screenshot(path=SH+'net2.png')
         print(errs)
