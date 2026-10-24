@@ -82,10 +82,14 @@ public static class PlanetCity
         int n = Planet.Cells.Length;
         for (int c0 = 0; c0 < n; c0 += ChunkN)
         {
-            var m = new MeshBuilder(); var pm = new MeshBuilder();   // pm: de vijfhoeken, in een eigen kleur zodat je ze ziet
+            // De bodem per vak; de kleur loopt van gewoon gras (regelmatige zeshoek) naar fel oranje (het meest vervormd, naast een vijfhoek)
+            const int Steps = 8; var ms = new MeshBuilder[Steps]; for (int k = 0; k < Steps; k++) ms[k] = new MeshBuilder();
+            var pm = new MeshBuilder();   // de vijfhoeken zelf
             for (int i = c0; i < Mathf.Min(n, c0 + ChunkN); i++)
             {
-                var c = Planet.Cells[i]; Vector3 mid = c.dir * Planet.R; bool pent = c.corners.Length == 5; var mb0 = pent ? pm : m;
+                var c = Planet.Cells[i]; Vector3 mid = c.dir * Planet.R; bool pent = c.corners.Length == 5;
+                float kk = Mathf.Pow(Mathf.Clamp01((c.distort - 0.04f) / 0.125f), 1.4f);
+                var mb0 = pent ? pm : ms[Mathf.Clamp(Mathf.RoundToInt(kk * (Steps - 1)), 0, Steps - 1)];
                 for (int k = 0; k < c.corners.Length; k++) mb0.Tri(mid, c.corners[k] * Planet.R, c.corners[(k + 1) % c.corners.Length] * Planet.R, c.dir);
                 if (pent)   // baken: een slanke oranje punt van 60 m, zodat je de vijfhoeken ook vanuit de ruimte vindt
                 {
@@ -98,12 +102,17 @@ public static class PlanetCity
             if (pm.v.Count > 0)
             {
                 var pg = new GameObject("Vijfhoeken " + (c0 / ChunkN)); pg.transform.SetParent(groundRoot, false);
-                var pmesh = pm.Build(); pg.AddComponent<MeshFilter>().sharedMesh = pmesh; pg.AddComponent<MeshRenderer>().sharedMaterial = Mats.Get("p_vijfhoek", new Color(0.93f, 0.55f, 0.25f));
+                var pmesh = pm.Build(); pg.AddComponent<MeshFilter>().sharedMesh = pmesh; pg.AddComponent<MeshRenderer>().sharedMaterial = Mats.Get("p_vijfhoek", new Color(1f, 0.5f, 0.1f));
                 pg.AddComponent<MeshCollider>().sharedMesh = pmesh;
             }
-            var go = new GameObject("Bodem " + (c0 / ChunkN)); go.transform.SetParent(groundRoot, false);
-            var mesh = m.Build(); go.AddComponent<MeshFilter>().sharedMesh = mesh; go.AddComponent<MeshRenderer>().sharedMaterial = Raatstad.MatGround;
-            go.AddComponent<MeshCollider>().sharedMesh = mesh;
+            Color grass = new Color(0.64f, 0.78f, 0.45f), hot = new Color(1f, 0.6f, 0.2f);
+            for (int k = 0; k < Steps; k++)
+            {
+                if (ms[k].v.Count == 0) continue;
+                var go = new GameObject("Bodem " + (c0 / ChunkN) + " " + k); go.transform.SetParent(groundRoot, false);
+                var mesh = ms[k].Build(); go.AddComponent<MeshFilter>().sharedMesh = mesh; go.AddComponent<MeshRenderer>().sharedMaterial = Mats.Get("p_bodem" + k, Color.Lerp(grass, hot, k / (float)(Steps - 1)));
+                go.AddComponent<MeshCollider>().sharedMesh = mesh;
+            }
         }
     }
 

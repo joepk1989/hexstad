@@ -18,6 +18,7 @@ public static class Planet
         public Vector3 east, north;   // raakvlak-assen
         public Vector2[] local;       // hoekpunten in het raakvlak (oost, noord) in meters
         public float radius;          // gemiddelde afstand middelpunt-hoekpunt
+        public float distort;         // 0 = regelmatige zeshoek, ~0,17 = het meest vervormd (naast een vijfhoek)
     }
     public static Cell[] Cells;
     public static bool Ready => Cells != null;
@@ -97,6 +98,9 @@ public static class Planet
                 c.local[k] = new Vector2(Vector3.Dot(d, c.east), Vector3.Dot(d, c.north)); rs += c.local[k].magnitude;
             }
             c.radius = rs / cs.Count;
+            float rmn = 1e9f, rmx = 0f, emn = 1e9f, emx = 0f;
+            for (int k = 0; k < cs.Count; k++) { float r = c.local[k].magnitude, e = (c.local[k] - c.local[(k + 1) % cs.Count]).magnitude; rmn = Mathf.Min(rmn, r); rmx = Mathf.Max(rmx, r); emn = Mathf.Min(emn, e); emx = Mathf.Max(emx, e); }
+            c.distort = Mathf.Max(1f - rmn / rmx, 1f - emn / emx);
             Cells[v] = c;
         }
 
