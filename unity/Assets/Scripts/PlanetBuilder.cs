@@ -127,10 +127,10 @@ public class PlanetBuilder : MonoBehaviour
         Ui.Dim(new Rect(r.x, r.y + 24, 300, 18), (beauty != null ? beauty.blocks + " blokken · hoogste punt " + beauty.top.ToString("0.#") + " m" : "") + " · stad " + PlanetCity.Slot);
         if (beauty != null)
         {
-            bool over = new Rect(342, 12, 120, 58).Contains(Inp.Pos.x > 0 ? new Vector2(Inp.Pos.x, H - Inp.Pos.y) : Vector2.zero);
-            var sr = Ui.Card(new Rect(348, 12, 120, 58));
+            bool over = new Rect(342, 12, 160, 58).Contains(Inp.Pos.x > 0 ? new Vector2(Inp.Pos.x, H - Inp.Pos.y) : Vector2.zero);
+            var sr = Ui.Card(new Rect(348, 12, 160, 58));
             Ui.Big(new Rect(sr.x, sr.y - 2, 50, 30), beauty.score > 0 ? beauty.score.ToString() : "–");
-            Ui.Dim(new Rect(sr.x + 52, sr.y + 2, 70, 18), "<b>" + beauty.label + "</b>");
+            Ui.Dim(new Rect(sr.x + 52, sr.y + 2, 110, 18), "<b>" + beauty.label + "</b>");
             Ui.Dim(new Rect(sr.x, sr.y + 24, 110, 16), "schoonheid");
             if (over && beauty.score > 0)
             {
@@ -142,7 +142,7 @@ public class PlanetBuilder : MonoBehaviour
         // ---- bovenbalk rechts: klok, weer, geluid, hulp
         float x = W - 12;
         if (Ui.Button(new Rect(x - 40, 12, 40, 40), "?", showHelp)) showHelp = !showHelp; x -= 48;
-        if (Ui.Button(new Rect(x - 44, 12, 44, 40), Babble.Muted ? "Stil" : "Geluid")) { Babble.Muted = !Babble.Muted; Ambience.Muted = Babble.Muted; } x -= 52;
+        if (Ui.Button(new Rect(x - 76, 12, 76, 40), Babble.Muted ? "Stil" : "Geluid")) { Babble.Muted = !Babble.Muted; Ambience.Muted = Babble.Muted; } x -= 84;
         if (Weather.I != null) { if (Ui.Button(new Rect(x - 120, 12, 120, 40), Weather.Names[(int)Weather.I.Current] + (Weather.I.Wissel ? "" : " ·"))) { Weather.I.Set((Weather.Kind)(((int)Weather.I.Current + 1) % 6), true); } x -= 128; }
         var dn = GetComponent<DayNight>();
         if (Ui.Button(new Rect(x - 96, 12, 96, 40), DayNight.Clock + (dn != null && dn.Frozen ? " ·" : ""))) { Inp.Fake(K.N); }
