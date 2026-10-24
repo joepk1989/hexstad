@@ -107,6 +107,86 @@ public static class PlanetCity
         catch (Exception e) { Debug.LogWarning("Laden mislukt: " + e.Message); return false; }
     }
 
+    // Een rechte lijn van vakken van a naar b: de richting wordt op een veelvoud van 30° gelegd (zoals in de browser) en de lijn
+    // volgt de grootcirkel; elke stap kiest de buur die het dichtst bij die cirkel blijft. In de 6 buurrichtingen is dat een
+    // kaarsrechte rij, in de 6 tussenrichtingen een lichte trap.
+    public static List<int> LinePlan(int a, int b)
+    {
+        var A = Planet.Cells[a]; Vector3 da = A.dir, db = Planet.Cells[b].dir;
+        Vector3 t = db - da; t -= da * Vector3.Dot(t, da); if (t.sqrMagnitude < 1e-8f) return null; t.Normalize();
+        // de 12 richtingen: naar de buren (6) en daar precies tussenin (6); op een vijfhoek 5 + 5
+        var dirs = new List<Vector3>(); foreach (int j in A.nb) { Vector3 d = Planet.Cells[j].dir - da; d -= da * Vector3.Dot(d, da); dirs.Add(d.normalized); }
+        dirs.Sort((p, q) => Mathf.Atan2(Vector3.Dot(p, A.north), Vector3.Dot(p, A.east)).CompareTo(Mathf.Atan2(Vector3.Dot(q, A.north), Vector3.Dot(q, A.east))));   // op volgorde rondom
+        int nd = dirs.Count; for (int k = 0; k < nd; k++) { Vector3 m = dirs[k] + dirs[(k + 1) % nd]; if (m.sqrMagnitude > 1e-6f) dirs.Add(m.normalized); }
+        Vector3 ray = dirs[0]; float bestDot = -2f; foreach (var d in dirs) { float v = Vector3.Dot(d, t); if (v > bestDot) { bestDot = v; ray = d; } }
+        Vector3 n = Vector3.Cross(da, ray).normalized;
+        float total = Mathf.Acos(Mathf.Clamp(Vector3.Dot(da, db), -1f, 1f));
+        var plan = new List<int> { a }; int cur = a;
+        for (int step = 0; step < 120; step++)
+        {
+            Vector3 dc = Planet.Cells[cur].dir, fwd = Vector3.Cross(n, dc).normalized; int best = -1; float bs = -1e9f;
+            foreach (int j in Planet.Cells[cur].nb)
+            {
+                Vector3 dj = Planet.Cells[j].dir; float prog = Vector3.Dot(dj - dc, fwd); if (prog <= 1e-6f) continue;
+                float off = Mathf.Abs(Vector3.Dot(dj, n)) * Planet.R;   // afstand tot de grootcirkel in meters
+                float sc = prog * 10f - off; if (sc > bs) { bs = sc; best = j; }
+            }
+            if (best < 0) break;
+            float along = Mathf.Acos(Mathf.Clamp(Vector3.Dot(da, Planet.Cells[best].dir), -1f, 1f));
+            if (along > total + 0.4f * 15.6f / Planet.R) break;
+            plan.Add(best); cur = best; if (cur == b) break;
+        }
+        return plan;
+    }
+
+
+    // Een voorbeeldstadje rond vak s: een ringweg, twee hoofdwegen erdoorheen, huizen en kantoren langs de wegen,
+    // parken, een meertje en een paar paden. Vast bepaald (zelfde stad bij elke keer).
+    public static void Sample(int s)
+    {
+        var S = Planet.Cells[s]; var rnd = new System.Random(7);
+        // afstanden (in vakken) vanaf s
+        var dist = new Dictionary<int, int> { { s, 0 } }; var q = new Queue<int>(); q.Enqueue(s);
+        while (q.Count > 0) { int c = q.Dequeue(); if (dist[c] >= 7) continue; foreach (int j in Planet.Cells[c].nb) if (!dist.ContainsKey(j)) { dist[j] = dist[c] + 1; q.Enqueue(j); } }
+        System.Func<Vector3, int> at = dir => Planet.Nearest(dir * Planet.R);
+        System.Func<float, float, int> cellAt = (ang, r) => at((S.dir * Mathf.Cos(r / Planet.R) + (S.east * Mathf.Cos(ang) + S.north * Mathf.Sin(ang)) * Mathf.Sin(r / Planet.R)).normalized);
+        // twee hoofdwegen door het midden: in de richting van buur 0 en haaks daarop
+        Vector3 n0 = Planet.Cells[S.nb[0]].dir - S.dir; n0 -= S.dir * Vector3.Dot(n0, S.dir); float a0 = Mathf.Atan2(Vector3.Dot(n0, S.north), Vector3.Dot(n0, S.east));
+        foreach (float ang in new[] { a0, a0 + Mathf.PI / 2f })
+        {
+            var line = LinePlan(cellAt(ang + Mathf.PI, 6.2f * 15.6f), cellAt(ang, 6.2f * 15.6f)); if (line != null) PlaceLine(line, "weg");
+        }
+        // ringweg op afstand 4: de vakken op afstand 4, rondom gesorteerd, als gesloten lijn
+        var ring = new List<int>(); foreach (var kv in dist) if (kv.Value == 4) ring.Add(kv.Key);
+        ring.Sort((x, y) => Ang(S, x).CompareTo(Ang(S, y)));
+        var ringLine = new List<int>(ring); ringLine.Add(ring[0]); PlaceLine(ringLine, "weg");
+        // bebouwing: langs de wegen huizen (buiten) en kantoren (binnen de ring), parken in de rest, een meertje aan één kant
+        float lakeAng = a0 + Mathf.PI / 4f; int lakeC = cellAt(lakeAng, 2.3f * 15.6f);
+        foreach (var kv in dist)
+        {
+            int c = kv.Key, d = kv.Value; if (Cells.ContainsKey(c) || d == 0) continue;
+            bool nearRoad = false; foreach (int j in Planet.Cells[c].nb) if (IsRoad(j)) { nearRoad = true; break; }
+            float lakeD = Vector3.Distance(Planet.Cells[c].dir, Planet.Cells[lakeC].dir) * Planet.R;
+            if (lakeD < 19f) { Place(c, "meer"); continue; }
+            if (d > 6) continue;
+            if (nearRoad)
+            {
+                if (d <= 2) { int fl = 2 + rnd.Next(0, 2); for (int f = 0; f < fl; f++) Place(c, "kantoor"); }
+                else if (d <= 5 && rnd.NextDouble() < 0.8) { Place(c, "woning"); if (rnd.NextDouble() < 0.3) Place(c, "woning"); }
+                else if (rnd.NextDouble() < 0.5) Place(c, "park");
+            }
+            else if (d <= 5 && rnd.NextDouble() < 0.55) Place(c, "park");
+        }
+        // een paar paden van de ring naar binnen door het groen
+        for (int k = 0; k < 3; k++)
+        {
+            float ang = a0 + Mathf.PI / 3f + k * Mathf.PI * 2f / 3f; var pl = LinePlan(cellAt(ang, 3.6f * 15.6f), cellAt(ang, 1.4f * 15.6f));
+            if (pl != null) { var free = new List<int>(); foreach (int c in pl) if (!Cells.ContainsKey(c) || IsPath(c) || (Cells[c].Count == 1 && Cells[c][0] == "park")) { if (Cells.ContainsKey(c) && Cells[c][0] == "park") Cells.Remove(c); free.Add(c); } PlaceLine(free, "pad"); foreach (int c in free) foreach (int j in Planet.Cells[c].nb) if (IsRoad(j)) Link(c, j); }
+        }
+        TouchAll();
+    }
+    static float Ang(Planet.Cell S, int c) { Vector3 d = Planet.Cells[c].dir - S.dir; return Mathf.Atan2(Vector3.Dot(d, S.north), Vector3.Dot(d, S.east)); }
+
     // ---------- bodem ----------
     public static void Init(Transform parent)
     {
@@ -237,64 +317,93 @@ public static class PlanetCity
     // Een wegvak: één nette omtrek per laag (stoep, asfalt) in plaats van losse schijven en stroken. De omtrek wordt
     // rondom bemonsterd: in elke richting de verste rand van de armen naar de buurwegen, met een kern die bochten
     // afrondt. Daarop: stoeprand, middenstreepjes op rechte armen, een eilandje op kruisingen en een lantaarn.
+    // De richting van de weg door een buurvak dat zelf een "schuin recht stuk" is (twee aansluitingen die 120° of 180° maken),
+    // uitgedrukt in het assenstelsel van dit vak en wijzend dit vak in. Geeft false als de buur gewoon via zijn hart gaat.
+    // Wereldrichting van de weg door een schuin recht wegvak (zie ChordDirOf); false als het vak via zijn hart gaat
+    public static bool ChordDirWorld(int j, out Vector3 dir)
+    {
+        dir = Vector3.zero; var arms = new List<Vector3>();
+        foreach (int k in Planet.Cells[j].nb) if (LinkedRoad(j, k)) arms.Add(((Planet.Cells[j].dir + Planet.Cells[k].dir) * 0.5f).normalized);
+        if (arms.Count != 2) return false;
+        Vector3 cj = Planet.Cells[j].dir; if (Vector3.Dot((arms[0] - cj).normalized, (arms[1] - cj).normalized) >= -0.3f) return false;
+        dir = (arms[1] - arms[0]).normalized; return true;
+    }
+
+    static bool ChordDirOf(int j, Frame fr, Vector2 e, out Vector2 dir)
+    {
+        dir = (-e).normalized; var arms = new List<Vector3>();
+        foreach (int k in Planet.Cells[j].nb) if (LinkedRoad(j, k)) arms.Add(((Planet.Cells[j].dir + Planet.Cells[k].dir) * 0.5f).normalized * Planet.R);
+        if (arms.Count != 2) return false;
+        Vector3 cj = Planet.Cells[j].dir * Planet.R; Vector3 a0 = arms[0] - cj, a1 = arms[1] - cj;
+        if (Vector3.Dot(a0.normalized, a1.normalized) >= -0.3f) return false;
+        Vector3 w = arms[1] - arms[0]; Vector2 d = new Vector2(Vector3.Dot(w, fr.e), Vector3.Dot(w, fr.n)).normalized;
+        if (Vector2.Dot(d, -e) < 0f) d = -d; dir = d; return true;
+    }
+
+    // Een wegvak dat geen recht stuk is: een ronde kern met armen naar de aangesloten buren. Een arm naar een schuin recht
+    // buurstuk loopt in de richting van dát stuk (dus schuin door dit vak) zodat de weg zonder knik doorloopt; de arm wordt
+    // aan de rand langs de vakrand afgesneden, precies waar het buurstuk ophoudt. Hoogtes verschillen een paar millimeter
+    // zodat kern en armen elkaar netjes bedekken.
     static void Road(Dictionary<string, MeshBuilder> mb, Frame fr, int i)
     {
         System.Func<string, MeshBuilder> M = k => { if (!mb.TryGetValue(k, out var x)) { x = new MeshBuilder(); mb[k] = x; } return x; };
-        var arms = new List<Vector2>(); Vector2 freeDir = new Vector2(0, 1); float freeBest = -2f;
+        var ends = new List<Vector2>(); var dirs = new List<Vector2>(); Vector2 freeDir = new Vector2(0, 1); float freeBest = -2f;
         foreach (int j in Planet.Cells[i].nb)
         {
             Vector3 d3 = Planet.Cells[j].dir * Planet.R - fr.o; Vector2 q = new Vector2(Vector3.Dot(d3, fr.e), Vector3.Dot(d3, fr.n)) * 0.5f;
-            if (LinkedRoad(i, j)) arms.Add(q);
+            if (LinkedRoad(i, j)) { ends.Add(q); ChordDirOf(j, fr, q, out Vector2 dir); dirs.Add(dir); }
             else { float sc = (i * 7 + j) % 13 / 13f; if (sc > freeBest) { freeBest = sc; freeDir = q.normalized; } }
         }
-        int na = arms.Count; bool straight = false, chord = false;
-        if (na == 2) { float dot = Vector2.Dot(arms[0].normalized, arms[1].normalized); straight = dot < -0.9f; chord = dot < -0.3f; }   // 180° of 120°: recht van rand naar rand
-        if (chord) { Chord(M, fr, arms[0], arms[1]); LampAt(M, fr, freeBest, freeDir); return; }
-        float coreA = na == 0 ? 3.3f : na == 1 ? 2.5f : straight ? 2.5f : na == 2 ? 3.0f : 3.4f;   // kern van het asfalt
+        int na = ends.Count;
+        if (na == 2 && Vector2.Dot(ends[0].normalized, ends[1].normalized) < -0.3f) { Chord(M, fr, ends[0], ends[1]); LampAt(M, fr, freeBest, freeDir); return; }
+        // kern: groot genoeg om alle armen te raken
+        float coreA = na == 0 ? 3.3f : na == 1 ? 2.5f : na == 2 ? 3.0f : 3.4f;
+        for (int a = 0; a < na; a++) { float along = Vector2.Dot(-ends[a], dirs[a]); float perp = (ends[a] + dirs[a] * along).magnitude; coreA = Mathf.Max(coreA, perp + 1.2f); }
         float coreS = coreA + 2.1f;
-        const int S = 72;
-        System.Func<float, float, Vector2[]> Outline = (hw, core) =>
+        // armen
+        var armLen = new float[na];
+        for (int a = 0; a < na; a++)
         {
-            var pts = new Vector2[S];
-            for (int k = 0; k < S; k++)
+            Vector2 e = ends[a], d = dirs[a], r = new Vector2(d.y, -d.x), en = e.normalized; float den = Vector2.Dot(d, en);
+            float along = Vector2.Dot(-e, d); float perp = (e + d * along).magnitude; float L = along + Mathf.Sqrt(Mathf.Max(0f, coreA * coreA - perp * perp)) - 0.3f; armLen[a] = L;
+            System.Func<float, float, Vector2[]> quad = (hw, len) =>
             {
-                float th = k * Mathf.PI * 2f / S; Vector2 u = new Vector2(Mathf.Cos(th), Mathf.Sin(th)); float r = core;
-                foreach (var arm in arms)
+                var q = new Vector2[4];
+                for (int sd = 0; sd < 2; sd++) { Vector2 p0 = e + r * (sd == 0 ? -hw : hw); float t = Mathf.Abs(den) < 1e-4f ? 0f : Vector2.Dot(e - p0, en) / den; q[sd] = p0 + d * t; q[2 + sd] = p0 + d * len; }
+                return q;
+            };
+            var st = quad(4.6f, L + 1.2f); var asf = quad(2.5f, L);
+            M("stoep").Quad(fr.P(st[0].x, 0.095f, st[0].y), fr.P(st[1].x, 0.095f, st[1].y), fr.P(st[3].x, 0.095f, st[3].y), fr.P(st[2].x, 0.095f, st[2].y), fr.u);
+            M("stoep").Quad(fr.P(st[0].x, -0.35f, st[0].y), fr.P(st[2].x, -0.35f, st[2].y), fr.P(st[2].x, 0.095f, st[2].y), fr.P(st[0].x, 0.095f, st[0].y), fr.D(-r.x, 0, -r.y));
+            M("stoep").Quad(fr.P(st[1].x, -0.35f, st[1].y), fr.P(st[3].x, -0.35f, st[3].y), fr.P(st[3].x, 0.095f, st[3].y), fr.P(st[1].x, 0.095f, st[1].y), fr.D(r.x, 0, r.y));
+            M("asfalt").Quad(fr.P(asf[0].x, 0.155f, asf[0].y), fr.P(asf[1].x, 0.155f, asf[1].y), fr.P(asf[3].x, 0.155f, asf[3].y), fr.P(asf[2].x, 0.155f, asf[2].y), fr.u);
+            // stoeprand langs de zijkanten, alleen buiten de kern
+            for (int sd = 0; sd < 2; sd++)
+            {
+                Vector2 p = asf[sd], q2 = asf[2 + sd], o = r * (sd == 0 ? -0.22f : 0.22f); float len = Vector2.Distance(p, q2); Vector2 dd = (q2 - p) / Mathf.Max(0.01f, len);
+                for (float s0 = 0f; s0 < len; s0 += 0.5f)
                 {
-                    float L = arm.magnitude; Vector2 ad = arm / L; float c = Vector2.Dot(u, ad); if (c <= 0.02f) continue;
-                    float sn = Mathf.Abs(u.x * ad.y - u.y * ad.x);
-                    float ra = Mathf.Min(L / c, sn < 1e-4f ? 1e9f : hw / sn);   // tot het eind van de arm, of tot de lange zijkant
-                    if (ra > r) r = ra;
+                    float s1 = Mathf.Min(len, s0 + 0.5f); Vector2 a0 = p + dd * s0, a1 = p + dd * s1; if (((a0 + a1) * 0.5f).magnitude < coreA - 0.2f) continue;
+                    M("rand").Quad(fr.P(a0.x, 0.155f, a0.y), fr.P(a1.x, 0.155f, a1.y), fr.P(a1.x + o.x, 0.23f, a1.y + o.y), fr.P(a0.x + o.x, 0.23f, a0.y + o.y), fr.D(-o.x, 1f, -o.y));
                 }
-                pts[k] = u * r;
             }
-            return pts;
-        };
-        Vector2[] stoep = Outline(4.6f, coreS), asfalt = Outline(2.5f, coreA);
-        // stoep: vlak + schuine rand omlaag naar de bodem
-        for (int k = 0; k < S; k++) { Vector2 a = stoep[k], b = stoep[(k + 1) % S]; M("stoep").Tri(fr.P(0, 0.095f, 0), fr.P(a.x, 0.095f, a.y), fr.P(b.x, 0.095f, b.y), fr.u); Vector2 mid = (a + b) * 0.5f; M("stoep").Quad(fr.P(a.x, -0.35f, a.y), fr.P(b.x, -0.35f, b.y), fr.P(b.x, 0.095f, b.y), fr.P(a.x, 0.095f, a.y), fr.D(mid.x, 0, mid.y)); }
-        // asfalt met een lage schuine stoeprand (8 cm) eromheen
+            // middenstreepjes op de arm (niet bij een kruising) en een zebrapad vlak voor een kruising
+            if (na <= 2) for (float s0 = 0.6f; s0 + 1.2f < L - 0.5f; s0 += 2.6f) { Vector2 a0 = e + d * s0, a1 = e + d * (s0 + 1.4f); M("lijn").Quad(fr.P(a0.x - r.x * 0.07f, 0.165f, a0.y - r.y * 0.07f), fr.P(a0.x + r.x * 0.07f, 0.165f, a0.y + r.y * 0.07f), fr.P(a1.x + r.x * 0.07f, 0.165f, a1.y + r.y * 0.07f), fr.P(a1.x - r.x * 0.07f, 0.165f, a1.y - r.y * 0.07f), fr.u); }
+            if (na >= 3 && L > 4.5f) for (int z = -2; z <= 2; z++) { Vector2 off = r * (z * 0.95f); Vector2 a0 = e + d * 0.6f + off - r * 0.28f, b0 = e + d * 0.6f + off + r * 0.28f, c0 = e + d * 2.6f + off + r * 0.28f, e0 = e + d * 2.6f + off - r * 0.28f; M("lijn").Quad(fr.P(a0.x, 0.165f, a0.y), fr.P(b0.x, 0.165f, b0.y), fr.P(c0.x, 0.165f, c0.y), fr.P(e0.x, 0.165f, e0.y), fr.u); }
+        }
+        // kern: stoepschijf met schuine rand, asfaltschijf, stoeprand alleen waar geen arm zit
+        const int S = 48;
+        Disc(M("stoep"), fr, coreS, 0.085f); Skirt(M("stoep"), fr, coreS, -0.35f, 0.085f);
         for (int k = 0; k < S; k++)
         {
-            Vector2 a = asfalt[k], b = asfalt[(k + 1) % S]; M("asfalt").Tri(fr.P(0, 0.155f, 0), fr.P(a.x, 0.155f, a.y), fr.P(b.x, 0.155f, b.y), fr.u);
-            Vector2 ao = a * (1f + 0.22f / a.magnitude), bo = b * (1f + 0.22f / b.magnitude), mid = (a + b) * 0.5f;
-            M("rand").Quad(fr.P(a.x, 0.155f, a.y), fr.P(b.x, 0.155f, b.y), fr.P(bo.x, 0.23f, bo.y), fr.P(ao.x, 0.23f, ao.y), fr.D(-mid.x, 3f, -mid.y));
+            float a0 = k * Mathf.PI * 2f / S, a1 = (k + 1) * Mathf.PI * 2f / S, am = (a0 + a1) * 0.5f;
+            Vector2 p0 = new Vector2(Mathf.Cos(a0), Mathf.Sin(a0)) * coreA, p1 = new Vector2(Mathf.Cos(a1), Mathf.Sin(a1)) * coreA, pm = new Vector2(Mathf.Cos(am), Mathf.Sin(am)) * coreA;
+            M("asfalt").Tri(fr.P(0, 0.150f, 0), fr.P(p0.x, 0.150f, p0.y), fr.P(p1.x, 0.150f, p1.y), fr.u);
+            bool covered = false;
+            for (int a = 0; a < na && !covered; a++) { Vector2 e = ends[a], d = dirs[a]; float along = Vector2.Dot(pm - e, d); float perp = Mathf.Abs(Vector2.Dot(pm - e, new Vector2(d.y, -d.x))); if (along > -0.5f && along < armLen[a] + 0.5f && perp < 2.5f + 0.3f) covered = true; }
+            if (!covered) { Vector2 o0 = p0.normalized * 0.22f, o1 = p1.normalized * 0.22f; M("rand").Quad(fr.P(p0.x, 0.150f, p0.y), fr.P(p1.x, 0.150f, p1.y), fr.P(p1.x + o1.x, 0.23f, p1.y + o1.y), fr.P(p0.x + o0.x, 0.23f, p0.y + o0.y), fr.D(-pm.x, coreA, -pm.y)); }
         }
-        // middenstreepjes op de armen (niet op kruisingen), en een eilandje op een kruising
-        if (na <= 2) foreach (var arm in arms)
-        {
-            float L = arm.magnitude; Vector2 d = arm / L, r = new Vector2(d.y, -d.x);
-            for (float s0 = (na == 2 && straight ? 0.4f : coreA + 0.3f); s0 + 1.2f < L; s0 += 2.6f) Strip(M("lijn"), fr, d, r, s0, s0 + 1.4f, 0.07f, 0.165f);
-        }
-        if (na >= 3)
-        {
-            Disc(M("gras"), fr, 1.3f, 0.21f); Skirt(M("rand"), fr, 1.4f, 0.155f, 0.21f);
-            foreach (var arm in arms)   // zebrapad over elke arm, vlak voor de kruising
-            {
-                float L = arm.magnitude; Vector2 d = arm / L, r = new Vector2(d.y, -d.x); if (L < 6.5f) continue;
-                for (int z = -2; z <= 2; z++) { Vector2 off = r * (z * 0.95f); Vector2 a = d * (L - 2.6f) + off - r * 0.28f, b = d * (L - 2.6f) + off + r * 0.28f, c = d * (L - 0.6f) + off + r * 0.28f, e = d * (L - 0.6f) + off - r * 0.28f; M("lijn").Quad(fr.P(a.x, 0.165f, a.y), fr.P(b.x, 0.165f, b.y), fr.P(c.x, 0.165f, c.y), fr.P(e.x, 0.165f, e.y), fr.u); }
-            }
-        }
+        if (na >= 3) { Disc(M("gras"), fr, 1.3f, 0.21f); Skirt(M("rand"), fr, 1.4f, 0.155f, 0.21f); }
         LampAt(M, fr, freeBest, freeDir);
     }
 

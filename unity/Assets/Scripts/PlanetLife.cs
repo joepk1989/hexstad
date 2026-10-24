@@ -97,14 +97,26 @@ public class PlanetLife : MonoBehaviour
 
     // Positie op de boog door vak b: een kwadratische Bézier van het midden van rand a-b, via het hart van b, naar het midden van rand b-c.
     // Rechtdoor is dat een rechte lijn; in een bocht van 60° een vloeiende boog. De auto houdt rechts (zijwaarts langs de raaklijn).
+    // Rijrichting op de rand tussen x en y: langs de schuine weg als een van beide een schuin recht stuk is, anders van hart naar hart
+    static Vector3 EdgeDir(int x, int y)
+    {
+        Vector3 cc = (Planet.Cells[y].dir - Planet.Cells[x].dir).normalized, w;
+        if (PlanetCity.ChordDirWorld(y, out w) || PlanetCity.ChordDirWorld(x, out w)) return Vector3.Dot(w, cc) < 0f ? -w : w;
+        return cc;
+    }
+    // Positie op de weg door vak b: een kubische Bézier van het midden van rand a-b naar het midden van rand b-c, met als
+    // raaklijnen de rijrichting op die randen. Recht of schuin recht wordt een rechte lijn; een bocht een vloeiende boog die
+    // precies op het asfalt blijft. De auto houdt rechts (zijwaarts langs de raaklijn).
     static void Arc(int a, int b, int cc, float s, float side, float h, out Vector3 pos, out Vector3 fwd, out Vector3 up)
     {
-        Vector3 P0 = ((Planet.Cells[a].dir + Planet.Cells[b].dir) * 0.5f).normalized, P1 = Planet.Cells[b].dir, P2 = ((Planet.Cells[b].dir + Planet.Cells[cc].dir) * 0.5f).normalized;
-        // bij een draai van hooguit 70° (recht of 120°-zigzag) rijdt de auto recht van rand naar rand, net als het asfalt
-        Vector3 t1 = (P1 - P0).normalized, t2 = (P2 - P1).normalized; if (Vector3.Dot(t1, t2) > 0.34f) P1 = ((P0 + P2) * 0.5f).normalized;
-        float u = 1f - s; Vector3 d = P0 * (u * u) + P1 * (2f * u * s) + P2 * (s * s); up = d.normalized;
-        Vector3 tan = (P1 - P0) * (2f * u) + (P2 - P1) * (2f * s);
-        fwd = tan - up * Vector3.Dot(tan, up); if (fwd.sqrMagnitude < 1e-10f) fwd = Planet.Cells[b].north; fwd.Normalize();
+        Vector3 P0 = ((Planet.Cells[a].dir + Planet.Cells[b].dir) * 0.5f).normalized, P3 = ((Planet.Cells[b].dir + Planet.Cells[cc].dir) * 0.5f).normalized;
+        Vector3 t0 = EdgeDir(a, b), t3 = EdgeDir(b, cc); float k = Vector3.Distance(P0, P3) * 0.4f;
+        Vector3 P1 = P0 + t0 * k, P2 = P3 - t3 * k;
+        if (a == cc) { P1 = Planet.Cells[b].dir + t0 * k * 0.5f; P2 = Planet.Cells[b].dir - t3 * k * 0.5f; }   // keren: lus door het hart
+        float u = 1f - s;
+        Vector3 d = P0 * (u * u * u) + P1 * (3f * u * u * s) + P2 * (3f * u * s * s) + P3 * (s * s * s); up = d.normalized;
+        Vector3 tan = (P1 - P0) * (3f * u * u) + (P2 - P1) * (6f * u * s) + (P3 - P2) * (3f * s * s);
+        fwd = tan - up * Vector3.Dot(tan, up); if (fwd.sqrMagnitude < 1e-12f) fwd = Planet.Cells[b].north; fwd.Normalize();
         Vector3 right = Vector3.Cross(up, fwd);
         pos = up * (Planet.R + h) + right * side;
     }

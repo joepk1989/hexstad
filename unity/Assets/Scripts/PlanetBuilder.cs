@@ -21,6 +21,7 @@ public class PlanetBuilder : MonoBehaviour
     void Start()
     {
         int s0 = Planet.Starts[Random.Range(0, Planet.Starts.Length)]; focus = Planet.Cells[s0].dir; fwd = Planet.Cells[s0].north;   // elke speler begint op een startplek: zo ver mogelijk van de vijfhoeken
+        if (PlanetCity.Cells.Count == 0) { PlanetCity.Sample(s0); PlanetCity.Rebuild(); PlanetCity.Save(); dist = 160f; }   // lege stad: begin met een voorbeeldstadje
         outline = new GameObject("Hover").AddComponent<LineRenderer>(); outline.loop = true; outline.positionCount = 6; outline.widthMultiplier = 0.35f; outline.material = Raatstad.MatOutline; outline.useWorldSpace = true;
         walker = new GameObject("Wandelaar").AddComponent<PlanetWalker>(); walker.Cam = Cam; walker.gameObject.SetActive(false);
         Say("Planeet: " + Planet.Cells.Length + " vakken, omtrek " + Mathf.RoundToInt(2f * Mathf.PI * Planet.R) + " m · toets 1-9 of de balk kiest een blok · klik een vak");
@@ -53,7 +54,7 @@ public class PlanetBuilder : MonoBehaviour
             if (Inp.RightUp && rightCell >= 0 && Vector2.Distance(Inp.Pos, rightAt) < 6f) { Push(); if (PlanetCity.Clear(hover)) { Changed(); Say("Vak leeggemaakt"); } rightCell = -1; }
             bool roadTool = Blocks.Tools[tool] == "weg" || Blocks.Tools[tool] == "pad";
             if (Inp.LeftDown) { Push(); painting = !roadTool; lastPainted = -1; lineStart = roadTool ? hover : -1; linePlan = null; }
-            if (lineStart >= 0 && Inp.LeftHeld) { linePlan = hover == lineStart ? null : LinePlan(lineStart, hover); ShowPlan(linePlan); }
+            if (lineStart >= 0 && Inp.LeftHeld) { linePlan = hover == lineStart ? null : PlanetCity.LinePlan(lineStart, hover); ShowPlan(linePlan); }
             if (painting && Inp.LeftHeld && hover != lastPainted)
             {
                 lastPainted = hover; string t = Blocks.Tools[tool];
@@ -90,38 +91,6 @@ public class PlanetBuilder : MonoBehaviour
         if (Time.time - centreT < 2f) return; centreT = Time.time;
         Vector3 sum = Vector3.zero; int n = 0; foreach (var kv in PlanetCity.Cells) { sum += Planet.Cells[kv.Key].dir; n++; }
         hasCentre = n > 0 && sum.sqrMagnitude > 1e-6f; if (hasCentre) centre = sum.normalized;
-    }
-
-    // Een rechte lijn van vakken van a naar b: de richting wordt op een veelvoud van 30° gelegd (zoals in de browser) en de lijn
-    // volgt de grootcirkel; elke stap kiest de buur die het dichtst bij die cirkel blijft. In de 6 buurrichtingen is dat een
-    // kaarsrechte rij, in de 6 tussenrichtingen een lichte trap.
-    static List<int> LinePlan(int a, int b)
-    {
-        var A = Planet.Cells[a]; Vector3 da = A.dir, db = Planet.Cells[b].dir;
-        Vector3 t = db - da; t -= da * Vector3.Dot(t, da); if (t.sqrMagnitude < 1e-8f) return null; t.Normalize();
-        // de 12 richtingen: naar de buren (6) en daar precies tussenin (6); op een vijfhoek 5 + 5
-        var dirs = new List<Vector3>(); foreach (int j in A.nb) { Vector3 d = Planet.Cells[j].dir - da; d -= da * Vector3.Dot(d, da); dirs.Add(d.normalized); }
-        dirs.Sort((p, q) => Mathf.Atan2(Vector3.Dot(p, A.north), Vector3.Dot(p, A.east)).CompareTo(Mathf.Atan2(Vector3.Dot(q, A.north), Vector3.Dot(q, A.east))));   // op volgorde rondom
-        int nd = dirs.Count; for (int k = 0; k < nd; k++) { Vector3 m = dirs[k] + dirs[(k + 1) % nd]; if (m.sqrMagnitude > 1e-6f) dirs.Add(m.normalized); }
-        Vector3 ray = dirs[0]; float bestDot = -2f; foreach (var d in dirs) { float v = Vector3.Dot(d, t); if (v > bestDot) { bestDot = v; ray = d; } }
-        Vector3 n = Vector3.Cross(da, ray).normalized;
-        float total = Mathf.Acos(Mathf.Clamp(Vector3.Dot(da, db), -1f, 1f));
-        var plan = new List<int> { a }; int cur = a;
-        for (int step = 0; step < 120; step++)
-        {
-            Vector3 dc = Planet.Cells[cur].dir, fwd = Vector3.Cross(n, dc).normalized; int best = -1; float bs = -1e9f;
-            foreach (int j in Planet.Cells[cur].nb)
-            {
-                Vector3 dj = Planet.Cells[j].dir; float prog = Vector3.Dot(dj - dc, fwd); if (prog <= 1e-6f) continue;
-                float off = Mathf.Abs(Vector3.Dot(dj, n)) * Planet.R;   // afstand tot de grootcirkel in meters
-                float sc = prog * 10f - off; if (sc > bs) { bs = sc; best = j; }
-            }
-            if (best < 0) break;
-            float along = Mathf.Acos(Mathf.Clamp(Vector3.Dot(da, Planet.Cells[best].dir), -1f, 1f));
-            if (along > total + 0.4f * 15.6f / Planet.R) break;
-            plan.Add(best); cur = best; if (cur == b) break;
-        }
-        return plan;
     }
 
     void ShowPlan(List<int> plan)
@@ -235,6 +204,7 @@ public class PlanetBuilder : MonoBehaviour
         {
             var hr = Ui.Card(new Rect(W / 2 - 260, 90, 520, 300), 0.95f);
             Ui.Title(new Rect(hr.x, hr.y, 300, 26), "Bediening");
+            if (Ui.Button(new Rect(hr.x + hr.width - 150, hr.y, 150, 30), "Voorbeeldstad hier")) { Push(); PlanetCity.Sample(Planet.Nearest(focus)); Changed(); showHelp = false; Say("Voorbeeldstad geplaatst (Ctrl+Z haalt hem weg)"); }
             Ui.Help(new Rect(hr.x, hr.y + 32, hr.width, 250),
                 "<b>Bouwen</b>  klik of sleep over vakken (1-9 kiest een blok) · rechtermuisknop maakt een vak helemaal leeg · X haalt het bovenste blok weg · Ctrl+Z maakt ongedaan\n" +
                 "<b>Wegen en paden slepen</b>  klik een vak en sleep: een rechte lijn in een van de 12 richtingen (30°). Alleen de vakken in de lijn worden verbonden; twee wegen naast elkaar blijven los. Een klik verbindt met alle buurwegen.\n" +
