@@ -188,12 +188,21 @@ public static class PlanetCity
     static float Ang(Planet.Cell S, int c) { Vector3 d = Planet.Cells[c].dir - S.dir; return Mathf.Atan2(Vector3.Dot(d, S.north), Vector3.Dot(d, S.east)); }
 
     // ---------- bodem ----------
+    static readonly Dictionary<int, List<GameObject>> groundChunks = new Dictionary<int, List<GameObject>>();
     public static void Init(Transform parent)
     {
         root = new GameObject("Planeetstad").transform; root.SetParent(parent, false);
         groundRoot = new GameObject("Bodem").transform; groundRoot.SetParent(parent, false);
-        int n = Planet.Cells.Length;
-        for (int c0 = 0; c0 < n; c0 += ChunkN)
+        chunks.Clear(); groundChunks.Clear();
+        for (int c0 = 0; c0 < Planet.Cells.Length; c0 += ChunkN) BuildGround(c0 / ChunkN);
+    }
+
+    // De bodem van één deel. Vakken met een meer of een uitgraving krijgen geen bodem (die zit er anders doorheen).
+    static void BuildGround(int ch)
+    {
+        if (groundChunks.TryGetValue(ch, out var olds)) { foreach (var g in olds) if (g != null) UnityEngine.Object.Destroy(g); }
+        var made = new List<GameObject>(); groundChunks[ch] = made;
+        int n = Planet.Cells.Length, c0 = ch * ChunkN;
         {
             // De bodem per vak; de kleur loopt van gewoon gras (regelmatige zeshoek) naar fel oranje (het meest vervormd, naast een vijfhoek)
             const int Steps = 8; var ms = new MeshBuilder[Steps]; for (int k = 0; k < Steps; k++) ms[k] = new MeshBuilder();
@@ -201,6 +210,7 @@ public static class PlanetCity
             var sm = new MeshBuilder();   // de startplekken
             for (int i = c0; i < Mathf.Min(n, c0 + ChunkN); i++)
             {
+                if (Cells.TryGetValue(i, out var stack) && stack.Count > 0 && (stack[0] == "meer" || stack[0] == "kuil")) continue;
                 var c = Planet.Cells[i]; Vector3 mid = c.dir * Planet.R; bool pent = c.corners.Length == 5;
                 float kk = Mathf.Pow(Mathf.Clamp01((c.distort - 0.04f) / 0.125f), 1.4f);
                 bool start = System.Array.IndexOf(Planet.Starts, i) >= 0;
@@ -224,13 +234,13 @@ public static class PlanetCity
             }
             if (pm.v.Count > 0)
             {
-                var pg = new GameObject("Vijfhoeken " + (c0 / ChunkN)); pg.transform.SetParent(groundRoot, false);
+                var pg = new GameObject("Vijfhoeken " + (c0 / ChunkN)); pg.transform.SetParent(groundRoot, false); made.Add(pg);
                 var pmesh = pm.Build(); pg.AddComponent<MeshFilter>().sharedMesh = pmesh; pg.AddComponent<MeshRenderer>().sharedMaterial = Mats.Get("p_vijfhoek", new Color(1f, 0.5f, 0.1f));
                 pg.AddComponent<MeshCollider>().sharedMesh = pmesh;
             }
             if (sm.v.Count > 0)
             {
-                var sg = new GameObject("Startplekken " + (c0 / ChunkN)); sg.transform.SetParent(groundRoot, false);
+                var sg = new GameObject("Startplekken " + (c0 / ChunkN)); sg.transform.SetParent(groundRoot, false); made.Add(sg);
                 var smesh = sm.Build(); sg.AddComponent<MeshFilter>().sharedMesh = smesh; sg.AddComponent<MeshRenderer>().sharedMaterial = Mats.Get("p_start", new Color(0.55f, 0.8f, 1f));
                 sg.AddComponent<MeshCollider>().sharedMesh = smesh;
             }
@@ -238,7 +248,7 @@ public static class PlanetCity
             for (int k = 0; k < Steps; k++)
             {
                 if (ms[k].v.Count == 0) continue;
-                var go = new GameObject("Bodem " + (c0 / ChunkN) + " " + k); go.transform.SetParent(groundRoot, false);
+                var go = new GameObject("Bodem " + (c0 / ChunkN) + " " + k); go.transform.SetParent(groundRoot, false); made.Add(go);
                 var mesh = ms[k].Build(); go.AddComponent<MeshFilter>().sharedMesh = mesh; go.AddComponent<MeshRenderer>().sharedMaterial = Mats.Get("p_bodem" + k, Color.Lerp(grass, hot, k / (float)(Steps - 1)));
                 go.AddComponent<MeshCollider>().sharedMesh = mesh;
             }
@@ -458,7 +468,6 @@ public static class PlanetCity
     {
         System.Func<string, MeshBuilder> M = k => { if (!mb.TryGetValue(k, out var x)) { x = new MeshBuilder(); mb[k] = x; } return x; };
         var c = Planet.Cells[i]; int n = fr.poly.Length;
-        Top(M("zand"), fr, 1.0f, h + 0.03f); Wall(M("zand"), fr, 1.0f, -0.2f, h + 0.03f);
         // per rand: open naar een buurmeer? De buur met dezelfde richting als de rand (middelpunt van de rand ligt richting die buur)
         var open = new bool[n];
         for (int e = 0; e < n; e++)
@@ -482,7 +491,12 @@ public static class PlanetCity
             M("water").Tri(fr.P(0, wy, 0), fr.P(a.x, wy, a.y), fr.P(am.x, wy, am.y), fr.u); M("water").Tri(fr.P(0, wy, 0), fr.P(am.x, wy, am.y), fr.P(b.x, wy, b.y), fr.u);
             // oever: een helling van het zand (h+0.03) naar onder water (wy-0.3), en riet op gesloten randen
             Vector2 oa = fr.poly[k] * 0.98f, ob = fr.poly[(k + 1) % n] * 0.98f;
-            if (!open[k]) { M("modder").Quad(fr.P(a.x, wy - 0.3f, a.y), fr.P(b.x, wy - 0.3f, b.y), fr.P(ob.x, h + 0.03f, ob.y), fr.P(oa.x, h + 0.03f, oa.y), fr.D(-am.x, 0.5f * am.magnitude, -am.y));
+            if (!open[k]) {
+                // buitenrand (zand, iets de bodem in) en de oever: van de rand schuin omlaag tot onder water
+                Vector2 pa = fr.poly[k], pb = fr.poly[(k + 1) % n], pm = (pa + pb) * 0.5f;
+                M("zand").Quad(fr.P(pa.x, -0.25f, pa.y), fr.P(pb.x, -0.25f, pb.y), fr.P(pb.x, h + 0.03f, pb.y), fr.P(pa.x, h + 0.03f, pa.y), fr.D(pm.x, 0, pm.y));
+                M("zand").Quad(fr.P(pa.x, h + 0.03f, pa.y), fr.P(pb.x, h + 0.03f, pb.y), fr.P(ob.x, h + 0.02f, ob.y), fr.P(oa.x, h + 0.02f, oa.y), fr.u);
+                M("zand").Quad(fr.P(oa.x, h + 0.02f, oa.y), fr.P(ob.x, h + 0.02f, ob.y), fr.P(b.x, wy - 0.3f, b.y), fr.P(a.x, wy - 0.3f, a.y), fr.D(-am.x, 0.5f * am.magnitude, -am.y));
                 int reeds = 2 + rnd.Next(0, 3);
                 for (int r = 0; r < reeds; r++) { float t = 0.15f + (float)rnd.NextDouble() * 0.7f; Vector2 rp = Vector2.Lerp(a, b, t) * (0.97f + (float)rnd.NextDouble() * 0.06f); Cone(M("riet"), fr, rp.x, rp.y, 0.12f, wy - 0.1f, h + 0.9f + (float)rnd.NextDouble() * 0.5f, 0f); } }
         }
@@ -530,6 +544,7 @@ public static class PlanetCity
 
     static void BuildChunk(int ch)
     {
+        BuildGround(ch);
         if (chunks.TryGetValue(ch, out var old) && old != null) UnityEngine.Object.Destroy(old.gameObject);
         chunks.Remove(ch);
         var mb = new Dictionary<string, MeshBuilder>();
@@ -575,8 +590,13 @@ public static class PlanetCity
                     case "meer":
                         Lake(mb, fr, i, h, hash);
                         break;
-                    case "kuil":   // uitgraving: de bodem 3 m lager, grashellingen naar de rand
-                        Cone(M("gras"), fr, 0, 0, fr.rad * 0.55f, h1, h, fr.rad * 1.0f); Cap6(M("gras"), fr, fr.rad * 0.55f, h1); Top(M("gras"), fr, 1.0f, h + 0.01f);
+                    case "kuil":   // uitgraving: de bodem 3 m lager, zeshoekige grashellingen van de rand naar beneden
+                        for (int e2 = 0; e2 < fr.poly.Length; e2++)
+                        {
+                            Vector2 a2 = C(fr, e2, 1.0f), b2 = C(fr, e2 + 1, 1.0f), a3 = C(fr, e2, 0.55f), b3 = C(fr, e2 + 1, 0.55f), m2 = (a2 + b2) * 0.5f;
+                            M("gras").Quad(fr.P(a2.x, h, a2.y), fr.P(b2.x, h, b2.y), fr.P(b3.x, h1, b3.y), fr.P(a3.x, h1, a3.y), fr.D(-m2.x, 2f, -m2.y));
+                        }
+                        Top(M("gras"), fr, 0.55f, h1);
                         break;
                     case "pad":
                         Wall(M("pad"), fr, 0.72f, h0, h1); Top(M("pad"), fr, 0.72f, h1);
