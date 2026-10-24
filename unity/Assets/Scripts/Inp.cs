@@ -8,6 +8,9 @@ public enum K { W, A, S, D, Q, E, X, Z, C, Tab, Shift, Ctrl, Space, Esc, D1, D2,
 
 public static class Inp
 {
+    static K? fake; public static void Fake(K k) { fake = k; }   // een knop in de interface die een toets nadoet
+    static bool TakeFake(K k) { if (fake == k) { fake = null; return true; } return false; }
+
 #if ENABLE_INPUT_SYSTEM
     static Key Map(K k)
     {
@@ -22,7 +25,7 @@ public static class Inp
         }
     }
     public static bool Held(K k) => Keyboard.current != null && Keyboard.current[Map(k)].isPressed;
-    public static bool Down(K k) => Keyboard.current != null && Keyboard.current[Map(k)].wasPressedThisFrame;
+    public static bool Down(K k) => TakeFake(k) || (Keyboard.current != null && Keyboard.current[Map(k)].wasPressedThisFrame);
     public static Vector2 Pos => Mouse_() != null ? Mouse_().position.ReadValue() : Vector2.zero;
     static UnityEngine.InputSystem.Mouse Mouse_() => UnityEngine.InputSystem.Mouse.current;
     public static bool LeftDown => Mouse_() != null && Mouse_().leftButton.wasPressedThisFrame;
@@ -45,7 +48,7 @@ public static class Inp
         }
     }
     public static bool Held(K k) => Input.GetKey(Map(k));
-    public static bool Down(K k) => Input.GetKeyDown(Map(k));
+    public static bool Down(K k) => TakeFake(k) || Input.GetKeyDown(Map(k));
     public static Vector2 Pos => Input.mousePosition;
     public static bool LeftDown => Input.GetMouseButtonDown(0);
     public static bool LeftHeld => Input.GetMouseButton(0);

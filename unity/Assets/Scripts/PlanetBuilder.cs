@@ -15,7 +15,7 @@ public class PlanetBuilder : MonoBehaviour
     int lastPainted = -1; bool painting;                 // slepen: elk nieuw vak onder de muis krijgt het blok
     Beauty.Result beauty; float beautyT = -99f, fps; int fpsN; float fpsT;
     Vector3 centre; float centreT = -99f; bool hasCentre;   // middelpunt van de stad, voor de pijl
-    GUIStyle card, small, big;
+    bool showHelp;
 
     void Start()
     {
@@ -61,7 +61,7 @@ public class PlanetBuilder : MonoBehaviour
         outline.enabled = hasHover;
     }
 
-    bool OverBar => Inp.Pos.y < 54f || (Inp.Pos.y > Screen.height - 60f && Inp.Pos.x > Screen.width - 230f) || (Inp.Pos.y > Screen.height - 120f && Inp.Pos.x < 330f);
+    bool OverBar => Inp.Pos.y < 96f || (Inp.Pos.y > Screen.height - 70f) || showHelp;
 
     void SwitchSlot(int n)
     {
@@ -117,57 +117,75 @@ public class PlanetBuilder : MonoBehaviour
 
     void OnGUI()
     {
-        if (card == null)
-        {
-            card = new GUIStyle(GUI.skin.box) { alignment = TextAnchor.UpperLeft, fontSize = 13, richText = true, wordWrap = true }; card.normal.textColor = Color.white;
-            small = new GUIStyle(GUI.skin.label) { fontSize = 12 }; small.normal.textColor = Color.white;
-            big = new GUIStyle(GUI.skin.label) { fontSize = 22, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter }; big.normal.textColor = new Color(1f, 0.8f, 0.2f);
-        }
-        var st = new GUIStyle(GUI.skin.label) { fontSize = 14 }; st.normal.textColor = DayNight.Night > 0.6f ? Color.white : Color.black;
-        string help = walking ? "Wandelen op de planeet: WASD lopen · muis kijken · Shift rennen · Spatie springen · Esc muis los · Tab terug naar bouwen"
-            : "Planeet: klik of sleep over vakken = blok plaatsen (1-9 of de balk) · X of 0/G = weghalen (gum) · Ctrl+Z = ongedaan · WASD = schuiven · rechtermuis = draaien · scroll = zoom · Tab = wandelen · M = geluid · R = weer · H = naar de stad";
-        GUI.Label(new Rect(10, 8, Screen.width - 20, 24), help, st);
-        if (Time.time < msgT) GUI.Label(new Rect(10, 32, Screen.width - 20, 24), msg, st);
-
-        // stadskaart linksonder: score, blokken, hoogste punt, fps
+        Ui.Init(); float W = Screen.width, H = Screen.height;
         if (Time.time - beautyT > 3f) { beauty = Beauty.Compute(); beautyT = Time.time; }
         fpsN++; if (Time.time - fpsT > 0.5f) { fps = fpsN / (Time.time - fpsT); fpsN = 0; fpsT = Time.time; }
-        var old = GUI.color; GUI.color = new Color(0.08f, 0.1f, 0.12f, 0.85f);
-        GUI.Box(new Rect(10, Screen.height - 112, 320, 62), ""); GUI.color = old;
+
+        // ---- bovenbalk links: naam, stad, blokken, score
+        var r = Ui.Card(new Rect(12, 12, 330, 58));
+        Ui.Title(new Rect(r.x, r.y, 160, 24), "RAATSTAD");
+        Ui.Dim(new Rect(r.x, r.y + 24, 300, 18), (beauty != null ? beauty.blocks + " blokken · hoogste punt " + beauty.top.ToString("0.#") + " m" : "") + " · stad " + PlanetCity.Slot);
         if (beauty != null)
         {
-            GUI.Label(new Rect(18, Screen.height - 108, 70, 50), beauty.score > 0 ? beauty.score.ToString() : "–", big);
-            GUI.Label(new Rect(90, Screen.height - 108, 230, 20), "<b>" + beauty.label + "</b> · stad " + PlanetCity.Slot, small);
-            GUI.Label(new Rect(90, Screen.height - 90, 230, 20), beauty.blocks + " blokken · hoogste punt " + beauty.top.ToString("0.#") + " m", small);
-            GUI.Label(new Rect(90, Screen.height - 72, 230, 20), Mathf.RoundToInt(fps) + " fps · " + (PlanetLife.I != null ? PlanetLife.I.People.Count + " mensen, " + PlanetLife.I.CarCount + " auto's" : ""), small);
+            bool over = new Rect(342, 12, 120, 58).Contains(Inp.Pos.x > 0 ? new Vector2(Inp.Pos.x, H - Inp.Pos.y) : Vector2.zero);
+            var sr = Ui.Card(new Rect(348, 12, 120, 58));
+            Ui.Big(new Rect(sr.x, sr.y - 2, 50, 30), beauty.score > 0 ? beauty.score.ToString() : "–");
+            Ui.Dim(new Rect(sr.x + 52, sr.y + 2, 70, 18), "<b>" + beauty.label + "</b>");
+            Ui.Dim(new Rect(sr.x, sr.y + 24, 110, 16), "schoonheid");
+            if (over && beauty.score > 0)
+            {
+                string txt = ""; foreach (var row in beauty.rows) txt += "<b>" + row.name + "</b>  " + (row.v < 0f ? "–" : Mathf.RoundToInt(row.v * 100f) + "%") + "   <color=#c8d0d8>" + row.detail + "</color>\n";
+                txt += "\n<color=#f3b43b>" + beauty.tip + "</color>";
+                var tr = Ui.Card(new Rect(348, 76, 440, 215), 0.95f); Ui.Text(new Rect(tr.x, tr.y, tr.width, tr.height), txt);
+            }
         }
+        // ---- bovenbalk rechts: klok, weer, geluid, hulp
+        float x = W - 12;
+        if (Ui.Button(new Rect(x - 40, 12, 40, 40), "?", showHelp)) showHelp = !showHelp; x -= 48;
+        if (Ui.Button(new Rect(x - 44, 12, 44, 40), Babble.Muted ? "🔇" : "🔊")) { Babble.Muted = !Babble.Muted; Ambience.Muted = Babble.Muted; } x -= 52;
+        if (Weather.I != null) { if (Ui.Button(new Rect(x - 120, 12, 120, 40), Weather.Names[(int)Weather.I.Current] + (Weather.I.Wissel ? "" : " ·"))) { Weather.I.Set((Weather.Kind)(((int)Weather.I.Current + 1) % 6), true); } x -= 128; }
+        var dn = GetComponent<DayNight>();
+        if (Ui.Button(new Rect(x - 96, 12, 96, 40), "☀ " + DayNight.Clock + (dn != null && dn.Frozen ? " ·" : ""))) { Inp.Fake(K.N); }
+        // fps linksonder boven de balk
+        Ui.Dim(new Rect(16, H - 92, 200, 16), Mathf.RoundToInt(fps) + " fps · " + (PlanetLife.I != null ? PlanetLife.I.People.Count + " mensen · " + PlanetLife.I.CarCount + " auto's" : ""));
+
+        // ---- melding
+        if (Time.time < msgT) Ui.Toast(msg, Mathf.Clamp01((msgT - Time.time) / 0.5f));
+
+        // ---- onderbalk: gereedschap, modus, slots
         if (!walking)
         {
-            float bw = Mathf.Min(84f, (Screen.width - 250f) / Blocks.Tools.Length), x0 = 10f;   // past altijd op het scherm, ook met de gum erbij
-            for (int i = 0; i < Blocks.Tools.Length; i++)
+            int n = Blocks.Tools.Length; float bw = Mathf.Min(74f, (W - 420f) / n), x0 = 12f;
+            for (int i = 0; i < n; i++)
             {
-                var r = new Rect(x0 + i * bw, Screen.height - 46, bw - 4, 40);
-                var prev = GUI.color; GUI.color = i == tool ? new Color(1f, 0.8f, 0.2f) : Color.white;
-                if (GUI.Button(r, (i < 9 ? (i + 1) + " " : Blocks.Tools[i] == "gum" ? "0 " : "") + Blocks.Names[i])) tool = i;
-                GUI.color = prev;
+                string key = i < 9 ? (i + 1).ToString() : Blocks.Tools[i] == "gum" ? "0" : null;
+                if (Ui.Tool(new Rect(x0 + i * bw, H - 68, bw - 6, 58), Blocks.Names[i], key, Ui.ToolColor(Blocks.Tools[i]), i == tool)) tool = i;
             }
-            // opslagslots rechtsonder
-            for (int n = 1; n <= 3; n++)
-            {
-                var r = new Rect(Screen.width - 230 + (n - 1) * 72, Screen.height - 46, 68, 40);
-                var prev = GUI.color; GUI.color = n == PlanetCity.Slot ? new Color(1f, 0.8f, 0.2f) : Color.white;
-                if (GUI.Button(r, "Stad " + n + (PlanetCity.SlotExists(n) || n == PlanetCity.Slot ? "" : " ·"))) SwitchSlot(n);
-                GUI.color = prev;
-            }
-            if (beauty != null && beauty.score > 0 && Inp.Pos.y < 120f && Inp.Pos.x < 330f)
-            {
-                string txt = ""; foreach (var row in beauty.rows) txt += "<b>" + row.name + "</b> " + (row.v < 0f ? "–" : Mathf.RoundToInt(row.v * 100f) + "%") + "  " + row.detail + "\n";
-                txt += "\n<i>" + beauty.tip + "</i>";
-                GUI.color = new Color(0.08f, 0.1f, 0.12f, 0.92f); GUI.Box(new Rect(10, Screen.height - 320, 420, 200), ""); GUI.color = Color.white;
-                GUI.Label(new Rect(18, Screen.height - 314, 404, 190), txt, card);
-            }
+            float sx = W - 12;
+            if (Ui.Button(new Rect(sx - 110, H - 56, 110, 44), "🚶 Lopen  <size=10>Tab</size>", false, Ui.Amber)) ToggleWalk(); sx -= 118;
+            for (int k = 3; k >= 1; k--) { if (Ui.Button(new Rect(sx - 64, H - 56, 64, 44), "Stad " + k, k == PlanetCity.Slot)) SwitchSlot(k); sx -= 70; }
         }
-        // pijl naar het midden van de stad als je er ver vandaan bent
+        else
+        {
+            var wr = Ui.Card(new Rect(W / 2 - 230, H - 52, 460, 40), 0.8f);
+            Ui.Dim(new Rect(wr.x, wr.y, wr.width, 24), "WASD lopen · muis kijken · Shift rennen · Spatie springen · Esc muis los · Tab terug naar bouwen");
+        }
+
+        // ---- hulp
+        if (showHelp)
+        {
+            var hr = Ui.Card(new Rect(W / 2 - 260, 90, 520, 300), 0.95f);
+            Ui.Title(new Rect(hr.x, hr.y, 300, 26), "Bediening");
+            Ui.Help(new Rect(hr.x, hr.y + 32, hr.width, 250),
+                "<b>Bouwen</b>  klik of sleep over vakken (1-9 kiest een blok, 0 of G de gum, X haalt het bovenste blok weg, Ctrl+Z maakt ongedaan)\n" +
+                "<b>Wegen en paden</b>  zijn ook blokken: zet ze op aangrenzende vakken en ze sluiten vanzelf aan\n" +
+                "<b>Camera</b>  WASD schuiven (Shift sneller) · rechtermuis draaien · scroll zoomen · H naar het midden van je stad\n" +
+                "<b>Wandelen</b>  Tab · WASD · Shift rennen · Spatie springen · Esc muis los\n" +
+                "<b>Weer en tijd</b>  R volgend weer (vast) · N zon stilzetten · M geluid aan/uit\n" +
+                "<b>Planeet</b>  21.162 vakken, omtrek 3,8 km. Oranje: de 12 vijfhoeken. Lichtblauw: de 20 startplekken.");
+        }
+
+        // ---- pijl naar het midden van de stad als je er ver vandaan bent
         CityCentre();
         if (hasCentre)
         {
@@ -175,16 +193,15 @@ public class PlanetBuilder : MonoBehaviour
             float dist = Mathf.Acos(Mathf.Clamp(Vector3.Dot(here, centre), -1f, 1f)) * Planet.R;
             if (dist > 120f)
             {
-                Vector3 sp = Cam.WorldToScreenPoint(centre * (Planet.R + 20f)); Vector2 dir;
-                Vector2 c2 = new Vector2(Screen.width / 2f, Screen.height / 2f);
-                if (sp.z > 0f) dir = (new Vector2(sp.x, sp.y) - c2).normalized; else dir = -(new Vector2(sp.x, sp.y) - c2).normalized;
-                bool onScreen = sp.z > 0f && sp.x > 0 && sp.x < Screen.width && sp.y > 0 && sp.y < Screen.height;
-                Vector2 pos = onScreen ? new Vector2(sp.x, Screen.height - sp.y) : c2 + new Vector2(dir.x, -dir.y) * Mathf.Min(Screen.width, Screen.height) * 0.38f;
+                Vector3 sp = Cam.WorldToScreenPoint(centre * (Planet.R + 20f)); Vector2 c2 = new Vector2(W / 2f, H / 2f);
+                Vector2 dir = (new Vector2(sp.x, sp.y) - c2).normalized; if (sp.z < 0f) dir = -dir;
+                bool onScreen = sp.z > 0f && sp.x > 0 && sp.x < W && sp.y > 0 && sp.y < H;
+                Vector2 pos = onScreen ? new Vector2(sp.x, H - sp.y) : c2 + new Vector2(dir.x, -dir.y) * Mathf.Min(W, H) * 0.38f;
                 float ang = Mathf.Atan2(-dir.y, dir.x) * Mathf.Rad2Deg;
                 var m = GUI.matrix; GUIUtility.RotateAroundPivot(ang, pos);
-                GUI.color = new Color(1f, 0.8f, 0.2f); GUI.Label(new Rect(pos.x - 20, pos.y - 14, 40, 28), "➤", new GUIStyle(GUI.skin.label) { fontSize = 26, alignment = TextAnchor.MiddleCenter });
-                GUI.matrix = m; GUI.color = Color.white;
-                GUI.Label(new Rect(pos.x - 60, pos.y + 14, 120, 20), "Centrum · " + Mathf.RoundToInt(dist) + " m", new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 12 });
+                var ast = new GUIStyle { fontSize = 26, alignment = TextAnchor.MiddleCenter }; ast.normal.textColor = Ui.Amber;
+                GUI.Label(new Rect(pos.x - 20, pos.y - 14, 40, 28), "➤", ast); GUI.matrix = m;
+                var cr = Ui.Card(new Rect(pos.x - 70, pos.y + 16, 140, 30), 0.85f); Ui.Dim(new Rect(cr.x, cr.y - 2, cr.width, 18), "Centrum · " + Mathf.RoundToInt(dist) + " m");
             }
         }
     }

@@ -33,10 +33,6 @@ public class DayNight : MonoBehaviour
         RenderSettings.fog = false;
     }
 
-    void OnGUI()
-    {
-        int h = Mathf.FloorToInt(Hour), m = Mathf.FloorToInt((Hour - h) * 60f);
-        var st = new GUIStyle(GUI.skin.label) { fontSize = 16, alignment = TextAnchor.UpperRight, fontStyle = FontStyle.Bold }; st.normal.textColor = Night > 0.6f ? Color.white : Color.black;
-        GUI.Label(new Rect(Screen.width - 190, 8, 180, 26), h.ToString("00") + ":" + m.ToString("00") + (frozen ? " (stil)" : ""), st);
-    }
+    public static string Clock { get { int h = Mathf.FloorToInt(Hour), m = Mathf.FloorToInt((Hour - h) * 60f); return h.ToString("00") + ":" + m.ToString("00"); } }
+    public bool Frozen => frozen;
 }

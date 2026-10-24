@@ -81,8 +81,6 @@ public class Weather : MonoBehaviour
 
     void OnGUI()
     {
-        var st = new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.UpperRight }; st.normal.textColor = DayNight.Night > 0.6f ? Color.white : Color.black;
-        GUI.Label(new Rect(Screen.width - 190, 30, 180, 22), Names[(int)Current] + (Wissel ? " (wisselend)" : " (vast, R)"), st);
         if (Flash > 0.01f) { var old = GUI.color; GUI.color = new Color(1f, 1f, 1f, Flash * 0.6f); GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture); GUI.color = old; }
     }
 }
