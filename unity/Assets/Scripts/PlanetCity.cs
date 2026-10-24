@@ -87,6 +87,11 @@ public static class PlanetCity
             {
                 var c = Planet.Cells[i]; Vector3 mid = c.dir * Planet.R; bool pent = c.corners.Length == 5; var mb0 = pent ? pm : m;
                 for (int k = 0; k < c.corners.Length; k++) mb0.Tri(mid, c.corners[k] * Planet.R, c.corners[(k + 1) % c.corners.Length] * Planet.R, c.dir);
+                if (pent)   // baken: een slanke oranje punt van 60 m, zodat je de vijfhoeken ook vanuit de ruimte vindt
+                {
+                    Vector3 apex = c.dir * (Planet.R + 60f);
+                    for (int k = 0; k < 5; k++) { Vector3 a = Vector3.Lerp(c.corners[k], c.dir, 0.7f) * (Planet.R + 0.3f), b = Vector3.Lerp(c.corners[(k + 1) % 5], c.dir, 0.7f) * (Planet.R + 0.3f); pm.Tri(a, b, apex, (a + b) * 0.5f - c.dir * Planet.R + c.dir * 0.05f); }
+                }
                 if (pent)   // opstaand randje rondom, zodat de vijfhoek ook van dichtbij opvalt
                     for (int k = 0; k < 5; k++) { Vector3 a = c.corners[k], b = c.corners[(k + 1) % 5]; Vector3 am = (a + b) * 0.5f; Vector3 ai = Vector3.Lerp(a, c.dir, 0.08f), bi = Vector3.Lerp(b, c.dir, 0.08f); pm.Quad(a * Planet.R, b * Planet.R, bi * (Planet.R + 0.25f), ai * (Planet.R + 0.25f), am - c.dir); }
             }
