@@ -475,11 +475,33 @@
   // Een weg heeft een staartje (half vak) voorbij zijn laatste vak, zodat het vak vol zit; dat schuift bij het doorklikken mee.
   const HALF = 0.15, r2 = v => Math.round(v * 100) / 100;
   // Verleng een weg bij zijn begin (end 0) of eind met het vak op Wc; ook voor het voorbeeld (dan op een kopie)
+  // Wegen lopen alleen onder hoeken van het raster (veelvouden van 30°: 60° en 90° bochten). Een aansluiting op een andere weg
+  // wordt dus gezocht langs zo'n richting vanaf het vorige punt; lukt dat niet, dan sluit de weg niet aan (het vak blijft staan).
+  function vecSnapAngle(from, Wc, W, self) {
+    const dx = W[0] - from[0], dz = W[1] - from[1], a = Math.atan2(dz, dx) * 180 / Math.PI, k = Math.round(a / 30);
+    if (Math.abs(a - k * 30) < 2.5) return W;
+    const lim = R * SQ3 * 1.05; let best = null, bd = 1e9;
+    for (let i = 0; i < 12; i++) {
+      const ca = Math.cos(i * Math.PI / 6), sa = Math.sin(i * Math.PI / 6);
+      for (const q of pathsOf()) {
+        if (q === self || q === vecPre.tmp || !q.p || q.p.length < 2 || !PATH_DEF[q.t]) continue;
+        const pts = smoothPts(q.p);
+        for (let j = 0; j < pts.length - 1; j++) {
+          const ex = pts[j + 1][0] - pts[j][0], ez = pts[j + 1][1] - pts[j][1], den = ca * ez - sa * ex; if (Math.abs(den) < 1e-6) continue;
+          const t = ((pts[j][0] - from[0]) * ez - (pts[j][1] - from[1]) * ex) / den, u = ((pts[j][0] - from[0]) * sa - (pts[j][1] - from[1]) * ca) / den;
+          if (t < 3 || u < 0 || u > 1) continue;
+          const px = from[0] + ca * t, pz = from[1] + sa * t, d = Math.hypot(px - Wc[0], pz - Wc[1]);
+          if (d < lim && d < bd) { bd = d; best = [px, pz]; }
+        }
+      }
+    }
+    return best ? [Math.round(best[0] * 100) / 100, Math.round(best[1] * 100) / 100] : Wc;
+  }
   function vecExtendPath(path, end, Wc) {
     const atStart = end === 0, P = path.p, tipOn = atStart ? path.tipS : path.tipE;
     const inner = tipOn ? (atStart ? P[1] : P[P.length - 2]) : P[atStart ? 0 : P.length - 1];
     if (Math.hypot(inner[0] - Wc[0], inner[1] - Wc[1]) < 3) return { same: true };
-    const W = vecSnap(Wc, path), snapped = W[0] !== Wc[0] || W[1] !== Wc[1];
+    let W = vecSnap(Wc, path); if (W[0] !== Wc[0] || W[1] !== Wc[1]) W = vecSnapAngle(inner, Wc, W, path); const snapped = W[0] !== Wc[0] || W[1] !== Wc[1];
     if (tipOn) { if (atStart) P.shift(); else P.pop(); if (path.y) { if (atStart) path.y.shift(); else path.y.pop(); } }
     if (P.length === 2 && tipOn) {   // het beginstukje (één vak): het andere staartje draait mee richting de nieuwe klik
       const cc = atStart ? P[0] : P[1], dx = W[0] - cc[0], dz = W[1] - cc[1], L = Math.hypot(dx, dz) || 1, o = [r2(cc[0] - dx / L * HALF), r2(cc[1] - dz / L * HALF)];
