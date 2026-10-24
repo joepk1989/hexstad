@@ -80,7 +80,7 @@ public class PlanetWalker : MonoBehaviour
 
         transform.position = pos; up = pos.normalized; fwd = (fwd - up * Vector3.Dot(fwd, up)).normalized;
         if (grounded) Footsteps.Walked(steps, vel.magnitude * dt, vel.magnitude > 3f, PlanetCity.IsRoad(Planet.Nearest(pos)));
-        transform.rotation = Quaternion.LookRotation(fwd, up);
+        transform.rotation = Geo.Look(fwd, up);
         // hoofd: lichte deining bij het lopen
         float sp = vel.magnitude; bob = grounded && sp > 0.2f ? bob + dt * (sp > 3f ? 11f : 7.5f) : Mathf.Lerp(bob, Mathf.Round(bob / Mathf.PI) * Mathf.PI, dt * 8f);
         Cam.transform.localPosition = new Vector3(0, Eye + Mathf.Sin(bob) * (grounded ? 0.035f : 0f), 0);

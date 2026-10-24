@@ -128,7 +128,7 @@ public class PlanetBuilder : MonoBehaviour
         float h = PlanetCity.StackHeight(Planet.Nearest(focus));
         Vector3 target = focus * (Planet.R + h);
         Vector3 pos = target + (-fwd * Mathf.Cos(pitch * Mathf.Deg2Rad) + up * Mathf.Sin(pitch * Mathf.Deg2Rad)) * dist;
-        Cam.transform.position = pos; Cam.transform.rotation = Quaternion.LookRotation(target - pos, up);
+        Cam.transform.position = pos; Cam.transform.rotation = Geo.Look(target - pos, up);
     }
 
     void ToggleWalk()

@@ -9,6 +9,16 @@ public static class Layers
     public const int Muren = (1 << Gebouw) | (1 << Weg) | (1 << Bodem);
 }
 
+public static class Geo
+{
+    // LookRotation die nooit klaagt: een lege kijkrichting (het gebeurt een enkele keer, bijvoorbeeld een auto op een los wegvak) valt terug op iets zinnigs
+    public static Quaternion Look(Vector3 fwd, Vector3 up)
+    {
+        if (fwd.sqrMagnitude < 1e-10f || float.IsNaN(fwd.x)) fwd = Vector3.Cross(up, Mathf.Abs(up.y) > 0.9f ? Vector3.right : Vector3.up);
+        return Quaternion.LookRotation(fwd, up);
+    }
+}
+
 public class Raatstad : MonoBehaviour
 {
     public static bool PlanetMode = true;   // true: een echte bol van zeshoeken; false: het platte raster met getekende wegen
