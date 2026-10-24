@@ -27,11 +27,14 @@
     if (now - perfT < 500) return;
     const fps = perfN * 1000 / (now - perfT), i = renderer.info.render;
     const soft = /swiftshader|llvmpipe|software|mesa offscreen/i.test(gpuName);
-    perfEl.innerHTML = `<b>${fps.toFixed(0)} fps</b> · ${i.calls} tekenopdrachten · ${(i.triangles / 1000).toFixed(0)}k driehoeken · ${renderer.getPixelRatio().toFixed(2)}× · ${people.count} mensen · ${cars.list.length} auto's<br><small>${gpuName}${soft ? ' — LET OP: geen videokaart, de processor tekent' : ''}</small>`;
+    const fc = fps >= 50 ? '#8fdc7a' : fps >= 30 ? '#f5c542' : '#ff7a6b';
+    if (setState.perf === 'fps') { perfEl.className = 'perf-fps'; perfEl.innerHTML = `<b style="color:${fc}">${fps.toFixed(0)}</b> fps`; perfN = 0; perfT = now; perfMin = 1e9; return; }
+    perfEl.className = '';
+    perfEl.innerHTML = `<b style="color:${fc}">${fps.toFixed(0)} fps</b> · ${i.calls} tekenopdrachten · ${(i.triangles / 1000).toFixed(0)}k driehoeken · ${renderer.getPixelRatio().toFixed(2)}× · ${people.count} mensen · ${cars.list.length} auto's<br><small>${gpuName}${soft ? ' — LET OP: geen videokaart, de processor tekent' : ''}</small>`;
     perfN = 0; perfT = now; perfMin = 1e9;
   }
-  function setPerf(v) { setState.perf = !!v; perfEl.hidden = !v; }
-  setPerf(setState.perf);
+  function setPerf(v) { setState.perf = v === 'fps' ? 'fps' : !!v; perfEl.hidden = !v; perfT = performance.now(); perfN = 0; }
+  setPerf(setState.perf === undefined ? 'fps' : setState.perf);   // standaard: een kleine fps-teller in beeld
   curveSet(setState.wereld === "bol");
   const SET_ROWS = [
     { sub: 'Beeld en prestaties' },
@@ -40,7 +43,7 @@
     { id: 'shadow', name: 'Schaduwen', opts: [['zacht', 'Zacht'], ['eenvoudig', 'Eenvoudig'], ['uit', 'Uit']], get: () => setState.shadow, set: v => { setState.shadow = v; applyShadow(v); } },
     { id: 'res', name: 'Beeldscherpte', note: 'Snel tekent minder pixels', opts: [['scherp', 'Scherp'], ['normaal', 'Normaal'], ['snel', 'Snel']], get: () => setState.res, set: v => { setState.res = v; applyRes(v); } },
     { id: 'crowd', name: 'Drukte', note: "Minder mensen en auto's is lichter voor een telefoon", opts: [[1, 'Vol'], [0.5, 'Rustig'], [0.25, 'Weinig']], get: () => setState.crowd || 1, set: v => { setState.crowd = v; PERF.crowd = v; peopleDirty = true; carsDirty = true; } },
-    { id: 'perf', name: 'Prestatiemeter', note: 'Beelden per seconde en wat de videokaart tekent', opts: [[true, 'Aan'], [false, 'Uit']], get: () => !!setState.perf, set: v => setPerf(v) },
+    { id: 'perf', name: 'Prestatiemeter', note: 'Beelden per seconde en wat de videokaart tekent', opts: [['fps', 'Alleen fps'], [true, 'Uitgebreid'], [false, 'Uit']], get: () => setState.perf === 'fps' ? 'fps' : !!setState.perf, set: v => setPerf(v) },
     { id: 'clouds', name: 'Wolken', opts: [[true, 'Aan'], [false, 'Uit']], get: () => setState.clouds, set: v => { setState.clouds = v; clouds.setOn(v); } },
     { sub: 'Bouwen' },
     { id: 'grid', name: 'Raster', opts: [[true, 'Aan'], [false, 'Uit']], get: () => gridOn, set: v => { if (v !== gridOn) optGrid.click(); } },
