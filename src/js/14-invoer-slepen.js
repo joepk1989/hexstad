@@ -168,6 +168,7 @@
     keys[e.code] = true;
     if (mode === 'walk' && e.code === 'Space') { e.preventDefault(); jump(); }
     const n = parseInt(e.key, 10);
+    if (roadDrag.on && roadDrag.vp && e.code === 'KeyL') { e.preventDefault(); roadAbsToggle(); return; }
     if (roadDrag.on && roadDrag.vp && ['KeyE', 'KeyQ', 'PageUp', 'PageDown', 'Equal', 'Minus', 'NumpadAdd', 'NumpadSubtract'].includes(e.code)) { e.preventDefault(); roadHeightStep(['KeyE', 'PageUp', 'Equal', 'NumpadAdd'].includes(e.code) ? 1 : -1); return; }
     if (mode === 'walk' && e.code === 'KeyQ') { const H = ['kijken', 'bouwen', 'hamer']; setHand(H[(H.indexOf(hand) + 1) % 3]); toast(hand === 'kijken' ? 'Kijken' : hand === 'bouwen' ? 'Bouwen: ' + (TYPES[toolBase(tool)] ? TYPES[toolBase(tool)].name : tool) : 'Hamer: klik om te slopen', 1200); return; }
     if (e.code === 'KeyR') { e.shiftKey ? resetRotation() : rotateDir(); return; }
@@ -321,6 +322,7 @@
     cell = vecAlignCell(D.vfrom ? D.vfrom() : D.vstart, cell);
     const L = D.last; if (L && L[0] === cell[0] && L[1] === cell[1]) return;
     D.last = cell;
+    if (D.abs) D.vp.abs = true; else delete D.vp.abs;
     // Even stilhouden tijdens het slepen zet een hoekpunt: daarna gaat de weg vanaf dat punt verder (een bocht in één sleep)
     clearTimeout(D.vtimer);
     const arm = ms => { D.vtimer = setTimeout(() => {
@@ -347,16 +349,22 @@
   // Zolang je nog op het beginvak staat, verander je het begin; daarna het punt waar je nu bent.
   const dragHEl = document.getElementById('dragH');
   function showDragH(on) { if (dragHEl) dragHEl.hidden = !on; }
+  function roadAbsToggle() {   // vaste laag (modulehoogte, los van het terrein) of volgt het terrein
+    const D = roadDrag; D.abs = !D.abs; const b = dragHEl && dragHEl.querySelector('[data-m=abs]'); if (b) b.setAttribute('aria-pressed', String(D.abs));
+    if (D.abs) { D.voff0 = Math.round(D.voff0 / 3) * 3; D.voff = Math.round(D.voff / 3) * 3; D.voffs = D.voffs.map(v => Math.round(v / 3) * 3); }
+    D.last = null; if (D.vp) vecPaintTo(D.vend || D.vstart);
+    toast(D.abs ? 'Vaste laag: hoogte in modulelagen van 3 m, los van het terrein' : 'Hoogte volgt het terrein', 1600);
+  }
   function roadHeightStep(dir) {
     const D = roadDrag; if (!D.on || !D.vp) return false;
     const atStart = !D.vend || (D.vend[0] === D.vstart[0] && D.vend[1] === D.vstart[1] && !D.vcorners.length);
-    const cur = atStart ? D.voff0 : D.voff, nv = Math.max(0, Math.min(ROAD_MAX_OFF, Math.round((cur + dir * 1.5) * 2) / 2));
+    const cur = atStart ? D.voff0 : D.voff, st = D.abs ? 3 : 1.5, nv = Math.max(0, Math.min(D.abs ? 24 : ROAD_MAX_OFF, D.abs ? Math.round(cur / 3 + dir) * 3 : Math.round((cur + dir * st) * 2) / 2));
     if (atStart) { D.voff0 = nv; D.voff = nv; } else { D.voff = nv; const lc = D.vcorners[D.vcorners.length - 1]; if (lc && D.vend && lc[0] === D.vend[0] && lc[1] === D.vend[1]) D.voffs[D.voffs.length - 1] = nv; }   // op een hoekpunt: dat punt
     D.last = null; vecPaintTo(D.vend || D.vstart);
-    toast(nv ? (atStart ? 'Begin van de weg ' : 'Weg hier ') + nv.toLocaleString('nl') + ' m boven het terrein' : (atStart ? 'Begin van de weg' : 'Weg hier') + ' op het terrein', 1100);
+    toast(nv ? (atStart ? 'Begin van de weg ' : 'Weg hier ') + (D.abs ? 'op laag ' + nv / 3 + ' (' + nv + ' m)' : nv.toLocaleString('nl') + ' m boven het terrein') : (atStart ? 'Begin van de weg' : 'Weg hier') + ' op het terrein', 1100);
     return true;
   }
-  if (dragHEl) dragHEl.querySelectorAll('button').forEach(b => b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); roadHeightStep(+b.dataset.d); }));
+  if (dragHEl) dragHEl.querySelectorAll('button').forEach(b => b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); if (b.dataset.m === 'abs') roadAbsToggle(); else roadHeightStep(+b.dataset.d); }));
   // Lijn van vakmiddens: een half vak verlengd aan beide kanten (vak vol weg), behalve waar het eind op een andere weg aansluit
   function vecExtend(core, snap, self) {
     const P = core.map(p => p.slice()), n = P.length, h = 0.15;

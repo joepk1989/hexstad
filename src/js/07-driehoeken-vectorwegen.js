@@ -171,8 +171,8 @@
     }
     if (live && Array.isArray(path.y) && path.y.some(v => v)) {   // ophoging per punt, lineair langs de weg
       const sAt = q => { let bi = 0, bd = 1e9; pts.forEach((p, i) => { const d = Math.hypot(p[0] - q[0], p[1] - q[1]); if (d < bd) { bd = d; bi = i; } }); return S[bi]; };
-      const keys = path.p.map((q, i) => [sAt(q), Math.max(0, Math.min(ROAD_MAX_OFF, +path.y[i] || 0))]).sort((x, y) => x[0] - y[0]);
-      h = h.map((v, i) => { const s0 = S[i]; let j = 0; while (j < keys.length - 1 && keys[j + 1][0] < s0) j++; const A = keys[j], B = keys[Math.min(j + 1, keys.length - 1)], f = B[0] > A[0] ? Math.max(0, Math.min(1, (s0 - A[0]) / (B[0] - A[0]))) : 0; return v + A[1] + (B[1] - A[1]) * f; });
+      const keys = path.p.map((q, i) => [sAt(q), Math.max(0, Math.min(path.abs ? 24 : ROAD_MAX_OFF, +path.y[i] || 0))]).sort((x, y) => x[0] - y[0]);
+      h = h.map((v, i) => { const s0 = S[i]; let j = 0; while (j < keys.length - 1 && keys[j + 1][0] < s0) j++; const A = keys[j], B = keys[Math.min(j + 1, keys.length - 1)], f = B[0] > A[0] ? Math.max(0, Math.min(1, (s0 - A[0]) / (B[0] - A[0]))) : 0; return (path.abs ? 0 : v) + A[1] + (B[1] - A[1]) * f; });   // abs: vaste laag, hoogte los van het terrein
     }
     // Over een snelweg gaat een andere weg altijd met een viaduct: 7 m boven de snelweg over de hele breedte, met
     // opritten van 55 m aan weerszijden (een uiteinde dat óp de snelweg uitkomt is een aansluiting, geen kruising)
@@ -709,7 +709,7 @@
       for (let i = 0; i < arms.length; i++) {
         const A = arms[i], B = arms[(i + 1) % arms.length];
         const sideTo = (X, Y) => { const r = [-X.d[1], X.d[0]]; return r[0] * Y.d[0] + r[1] * Y.d[1] > 0 ? 1 : -1; };
-        const sA = sideTo(A, B), sB = sideTo(B, A), dA = PATH_DEF[A.e.t], dB = PATH_DEF[B.e.t];
+        const sA = 1, sB = -1, dA = PATH_DEF[A.e.t], dB = PATH_DEF[B.e.t];
         const KA = vecWalkPts(GR, A.e, A.dir, sA * (dA.hw + 0.3))[0], OA = vecWalkPts(GR, A.e, A.dir, sA * (dA.hw + dA.walk))[0];
         const KB = vecWalkPts(GR, B.e, B.dir, sB * (dB.hw + 0.3))[0], OB = vecWalkPts(GR, B.e, B.dir, sB * (dB.hw + dB.walk))[0];
         // ronde stoephoek: een boog die aan beide stoepranden raakt (kwadratisch, met het snijpunt van de randen als
