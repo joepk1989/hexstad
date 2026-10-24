@@ -46,7 +46,7 @@ public class PlanetBuilder : MonoBehaviour
 
         // aanwijzen: het vak onder de muis
         hasHover = false;
-        if (!OverBar && Physics.Raycast(Cam.ScreenPointToRay(Inp.Pos), out RaycastHit hit, 5000f, ~0, QueryTriggerInteraction.Ignore))
+        if (!OverBar && Physics.Raycast(Cam.ScreenPointToRay(Inp.Pos), out RaycastHit hit, 5000f, Layers.Grond, QueryTriggerInteraction.Ignore))
         {
             hover = Planet.Nearest(hit.point); hasHover = true;
             ShowOutline(hover);

@@ -15,6 +15,7 @@ public class Weather : MonoBehaviour
     Mesh drops; Vector3[] pos; float[] spd; Transform dropsT; MeshRenderer dropsR; int N = 900; const float Box = 28f;
 
     void Awake() { I = this; }
+    public static void ResetStatics() { Cloud = Fog = Rain = Snow = Storm = Flash = 0f; }
 
     static readonly float[,] T = { { 0.04f, 0f, 0f, 0f, 0f }, { 0.75f, 0.08f, 0f, 0f, 0f }, { 0.92f, 0.28f, 1f, 0f, 0f }, { 1f, 0.35f, 1.5f, 0f, 1f }, { 0.5f, 1f, 0f, 0f, 0f }, { 0.85f, 0.4f, 0f, 1f, 0f } };
 

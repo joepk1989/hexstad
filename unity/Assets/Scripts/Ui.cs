@@ -8,6 +8,7 @@ public static class Ui
     static Font fontR, fontB, fontTitle;
     static Texture2D round, white; static GUIStyle card, cardLight, title, label, labelDim, button, buttonOn, toast, big, swatch, help;
     public static bool Ready => card != null;
+    public static void ResetStatics() { card = null; round = null; fontR = fontB = fontTitle = null; }
 
     static Texture2D Rounded(int size, int radius, Color inside)
     {

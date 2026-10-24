@@ -18,6 +18,7 @@ public static class PlanetCity
     static readonly Dictionary<int, Transform> chunks = new Dictionary<int, Transform>();
     static readonly HashSet<int> dirty = new HashSet<int>();
 
+    public static void ResetAll() { Cells = new Dictionary<int, List<string>>(); Links.Clear(); chunks.Clear(); groundChunks.Clear(); dirty.Clear(); root = null; groundRoot = null; grid = null; GridOn = true; Slot = 1; }
     public static bool IsRoad(int i) => Cells.TryGetValue(i, out var l) && l.Count > 0 && l[0] == "weg";
     public static bool IsPath(int i) => Cells.TryGetValue(i, out var l) && l.Count == 1 && l[0] == "pad";
     public static bool IsWalk(int i) => IsRoad(i) || IsPath(i);
@@ -248,13 +249,13 @@ public static class PlanetCity
             }
             if (pm.v.Count > 0)
             {
-                var pg = new GameObject("Vijfhoeken " + (c0 / ChunkN)); pg.transform.SetParent(groundRoot, false); made.Add(pg);
+                var pg = new GameObject("Vijfhoeken " + (c0 / ChunkN)); pg.transform.SetParent(groundRoot, false); made.Add(pg); pg.layer = Layers.Bodem;
                 var pmesh = pm.Build(); pg.AddComponent<MeshFilter>().sharedMesh = pmesh; pg.AddComponent<MeshRenderer>().sharedMaterial = Mats.Get("p_vijfhoek", new Color(1f, 0.5f, 0.1f));
                 pg.AddComponent<MeshCollider>().sharedMesh = pmesh;
             }
             if (sm.v.Count > 0)
             {
-                var sg = new GameObject("Startplekken " + (c0 / ChunkN)); sg.transform.SetParent(groundRoot, false); made.Add(sg);
+                var sg = new GameObject("Startplekken " + (c0 / ChunkN)); sg.transform.SetParent(groundRoot, false); made.Add(sg); sg.layer = Layers.Bodem;
                 var smesh = sm.Build(); sg.AddComponent<MeshFilter>().sharedMesh = smesh; sg.AddComponent<MeshRenderer>().sharedMaterial = Mats.Get("p_start", new Color(0.55f, 0.8f, 1f));
                 sg.AddComponent<MeshCollider>().sharedMesh = smesh;
             }
@@ -262,7 +263,7 @@ public static class PlanetCity
             for (int k = 0; k < Steps; k++)
             {
                 if (ms[k].v.Count == 0) continue;
-                var go = new GameObject("Bodem " + (c0 / ChunkN) + " " + k); go.transform.SetParent(groundRoot, false); made.Add(go);
+                var go = new GameObject("Bodem " + (c0 / ChunkN) + " " + k); go.transform.SetParent(groundRoot, false); made.Add(go); go.layer = Layers.Bodem;
                 var mesh = ms[k].Build(); go.AddComponent<MeshFilter>().sharedMesh = mesh; go.AddComponent<MeshRenderer>().sharedMaterial = Mats.Get("p_bodem" + k, Color.Lerp(grass, hot, k / (float)(Steps - 1)));
                 go.AddComponent<MeshCollider>().sharedMesh = mesh;
             }
@@ -631,6 +632,7 @@ public static class PlanetCity
         {
             if (kv.Value.v.Count == 0) continue;
             var child = new GameObject(kv.Key); child.transform.SetParent(go.transform, false);
+            child.layer = (kv.Key == "asfalt" || kv.Key == "stoep" || kv.Key == "rand" || kv.Key == "lijn" || kv.Key == "paal" || kv.Key == "lamp" || kv.Key == "pad") ? Layers.Weg : Layers.Gebouw;
             var mesh = kv.Value.Build(); child.AddComponent<MeshFilter>().sharedMesh = mesh; child.AddComponent<MeshRenderer>().sharedMaterial = kv.Key == "lamp" ? Mats.GetUnlit("p_lamp", ColorOf(kv.Key)) : Mats.Get("p_" + kv.Key, ColorOf(kv.Key));
             if (kv.Key != "water" && kv.Key != "zand" && kv.Key != "lijn" && kv.Key != "lamp" && kv.Key != "riet") child.AddComponent<MeshCollider>().sharedMesh = mesh;
         }

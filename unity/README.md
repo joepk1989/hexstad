@@ -54,6 +54,12 @@ Zet `PlanetMode` op `false` voor het platte raster met getekende wegen.
 - Weer (R: zon, bewolkt, regen, onweer, mist, sneeuw; anders wisselend), lantaarns die 's avonds aangaan, rotonde-eilandje op kruisingen,
   paden die op elkaar en op wegen aansluiten (mensen lopen er ook over), huizen in vier muurkleuren, autogezoem, H = naar het midden van de stad
 
+## Inrichting
+- Ongebruikte pakketten (AI Assistant, Inference Engine, Pipeline, Plastic SCM) zijn uit `Packages/manifest.json`; dat scheelt compileertijd
+- Domain reload staat uit (snel Play); `Raatstad.ResetStatics` zet alle statische waarden terug bij elke Play
+- Lagen: Bodem (8), Gebouw (9), Weg (10), Mens (11); klikken en lopen raken alleen bodem, gebouwen en wegen
+- Alle `.meta`-bestanden staan in git, zodat GUID's stabiel blijven
+
 ## Controle zonder Unity
 `stub/check.sh` compileert alle scripts met `mcs` tegen een kleine stub van de Unity-API (alleen compilefouten,
 niet draaibaar); `stub/PlanetTest.cs` test de planeetgeometrie los van Unity.

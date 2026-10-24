@@ -74,6 +74,7 @@ public class People : MonoBehaviour
     public static People I;
     public readonly List<Person> List = new List<Person>();
     static Mesh mTorso, mHead, mLimb, mLeg;
+    public static void ResetStatics() { mTorso = mHead = mLimb = mLeg = null; }
     float spawnT, idleT = 4f;
     Walker walker;
 
@@ -130,7 +131,7 @@ public class People : MonoBehaviour
         a.female = Random.value < 0.5f; a.kid = Random.value < 0.12f; a.lomp = Random.value < 0.28f; a.friendly = Random.value < 0.6f;
         a.scale = a.kid ? 0.68f : (0.92f + Random.value * 0.14f); if (a.kid) a.speed *= 0.85f;
         a.voice = (a.female ? 1.55f : 1f) * (a.kid ? 1.5f : 1f) * (0.85f + Random.value * 0.3f);
-        var root = new GameObject("Mens").transform; root.SetParent(parent, false); a.root = root; root.localScale = Vector3.one * a.scale;
+        var root = new GameObject("Mens").transform; root.SetParent(parent, false); a.root = root; root.localScale = Vector3.one * a.scale; root.gameObject.layer = Layers.Mens;
         int sk = Random.Range(0, Skin.Length), sh = Random.Range(0, Shirt.Length), pa = Random.Range(0, Pants.Length);
         Material mSkin = Mats.Get("skin" + sk, Skin[sk]), mShirt = Mats.Get("shirt" + sh, Shirt[sh]), mPants = Mats.Get("pants" + pa, Pants[pa]);
         Part(root, "romp", mTorso, mShirt, new Vector3(0, 0.88f, 0));

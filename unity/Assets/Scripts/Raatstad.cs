@@ -1,6 +1,14 @@
 using UnityEngine;
 
 // Opstart: er is geen scene-opbouw nodig. Maak een lege scene, zet dit script (alle scripts) in het project en druk op Play.
+// Lagen (ProjectSettings/TagManager): bodem, gebouwen, wegen en mensen apart, zodat klikken en lopen alleen raken wat moet
+public static class Layers
+{
+    public const int Bodem = 8, Gebouw = 9, Weg = 10, Mens = 11;
+    public const int Grond = (1 << Bodem) | (1 << Gebouw) | (1 << Weg);   // waar je op kunt staan en klikken
+    public const int Muren = (1 << Gebouw) | (1 << Weg) | (1 << Bodem);
+}
+
 public class Raatstad : MonoBehaviour
 {
     public static bool PlanetMode = true;   // true: een echte bol van zeshoeken; false: het platte raster met getekende wegen
@@ -14,6 +22,18 @@ public class Raatstad : MonoBehaviour
     public static Material MatGround => mGround ? mGround : (mGround = MakeMat(new Color(0.64f, 0.78f, 0.45f)));
     public static Material MatGrid => mGrid ? mGrid : (mGrid = MakeMat(new Color(1f, 1f, 1f, 0.28f), true));
     public static Material MatOutline => mOutline ? mOutline : (mOutline = MakeMat(new Color(1f, 0.75f, 0.1f), true));
+
+    // Domain reload staat uit in dit project (snel Play): statische waarden blijven staan tussen twee keer Play.
+    // Daarom hier alles wat statisch is terugzetten, voordat de scene laadt.
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void ResetStatics()
+    {
+        mWalk = mAsph = mLine = mWall = mGround = mGrid = mOutline = null;
+        Mats.Reset(); PlanetCity.ResetAll(); Planet.Cells = null; Planet.Starts = null;
+        Weather.ResetStatics(); Ui.ResetStatics(); Babble.Muted = false; Ambience.Muted = false; Footsteps.Reset(); PlanetLife.ResetStatics(); People.ResetStatics();
+        DayNight.Hour = 10f; DayNight.Night = 0f; City.Cells = new System.Collections.Generic.Dictionary<Vector2Int, System.Collections.Generic.List<string>>(); City.Paths = new System.Collections.Generic.List<RoadPath>();
+        Chatter.I = null; PlanetLife.I = null; People.I = null; Weather.I = null;
+    }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void Boot()

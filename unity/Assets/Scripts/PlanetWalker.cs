@@ -50,7 +50,7 @@ public class PlanetWalker : MonoBehaviour
             Vector3 dir = move.normalized; float len = move.magnitude + 0.35f;
             foreach (float hgt in new[] { 0.6f, 1.4f })
             {
-                if (Physics.Raycast(pos + up * hgt, dir, out RaycastHit w, len, ~0, QueryTriggerInteraction.Ignore))
+                if (Physics.Raycast(pos + up * hgt, dir, out RaycastHit w, len, Layers.Muren, QueryTriggerInteraction.Ignore))
                 {
                     Vector3 n = w.normal; n -= up * Vector3.Dot(n, up); if (n.sqrMagnitude < 1e-6f) continue; n.Normalize();
                     float into = Vector3.Dot(move, n); if (into < 0f) move -= n * into;
@@ -68,7 +68,7 @@ public class PlanetWalker : MonoBehaviour
         // grond: straal vanaf heuphoogte naar het middelpunt
         vy -= Gravity * dt; pos += up * (vy * dt);
         float probe = 1.0f;
-        if (Physics.Raycast(pos + up * probe, -up, out RaycastHit g, probe + 0.25f + Mathf.Max(0f, -vy * dt), ~0, QueryTriggerInteraction.Ignore))
+        if (Physics.Raycast(pos + up * probe, -up, out RaycastHit g, probe + 0.25f + Mathf.Max(0f, -vy * dt), Layers.Grond, QueryTriggerInteraction.Ignore))
         {
             float above = probe - g.distance;   // hoe ver de grond boven de voeten ligt (negatief: eronder)
             if (vy <= 0f && above >= -0.25f && above <= Step) { pos = g.point; vy = 0f; grounded = true; }

@@ -64,6 +64,7 @@ public class Ambience : MonoBehaviour
 public static class Footsteps
 {
     static AudioClip[] clips; static float dist;
+    public static void Reset() { clips = null; dist = 0f; }
     static void Make()
     {
         clips = new AudioClip[4]; var rnd = new System.Random(3); int sr = 22050;

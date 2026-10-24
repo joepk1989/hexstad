@@ -101,6 +101,7 @@ public static class City
 public static class Mats
 {
     static readonly Dictionary<string, Material> cache = new Dictionary<string, Material>();
+    public static void Reset() { cache.Clear(); }
     public static Material Get(string name, Color c)
     {
         if (cache.TryGetValue(name, out var m) && m != null) return m;
@@ -241,7 +242,7 @@ public static class BlockMesher
                 case "pad": col = new Color(0.82f, 0.76f, 0.63f); break; case "steen": col = new Color(0.62f, 0.60f, 0.58f); break; case "blad": col = new Color(0.20f, 0.50f, 0.22f); break;
                 default: col = new Color(0.40f, 0.28f, 0.18f); break;
             }
-            var go = new GameObject(kv.Key); go.transform.SetParent(parent, false);
+            var go = new GameObject(kv.Key); go.transform.SetParent(parent, false); go.layer = Layers.Gebouw;
             var mesh = kv.Value.Build(); go.AddComponent<MeshFilter>().sharedMesh = mesh; go.AddComponent<MeshRenderer>().sharedMaterial = Mats.Get("b_" + kv.Key, col);
             if (colliders && kv.Key != "water" && kv.Key != "zand") go.AddComponent<MeshCollider>().sharedMesh = mesh;
         }

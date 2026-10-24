@@ -13,6 +13,7 @@ public class PlanetLife : MonoBehaviour
     public int CarCount => cars.Count;
     readonly List<int> roads = new List<int>(), walks = new List<int>();
     static AudioClip hum;
+    public static void ResetStatics() { hum = null; }
     float roadsT, spawnT, idleT = 4f;
     PlanetWalker walker;
     static readonly Color[] Paint = { new Color(0.8f, 0.2f, 0.2f), new Color(0.2f, 0.4f, 0.75f), new Color(0.9f, 0.85f, 0.3f), new Color(0.9f, 0.9f, 0.92f), new Color(0.2f, 0.2f, 0.22f), new Color(0.25f, 0.6f, 0.4f) };
@@ -64,7 +65,7 @@ public class PlanetLife : MonoBehaviour
     {
         var c = new Car { b = roads[Random.Range(0, roads.Count)], speed = 7f + Random.value * 4f, s = Random.value };
         c.a = NextRoad(c.b, -1); c.c = NextRoad(c.b, c.a); c.n = NextRoad(c.c, c.b); c.v = c.speed;
-        var root = new GameObject("Auto").transform; root.SetParent(transform, false); c.root = root;
+        var root = new GameObject("Auto").transform; root.SetParent(transform, false); c.root = root; root.gameObject.layer = Layers.Mens;
         int k = Random.Range(0, Paint.Length);
         Box(root, new Vector3(0, 0.55f, 0), new Vector3(1.8f, 0.6f, 4.2f), Mats.Get("auto" + k, Paint[k]));
         Box(root, new Vector3(0, 1.1f, -0.2f), new Vector3(1.5f, 0.5f, 2.2f), Mats.Get("autoglas", new Color(0.18f, 0.25f, 0.32f)));
