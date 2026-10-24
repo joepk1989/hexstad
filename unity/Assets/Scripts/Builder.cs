@@ -98,7 +98,7 @@ public class Builder : MonoBehaviour
     void OnGUI()
     {
         var st = new GUIStyle(GUI.skin.label) { fontSize = 14 }; st.normal.textColor = Color.black;
-        string help = walking ? "Wandelen: WASD lopen · muis kijken · Shift rennen · Spatie springen · Tab terug naar bouwen"
+        string help = walking ? "Wandelen: WASD lopen · muis kijken · Shift rennen · Spatie springen · C bukken · Esc muis los · Tab terug naar bouwen"
             : "Bouwen: klik vak = weg · vasthouden + slepen = lijn (30°-hoeken) · E/Q = laag omhoog/omlaag (nu " + level + ") · X = weg weghalen · Ctrl+Z = ongedaan · WASD = camera · rechtermuis = draaien · scroll = zoom · Tab = wandelen";
         GUI.Label(new Rect(10, 8, Screen.width - 20, 24), help, st);
         if (Time.time < msgT) GUI.Label(new Rect(10, 32, Screen.width - 20, 24), msg, st);
