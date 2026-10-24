@@ -66,6 +66,7 @@
       const dx = s[2] - s[0], dz = s[3] - s[1], l2 = dx * dx + dz * dz || 1e-9, f = Math.max(0, Math.min(1, ((x - s[0]) * dx + (z - s[1]) * dz) / l2));
       const d = Math.hypot(s[0] + dx * f - x, s[1] + dz * f - z); if (d > s[7]) continue;
       const hr = s[4] + (s[5] - s[4]) * f - 0.15; if (s[6] && v < 0.02) continue;   // vlakke weg op vlakke grond: niets
+      if (hr - v > 4.5) continue;   // ver boven het veld: een viaduct op pijlers, geen dijk eronder
       const band = Math.min(18, Math.max(3, Math.abs(hr - v) * 1.2)), w = d <= s[8] ? 1 : d >= s[8] + band ? 0 : smooth01(1 - (d - s[8]) / band);
       if (w > wBest + 1e-6 || (w > 0 && w > wBest - 1e-6 && d < dBest)) { wBest = w; tBest = hr; dBest = d; }   // gelijk gewicht: het dichtstbijzijnde stuk weg
     }
@@ -123,7 +124,7 @@
   function lpTri(q, r, x, z, roads) {
     const c = cellToWorld(q, r), C = lpCell(q, r);
     let a = Math.atan2(z - c.z, x - c.x) * 180 / Math.PI - 30; a = ((a % 360) + 360) % 360; const i = Math.min(5, Math.floor(a / 60)), j = (i + 1) % 6;
-    const road = (px, pz, b, around) => { if (roads && around.some(([q2, r2]) => lpRoadCell(q2, r2))) { const h = lpRoad(px, pz); if (h !== null) return h; } return b; };
+    const road = (px, pz, b, around) => { if (roads && around.some(([q2, r2]) => lpRoadCell(q2, r2))) { const h = lpRoad(px, pz); if (h !== null && h - b <= 4.5) return h; } return b; };
     const corner = k => { const px = c.x + LPA[k][0] * R, pz = c.z + LPA[k][1] * R; return [px, pz, road(px, pz, C.occ ? C.g : lpCorner(px, pz, k), lpAround(px, pz, k))]; };
     return [[c.x, c.z, road(c.x, c.z, C.g, [[q, r]])], corner(i), corner(j)];
   }
