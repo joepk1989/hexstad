@@ -5,6 +5,7 @@ using UnityEngine;
 public static class Ui
 {
     public static readonly Color Amber = new Color(0.95f, 0.70f, 0.23f), Dark = new Color(0.11f, 0.16f, 0.2f, 0.9f), Ink = new Color(0.11f, 0.16f, 0.2f);
+    static Font fontR, fontB, fontTitle;
     static Texture2D round, white; static GUIStyle card, cardLight, title, label, labelDim, button, buttonOn, toast, big, swatch, help;
     public static bool Ready => card != null;
 
@@ -24,13 +25,15 @@ public static class Ui
     {
         if (card != null) return;
         round = Rounded(40, 14, Color.white); white = Texture2D.whiteTexture;
+        // lettertypen zoals in de browser (Assets/Resources/Fonts, OFL-licentie); ontbreken ze, dan het standaardlettertype
+        fontR = Resources.Load<Font>("Fonts/AtkinsonHyperlegible-Regular"); fontB = Resources.Load<Font>("Fonts/AtkinsonHyperlegible-Bold"); fontTitle = Resources.Load<Font>("Fonts/BigShouldersDisplay-ExtraBold");
         var ro = new RectOffset { left = 16, right = 16, top = 16, bottom = 16 };
         card = new GUIStyle { border = ro, padding = new RectOffset { left = 14, right = 14, top = 10, bottom = 10 } }; card.normal.background = round;
-        title = new GUIStyle { fontSize = 20, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft }; title.normal.textColor = Color.white;
-        label = new GUIStyle { fontSize = 13, alignment = TextAnchor.MiddleLeft, wordWrap = true, richText = true }; label.normal.textColor = Color.white;
+        title = new GUIStyle { fontSize = 26, fontStyle = fontTitle != null ? FontStyle.Normal : FontStyle.Bold, alignment = TextAnchor.MiddleLeft, font = fontTitle }; title.normal.textColor = Color.white;
+        label = new GUIStyle { fontSize = 13, alignment = TextAnchor.MiddleLeft, wordWrap = true, richText = true, font = fontR }; label.normal.textColor = Color.white;
         labelDim = new GUIStyle(label); labelDim.normal.textColor = new Color(0.78f, 0.82f, 0.86f); labelDim.fontSize = 12;
-        big = new GUIStyle { fontSize = 26, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter }; big.normal.textColor = Amber;
-        button = new GUIStyle { border = ro, fontSize = 13, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, richText = true, padding = new RectOffset { left = 8, right = 8, top = 4, bottom = 4 } };
+        big = new GUIStyle { fontSize = 30, fontStyle = fontTitle != null ? FontStyle.Normal : FontStyle.Bold, alignment = TextAnchor.MiddleCenter, font = fontTitle }; big.normal.textColor = Amber;
+        button = new GUIStyle { border = ro, fontSize = 13, alignment = TextAnchor.MiddleCenter, fontStyle = fontB != null ? FontStyle.Normal : FontStyle.Bold, richText = true, font = fontB, padding = new RectOffset { left = 8, right = 8, top = 4, bottom = 4 } };
         button.normal.textColor = Color.white;
         buttonOn = new GUIStyle(button); buttonOn.normal.textColor = Ink;
         toast = new GUIStyle(label) { alignment = TextAnchor.MiddleCenter, fontSize = 14 };
@@ -63,7 +66,7 @@ public static class Ui
         Init(); var old = GUI.color;
         GUI.color = on ? Amber : new Color(0.14f, 0.19f, 0.23f, 0.95f); GUI.Box(r, "", card);
         GUI.color = color; GUI.Box(new Rect(r.x + 8, r.y + 7, r.width - 16, r.height - 30), "", swatch);
-        GUI.color = Color.white; var st = new GUIStyle(label) { alignment = TextAnchor.MiddleCenter, fontSize = 12, fontStyle = FontStyle.Bold }; st.normal.textColor = on ? Ink : Color.white;
+        GUI.color = Color.white; var st = new GUIStyle(label) { alignment = TextAnchor.MiddleCenter, fontSize = 12, fontStyle = fontB != null ? FontStyle.Normal : FontStyle.Bold, font = fontB }; st.normal.textColor = on ? Ink : Color.white;
         GUI.Label(new Rect(r.x, r.y + r.height - 24, r.width, 20), name, st);
         if (key != null) { var ks = new GUIStyle(st) { fontSize = 10, alignment = TextAnchor.UpperLeft }; ks.normal.textColor = on ? Ink : new Color(0.85f, 0.88f, 0.9f); GUI.Label(new Rect(r.x + 12, r.y + 9, 20, 14), key, ks); }
         GUI.color = old;
