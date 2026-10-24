@@ -142,6 +142,7 @@ button:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
 .sw-dak { background: linear-gradient(160deg, #a5503b, #6e2e21); }
 .sw-park { background: radial-gradient(circle at 35% 40%, #2f6b3f 0 22%, transparent 23%), radial-gradient(circle at 66% 62%, #3f7d3a 0 18%, transparent 19%), #6fa356; }
 .sw-water { background: linear-gradient(#5fa3cf, #2f6f9c); }
+.sw-meer { background: radial-gradient(ellipse at 50% 55%, #3f86b3 0 42%, #d8c48f 44% 52%, #6fa356 54%); }
 .sw-gum { background: #2c343d; }
 .sw-kuil { background: linear-gradient(90deg, #6fa356 0 18%, transparent 18% 82%, #6fa356 82%), linear-gradient(#7c8a91, #5a666c); }
 .sw-heuvel { background: radial-gradient(ellipse at 50% 100%, #6fa356 0 62%, transparent 63%), #d9e6c3; }

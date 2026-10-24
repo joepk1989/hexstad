@@ -81,7 +81,7 @@
     if (!armG.userData.set && people.pbCols && people.pbCols()) { const c = people.pbCols(); armG.userData.sl.material.color.set(c.shirt); armG.userData.hd.material.color.set(c.skin); armG.userData.set = true; }
     if (hand === 'bouwen') { const c = (TYPES[toolBase(tool)] && TOOL_COL[toolBase(tool)]) || '#d9b48f'; handBlock.material.color.set(c); }
   }
-  const TOOL_COL = { woning: '#d9b48f', kantoor: '#8fa6bd', dak: '#b5543c', park: '#5f9a4a', water: '#3a7ca5', pad: '#9b5a45', fietspad: '#7c8a91', looppad: '#cfc6b0', trap: '#bdb5a5', trappad: '#bdb5a5', helling: '#bdb5a5', hofhelling: '#b9ad96', kuil: '#5f9a4a', heuvel: '#5f9a4a', randpad: '#cfc6b0', module: '#f2b233', gum: '#e0573e' };
+  const TOOL_COL = { woning: '#d9b48f', kantoor: '#8fa6bd', dak: '#b5543c', park: '#5f9a4a', water: '#3a7ca5', meer: '#3f86b3', pad: '#9b5a45', fietspad: '#7c8a91', looppad: '#cfc6b0', trap: '#bdb5a5', trappad: '#bdb5a5', helling: '#bdb5a5', hofhelling: '#b9ad96', kuil: '#5f9a4a', heuvel: '#5f9a4a', randpad: '#cfc6b0', module: '#f2b233', gum: '#e0573e' };
   document.querySelectorAll('#hands button').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); setHand(b.dataset.hand); }));
   function updateWalk(dt) {
     if (player.down) { if (people.pbCamera(camera, dt)) return; player.down = false; }   // aangereden: de camera zit in het hoofd van het liggende lichaam

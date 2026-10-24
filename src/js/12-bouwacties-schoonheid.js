@@ -182,6 +182,12 @@
       toast(['Park met bomen', 'Park met bankjes en lantaarns', 'Park met bloemperken', 'Park met een vijver', 'Speeltuin'][nv] + ' · klik verder voor een andere inrichting', 1600);
       return;
     }
+    // Water aanklikken met gracht of meer gekozen: wisselen tussen gracht (kademuren) en meer (natuurlijke oever)
+    if (T === 'water' && top0 && baseOf(top0) === 'water' && st0.length === 1) {
+      st0[0] = top0 === 'water1' ? 'water' : 'water1';
+      rebuildAround(q, r); changed(); toast(st0[0] === 'water1' ? 'Meer met natuurlijke oever' : 'Gracht met kademuren', 1200);
+      return;
+    }
     // Woning op een huis met dak: er komt een verdieping onder het dak bij
     if (T === 'woning' && top0 && baseOf(top0) === 'dak' && st0.length >= 2 && isBuilding(baseOf(st0[st0.length - 2]))) {
       if (columnTop(q, r) + TY('woning').h > MAX_H + 0.01) return toast('Maximaal 60 meter hoog');

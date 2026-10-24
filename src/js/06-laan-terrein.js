@@ -67,6 +67,44 @@
     bag.flush(o);
   }
 
+  // ---------- Meer: bodem en oever ----------
+  // De hoogte van de oever hangt af van de afstand tot het land (de vakken zonder water eromheen): op de rand 0 (straatniveau),
+  // dan glooiend omlaag tot 2,6 m diep. De breedte van die helling golft met de plek, zodat de waterlijn een natuurlijke
+  // bocht krijgt in plaats van de rechte zeshoek. Twee meervakken naast elkaar rekenen met dezelfde wereldcoördinaten: naadloos.
+  const LAKE_D = 2.6;
+  function lakeDepth(x, z, q0, r0) {
+    let d = 1e9;
+    for (let dq = -2; dq <= 2; dq++) for (let dr = -2; dr <= 2; dr++) {
+      if (hexDist(dq, dr) > 2) continue;
+      const q = q0 + dq, r = r0 + dr; if (baseOf(stackOf(q, r)[0] || '') === 'water') continue;
+      const c = cellToWorld(q, r); let o = -1e9; for (const f of FRAMES) o = Math.max(o, (x - c.x) * f.nx + (z - c.z) * f.nz - INNER);
+      d = Math.min(d, Math.max(0, o));
+    }
+    const w = 6 + 2.6 * Math.sin(x * 0.29 + z * 0.13) + 1.4 * Math.sin(x * 0.11 - z * 0.37);
+    return -LAKE_D * smooth01(Math.min(1, d / Math.max(1.5, w)));
+  }
+  const lakeMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, flatShading: true });
+  const LAKE_GRASS = new THREE.Color('#6fa356'), LAKE_SAND = new THREE.Color('#cdb984'), LAKE_MUD = new THREE.Color('#6b6a4c');
+  function lakeBank(q, r, cx, cz) {
+    const N = 7, pos = [], col = [], c = new THREE.Color();
+    const corner = i => { const a = (30 + 60 * i) * Math.PI / 180; return [R * Math.cos(a), R * Math.sin(a)]; };
+    const vert = (x, z) => { const h = lakeDepth(cx + x, cz + z, q, r); pos.push(x, h, z);
+      if (h > -0.35) c.copy(LAKE_GRASS); else if (h > -1.2) c.copy(LAKE_GRASS).lerp(LAKE_SAND, smooth01((-h - 0.35) / 0.5)); else c.copy(LAKE_SAND).lerp(LAKE_MUD, smooth01((-h - 1.2) / 0.8));
+      col.push(c.r, c.g, c.b); };
+    for (let i = 0; i < 6; i++) {
+      const A = corner(i), B = corner((i + 1) % 6), P = (a, b) => [(A[0] * a + B[0] * b) / N, (A[1] * a + B[1] * b) / N];   // a + b ≤ N vanuit het midden
+      for (let a = 0; a < N; a++) for (let b = 0; a + b < N; b++) {
+        const p0 = P(a, b), p1 = P(a + 1, b), p2 = P(a, b + 1);
+        vert(...p0); vert(...p2); vert(...p1);
+        if (a + b < N - 1) { const p3 = P(a + 1, b + 1); vert(...p1); vert(...p2); vert(...p3); }
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    g.computeVertexNormals();
+    const m = new THREE.Mesh(g, lakeMat); m.receiveShadow = true; m.userData.own = true; return m;
+  }
+
   function makeBlock(t, q, r, i, baseY, cx, cz, col) {
     const o = new THREE.Group();
     o.position.y = baseY;
@@ -81,6 +119,8 @@
     if (kapels) t = 'dak';
     const parkV = /^park\d$/.test(t) ? +t.slice(4) : 0;   // park1 bankjes, park2 bloemen, park3 vijver, park4 speeltuin (klik met het park op een park)
     if (parkV) t = 'park';
+    const lakeV = t === 'water1';   // meer: water met een natuurlijke oever in plaats van kademuren
+    if (lakeV) t = 'water';
     if (t !== 'water' && t !== 'park' && t !== 'dak') col.surfaces.push({ kind: 'hex', cx, cz, top: baseY + TYPES[t].h, bottom: baseY, hole: false });
     const add = (geo, mat) => { const m = new THREE.Mesh(geo, mat); m.castShadow = true; m.receiveShadow = true; o.add(m); return m; };
     const hv = hash(q, r, i);
@@ -191,7 +231,18 @@
           }
         }
       }
-      for (let k = 0; k < 6; k++) {
+      if (lakeV) {   // meer: de bodem loopt vanaf de oever (op straatniveau) glooiend af onder de waterspiegel
+        o.add(lakeBank(q, r, cx, cz));
+        const rnd = hash(q, r, 7);
+        for (let n = 0; n < 7; n++) {   // riet langs de waterlijn
+          const a = ((rnd >>> (n * 3)) % 64) / 64 * Math.PI * 2 + n, d = 3 + ((rnd >>> (n * 2 + 1)) % 5);
+          const x = Math.cos(a) * d, z = Math.sin(a) * d, h = lakeDepth(cx + x, cz + z, q, r);
+          if (h > -0.9 || h < -1.9) continue;
+          for (let m = 0; m < 5; m++) { const ox = x + Math.cos(m * 2.4) * 0.35, oz = z + Math.sin(m * 2.4) * 0.35, hh = 1.3 + ((rnd >>> m) % 4) * 0.25;
+            bag.put(M.reed || (M.reed = std({ color: '#5d7f3a', roughness: 0.9 })), new THREE.ConeGeometry(0.07, hh, 4).translate(ox, h + hh / 2, oz)); }
+        }
+        for (let k = 0; k < 6; k++) { const nq = q + NEIGH[k][0], nr = r + NEIGH[k][1]; if (!isWaterAt(nq, nr) && (!bridge || !((deckMask >> k) & 1))) wallSeg(FRAMES[k], INNER - 2.2, -2, 1.2); }   // niet het water in lopen
+      } else for (let k = 0; k < 6; k++) {
         const f = FRAMES[k], nq = q + NEIGH[k][0], nr = r + NEIGH[k][1];
         if (!isWaterAt(nq, nr)) {   // kademuur naar het land
           bag.put(M.kade, boxAt(f, 0, INNER - 0.15, -1.0, R, 2.0, 0.3));

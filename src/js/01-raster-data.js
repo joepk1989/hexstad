@@ -16,7 +16,8 @@
     kantoor: { name: 'Kantoor', h: 3 },
     dak:     { name: 'Dak',     h: 2.5 },   // afgesneden schildak
     park:    { name: 'Park',    h: FLAT },
-    water:   { name: 'Water',   h: 0 },   // verzonken: waterspiegel 1,4 m onder straatniveau
+    water:   { name: 'Gracht',  h: 0 },
+    meer:    { name: 'Meer',    h: 0 },   // water met natuurlijke oevers (bewaard als water1)   // verzonken: waterspiegel 1,4 m onder straatniveau
     pad:     { name: 'Pad',     h: 0.15 },
     trap:    { name: 'Trap',    h: 3 },
     zuilen:  { name: 'Zuilen',  h: 3 },
@@ -51,7 +52,7 @@
     { name: 'Wegen', tools: ['vweg', 'vbrd', 'vlaan', 'vsnel', 'vklink', 'vfiets', 'vrot'], todo: ['Spoor', 'Parkeren'] },   // getekende wegen; de oude vakwegen zijn uit het palet (bestaande steden tonen ze nog)
     { name: 'Paden', tools: ['pad', 'fietspad', 'looppad', 'randpad', 'trap', 'trappad'], todo: ['Brugpad', 'Plein'] },
     { name: 'Gebouwen', tools: ['woning', 'kantoor', 'dak'], todo: ['Winkel', 'School', 'Fabriek'] },
-    { name: 'Groen en water', tools: ['park', 'water'], todo: ['Bomen', 'Hagen', 'Vijver', 'Fontein'] },
+    { name: 'Groen en water', tools: ['park', 'meer', 'water'], todo: ['Bomen', 'Hagen', 'Fontein'] },
     { name: 'Terrein', tools: ['tophoog', 'tafgraaf', 'tvlak', 'tglad', 'thelling', 'kuil', 'helling', 'hofhelling'], todo: ['Water', 'Klif'] },
     { name: 'Modules', tools: ['module'], todo: ['Brug', 'Poort', 'Toren'] },   // blok, muur, tunnel, tribune, zuilen en hof zijn modules geworden (zie 08b); bestaande steden tonen ze nog
   ];
@@ -94,17 +95,18 @@
   const NOUN = {
     weg: ['Een weg', 'een weg'], laan: ['Een laan', 'een laan'], pad: ['Een pad', 'een pad'], trap: ['Een trap', 'een trap'], zuilen: ['Zuilen', 'zuilen'],
     hof: ['Een hof', 'een hof'], woning: ['Een woning', 'een woning'], kantoor: ['Een kantoor', 'een kantoor'],
-    dak: ['Een dak', 'een dak'], park: ['Een park', 'een park'], water: ['Water', 'water'],
+    dak: ['Een dak', 'een dak'], park: ['Een park', 'een park'], water: ['Water', 'water'], meer: ['Een meer', 'een meer'],
     looppad: ['Een looppad', 'een looppad'], blok: ['Een blok', 'een blok'], helling: ['Een helling', 'een helling'],
     tunnel: ['Een tunnel', 'een tunnel'], muur: ['Een muur', 'een muur'], trappad: ['Een trappad', 'een trappad'],
     tribune: ['Een tribune', 'een tribune'], hofhelling: ['Een opgang', 'een opgang'],
     kuil: ['Een uitgraving', 'een uitgraving'], heuvel: ['Een verhoging', 'verhoogd terrein'], brug: ['Een brug', 'een brug'], brugp: ['Een brug', 'een brug'], fietspad: ['Een fietspad', 'een fietspad'],
   };
   // Gereedschap en blok zijn niet altijd hetzelfde: het fietspad is een breed pad, en een weg over een uitgraving krijgt een brug
-  const toolBase = t => t === 'fietspad' ? 'pad' : t;
+  const toolBase = t => t === 'fietspad' ? 'pad' : t === 'meer' ? 'water' : t;
   function itemsFor(q, r, tl, dirIdx) {
     const st = stackOf(q, r), top = st[st.length - 1];
     if (tl === 'fietspad') return [padName(0, 0, 1)];
+    if (tl === 'meer') return ['water1'];   // meer: water met oevers van gras en zand
     if (tl === 'weg' && st.length && baseOf(st[0]) === 'kuil' && baseOf(top) !== 'weg') return [baseOf(top) === 'pad' ? 'brugp' : 'brug', 'weg'];
     return [DIRECTIONAL.has(tl) ? tl + dirIdx : tl];
   }

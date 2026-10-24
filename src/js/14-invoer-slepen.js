@@ -197,7 +197,7 @@
   // Elk vak waar je overheen sleept wordt weg (ook als je snel beweegt: de vakken ertussen worden ingevuld).
   // Waar geen weg mag komen wordt stil overgeslagen; bestaande wegen blijven gewoon liggen.
   // Alles wat een lijn vormt kun je trekken: wegen, paden, looppaden, tunnels en grachten
-  const DRAG_TOOLS = new Set(['pad', 'fietspad', 'kuil', 'heuvel', 'looppad', 'tunnel', 'water', 'vweg', 'vbrd', 'vlaan', 'vsnel', 'vklink', 'vfiets']);
+  const DRAG_TOOLS = new Set(['pad', 'fietspad', 'kuil', 'heuvel', 'looppad', 'tunnel', 'water', 'meer', 'vweg', 'vbrd', 'vlaan', 'vsnel', 'vklink', 'vfiets']);
   const roadDrag = { on: false, last: null, count: 0, tool: 'weg' };
   let frameMs = 16;
   let dakHintShown = false, padHintShown = false;
@@ -604,7 +604,7 @@
     roadDrag.on = false; roadDrag.last = null;
     if (VEC_TOOLS.has(roadDrag.tool)) return vecDragEnd();
     if (roadDrag.tool === 'module') return lineDragEnd();
-    const what = { pad: 'pad', fietspad: 'fietspad', kuil: 'uitgraving', heuvel: 'verhoging', looppad: 'looppad', tunnel: 'tunnel', water: 'gracht' }[roadDrag.tool] || 'blokken';
+    const what = { pad: 'pad', fietspad: 'fietspad', kuil: 'uitgraving', heuvel: 'verhoging', looppad: 'looppad', tunnel: 'tunnel', water: 'gracht', meer: 'meer' }[roadDrag.tool] || 'blokken';
     if (roadDrag.count > 1) toast(`${roadDrag.count} vakken ${what} aangelegd`, 1400);
   }
   const placeBtn = document.getElementById('placeBtn');

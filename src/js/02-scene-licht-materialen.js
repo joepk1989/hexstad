@@ -366,5 +366,5 @@
     roadGhost: new THREE.CylinderGeometry(R, R, 0.25, 6).translate(0, 0.125, 0),
     padGhost: new THREE.CylinderGeometry(R, R, 0.15, 6).translate(0, 0.075, 0),
   };
-  const geoFor = t => t === 'weg' || baseOf(t) === 'laan' ? G.roadGhost : t === 'pad' || t === 'fietspad' ? G.padGhost : t === 'park' ? G.flat : t === 'water' ? G.water : t === 'dak' ? G.roof : G.full;
+  const geoFor = t => t === 'weg' || baseOf(t) === 'laan' ? G.roadGhost : t === 'pad' || t === 'fietspad' ? G.padGhost : t === 'park' ? G.flat : t === 'water' || t === 'meer' ? G.water : t === 'dak' ? G.roof : G.full;
 
