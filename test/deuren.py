@@ -26,8 +26,11 @@ async def main():
         assert o1 < 0.05 and o2 > 0.5 and o3 < 0.05, 'deur gaat niet goed open/dicht'
         await pg.evaluate("(d)=>{const P=window.__SC().player; P.x=d.cx-d.inx*1.4; P.z=d.cz-d.inz*1.4; for(let i=0;i<30;i++) window.__doors.update(0.1); P.x=d.cx-d.inx*3.0; P.z=d.cz-d.inz*3.0+1.2; P.yaw=Math.atan2(d.cx-P.x,d.cz-P.z); P.pitch=0.0;}", d); await pg.wait_for_timeout(1200)
         await pg.screenshot(path='deur_open.png',timeout=300000)
-        # module-deur (winkelcentrum)
+        # op het terrein: een huis op een verhoging heeft zijn deur op de terreinhoogte, niet op het maaiveld eronder
         await pg.evaluate("()=>document.getElementById('modeBtn').click()"); await pg.wait_for_timeout(500)
+        t=await pg.evaluate("(d)=>{const S=window.__SC(); const [q,r]=d.owner.split(',').map(Number); S.terrSet([[q,r,3]]); S.terrFlush(); S.rebuildAll(); const D=window.__doors.list.find(x=>x.owner===d.owner); return {gH:S.gH(q,r), y:D?+D.y.toFixed(2):null}}", d)
+        print('terras', json.dumps(t)); assert t['y'] is not None and abs(t['y']-(3+0.2))<0.05, 'deur niet mee omhoog met het terrein'
+        # module-deur (winkelcentrum)
         await pg.evaluate("()=>window.__SC().doAct('mall')"); await pg.wait_for_timeout(3000)
         m=await pg.evaluate("()=>{const D=window.__doors.list.filter(x=>typeof x.owner!=='string'); const d=D[0]; return {n:D.length, cx:d.hx+d.tx*d.w/2, cz:d.hz+d.tz*d.w/2, y:d.y, inx:d.inx, inz:d.inz}}")
         print('moduledeuren', json.dumps(m))

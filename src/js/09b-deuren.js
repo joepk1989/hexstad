@@ -52,7 +52,8 @@
       });
       mesh.count = list.length; mesh.instanceMatrix.needsUpdate = true; if (dirty && mesh.instanceColor) mesh.instanceColor.needsUpdate = true; dirty = false;
     }
+    function lift(owner, dy) { if (!dy) return; const L = byOwner.get(owner); if (L) for (const d of L) d.y += dy; dirty = true; }   // het vak staat op het terrein: de deuren mee omhoog
     function clearCells() { for (const o of [...byOwner.keys()]) if (typeof o === 'string') clear(o); }   // alle deuren van vakken (nieuwe stad)
-    const api = { add, clear, clearCells, update, get count() { return list.length; }, list };
+    const api = { add, clear, clearCells, lift, update, get count() { return list.length; }, list };
     window.__doors = api; return api;
   })();

@@ -79,7 +79,7 @@
     // ---------- park en water (sector 3) ----------
     const groen = [['Park · vijver', 3.4, 150], ['Bos · bomen', 3.55, 245], ['Bos · bomen', 3.95, 240], ['Park · stadspark', 3.3, 240], ['Park · bankjes', 3.9, 150], ['Park · hondenveld', 3.2, 200], ['Tuin · rozentuin', 3.75, 135], ['Grasveld · bomen', 3.5, 130]];
     for (const [name, a, rad] of groen) place1(name, ...worldToCell(Math.cos(a) * rad, Math.sin(a) * rad), 0);
-    place1('Brug · voetgangers', ...worldToCell(lake[0] + 46 * Math.cos(2.4), lake[1] + 46 * Math.sin(2.4)), 0);
+    place1('Brug · voetgangers', ...worldToCell(lake[0] + 62 * Math.cos(2.4), lake[1] + 62 * Math.sin(2.4)), 0);   /* over het pad om het meer, niet tegen de kademuur aan */
     // ---------- terrein (sector 4) ----------
     const heuvel = [['Villa · wit · tuin', 4.35, 150], ['Villa · baksteen · tuin', 4.5, 150], ['Bungalow · hout · tuin', 4.65, 148], ['Villa · natuursteen · plein', 4.9, 150], ['Tuin · boomgaard', 4.45, 245], ['Tuin · moestuin', 4.62, 248], ['Trap · naar terras', 4.3, 228], ['Terras op palen · trap', 4.78, 240], ['Toren · uitkijk', 4.97, 232], ['Amfitheater · rond', 4.22, 255]];
     for (const [name, a, rad] of heuvel) { const [q, r] = worldToCell(Math.cos(a) * rad, Math.sin(a) * rad); if (!hilly(q, r)) place1(name, q, r); }

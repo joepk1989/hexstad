@@ -150,6 +150,7 @@
       if (lifted) {   // randen van de vloerplaat: een zijkant van 22 cm waar geen buurdriehoek ligt
         for (const mat in byMat) for (const v of byMat[mat]) for (const [p, q] of [[v[0], v[1]], [v[1], v[2]], [v[2], v[0]]]) if (edgeCnt.get(eid(p, q)) === 1) wallBox(Mt.slab, p, q, y0 - MV2.FLOOR_T, y0 + 0.02, 0.06);
       }
+      const triAll = Object.values(byMat).flat(), floorAtL = (x, z) => triAll.some(v => { const s0 = (v[1][0] - v[0][0]) * (z - v[0][1]) - (v[1][1] - v[0][1]) * (x - v[0][0]), s1 = (v[2][0] - v[1][0]) * (z - v[1][1]) - (v[2][1] - v[1][1]) * (x - v[1][0]), s2 = (v[0][0] - v[2][0]) * (z - v[2][1]) - (v[0][1] - v[2][1]) * (x - v[2][0]); return (s0 >= 0 && s1 >= 0 && s2 >= 0) || (s0 <= 0 && s1 <= 0 && s2 <= 0); });   // ligt hier (lokaal) vloer op deze laag?
       // --- hoeken: waar twee muren onder een hoek samenkomen, een ronde hoekpost van dezelfde dikte, zodat de muren
       // zonder kier of uitstekend hoekje op elkaar aansluiten (muren zijn rechte blokken van punt tot punt) ---
       { const ends = new Map(), add = (k, dir, W) => { let L2 = ends.get(k); if (!L2) ends.set(k, L2 = []); L2.push({ dir, W }); };
@@ -191,8 +192,10 @@
         if (oy1 < LH - 0.01) { wallBox(mat, p0, p1, y0 + oy1, y0 + LH, T); addWall(p0, p1, y0 + oy1, y0 + LH); }
         if (oy0 > 0.01) { wallBox(mat, p0, p1, y0, y0 + oy0, T); addWall(p0, p1, y0, y0 + oy0); }
         if (o === 'window') { wallBox(Mt.frame, p0, p1, y0 + oy0 - 0.04, y0 + oy0 + 0.04, T + 0.1); wallBox(Mt.frame, p0, p1, y0 + oy1 - 0.04, y0 + oy1 + 0.04, T); for (const p of [p0, p1]) wallBox(Mt.frame, p, lerp(p, p === p0 ? p1 : p0, 0.04 / ow), y0 + oy0, y0 + oy1, T); wallBox(M.pane, p0, p1, y0 + oy0, y0 + oy1, 0.02); }
-        if (o === 'door') { const A = tfp(p0), B = tfp(p1), tl = Math.hypot(B[0] - A[0], B[1] - A[1]) || 1, O = tf(0, 0), nx = -(B[1] - A[1]) / tl, nz = (B[0] - A[0]) / tl, inw = ((O[0] - A[0]) * nx + (O[1] - A[1]) * nz) >= 0 ? 1 : -1;
-          doorsOut.push({ hx: A[0], hz: A[1], y: y0, w: tl, h: oy1, tx: (B[0] - A[0]) / tl, tz: (B[1] - A[1]) / tl, inx: nx * inw, inz: nz * inw, col: W.m === 'glass' || W.m === 'curtain' ? '#2b3a44' : W.m === 'wood' || W.m === 'slats' ? '#4a2e18' : '#5a3a22' });
+        if (o === 'door') {   // deurblad (09b): alleen in een buitenmuur (vloer aan één kant), naar binnen draaiend; deuren tussen kamers krijgen geen blad
+          const mx = (p0[0] + p1[0]) / 2, mz = (p0[1] + p1[1]) / 2, nlx = -(p1[1] - p0[1]) / ow, nlz = (p1[0] - p0[0]) / ow, sA = floorAtL(mx + nlx * 0.7, mz + nlz * 0.7), sB = floorAtL(mx - nlx * 0.7, mz - nlz * 0.7);
+          if (sA !== sB) { const A = tfp(p0), B = tfp(p1), tl = Math.hypot(B[0] - A[0], B[1] - A[1]) || 1, Mw = tfp([mx, mz]), Nw = tfp([mx + nlx * (sA ? 1 : -1), mz + nlz * (sA ? 1 : -1)]), nl = Math.hypot(Nw[0] - Mw[0], Nw[1] - Mw[1]) || 1;
+            doorsOut.push({ hx: A[0], hz: A[1], y: y0, w: tl, h: oy1, tx: (B[0] - A[0]) / tl, tz: (B[1] - A[1]) / tl, inx: (Nw[0] - Mw[0]) / nl, inz: (Nw[1] - Mw[1]) / nl, col: W.m === 'glass' || W.m === 'curtain' ? '#2b3a44' : W.m === 'wood' || W.m === 'slats' ? '#4a2e18' : '#5a3a22' }); }
           wallBox(Mt.trim, p0, p1, y0 + oy1 - 0.06, y0 + oy1, T + 0.08); for (const p of [p0, p1]) wallBox(Mt.trim, p, lerp(p, p === p0 ? p1 : p0, 0.06 / ow), y0, y0 + oy1, T + 0.08); }
         if (o === 'gate') { wallBox(Mt.trim, p0, p1, y0 + oy1 - 0.1, y0 + oy1, T + 0.1); }
       }
@@ -425,14 +428,25 @@
       if (E.n !== 1 || E.y < 0.5) continue;
       const mx = (E.A[0] + E.B[0]) / 2, mz = (E.A[1] + E.B[1]) / 2, ex = E.B[0] - E.A[0], ez = E.B[1] - E.A[1], l = Math.hypot(ex, ez) || 1;
       let nx = -ez / l, nz = ex / l; if ((mx - E.c[0]) * nx + (mz - E.c[1]) * nz < 0) { nx = -nx; nz = -nz; }   // naar buiten
-      const px = mx + nx * 0.35, pz = mz + nz * 0.35;
-      if (floorAt(px, pz, E.y + 0.3) >= E.y - 0.35) continue;   // daar loop je gewoon door (vloer, trap, helling)
       if (wallOn(mx, mz, E.y)) continue;
-      const y0 = E.y, A = [E.A[0] - nx * 0.04, E.A[1] - nz * 0.04], B = [E.B[0] - nx * 0.04, E.B[1] - nz * 0.04];
-      bar(A, B, y0 + 0.98, y0 + 1.05, 0.05); bar(A, B, y0 + 0.45, y0 + 0.49, 0.03);
-      for (const P of [A, B]) { const pk = Math.round(P[0] * 10) + ',' + Math.round(P[1] * 10) + ',' + Math.round(y0 * 10); if (posts.has(pk)) continue; posts.add(pk); const g = new THREE.CylinderGeometry(0.03, 0.03, 1.05, 6); g.translate(P[0], y0 + 0.525, P[1]); geos.push(g); }
-      const [q, r] = worldToCell(mx, mz), ck = q + ',' + r; let col = railCols.get(ck); if (!col) railCols.set(ck, col = { surfaces: [], walls: [] });
-      col.walls.push({ ax: A[0], az: A[1], bx: B[0], bz: B[1], y0, y1: y0 + 1.05, half: 0.06 });
+      // Per stukje van de rand kijken of je er net buiten gewoon door kunt lopen (vloer, trap, overloop, helling): alleen
+      // waar dat niet zo is komt een hek. Zo blijft de voet van een trap die bij een trapgat begint vrij, en staat er
+      // wel een hek langs de rest van het gat.
+      const NS = Math.max(2, Math.ceil(l / 0.4)), open0 = [];
+      for (let i = 0; i < NS; i++) { const f = (i + 0.5) / NS, px = E.A[0] + ex * f + nx * 0.35, pz = E.A[1] + ez * f + nz * 0.35;
+        open0.push(floorAt(px, pz, E.y + 0.3) >= E.y - 0.35 || floorAt(px, pz, E.y - 0.9) >= E.y - 1.4); }   // ook een trap die hier net onder de rand omhoogkomt: daar loop je zo de vloer op
+      const open = open0.map((o, i) => o || open0[i - 1] || open0[i + 1]);   // een stukje speling naast de doorgang, zodat je er niet langs schuurt
+      if (open.every(o => o)) continue;   // overal loop je gewoon door
+      const y0 = E.y, [q, r] = worldToCell(mx, mz), ck = q + ',' + r; let col = railCols.get(ck); if (!col) railCols.set(ck, col = { surfaces: [], walls: [] });
+      for (let i = 0; i < NS;) {
+        if (open[i]) { i++; continue; }
+        let j = i; while (j < NS && !open[j]) j++;
+        const f0 = i / NS, f1 = j / NS, A = [E.A[0] + ex * f0 - nx * 0.04, E.A[1] + ez * f0 - nz * 0.04], B = [E.A[0] + ex * f1 - nx * 0.04, E.A[1] + ez * f1 - nz * 0.04];
+        bar(A, B, y0 + 0.98, y0 + 1.05, 0.05); bar(A, B, y0 + 0.45, y0 + 0.49, 0.03);
+        for (const P of [A, B]) { const pk = Math.round(P[0] * 10) + ',' + Math.round(P[1] * 10) + ',' + Math.round(y0 * 10); if (posts.has(pk)) continue; posts.add(pk); const g = new THREE.CylinderGeometry(0.03, 0.03, 1.05, 6); g.translate(P[0], y0 + 0.525, P[1]); geos.push(g); }
+        col.walls.push({ ax: A[0], az: A[1], bx: B[0], bz: B[1], y0, y1: y0 + 1.05, half: 0.06 });
+        i = j;
+      }
     }
     for (const [k, col] of railCols) { let L = modCols.get(k); if (!L) modCols.set(k, L = []); L.push(col); }
     if (geos.length) { const mesh = new THREE.Mesh(mergeGeos(geos), mv2Mats().metal); mesh.castShadow = true; railGroup.add(mesh); }
