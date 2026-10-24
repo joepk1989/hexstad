@@ -669,3 +669,4 @@ body.coarse.walk .dockl { bottom: calc(env(safe-area-inset-bottom, 0px) + 168px)
 #chatter .bub::after { content: ""; position: absolute; left: 50%; bottom: -6px; width: 11px; height: 11px; background: inherit; transform: translateX(-50%) rotate(45deg); border-radius: 0 0 3px 0; }
 #chatter .bub.hi { font-size: 13px; padding: 4px 10px 5px; }
 body.walk #chatter .bub { font-size: 13.5px; }
+#chatter .bub.lomp { background: #fff3c4; font-weight: 800; }

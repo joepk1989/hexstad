@@ -60,6 +60,26 @@
       ['Een rotonde zou het verkeer verbeteren.', n => n.rotonde === 0 && n.wegen > 10],
       ['Waar zijn de bankjes?', n => n.park > 2 || n.cellen > 15],
     ];
+    // Wat de game zelf nog mist: [lomp, subtiel]. Elke persoon heeft een eigen aard: een deel is lomp, de rest drukt het zachter uit.
+    const GAME = [
+      ['Geen treinen of metro? Echt niet serieus.', 'Het zou fijn zijn als er ooit een trein kwam...'],
+      ['Waar zijn de bussen en trams? Ik moet lopen!', 'Ik vraag me af of er ooit een tram komt.'],
+      ['Geen fietsers. Wie heeft dat bedacht?', 'Het zou gezellig zijn met wat fietsers op straat.'],
+      ['Er zit geen enkele boot op dat water. Saai.', 'Een bootje op het water zou mooi zijn.'],
+      ['Nergens een vliegtuig aan de lucht. Wat een dooie boel.', 'Soms hoop ik een vliegtuig te horen.'],
+      ['Ik mag niet eens een gebouw in!', 'Ik ben benieuwd hoe het binnen in die huizen is...'],
+      ['Geen honden, geen katten. Wat is dit voor stad?', 'Een hond aan de lijn zou hier mooi staan.'],
+      ['Die stad draait om niks: geen geld, geen doel.', 'Soms mis ik een beetje richting in het spel.'],
+      ['Waar zijn de winkels, de school, het ziekenhuis?', 'Een winkel op de hoek zou fijn zijn.'],
+      ['Er is niks te doen. Geen voetbalveld, geen zwembad.', 'Een sportveld in de buurt zou leuk zijn.'],
+      ['Geen standbeeld of iets herkenbaars. Saai.', 'Een mooi standbeeld op het plein, wie weet...'],
+      ['Waarom kan ik niet met anderen bouwen?', 'Samen bouwen zou nog leuker zijn.'],
+      ['Geen strand? Een stad zonder strand is niks.', 'Ik zou graag een strandje zien.'],
+      ['Waar is het geluid van de stad? Het is zo stil.', 'Een beetje muziek op het plein zou fijn zijn.'],
+      ['Er zijn geen seizoenen. Altijd hetzelfde.', 'Ik hou van herfstkleuren; die zie ik hier niet.'],
+      ['Je hoeft niets te regelen, geen burgemeester? Gek.', 'Zou er een burgemeester zijn voor ons?'],
+    ];
+    const tone = a => a.tone || (a.tone = ((Math.sin((a.id || 1) * 12.9898) * 43758.5453) % 1 + 1) % 1 < 0.28 ? 'lomp' : 'zacht');
     const WET = ['Wat een rotweer...', 'Kon ik maar naar binnen!', 'Fijn, een buitje... niet.', 'Snel naar huis!'];
     const SNOW = ['Wat mooi, sneeuw!', 'Een witte stad, prachtig.'];
     const NIGHT = ['De stad is mooi bij nacht.', 'Zo stil in het donker.'];
@@ -70,6 +90,7 @@
       if (WXK.snow > 0.3 && Math.random() < 0.5) return SNOW[Math.floor(Math.random() * SNOW.length)];
       if (WXK.rain > 0.3 && Math.random() < 0.6) return WET[Math.floor(Math.random() * WET.length)];
       if (typeof nightK !== 'undefined' && nightK > 0.7 && Math.random() < 0.25) return NIGHT[Math.floor(Math.random() * NIGHT.length)];
+      if (Math.random() < 0.38) { const g = GAME.filter(([l, z]) => !recent.includes(l)); if (g.length) { const [l, z] = g[Math.floor(Math.random() * g.length)]; recent.push(l); if (recent.length > 12) recent.shift(); return tone(a) === 'lomp' ? l : z; } }
       const ok = LINES.filter(([t, f]) => !recent.includes(t) && f(n));
       const t = ok.length ? ok[Math.floor(Math.random() * ok.length)][0] : NEUTRAL[Math.floor(Math.random() * NEUTRAL.length)];
       recent.push(t); if (recent.length > 8) recent.shift();
@@ -90,7 +111,7 @@
       if (now - reviewT > 6000 || !review) { review = measure(); reviewT = now; }
       const text = pick(a); if (!text) return 0;
       const dur = Math.max(1.8, Math.min(4.8, 1.2 + text.length * 0.07));
-      return say(a, text, dur) ? dur : 0;
+      return say(a, text, dur, tone(a) === 'lomp' ? 'lomp' : '') ? dur : 0;
     }
     function greet(a) { if (live.length >= MAXB - 2) return; say(a, HI[Math.floor(Math.random() * HI.length)], 1.4, 'hi'); }
     const v = new THREE.Vector3();
