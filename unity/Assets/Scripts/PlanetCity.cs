@@ -606,7 +606,7 @@ public static class PlanetCity
             if (!Cells.TryGetValue(i, out var list) || list.Count == 0) continue;
             var fr = new Frame(i);
             if (list[0] == "weg") { Road(mb, fr, i); continue; }
-            if (list[0] == "wegdeel") continue;   // half vak onder een schuine weg: het asfalt komt van de wegvakken ernaast
+            if (list[0] == "wegdeel") { Top(M("zand"), fr, 0.97f, 0.06f); Wall(M("zand"), fr, 0.97f, -0.2f, 0.06f); continue; }   // bezet vak naast een schuine weg: zandkleurige vloer, zoals in de browser (het asfalt komt van de wegvakken ernaast)
             if (list.Count == 1 && list[0] == "meer") { Lake(mb, fr, i, 0f, i * 73856093); continue; }
             if (list.Count == 1 && list[0] == "pad") { Footpath(mb, fr, i); continue; }
             float h = 0f; int hash = i * 73856093;
