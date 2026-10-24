@@ -1,4 +1,6 @@
-# Hexstad
+# Raatstad
+
+(Voorheen "Hexstad"; de bestandsnamen, opslagsleutels en de reponaam heten nog zo.) Online: https://joepk1989.github.io/hexstad/ (GitHub Pages, bouwt vanzelf bij elke push via `.github/workflows/pages.yml`).
 
 3D-stadsbouwer in de browser op een zeshoekraster, op ware grootte (vak 15,6 m breed, zijde 9 m). Gebouwd met three.js r128, zonder build-tools behalve één klein script.
 

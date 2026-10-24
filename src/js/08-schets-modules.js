@@ -634,7 +634,7 @@
   $('bNew').onclick = () => { S.fine = 1; S.paths = []; S.pcur = null; S.tris = new Map(); S.undo = []; S.redo = []; S.editing = -1; S.last = null; $('name').value = ''; draw(); say(''); };
   async function copy(text) {
     $('code').value = text;
-    try { await navigator.clipboard.writeText(text); say('Gekopieerd. Plak de code in Hexstad.'); }
+    try { await navigator.clipboard.writeText(text); say('Gekopieerd. Plak de code in Raatstad.'); }
     catch (e) { $('code').select(); say('Selecteer en kopieer de code hierboven.'); }
   }
   $('bCopyOne').onclick = () => { if (!S.tris.size && !S.paths.length) { say('Teken eerst iets'); return; } copy(JSON.stringify(cur())); };
