@@ -23,7 +23,7 @@ public static class Ui
 
     public static void Init()
     {
-        if (card != null) return;
+        if (card != null && round != null) return;   // na een hercompilatie tijdens Play is de textuur weg: opnieuw maken
         round = Rounded(40, 14, Color.white); white = Texture2D.whiteTexture;
         // lettertypen zoals in de browser (Assets/Resources/Fonts, OFL-licentie); ontbreken ze, dan het standaardlettertype
         fontR = Resources.Load<Font>("Fonts/AtkinsonHyperlegible-Regular"); fontB = Resources.Load<Font>("Fonts/AtkinsonHyperlegible-Bold"); fontTitle = Resources.Load<Font>("Fonts/BigShouldersDisplay-ExtraBold");

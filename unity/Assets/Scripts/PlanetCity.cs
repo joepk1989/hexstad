@@ -309,7 +309,7 @@ public static class PlanetCity
     // een rij van zulke vakken een kaarsrechte weg in een 30°-tussenrichting). De uiteinden worden langs de vakrand afgesneden.
     static void Chord(System.Func<string, MeshBuilder> M, Frame fr, Vector2 e0, Vector2 e1)
     {
-        Vector2 d = (e1 - e0).normalized, r = new Vector2(d.y, -d.x);
+        Vector2 d = (e1 - e0).normalized, r = new Vector2(d.y, -d.x), mid = (e0 + e1) * 0.5f;   // de strook loopt door mid, niet door het hart van het vak
         // zijlijnen van de strook snijden met de randlijn (loodrecht op de arm) aan elk uiteinde
         System.Func<float, Vector2[]> quad = hw =>
         {
@@ -319,7 +319,7 @@ public static class PlanetCity
                 Vector2 e = end == 0 ? e0 : e1, en = e.normalized;   // randlijn: punten p met dot(p - e, en) = 0
                 for (int sd = 0; sd < 2; sd++)
                 {
-                    Vector2 p0 = r * (sd == 0 ? -hw : hw); float den = Vector2.Dot(d, en);
+                    Vector2 p0 = mid + r * (sd == 0 ? -hw : hw); float den = Vector2.Dot(d, en);
                     float t = Mathf.Abs(den) < 1e-4f ? 0f : Vector2.Dot(e - p0, en) / den;
                     q[end * 2 + sd] = p0 + d * t;
                 }
@@ -339,7 +339,7 @@ public static class PlanetCity
             M("rand").Quad(fr.P(a.x, 0.155f, a.y), fr.P(b.x, 0.155f, b.y), fr.P(b.x + o.x, 0.23f, b.y + o.y), fr.P(a.x + o.x, 0.23f, a.y + o.y), fr.D(-o.x, 1f, -o.y));
         }
         // middenstreepjes
-        float len = Vector2.Distance(e0, e1); Vector2 mid = (e0 + e1) * 0.5f;
+        float len = Vector2.Distance(e0, e1);
         for (float s0 = -len / 2f + 0.6f; s0 + 1.2f < len / 2f; s0 += 2.6f) { Vector2 a = mid + d * s0, b = mid + d * (s0 + 1.4f); M("lijn").Quad(fr.P(a.x - r.x * 0.07f, 0.165f, a.y - r.y * 0.07f), fr.P(a.x + r.x * 0.07f, 0.165f, a.y + r.y * 0.07f), fr.P(b.x + r.x * 0.07f, 0.165f, b.y + r.y * 0.07f), fr.P(b.x - r.x * 0.07f, 0.165f, b.y - r.y * 0.07f), fr.u); }
     }
 
