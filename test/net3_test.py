@@ -17,7 +17,7 @@ async def main():
         print(await pg.evaluate("()=>JSON.stringify(window.__SC().getCells().paths.map(p=>p.p))"))
         await pg.mouse.click(*pts[2]); await pg.wait_for_timeout(600)
         print(await pg.evaluate("()=>JSON.stringify(window.__SC().getCells().paths.map(p=>p.p))"))
-        await pg.screenshot(path=SH+'net2.png')
+        await pg.evaluate("()=>{const S=window.__SC(); S.orbit.target.set(15.6,0,27); S.orbit.dist=40; S.applyOrbit();}"); await pg.mouse.move(5,5); await pg.wait_for_timeout(1500); await pg.screenshot(path=SH+'net2.png')
         print(errs)
         await b.close()
 asyncio.run(main())

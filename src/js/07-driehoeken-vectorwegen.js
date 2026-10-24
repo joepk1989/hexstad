@@ -210,8 +210,10 @@
   };
   const plen = pts => { let l = 0; for (let i = 1; i < pts.length; i++) l += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); return l; };
   const dirAt = (pts, i) => { const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)]; let dx = b[0] - a[0], dz = b[1] - a[1]; const l = Math.hypot(dx, dz) || 1; return [dx / l, dz / l]; };
+  // Een weg van minder dan een meter is één los vak (een klik): alleen een rondje, nog geen weg om over te rijden
+  const isLone = p => { if (!p.p || p.p.length < 2) return false; let L = 0; for (let i = 1; i < p.p.length; i++) L += Math.hypot(p.p[i][0] - p.p[i - 1][0], p.p[i][1] - p.p[i - 1][1]); return L < 1; };
   function vecGraphOf(paths, ver) {
-    const P = (paths || []).filter(p => CAR_T.has(p.t) && p.p && p.p.length > 1);
+    const P = (paths || []).filter(p => CAR_T.has(p.t) && p.p && p.p.length > 1 && !isLone(p));
     const rots = (paths || []).filter(p => p.t === 'rot' && p.p && p.p.length).map(p => ({ c: p.p[0], src: p, arms: [] }));
     const mkLine = (t, src, pts) => { let x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9; for (const q of pts) { x0 = Math.min(x0, q[0]); z0 = Math.min(z0, q[1]); x1 = Math.max(x1, q[0]); z1 = Math.max(z1, q[1]); } return { t, src, pts, cuts: new Set(), bb: [x0 - 9, z0 - 9, x1 + 9, z1 + 9] }; };
     // rotondes: de wegen houden op bij de rijbaan van de rotonde; waar ze de cirkel raken komt een aansluiting
@@ -622,8 +624,15 @@
     const pathHF = path => (x, z) => pathH(path, x, z);
     const nodeHF = n => { const src = GR.nodes[n].edges.map(id => GR.edges.get(id).src); return (x, z) => { let best = 0, bd = 1e9; for (const p of src) { const pr = pathProf(p); if (pr.flat) { if (bd > 1e8) { best = 0; bd = 1e8; } continue; } const d = distPoly(x, z, pr.pts); if (d < bd) { bd = d; best = pathH(p, x, z); } } return best; }; };
     const headTrim = pt => { let t = 0; for (const H of heads) if (Math.hypot(H.N.x - pt[0], H.N.z - pt[1]) < 4) t = Math.max(t, H.cN); return t; };   // het asfalt stopt waar de ronde kop begint
+    for (const path of P) {   // los vak (één klik): een rondje asfalt met stoep
+      const def = PATH_DEF[path.t]; if (!def || !path.p || path.p.length < 2 || !isLone(path)) continue;
+      ctx(pathHF(path), gid++);
+      const c = path.p[0], kw = def.hw + 0.3, ow = def.hw + (def.walk || 0);
+      discInto(path.t === 'pad' ? pave : path.t === 'fiets' ? bike : def.klink ? klink : asph, c, kw, Y + 0.02);
+      if (def.walk) { ringWallInto(kerb, c, kw, Y, PW_H); for (let i = 0; i < 24; i++) { const a0 = i / 24 * Math.PI * 2, a1 = (i + 1) / 24 * Math.PI * 2; polyInto(walk, [[c[0] + Math.cos(a0) * kw, c[1] + Math.sin(a0) * kw], [c[0] + Math.cos(a0) * ow, c[1] + Math.sin(a0) * ow], [c[0] + Math.cos(a1) * ow, c[1] + Math.sin(a1) * ow], [c[0] + Math.cos(a1) * kw, c[1] + Math.sin(a1) * kw]], PW_H); } }
+    }
     for (const path of P) {
-      const def = PATH_DEF[path.t]; if (!def || !path.p || path.p.length < 2) continue;
+      const def = PATH_DEF[path.t]; if (!def || !path.p || path.p.length < 2 || isLone(path)) continue;
       const pts0 = smoothPts(path.p); ctx(pathHF(path), gid++);
       const edgeW = path.t === 'pad' || path.t === 'fiets' ? def.hw + 0.3 : def.hw + def.walk;
       for (const [w, sg] of [[path.r, 1], [path.l, -1]]) if (w > 0) ribbonInto(grass, pts0, w / 2, path.t === 'pad' || path.t === 'fiets' ? Y - 0.005 : PW_H - 0.005, sg * (edgeW + w / 2));

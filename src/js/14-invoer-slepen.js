@@ -346,7 +346,7 @@
   if (dragHEl) dragHEl.querySelectorAll('button').forEach(b => b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); roadHeightStep(+b.dataset.d); }));
   // Lijn van vakmiddens: een half vak verlengd aan beide kanten (vak vol weg), behalve waar het eind op een andere weg aansluit
   function vecExtend(core, snap, self) {
-    const P = core.map(p => p.slice()), n = P.length, h = R * SQ3 / 2;
+    const P = core.map(p => p.slice()), n = P.length, h = 0.15;
     const tipAt = (b, a) => { const dx = b[0] - a[0], dz = b[1] - a[1], L = Math.hypot(dx, dz) || 1; return [r2(b[0] + dx / L * h), r2(b[1] + dz / L * h)]; };
     let sE = false, sS = false;
     if (snap) { const e = vecSnap(P[n - 1], self), b = vecSnap(P[0], self); sE = e[0] !== P[n - 1][0] || e[1] !== P[n - 1][1]; sS = b[0] !== P[0][0] || b[1] !== P[0][1]; P[n - 1] = e; P[0] = b; }
@@ -399,7 +399,7 @@
   function vecSnap(W, self) {
     const lim = R * SQ3 * 1.05; let best = null, bd = lim;
     for (const q of pathsOf()) {
-      if (q === self || !q.p || q.p.length < 2 || !PATH_DEF[q.t]) continue;
+      if (q === self || q === vecPre.tmp || !q.p || q.p.length < 2 || !PATH_DEF[q.t]) continue;
       const pts = smoothPts(q.p);
       for (let j = 0; j < pts.length - 1; j++) {
         const a = pts[j], b = pts[j + 1], dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz || 1;
@@ -431,7 +431,7 @@
   // Eén klik vult een vak al met weg: een kort stukje (ronde kop) op die plek; de volgende klik trekt het door.
   // Zonder klik laat de hover hetzelfde stukje zien, alsof het er al ligt.
   function vecStubPts(cell) {
-    const c = cellToWorld(cell[0], cell[1]), k = manualDir !== null ? manualDir : viewDirIndex(), n = NEIGH[k], d = cellToWorld(cell[0] + n[0], cell[1] + n[1]), L = Math.hypot(d.x - c.x, d.z - c.z) || 1, h = R * SQ3 / 2;   // van vakrand tot vakrand: het vak zit vol weg
+    const c = cellToWorld(cell[0], cell[1]), k = manualDir !== null ? manualDir : viewDirIndex(), n = NEIGH[k], d = cellToWorld(cell[0] + n[0], cell[1] + n[1]), L = Math.hypot(d.x - c.x, d.z - c.z) || 1, h = 0.15;   // een rondje op het midden van het vak (net als bij paden); vanaf daar klik je verder
     const a = [c.x - (d.x - c.x) / L * h, c.z - (d.z - c.z) / L * h], b = [c.x + (d.x - c.x) / L * h, c.z + (d.z - c.z) / L * h];
     return [a, [c.x, c.z], b].map(p => [Math.round(p[0] * 100) / 100, Math.round(p[1] * 100) / 100]);
   }
@@ -461,11 +461,13 @@
   // Klikken werkt als bij paden: elk vak dat je aantikt wordt een stuk weg van rand tot rand. Ligt het naast het eind van een
   // weg (van dezelfde soort), dan sluit het daar op aan; anders begint er een nieuwe weg. Er is geen "knooppunt" dat je moet afsluiten.
   // Een weg heeft een staartje (half vak) voorbij zijn laatste vak, zodat het vak vol zit; dat schuift bij het doorklikken mee.
-  const HALF = R * SQ3 / 2, r2 = v => Math.round(v * 100) / 100;
+  const HALF = 0.15, r2 = v => Math.round(v * 100) / 100;
   function vecChainClick(cell) {
     const t = VEC_T[tool]; if (!cell) return;
     vecChainEnd(true); vecPreClear();
-    const c = cellToWorld(cell[0], cell[1]), Wc = [r2(c.x), r2(c.z)], plan = vecClickPlan(cell, t);
+    const c = cellToWorld(cell[0], cell[1]), Wc = [r2(c.x), r2(c.z)];
+    for (const q of pathsOf()) if (q.t === t && q.p && q.p.some(pt => Math.hypot(pt[0] - Wc[0], pt[1] - Wc[1]) < 3)) { toast('Hier ligt al weg', 900); return; }
+    const plan = vecClickPlan(cell, t);
     let path, gone = 0, snapped = false;
     if (!plan.best) {
       path = { t, l: 0, r: 0, p: vecStubPts(cell) }; path.tipS = path.tipE = true; pathsOf().push(path);
@@ -524,7 +526,7 @@
     D.count = D.prior.size;
     changed();
   }
-  function roadDragStart(cell) { vecChainEnd(true); roadDrag.on = true; roadDrag.last = null; roadDrag.count = 0; roadDrag.skip = 0; roadDrag.lp = null; roadDrag.sp = null; roadDrag.vp = null; roadDrag.vstart = null; roadDrag.prior = null; roadDrag.tool = tool; ghost.visible = false; ghostArrow.visible = false; vecGhost.visible = false; previewGroup.visible = false; roadPaintTo(cell); }
+  function roadDragStart(cell) { vecChainEnd(true); vecPreClear(); roadDrag.on = true; roadDrag.last = null; roadDrag.count = 0; roadDrag.skip = 0; roadDrag.lp = null; roadDrag.sp = null; roadDrag.vp = null; roadDrag.vstart = null; roadDrag.prior = null; roadDrag.tool = tool; ghost.visible = false; ghostArrow.visible = false; vecGhost.visible = false; previewGroup.visible = false; roadPaintTo(cell); }
   function roadDragEnd() {
     if (!roadDrag.on) return;
     roadDrag.on = false; roadDrag.last = null;
