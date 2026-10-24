@@ -486,6 +486,16 @@
       if (atStart) P[1] = o; else P[0] = o;
     }
     if (atStart) { P.unshift(W); if (path.y) path.y.unshift(0); } else { P.push(W); if (path.y) path.y.push(0); }
+    // driehoek of lus: ligt het nieuwe vak naast het andere eind van deze weg, dan sluit de weg zich daar
+    if (!snapped) {
+      const hasTip = atStart ? path.tipE : path.tipS, oi = atStart ? P.length - (hasTip ? 2 : 1) : (hasTip ? 1 : 0), O = P[oi], cores = P.length - (hasTip ? 1 : 0);   // (het staartje aan de kant van de klik is al weg)
+      if (cores >= 4 && Math.hypot(O[0] - W[0], O[1] - W[1]) < R * SQ3 * 1.05 && Math.hypot(O[0] - W[0], O[1] - W[1]) > 3) {
+        const oc = O.slice();
+        if (hasTip) { if (atStart) { P.pop(); if (path.y) path.y.pop(); path.tipE = false; } else { P.shift(); if (path.y) path.y.shift(); path.tipS = false; } }
+        if (atStart) { P.unshift(oc); if (path.y) path.y.unshift(0); path.tipS = false; } else { P.push(oc); if (path.y) path.y.push(0); path.tipE = false; }
+        return { snapped: true, closed: true };
+      }
+    }
     if (!snapped) {
       const a = atStart ? P[1] : P[P.length - 2], b = atStart ? P[0] : P[P.length - 1], dx = b[0] - a[0], dz = b[1] - a[1], L = Math.hypot(dx, dz) || 1, tp = [r2(b[0] + dx / L * HALF), r2(b[1] + dz / L * HALF)];
       if (atStart) { P.unshift(tp); path.tipS = true; } else { P.push(tp); path.tipE = true; }

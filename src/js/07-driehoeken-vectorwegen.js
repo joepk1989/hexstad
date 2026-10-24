@@ -627,7 +627,7 @@
     for (const path of P) {   // los vak (één klik): een rondje asfalt met stoep
       const def = PATH_DEF[path.t]; if (!def || !path.p || path.p.length < 2 || !isLone(path)) continue;
       ctx(pathHF(path), gid++);
-      const c = path.p[0], kw = def.hw + 0.3, ow = def.hw + (def.walk || 0);
+      const ext = HEAD_EXT[path.t] || 0, c = path.p[0], kw = def.hw + ext + 0.3, ow = def.hw + ext + (def.walk || 0);   // even groot als de ronde kop van een weg
       discInto(path.t === 'pad' ? pave : path.t === 'fiets' ? bike : def.klink ? klink : asph, c, kw, Y + 0.02);
       if (def.walk) { ringWallInto(kerb, c, kw, Y, PW_H); for (let i = 0; i < 24; i++) { const a0 = i / 24 * Math.PI * 2, a1 = (i + 1) / 24 * Math.PI * 2; polyInto(walk, [[c[0] + Math.cos(a0) * kw, c[1] + Math.sin(a0) * kw], [c[0] + Math.cos(a0) * ow, c[1] + Math.sin(a0) * ow], [c[0] + Math.cos(a1) * ow, c[1] + Math.sin(a1) * ow], [c[0] + Math.cos(a1) * kw, c[1] + Math.sin(a1) * kw]], PW_H); } }
     }
