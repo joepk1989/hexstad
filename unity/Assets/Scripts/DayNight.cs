@@ -1,12 +1,12 @@
 using UnityEngine;
 
-// Dag en nacht: de zon draait, de lucht en het licht kleuren mee. N = zon stilzetten of weer laten lopen. Een dag duurt 4 minuten.
+// Dag en nacht: de zon draait, de lucht en het licht kleuren mee. N = zon stilzetten of weer laten lopen. Een dag duurt 20 minuten.
 public class DayNight : MonoBehaviour
 {
     public static float Night;          // 0 = dag, 1 = nacht
-    public static float Hour = 11f;
+    public static float Hour = 10f;
     Light sun; Camera cam; bool frozen;
-    const float DayLen = 240f;
+    const float DayLen = 1200f;   // een dag duurt 20 minuten
 
     void Update()
     {

@@ -7,14 +7,15 @@ using UnityEngine;
 public class PlanetBuilder : MonoBehaviour
 {
     public Camera Cam;
-    Vector3 focus = new Vector3(0.2f, 0.75f, -0.6f).normalized, fwd = Vector3.forward;
-    float pitch = 55f, dist = 90f;
+    Vector3 focus = Vector3.up, fwd = Vector3.forward;
+    float pitch = 55f, dist = 260f;
     int tool = 1, hover = -1; bool hasHover;
     readonly List<Dictionary<int, List<string>>> undo = new List<Dictionary<int, List<string>>>();
     LineRenderer outline; PlanetWalker walker; bool walking; string msg = ""; float msgT;
 
     void Start()
     {
+        focus = Planet.Cells[0].dir; fwd = Planet.Cells[0].north;   // beginnen boven een vijfhoek, dan zie je meteen dat het een bol is
         outline = new GameObject("Hover").AddComponent<LineRenderer>(); outline.loop = true; outline.positionCount = 6; outline.widthMultiplier = 0.35f; outline.material = Raatstad.MatOutline; outline.useWorldSpace = true;
         walker = new GameObject("Wandelaar").AddComponent<PlanetWalker>(); walker.Cam = Cam; walker.gameObject.SetActive(false);
         Say("Planeet: " + Planet.Cells.Length + " vakken, omtrek " + Mathf.RoundToInt(2f * Mathf.PI * Planet.R) + " m · toets 1-9 of de balk kiest een blok · klik een vak");
@@ -70,7 +71,7 @@ public class PlanetBuilder : MonoBehaviour
         Vector3 move = Vector3.zero;
         if (Inp.Held(K.W)) move += fwd; if (Inp.Held(K.S)) move -= fwd; if (Inp.Held(K.D)) move += right; if (Inp.Held(K.A)) move -= right;
         if (move != Vector3.zero) { focus = (focus + move.normalized * (sp * dt / Planet.R)).normalized; up = focus; fwd = (fwd - up * Vector3.Dot(fwd, up)).normalized; }
-        dist = Mathf.Clamp(dist * (1f - Inp.Scroll * 0.1f), 12f, 900f);
+        dist = Mathf.Clamp(dist * (1f - Inp.Scroll * 0.1f), 12f, 2600f);
         if (Inp.RightHeld) { Vector2 d = Inp.Delta; fwd = Quaternion.AngleAxis(d.x * 0.2f, up) * fwd; pitch = Mathf.Clamp(pitch - d.y * 0.2f, 15f, 89f); }
         float h = PlanetCity.StackHeight(Planet.Nearest(focus));
         Vector3 target = focus * (Planet.R + h);
