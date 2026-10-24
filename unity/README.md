@@ -3,10 +3,13 @@
 Een eerste Unity-proef van de wegen uit de browserversie: hexraster op ware grootte (R = 9 m), wegen klikken en slepen,
 vaste lagen van 3 m voor een gelaagd netwerk, en rondlopen in eerste persoon.
 
-## Openen (Unity 6.3 LTS, pc)
-1. Unity Hub → **New project** → **3D (Universal Render Pipeline)**, naam bijv. `Raatstad`.
-2. Kopieer de map `unity/Assets/Scripts` uit deze repo naar `Assets/` van je project.
-3. Open een scene (de standaard `SampleScene` is goed) en druk op **Play**. Er is geen scene-opbouw nodig:
+## Openen (Unity 6.6, pc)
+De map `unity/` is een compleet Unity-project (Assets, Packages, ProjectSettings).
+1. Haal de repo op (git clone of Download ZIP).
+2. Unity Hub → **Add → Add project from disk** → kies de map `unity`.
+3. Open `Assets/Scenes/SampleScene` en druk op **Play**.
+
+Unity maakt `Library/`, `Temp/` en `Logs/` zelf; die staan niet in git (zie `.gitignore`). Er is geen scene-opbouw nodig:
    `Raatstad.cs` maakt grond, raster, licht, camera en gereedschap zelf aan.
 4. Staat in de Console een fout over input? Ga naar *Edit → Project Settings → Player → Active Input Handling* en kies **Both**.
 

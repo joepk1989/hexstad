@@ -1,0 +1,22 @@
+# Unity: alleen bronbestanden in git, niet wat Unity zelf opnieuw maakt
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+*.csproj
+*.sln
+*.slnx
+*.suo
+*.user
+*.pidb
+*.booproj
+.vs/
+.vscode/
+*.apk
+*.aab
+*.unitypackage
+crashlytics-build.properties
