@@ -49,6 +49,7 @@
     }
     lodProxy();
   }
+  const MERGE = !/[?&]nomerge/.test(location.search);   // ?nomerge: stukken niet samenvoegen (om te vergelijken)
   function buildColumn(q, r, force) {
     const k = key(q, r);
     const old = groups.get(k);
@@ -61,7 +62,7 @@
     const col = { surfaces: [], walls: [] };
     const g = new THREE.Group();
     let y = 0;
-    st.forEach((t, i) => { g.add(makeBlock(t, q, r, i, y, x, z, col)); y += TY(t).h; });
+    st.forEach((t, i) => { { const b = makeBlock(t, q, r, i, y, x, z, col); if (MERGE) mergeTile(b); g.add(b); } y += TY(t).h; });
     const G = gH(q, r); g.position.set(x, G, z); shiftCol(col, G); doors.lift(k, G);   // alles op het vak staat op de terreinhoogte, de deurbladen ook
     { const pl = terrPlinth(q, r); if (pl) g.add(pl); }
     blocks.add(g); groups.set(k, g); colMap.set(k, col);

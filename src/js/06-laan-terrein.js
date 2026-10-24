@@ -199,6 +199,31 @@
     return o;
   }
 
+  // Samenvoegen: de losse stukken van één vakje (muren, ramen, dakpannen, ...) met hetzelfde materiaal worden één mesh. Scheelt
+  // veel tekenopdrachten. Alleen binnen één blokgroep (o), zodat aanwijzen en slopen nog weten bij welk vak het hoort.
+  function mergeTile(o) {
+    const groups = new Map(), MM = new THREE.Matrix4();
+    for (const m of o.children) {
+      if (!m.isMesh || m.isInstancedMesh || m.children.length || Array.isArray(m.material) || !m.visible || m.renderOrder || m.onBeforeRender !== THREE.Object3D.prototype.onBeforeRender) continue;
+      if (Object.keys(m.userData).some(k => k !== 'own') || !m.geometry.attributes.position || !m.geometry.attributes.normal) continue;
+      const k = m.material.uuid + (m.castShadow ? 'c' : '') + (m.receiveShadow ? 'r' : '') + (m.frustumCulled ? '' : 'f');
+      let L = groups.get(k); if (!L) groups.set(k, L = []); L.push(m);
+    }
+    for (const L of groups.values()) {
+      if (L.length < 2) continue;
+      const parts = L.map(m => {
+        m.updateMatrix(); const g = (m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone()).applyMatrix4(m.matrix);
+        if (m.matrix.determinant() < 0) { const P = g.attributes.position, N = g.attributes.normal, U = g.attributes.uv;   // spiegeling draait de wikkelrichting om
+          const sw = (A, a, b) => { for (let c = 0; c < A.itemSize; c++) { const t = A.array[a * A.itemSize + c]; A.array[a * A.itemSize + c] = A.array[b * A.itemSize + c]; A.array[b * A.itemSize + c] = t; } };
+          for (let v = 0; v + 2 < P.count; v += 3) { sw(P, v + 1, v + 2); sw(N, v + 1, v + 2); if (U) sw(U, v + 1, v + 2); } }
+        return g;
+      });
+      const mesh = new THREE.Mesh(mergeGeos(parts), L[0].material);
+      mesh.castShadow = L[0].castShadow; mesh.receiveShadow = L[0].receiveShadow; mesh.frustumCulled = L[0].frustumCulled; mesh.userData.own = true;
+      for (const m of L) { o.remove(m); if (m.userData.own) m.geometry.dispose(); }
+      o.add(mesh);
+    }
+  }
   function disposeGroup(g) { g.traverse(m => { if (m.isMesh && m.userData.own) m.geometry.dispose(); }); }
   // ---------- Wegen en paden langs de rand tussen twee vakken ----------
   // Een randweg ligt over de zijde die twee vakken delen: elk vak levert een halve strook. De zijden vormen samen
