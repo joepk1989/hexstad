@@ -526,14 +526,14 @@
     function social(a, grid, dt) {
       if (a.waveT > 0) a.waveT -= dt; if (a.smileT > 0) a.smileT -= dt; if (a.chatT > 0) a.chatT -= dt; if (a.startleT > 0) a.startleT -= dt;
       // praten: om de beurt een zin brabbeltaal zolang het praatje duurt
-      if (a.chatT > 0 && a.chatPartner) { a.talkT = (a.talkT || 0) - dt; if (a.talkT <= 0) { const len = sound.talk(a.x, a.y + 1.5 * (a.scale || 1), a.z, 0.8 + Math.random() * 1.8, a.voice || 1); const q = a.chatPartner; a.talkT = 1e6; if (q.chatT > 0) q.talkT = (len || 1.5) + 0.3 + Math.random() * 0.6; } }
+      if (a.chatT > 0 && a.chatPartner) { a.talkT = (a.talkT || 0) - dt; if (a.talkT <= 0) { const say = chatter.opine(a), len = sound.talk(a.x, a.y + 1.5 * (a.scale || 1), a.z, say || 0.8 + Math.random() * 1.8, a.voice || 1); const q = a.chatPartner; a.talkT = 1e6; if (q.chatT > 0) q.talkT = (len || 1.5) + 0.3 + Math.random() * 0.6; } }
       else a.chatPartner = null;
       a.socT = (a.socT || 0) - dt; if (a.socT > 0) return; a.socT = 0.4;
       if (a.greetCool > 0) a.greetCool -= 0.4;
       if (a.startleT > 0 || a.greetCool > 0 || a.state !== 'walk') return;
       const rain = WXK.rain > 0.3;
       // de speler die langsloopt
-      if (mode === 'walk' && a.friendly) { const d = Math.hypot(player.x - a.x, player.z - a.z); if (d < 2.6 && Math.abs(player.y - a.y) < 1.5) { sound.talk(a.x, a.y + 1.5, a.z, 0, a.voice || 1, 'hi'); a.waveT = 1.4; a.smileT = 2.5; a.lookAt = [player.x, player.z]; a.greetCool = 25; return; } }
+      if (mode === 'walk' && a.friendly) { const d = Math.hypot(player.x - a.x, player.z - a.z); if (d < 2.6 && Math.abs(player.y - a.y) < 1.5) { sound.talk(a.x, a.y + 1.5, a.z, 0, a.voice || 1, 'hi'); chatter.greet(a); a.waveT = 1.4; a.smileT = 2.5; a.lookAt = [player.x, player.z]; a.greetCool = 25; return; } }
       const gx = Math.floor(a.x / 2), gz = Math.floor(a.z / 2);
       for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
         const list = grid.get((gx + i) + ',' + (gz + j)); if (!list) continue;
@@ -548,7 +548,7 @@
             for (const [p, q] of [[a, o], [o, a]]) { p.state = 'pause'; p.timer = t; p.chatT = t; p.smileT = t; p.lookAt = [q.x, q.z]; p.greetCool = 40 + Math.random() * 30; p.waveT = 0.9; p.chatPartner = q; p.talkT = p === a ? 0.3 : 1e6; }
             return;
           }
-          if (r < 0.55) { for (const [p, q] of [[a, o], [o, a]]) { p.waveT = 1.4; p.smileT = 2.5; p.lookAt = [q.x, q.z]; p.greetCool = 18 + Math.random() * 20; } sound.talk(a.x, a.y + 1.5, a.z, 0, a.voice || 1, 'hi'); setTimeout(() => sound.talk(o.x, o.y + 1.5, o.z, 0, o.voice || 1, 'hi'), 450); return; }
+          if (r < 0.55) { for (const [p, q] of [[a, o], [o, a]]) { p.waveT = 1.4; p.smileT = 2.5; p.lookAt = [q.x, q.z]; p.greetCool = 18 + Math.random() * 20; } sound.talk(a.x, a.y + 1.5, a.z, 0, a.voice || 1, 'hi'); chatter.greet(a); setTimeout(() => { sound.talk(o.x, o.y + 1.5, o.z, 0, o.voice || 1, 'hi'); chatter.greet(o); }, 450); return; }
           a.greetCool = 6; return;
         }
       }

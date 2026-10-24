@@ -81,7 +81,7 @@
     DN.place(camera.position);
     renderer.shadowMap.autoUpdate = false; renderer.shadowMap.needsUpdate = (shadowN++ & 1) === 0;   // schaduwkaart om het andere beeld: scheelt een hele renderronde
     cityTick(Math.min(dt, 0.1));   // stadsgrens en wijzer naar het centrum (15e)
-    hudRender(); perfTick();   // gewoon, of in twee keer met de laagkiezer (15d)
+    hudRender(); chatter.update(dt); perfTick();   // gewoon, of in twee keer met de laagkiezer (15d)
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
