@@ -43,7 +43,7 @@ gl_Position = projectionMatrix * mvPosition;`;
   THREE.Material.prototype.onBeforeCompile = function (sh) { curveUni(sh); };
   let groundFlatGeo = null, groundBolGeo = null;
   function curveSet(on) {
-    CURVE.on = !!on; CURVE.k.value = on ? 1 / (2 * CURVE.R) : 0;
+    CURVE.on = !!on; CURVE.k.value = on ? 1 / (2 * CURVE.R) : 0; skyU.bol.value = on ? 1 : 0;
     // de grond is één groot vlak; om mee te buigen heeft hij hoekpunten nodig (alleen in de bolle wereld)
     if (!groundFlatGeo) groundFlatGeo = ground.geometry;
     if (on && !groundBolGeo) { groundBolGeo = new THREE.PlaneGeometry(2400, 2400, 120, 120); }
@@ -100,16 +100,17 @@ gl_Position = projectionMatrix * mvPosition;`;
   scene.fog = new THREE.Fog(HORIZON, 380, 1150);
   // Hemelkoepel: een bol rond de camera met een verloop naar de kijkhoogte (horizon → zenit), een gloed rond de zon
   // en wat nevel onder de horizon. Kleuren komen van de tijd van de dag (zie DN.apply).
-  const skyU = { top: { value: new THREE.Color('#4f86c6') }, mid: { value: new THREE.Color('#a9cbe3') }, hor: { value: new THREE.Color(HORIZON) }, sunDir: { value: new THREE.Vector3(0.3, 0.6, 0.3) }, sunCol: { value: new THREE.Color('#fff2d0') }, glow: { value: 1 } };
+  const skyU = { top: { value: new THREE.Color('#4f86c6') }, mid: { value: new THREE.Color('#a9cbe3') }, hor: { value: new THREE.Color(HORIZON) }, sunDir: { value: new THREE.Vector3(0.3, 0.6, 0.3) }, bol: { value: 0 }, sunCol: { value: new THREE.Color('#fff2d0') }, glow: { value: 1 } };
   const skyDome = new THREE.Mesh(new THREE.SphereGeometry(2400, 32, 20), new THREE.ShaderMaterial({
     uniforms: skyU, side: THREE.BackSide, depthWrite: false, fog: false,
     vertexShader: 'varying vec3 vDir; void main() { vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: `uniform vec3 top; uniform vec3 mid; uniform vec3 hor; uniform vec3 sunDir; uniform vec3 sunCol; uniform float glow; varying vec3 vDir;
+    fragmentShader: `uniform vec3 top; uniform vec3 mid; uniform vec3 hor; uniform vec3 sunDir; uniform vec3 sunCol; uniform float glow; uniform float bol; varying vec3 vDir;
       void main() {
         vec3 d = normalize(vDir); float h = d.y;
         vec3 c = mix(hor, mid, smoothstep(0.0, 0.22, h));
         c = mix(c, top, smoothstep(0.18, 0.85, h));
         c = mix(c, hor * 0.92, smoothstep(0.0, -0.15, h));
+        c = mix(c, mix(mix(hor, mid, smoothstep(0.0, 0.22, -h)), top, smoothstep(0.18, 0.85, -h)), bol * smoothstep(0.0, -0.06, h));   // bolle wereld: onder de horizon gewoon lucht, de planeet hangt erin
         float s = max(dot(d, normalize(sunDir)), 0.0);
         c += sunCol * (pow(s, 900.0) * 1.2 + pow(s, 24.0) * 0.28 * glow + pow(s, 5.0) * 0.12 * glow) * smoothstep(-0.12, 0.05, sunDir.y);
         gl_FragColor = vec4(c, 1.0);
