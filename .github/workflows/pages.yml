@@ -22,8 +22,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: node build.js
-      - run: mkdir -p site && cp dist/hexstad.html site/index.html
+      - run: node build.js --site
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

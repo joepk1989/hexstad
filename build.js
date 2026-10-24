@@ -9,3 +9,12 @@ fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
 fs.writeFileSync(path.join(root, 'dist/hexstad.html'), html);
 for (const f of fs.readdirSync(path.join(root, 'assets'))) fs.copyFileSync(path.join(root, 'assets', f), path.join(root, 'dist', f));
 console.log('dist/hexstad.html', html.split('\n').length, 'regels');
+// --site: een volledige pagina voor GitHub Pages (de artifact-versie krijgt de omhulling van de publicatie zelf).
+// Zonder doctype, charset en viewport toont een telefoon de pagina als een uitgezoomde desktoppagina.
+if (process.argv.includes('--site')) {
+  const site = '<!doctype html>\n<html lang="nl">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">\n<meta name="mobile-web-app-capable" content="yes">\n<meta name="apple-mobile-web-app-capable" content="yes">\n<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">\n<meta name="theme-color" content="#1d2a33">\n</head>\n<body>\n' + html + '\n</body>\n</html>\n';
+  fs.mkdirSync(path.join(root, 'site'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'site/index.html'), site);
+  for (const f of fs.readdirSync(path.join(root, 'assets'))) fs.copyFileSync(path.join(root, 'assets', f), path.join(root, 'site', f));
+  console.log('site/index.html (volledige pagina voor GitHub Pages)');
+}
