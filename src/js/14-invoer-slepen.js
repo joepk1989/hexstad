@@ -422,7 +422,7 @@
   function vecStubPts(cell) {
     const c = cellToWorld(cell[0], cell[1]), k = manualDir !== null ? manualDir : viewDirIndex(), n = NEIGH[k], d = cellToWorld(cell[0] + n[0], cell[1] + n[1]), L = Math.hypot(d.x - c.x, d.z - c.z) || 1, h = R * SQ3 / 2;   // van vakrand tot vakrand: het vak zit vol weg
     const a = [c.x - (d.x - c.x) / L * h, c.z - (d.z - c.z) / L * h], b = [c.x + (d.x - c.x) / L * h, c.z + (d.z - c.z) / L * h];
-    return [a, b].map(p => [Math.round(p[0] * 100) / 100, Math.round(p[1] * 100) / 100]);
+    return [a, [c.x, c.z], b].map(p => [Math.round(p[0] * 100) / 100, Math.round(p[1] * 100) / 100]);
   }
   const vecPre = { tmp: null, key: '' };
   function vecPreClear() { if (!vecPre.tmp) return; const i = pathsOf().indexOf(vecPre.tmp); vecPre.tmp = null; vecPre.key = ''; if (i >= 0) { pathsOf().splice(i, 1); buildPathNet(true); } }
@@ -444,7 +444,7 @@
     vecChainTmpOff(); C.hover = cell;
     if (same) { vecHover.visible = false; buildPathNet(true); return; }
     const W = c => { const w = cellToWorld(c[0], c[1]); return [Math.round(w.x * 100) / 100, Math.round(w.z * 100) / 100]; };
-    C.tmp = { t: C.t, l: 0, r: 0, p: [W(C.node), vecSnap(W(cell), C.path)] }; pathsOf().push(C.tmp); showVecCells(C.t, C.tmp.p[0], C.tmp.p[1]);
+    C.tmp = { t: C.t, l: 0, r: 0, p: [W(C.node), vecSnap(W(cell), C.path)] }; { const q = C.tmp.p, w = W(cell); if (q[1][0] === w[0] && q[1][1] === w[1]) { const dx = q[1][0] - q[0][0], dz = q[1][1] - q[0][1], L = Math.hypot(dx, dz) || 1; q.push([q[1][0] + dx / L * R * SQ3 / 2, q[1][1] + dz / L * R * SQ3 / 2]); } } pathsOf().push(C.tmp); showVecCells(C.t, C.tmp.p[0], C.tmp.p[1]);
     vecNodeAt(vecHover, cell); buildPathNet(true);
   }
   function vecChainClick(cell) {
@@ -454,8 +454,8 @@
       const { best } = vecClickPlan(cell, t);
       C.on = true; C.t = t; C.path = best ? best.p : null; C.end = best ? best.end : -1;
       C.node = best ? worldToCell(best.p.p[best.end][0], best.p.p[best.end][1]) : cell;
-      vecPreClear(); C.stub = false;
-      if (!best) { C.path = { t, l: 0, r: 0, p: vecStubPts(cell) }; C.end = 1; C.stub = true; pathsOf().push(C.path); vecClearUnder([C.path]); buildPathNet(); changed(); }
+      vecPreClear(); C.tip = false;
+      if (!best) { C.path = { t, l: 0, r: 0, p: vecStubPts(cell) }; C.end = 2; C.tip = true; pathsOf().push(C.path); vecClearUnder([C.path]); buildPathNet(); changed(); }
       vecNodeAt(vecNode, C.node); vecHover.visible = false; C.hover = null;
       toast(best ? TYPES[tool].name + ' gaat hier verder · klik op het volgende vak' : 'Knooppunt · klik op het volgende vak voor een stuk ' + TYPES[tool].name.toLowerCase() + ' · klik hier nog eens of Esc om te stoppen', 2600);
       return;
@@ -464,9 +464,13 @@
     // vastleggen: het stuk van het knooppunt naar dit vak
     vecChainTmpOff();
     const c = cellToWorld(cell[0], cell[1]), W = vecSnap([Math.round(c.x * 100) / 100, Math.round(c.z * 100) / 100], C.path);
-    if (C.path && C.stub) { C.path.p = [C.path.p[0], W]; C.stub = false; C.end = 1; const n0 = cellToWorld(C.node[0], C.node[1]); C.path.p[0] = [Math.round(n0.x * 100) / 100, Math.round(n0.z * 100) / 100]; }
-    else if (C.path) { const p = C.path; if (C.end === 0) { p.p.unshift(W); if (p.y) p.y.unshift(0); } else { p.p.push(W); if (p.y) p.y.push(0); C.end = p.p.length - 1; } }
-    else { const n = cellToWorld(C.node[0], C.node[1]); C.path = { t, l: 0, r: 0, p: [[Math.round(n.x * 100) / 100, Math.round(n.z * 100) / 100], W] }; C.end = 1; pathsOf().push(C.path); }
+    // elk vak dat je aanklikt wordt van rand tot rand gevuld: achter het laatste punt zit een staartje (half vak lang),
+    // dat bij de volgende klik weer verdwijnt
+    const tipOf = (P) => { const a = P[P.length - 2], b = P[P.length - 1], dx = b[0] - a[0], dz = b[1] - a[1], L = Math.hypot(dx, dz) || 1, h = R * SQ3 / 2; return [Math.round((b[0] + dx / L * h) * 100) / 100, Math.round((b[1] + dz / L * h) * 100) / 100]; };
+    const snapped = W[0] !== Math.round(c.x * 100) / 100 || W[1] !== Math.round(c.z * 100) / 100;
+    if (C.path && C.end !== 0 && C.tip) { C.path.p.pop(); if (C.path.y) C.path.y.pop(); C.tip = false; if (C.path.p.length === 2) { const m = C.path.p[1], dx = W[0] - m[0], dz = W[1] - m[1], L = Math.hypot(dx, dz) || 1, h = R * SQ3 / 2; C.path.p[0] = [Math.round((m[0] - dx / L * h) * 100) / 100, Math.round((m[1] - dz / L * h) * 100) / 100]; } }
+    if (C.path) { const p = C.path; if (C.end === 0) { p.p.unshift(W); if (p.y) p.y.unshift(0); } else { p.p.push(W); if (p.y) p.y.push(0); C.end = p.p.length - 1; if (!snapped) { p.p.push(tipOf(p.p)); if (p.y) p.y.push(0); C.tip = true; } } }
+    else { const n = cellToWorld(C.node[0], C.node[1]), a = [Math.round(n.x * 100) / 100, Math.round(n.z * 100) / 100]; C.path = { t, l: 0, r: 0, p: [a, W] }; C.end = 1; pathsOf().push(C.path); if (!snapped) { C.path.p.push(tipOf(C.path.p)); C.tip = true; } }
     const gone = vecClearUnder([C.path]);
     C.node = cell; vecNodeAt(vecNode, cell); vecHover.visible = false; C.hover = null;
     // sluit het nieuwe eind aan op een andere weg (of op de eigen weg: een lus)? Dan is deze weg klaar.
