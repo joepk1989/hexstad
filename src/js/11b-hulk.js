@@ -25,6 +25,7 @@
       for (const c of st.cars) c.hulkHold = true;   // de file blijft staan tot de Hulk er is
       toast('Een file! Daar komt de Hulk …', 2600);
       if (typeof sound !== 'undefined' && sound.thunder) sound.thunder(0.1, 0.5);
+      if (typeof sound !== 'undefined') setTimeout(() => sound.fx('roar', st.x, 3, st.z), 600);
     }
     function pickCar() {
       const live = st.cars.filter(c => c.path && !c.fly && !c.crash);

@@ -304,3 +304,9 @@ Een vak dat deels op een weg of stoep ligt, kan nu een park in stukjes worden: a
 ## Stadsgenerator (snel testen)
 `src/js/08j-generator.js`: `genTown(seed, indeling)`; indelingen `dorp`, `rotonde`, `kruis`, `ring`. Via het menu (Dorp, Dorp met rotonde, Stad met raster, Kleine ringstad) of in de console `__SC().doAct('gen:dorp:7')` (zelfde seed = zelfde stad).
 `node test/visueel/generator.js 5` bouwt per indeling 5 seeds en meldt gebouwen zonder stoep naar de deur.
+
+## Geluid
+Alles behalve de vogels, de aanrijdingsklappen en het kreunen is gesynthetiseerd met Web Audio (`13-camera-modus-geluid.js`, `sound.fx(naam, x, y, z, sterkte)`):
+bouwen (tok), draaien (tik), slopen (gruis), kan niet (zoem), ongedaan maken, wisselen tussen bouwen en lopen (zwiep), een nieuwe stad (akkoordje),
+mooier geworden (tingeltje), springen, deuren (kraak en klik), piepende banden en botsend metaal (roekeloos), claxon, krekels 's nachts en de brul van de Hulk.
+De haken voor bouwen en slopen staan in `15f-geluid-haken.js`.

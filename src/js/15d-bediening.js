@@ -151,7 +151,7 @@
     function undo() {
       if (!undoList.length) { toast('Niets meer om ongedaan te maken', 1200); return; }
       const prev = undoList.pop(), m = parseCity(prev); if (!m) return;
-      cells = m; undoCur = prev; rebuildAll(); changed(); tools();
+      cells = m; undoCur = prev; rebuildAll(); changed(); tools(); sound.fx('undo');
       toast('Ongedaan gemaakt' + (undoList.length ? ' · nog ' + undoList.length + ' stap' + (undoList.length === 1 ? '' : 'pen') : ''), 1200);
     }
     // ---------- toetsen: Ctrl+Z, Page Up/Down, Escape ----------

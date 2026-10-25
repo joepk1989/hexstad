@@ -43,6 +43,7 @@
       if (mode === 'walk') touch(player.x, player.z, player.y);
       if (typeof people !== 'undefined') for (const a of people.agents) if (a.state === 'walk' || a.state === 'pause') touch(a.x, a.z, a.y);
       let changed = dirty;
+      for (const d of list) if (d.hot === frame && d.open === 0 && typeof sound !== 'undefined' && Math.hypot(d.hx - camera.position.x, d.hz - camera.position.z) < 14) sound.fx('door', d.hx, d.y + 1, d.hz);   // deur gaat open: kraak en klik
       for (const d of list) { const tgt = d.hot === frame ? 1 : 0; if (Math.abs(tgt - d.open) > 0.001) { d.open += (tgt - d.open) * Math.min(1, dt * (tgt ? 7 : 3)); if (Math.abs(tgt - d.open) < 0.01) d.open = tgt; changed = true; } }
       if (!changed) return;
       list.forEach((d, i) => {

@@ -89,6 +89,7 @@
     scoreBtn.querySelector('small').textContent = beauty ? beauty.label : 'schoonheid';
     if (beauty && lastScore !== null && beauty.score !== lastScore) {
       scoreBtn.classList.remove('up', 'down'); scoreBtn.classList.add(beauty.score > lastScore ? 'up' : 'down');
+      if (beauty.score > lastScore && typeof sound !== 'undefined') setTimeout(() => sound.fx('coin'), 140);   // mooier geworden: blij tingeltje
       clearTimeout(scoreFlash); scoreFlash = setTimeout(() => scoreBtn.classList.remove('up', 'down'), 1200);
     }
     lastScore = beauty ? beauty.score : null;

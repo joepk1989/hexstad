@@ -44,7 +44,7 @@
     const { x, z } = cellToWorld(found[0], found[1]);
     Object.assign(player, { x, z, y: columnTop(found[0], found[1]), vy: 0, yaw: orbit.theta, pitch: -0.05 });
   }
-  function jump() { if (player.grounded && !player.down) { player.vy = 3.2; player.grounded = false; } }  // ca. 0,5 m
+  function jump() { if (player.grounded && !player.down) { player.vy = 3.2; player.grounded = false; sound.fx('jump', player.x, player.y + 1, player.z); } }  // ca. 0,5 m
   // ---------- Wat je in je handen hebt tijdens het lopen: niets (kijken), het gekozen blok (bouwen) of een hamer ----------
   // De hamer hangt rechtsonder in beeld, aan de camera; een klik zwaait hem en sloopt wat je aankijkt.
   let hand = 'kijken';
@@ -120,6 +120,7 @@
 
   function setMode(m) {
     if (typeof vecChainEnd === 'function') vecChainEnd(true);
+    if (mode !== m && typeof sound !== 'undefined') sound.fx('whoosh');
     mode = m;
     if (typeof people !== 'undefined') people.pbReset();
     const walking = m === 'walk';
@@ -280,6 +281,69 @@
         o.connect(g); g.connect(f); o.start(t0); o.stop(t0 + len + 0.08);
       }
     }
+    // ---------- Korte geluidseffecten (allemaal gesynthetiseerd, geen bestanden) ----------
+    // fx(naam, x, y, z, sterkte): zonder plaats klinkt het 'in je oor' (bouwen, knoppen), met plaats ruimtelijk en zachter op afstand.
+    const fxLast = {};
+    function fxOut(x, y, z, ref = 5, roll = 1.2) {
+      if (x === undefined) { const g = ctx.createGain(); g.gain.value = 1; g.connect(master); return g; }
+      const p = ctx.createPanner(); Object.assign(p, { panningModel: 'equalpower', distanceModel: 'inverse', refDistance: ref, rolloffFactor: roll }); placeAt(p, x, y, z); p.connect(master); return p;
+    }
+    function fxTone(dest, type, f0, f1, t0, a, peak, d, det = 0) {
+      const o = ctx.createOscillator(), g = ctx.createGain(); o.type = type; o.frequency.setValueAtTime(f0, t0); if (f1) o.frequency.exponentialRampToValueAtTime(f1, t0 + a + d); o.detune.value = det;
+      g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(peak, t0 + a); g.gain.exponentialRampToValueAtTime(0.0001, t0 + a + d);
+      o.connect(g); g.connect(dest); o.start(t0); o.stop(t0 + a + d + 0.05); return o;
+    }
+    function fxNoise(dest, brown, ftype, f0, f1, q, t0, a, peak, d) {
+      const src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(); src.buffer = brown ? brownBuf : noiseBuf;
+      f.type = ftype; f.frequency.setValueAtTime(f0, t0); if (f1) f.frequency.exponentialRampToValueAtTime(f1, t0 + a + d); f.Q.value = q;
+      g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(peak, t0 + a); g.gain.exponentialRampToValueAtTime(0.0001, t0 + a + d);
+      src.connect(f); f.connect(g); g.connect(dest); src.start(t0, Math.random() * 2, a + d + 0.05);
+    }
+    const HEX_NOTES = [261.6, 293.7, 329.6, 392, 440, 523.3, 587.3, 659.3];   // zestonige toonladder (zonder halve tonen): klinkt altijd vriendelijk
+    function fx(name, x, y, z, k = 1) {
+      const t0 = ctx.currentTime, now = performance.now();
+      const gap = { place: 60, remove: 80, click: 40, deny: 250, squeal: 120, crunch: 90, door: 150, cricket: 0, jump: 150, gen: 600, whoosh: 200, undo: 120, rotate: 60, splash: 200, roar: 3000, coin: 300 }[name] ?? 80;
+      if (now - (fxLast[name] || 0) < gap) return; fxLast[name] = now;
+      const r = 0.94 + Math.random() * 0.12;
+      if (name === 'place') {   // houten 'tok' met een helder tikje erbovenop
+        const d = fxOut(); fxTone(d, 'sine', 210 * r, 120 * r, t0, 0.004, 0.32, 0.13); fxTone(d, 'triangle', 640 * r, 420 * r, t0, 0.002, 0.08, 0.06); fxNoise(d, false, 'bandpass', 2600, 0, 1.5, t0, 0.001, 0.12, 0.03);
+      } else if (name === 'rotate') { const d = fxOut(); fxTone(d, 'triangle', 900 * r, 1200 * r, t0, 0.002, 0.07, 0.05); fxNoise(d, false, 'highpass', 3000, 0, 0.7, t0, 0.001, 0.05, 0.025);
+      } else if (name === 'remove') {   // brokkelend afbreken: lage plof en wat gruis
+        const d = fxOut(); fxNoise(d, true, 'lowpass', 700, 180, 0.8, t0, 0.005, 0.45, 0.28); fxTone(d, 'sine', 120 * r, 55, t0, 0.003, 0.25, 0.2);
+        for (let i = 0; i < 5; i++) fxNoise(d, false, 'bandpass', 2200 + Math.random() * 2500, 0, 3, t0 + 0.03 + i * (0.025 + Math.random() * 0.03), 0.002, 0.07, 0.04);
+      } else if (name === 'deny') { const d = fxOut(); fxTone(d, 'square', 170, 0, t0, 0.005, 0.05, 0.08); fxTone(d, 'square', 130, 0, t0 + 0.11, 0.005, 0.05, 0.1);
+      } else if (name === 'click') { const d = fxOut(); fxTone(d, 'sine', 1800 * r, 1500, t0, 0.001, 0.05, 0.03);
+      } else if (name === 'undo') { const d = fxOut(); fxNoise(d, false, 'bandpass', 2600, 500, 2, t0, 0.02, 0.12, 0.22); fxTone(d, 'sine', 660, 330, t0, 0.01, 0.06, 0.2);
+      } else if (name === 'whoosh') { const d = fxOut(); fxNoise(d, false, 'bandpass', 350, 1900, 1.4, t0, 0.12, 0.16, 0.26);
+      } else if (name === 'gen') {   // nieuwe stad: oplopend akkoordje op de zestonige ladder plus een zachte zwiep
+        const d = fxOut(); fxNoise(d, false, 'bandpass', 300, 2400, 1.2, t0, 0.25, 0.08, 0.4);
+        [0, 2, 3, 5, 7].forEach((n, i) => fxTone(d, 'triangle', HEX_NOTES[n], 0, t0 + 0.08 + i * 0.07, 0.008, 0.09, 0.45));
+      } else if (name === 'coin') { const d = fxOut(); fxTone(d, 'triangle', HEX_NOTES[4] * 2, 0, t0, 0.005, 0.07, 0.12); fxTone(d, 'triangle', HEX_NOTES[7] * 2, 0, t0 + 0.08, 0.005, 0.07, 0.25);
+      } else if (name === 'jump') { const d = fxOut(x, y, z, 3); fxNoise(d, false, 'bandpass', 700, 1500, 1.2, t0, 0.02, 0.07 * k, 0.12);
+      } else if (name === 'door') {   // deur: kort gekraak en een klik van de klink
+        const d = fxOut(x, y, z, 3, 1.6), o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain(), lfo = ctx.createOscillator(), lg = ctx.createGain();
+        o.type = 'sawtooth'; o.frequency.setValueAtTime(95 * r, t0); o.frequency.linearRampToValueAtTime(150 * r, t0 + 0.4); lfo.frequency.value = 23; lg.gain.value = 18; lfo.connect(lg); lg.connect(o.frequency);
+        f.type = 'bandpass'; f.frequency.value = 1100; f.Q.value = 6; g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.06, t0 + 0.05); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.42);
+        o.connect(f); f.connect(g); g.connect(d); o.start(t0); lfo.start(t0); o.stop(t0 + 0.45); lfo.stop(t0 + 0.45);
+        fxNoise(d, false, 'bandpass', 3200, 0, 4, t0, 0.001, 0.08, 0.03);
+      } else if (name === 'squeal') {   // piepende banden
+        const d = fxOut(x, y, z, 8, 1.1), len = 0.35 + 0.4 * k;
+        fxNoise(d, false, 'bandpass', 1900 * r, 1500 * r, 14, t0, 0.04, 0.18 * k, len);
+        const o = fxTone(d, 'sine', 1150 * r, 980 * r, t0, 0.05, 0.035 * k, len); o.detune.setValueAtTime(0, t0); o.detune.linearRampToValueAtTime(-60, t0 + len);
+      } else if (name === 'crunch') {   // auto's botsen: dreun, scheurend metaal en wat rinkelend glas
+        const d = fxOut(x, y, z, 7, 1.1), v = Math.min(1, 0.3 + k);
+        fxNoise(d, true, 'lowpass', 500, 120, 0.8, t0, 0.004, 0.6 * v, 0.35); fxNoise(d, false, 'highpass', 1400, 0, 0.7, t0, 0.003, 0.35 * v, 0.22);
+        for (const f of [1320, 2210, 3480, 4950]) fxNoise(d, false, 'bandpass', f * r, f * r * 0.92, 28, t0 + Math.random() * 0.03, 0.003, 0.22 * v, 0.5 + Math.random() * 0.3);
+        if (k > 0.5) for (let i = 0; i < 6; i++) fxTone(d, 'sine', 3500 + Math.random() * 3000, 0, t0 + 0.08 + Math.random() * 0.25, 0.001, 0.03, 0.12);
+      } else if (name === 'cricket') {   // krekel: drie snelle tjirpjes
+        const d = fxOut(x, y, z, 4, 1.4), f = 4300 + Math.random() * 600; for (let i = 0; i < 3; i++) fxTone(d, 'sine', f, 0, t0 + i * 0.055, 0.004, 0.025 * k, 0.03);
+      } else if (name === 'splash') { const d = fxOut(x, y, z, 4); fxNoise(d, false, 'bandpass', 1400, 500, 0.8, t0, 0.01, 0.3 * k, 0.5); fxNoise(d, true, 'lowpass', 400, 0, 0.7, t0, 0.005, 0.25 * k, 0.2);
+      } else if (name === 'roar') {   // brul (de Hulk)
+        const d = fxOut(x, y, z, 12, 0.9), f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 700; f.connect(d);
+        for (const [fr, det] of [[68, 0], [71, 12], [102, -8]]) { const o = fxTone(f, 'sawtooth', fr, fr * 0.8, t0, 0.18, 0.18, 1.1, det); }
+        fxNoise(f, true, 'lowpass', 900, 300, 0.8, t0, 0.15, 0.35, 1.1);
+      }
+    }
     function step(grass) {   // voetstap: kort ruisje, dof op gras, harder op klinkers
       const t0 = ctx.currentTime, src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
       src.buffer = noiseBuf; f.type = 'bandpass'; f.frequency.value = grass ? 380 : 1100 + Math.random() * 300; f.Q.value = grass ? 0.8 : 1.4;
@@ -320,6 +384,9 @@
             if (hexDist(dq, dr) > 2) continue;
             for (const t of stackOf(cq + dq, cr + dr)) { const b = baseOf(t); if (b === 'park' || b === 'hof' || b === 'hofhelling') green++; }
           }
+          for (const I of cells.inst || []) if (I.m && hexDist(I.q - cq, I.r - cr) <= 2 && /^(Park|Bos|Tuin|Grasveld)/.test(I.m.name || '')) green += 2;   // groene modules tellen ook
+          // 's nachts: krekels in het groen, op willekeurige plekjes om je heen
+          if (nightK > 0.45 && Math.random() < 0.5 * nightK) { const a = Math.random() * Math.PI * 2, d = 4 + Math.random() * 14; fx('cricket', lx + Math.cos(a) * d, 0.3, lz + Math.sin(a) * d, nightK * (0.4 + Math.min(1, green / 5) * 0.8) * (1 - Math.min(1, WXK.rain))); }
           const far = mode === 'walk' ? 1 : Math.max(0.35, 1 - orbit.dist / 500);
           const tc = ctx.currentTime;
           // vogelkoor: altijd zacht aanwezig, voller bij parken en hofjes, iets minder hoog in de lucht
@@ -346,6 +413,7 @@
       },
       chime(x, z) { if (on && ctx) chime(x, z); },
       horn(x, z) { if (on && ctx) horn(x, z); },
+      fx(name, x, y, z, k) { if (on && ctx && noiseBuf) fx(name, x, y, z, k); },
       // Stemmen: brabbeltaal (zoals in Animal Crossing). Elke lettergreep is een korte toon door twee formantfilters
       // (klinker) met soms een ruisje ervoor (medeklinker); de toonhoogte zweeft per persoon en per zin. 'hi' = een kort
       // groetje dat omhoog gaat; anders een zin van dur seconden met woordpauzes. Zachter naarmate het verder weg is.

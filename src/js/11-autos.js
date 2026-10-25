@@ -290,6 +290,7 @@
         // zacht tikje (netjes rijdend verkeer schampt hooguit): afremmen, niet tollen
         if (impact < (reckless ? 1.2 : 5.0)) { A.v *= 0.6; B.v *= 0.6; continue; }   // netjes verkeer: een tikje onder 18 km/u is geen klap
         const jimp = (1 + 0.25) * impact / 2;
+        sound.fx('crunch', (A.x + B.x) / 2, 0.7, (A.z + B.z) / 2, Math.min(1, impact / 12));
         if (crashLog.length < 40) crashLog.push({ impact: +impact.toFixed(1), A: [+A.x.toFixed(1), +A.z.toFixed(1), A.eid || A.q + ',' + A.r, A.kind, +A.v.toFixed(1), A.why], B: [+B.x.toFixed(1), +B.z.toFixed(1), B.eid || B.q + ',' + B.r, B.kind, +B.v.toFixed(1), B.why] });
         // klap: beide auto's gaan glijden en tollen
         const rx = dx / 2, rz = dz / 2;
@@ -634,6 +635,8 @@
           const dWant = Math.max(-dMax, Math.min(dMax, Math.atan(L2 * kap) + eHead + Math.atan(-1.6 * (eLat - (c.latCur || 0)) / (1.5 + c.v))));   // latCur: bewust naast de rijlijn (inhalen, ontwijken, jagen)
           c.delta += Math.max(-2.6 * dt, Math.min(2.6 * dt, dWant - c.delta));
           c.h += c.v / L2 * Math.tan(c.delta) * dt;
+          { const lat = c.v * c.v / L2 * Math.abs(Math.tan(c.delta)), brake = (c.vPrevSq ?? c.v) - c.v; c.vPrevSq = c.v;   // dwarskracht of hard remmen: banden piepen
+            if ((lat > 6.5 && c.v > 7) || brake > 8 * dt) { const now = performance.now(); if (now > (c.sqT || 0)) { c.sqT = now + 900; sound.fx('squeal', c.x, 0.4, c.z, Math.min(1, Math.max(lat / 14, brake / (14 * dt)))); } } }
           c.rx += Math.cos(c.h) * c.v * dt; c.rz += Math.sin(c.h) * c.v * dt;
           // voortgang langs de rijlijn bijhouden met waar de auto echt is
           {
