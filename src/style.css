@@ -747,3 +747,15 @@ body.walk .hud-top { justify-content: flex-end; }
   body.coarse.walk .place { right: calc(var(--gutter-r) + 67px); bottom: calc(var(--base) + 142px); }
   .layerpick { top: 50%; }
 }
+
+/* lopen en kijken (aanraakscherm): ook het menu en de fps-teller onderaan, het beeld bovenin blijft vrij */
+@media (max-width: 760px) {
+  body.coarse.walk #menuBtn { position: fixed; left: 50%; transform: translateX(-50%); bottom: var(--base); width: 44px; height: 44px; padding: 0; font-size: 0; border-radius: 50%; display: grid; place-items: center; z-index: 6; opacity: 1; }
+  body.coarse.walk #menuBtn::before { content: "☰"; font-size: 20px; line-height: 1; }
+  body.coarse.walk #perf.perf-fps { top: auto; right: auto; left: var(--gutter-l); bottom: calc(var(--base) + 56px + 104px + 6px); }
+  body.coarse.walk.hand-bouwen #perf.perf-fps { bottom: calc(var(--base) + 102px + 104px + 6px); }
+}
+@media (max-width: 480px) {
+  body.coarse.walk .modeswitch .ms { font-size: 0; gap: 0; padding: 8px 12px; }
+  body.coarse.walk .modeswitch .ms svg { width: 18px; height: 18px; }
+}
