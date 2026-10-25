@@ -1,87 +1,14 @@
   // ---------- Auto's ----------
-  // Futuristische elektrische auto, op ware grootte: 4,70 m lang, 1,92 m breed, 1,42 m hoog, wielbasis 2,90 m,
+  // Low-poly auto's (zie 11-0-lowpoly-voertuigen.js), op ware grootte: 4,70 m lang, ongeveer 1,9 m breed, wielbasis 2,90 m,
   // wielen van 72 cm. Ze rijden rechts, 1,25 m naast de middenstreep, volgen de bochtbogen, keren in de keerlus,
   // remmen voor elkaar, voor overstekende mensen en voor jou.
   const cars = (() => {
     const MAX = 40, CAP = 280, WB = 1.45, TRACK = 0.83, WR = 0.36;
     // wielen draaien op het scherm niet sneller dan dit (rad/s): sneller lijkt het door de beeldsnelheid achteruit te gaan
     const SPIN_MAX = 13;   // CAP: ook de geparkeerde auto's
-    // Carrosserie als één gladde vorm: doorsneden (afgeronde rechthoeken) langs de lengte, met een
-    // zijprofiel, een bovenaanzicht en wielkasten. Gedeelde hoekpunten geven zachte overgangen in plaats van facetten.
-    const curve = pts => x => {   // vloeiende kromme door punten (monotone Hermite)
-      if (x <= pts[0][0]) return pts[0][1];
-      for (let i = 1; i < pts.length; i++) if (x <= pts[i][0]) {
-        const [x0, y0] = pts[i - 1], [x1, y1] = pts[i], t = (x - x0) / (x1 - x0);
-        const m0 = i > 1 ? (y1 - pts[i - 2][1]) / (x1 - pts[i - 2][0]) : (y1 - y0) / (x1 - x0);
-        const m1 = i < pts.length - 1 ? (pts[i + 1][1] - y0) / (pts[i + 1][0] - x0) : (y1 - y0) / (x1 - x0);
-        const h = x1 - x0, t2 = t * t, t3 = t2 * t;
-        return (2 * t3 - 3 * t2 + 1) * y0 + (t3 - 2 * t2 + t) * h * m0 + (-2 * t3 + 3 * t2) * y1 + (t3 - t2) * h * m1;
-      }
-      return pts[pts.length - 1][1];
-    };
-    const sgnPow = (v, e) => Math.sign(v) * Math.pow(Math.abs(v), e);
-    // loft(x0, x1, NX, NS, fn): fn(x) → { b, t, w, n, tumble }; geeft een gesloten, glad buisvormig lichaam
-    function loft(x0, x1, NX, NS, fn) {
-      const pos = [], idx = [];
-      for (let i = 0; i <= NX; i++) {
-        const u = i / NX, x = x0 + (x1 - x0) * (0.5 - 0.5 * Math.cos(Math.PI * u));   // dichter bij de uiteinden
-        const S = fn(x), yc = (S.b + S.t) / 2, hh = (S.t - S.b) / 2;
-        for (let j = 0; j < NS; j++) {
-          const th = j / NS * Math.PI * 2, yy = sgnPow(Math.sin(th), 2 / S.n);
-          let z = S.w * sgnPow(Math.cos(th), 2 / S.n);
-          z *= 1 - S.tumble * Math.max(0, yy) - 0.05 * Math.pow(Math.max(0, -yy), 2);
-          pos.push(x, yc + hh * yy, z);
-        }
-      }
-      for (let i = 0; i < NX; i++) for (let j = 0; j < NS; j++) {
-        const a = i * NS + j, b2 = i * NS + (j + 1) % NS, c = (i + 1) * NS + j, d = (i + 1) * NS + (j + 1) % NS;
-        idx.push(a, c, b2, b2, c, d);
-      }
-      const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-      g.setIndex(idx); g.computeVertexNormals();
-      return g;
-    }
-    const WHEEL_X = 1.45, ARCH_R = 0.45;
-    const bodyTop = curve([[-2.25, 0.72], [-2.12, 0.86], [-1.85, 0.95], [-1.2, 0.98], [0, 0.97], [0.9, 0.93], [1.55, 0.86], [2.0, 0.78], [2.25, 0.62]]);
-    const bodyBot = curve([[-2.25, 0.5], [-2.1, 0.34], [-1.9, 0.3], [1.9, 0.3], [2.1, 0.33], [2.25, 0.46]]);
-    const planW = x => 0.9 * Math.pow(Math.max(0, 1 - Math.pow(Math.abs(x) / 2.25, 7)), 1 / 7);
-    const bodyAt = x => {
-      let b = bodyBot(x);
-      for (const wx of [-WHEEL_X, WHEEL_X]) { const dx = x - wx; if (Math.abs(dx) < ARCH_R) b = Math.max(b, 0.36 + Math.sqrt(ARCH_R * ARCH_R - dx * dx)); }   // wielkast
-      return { b, t: bodyTop(x), w: planW(x), n: 4.5, tumble: 0.14 };
-    };
-    const bodyGeo = loft(-2.25, 2.25, 56, 28, bodyAt);
-    // Glazen koepel: achterruit, dak, lange schuine voorruit
-    const glassTop = curve([[-1.72, 0.95], [-1.4, 1.22], [-0.95, 1.39], [0.05, 1.42], [0.5, 1.34], [1.05, 0.92]]);
-    const canopyGeo = loft(-1.72, 1.05, 36, 20, x => {
-      const xn = (x - (-1.72 + 1.05) / 2) / ((1.05 + 1.72) / 2);
-      return { b: bodyTop(x) - 0.06, t: Math.max(bodyTop(x) - 0.06, glassTop(x)), w: 0.78 * Math.pow(Math.max(0, 1 - Math.pow(Math.abs(xn), 6)), 1 / 6), n: 3.2, tumble: 0.3 };
-    });
-    // halve breedte van de carrosserie op lengte x en hoogte y (voor lichtlijnen precies op de lak)
-    const bodyHalfW = (x, y) => {
-      const S = bodyAt(x), yc = (S.b + S.t) / 2, hh = (S.t - S.b) / 2, yy = Math.max(-1, Math.min(1, (y - yc) / hh));
-      return S.w * Math.pow(1 - Math.pow(Math.abs(yy), S.n), 1 / S.n) * (1 - S.tumble * Math.max(0, yy) - 0.05 * Math.pow(Math.max(0, -yy), 2));
-    };
     const barGeo = (w, h, d) => new THREE.BoxGeometry(w, h, d);
-    // lichtbanden die de ronding van neus en staart volgen
-    const lightBand = (x, y, half, thick, depth) => {
-      const parts = [];
-      for (let i = 0; i < 12; i++) {
-        const z0 = -half + 2 * half * i / 12, z1 = -half + 2 * half * (i + 1) / 12, zm = (z0 + z1) / 2;
-        // x waar de carrosserie op breedte zm eindigt (neus of staart)
-        let lo = WHEEL_X + ARCH_R + 0.02, hi = 2.25; for (let k = 0; k < 24; k++) { const mid = (lo + hi) / 2; (bodyHalfW(Math.sign(x) * mid, y) > Math.abs(zm) ? lo = mid : hi = mid); }
-        parts.push(barGeo(depth, thick, z1 - z0 + 0.004).translate(Math.sign(x) * (lo + depth * 0.3), y, zm));
-      }
-      return mergeGeos(parts);
-    };
-    const frontLight = lightBand(1, 0.56, 0.62, 0.045, 0.06);   // lichtband over de hele neus
-    const rearLight = lightBand(-1, 0.68, 0.64, 0.055, 0.06);
-    // dunne lichtlijn langs de flank, tussen de wielkasten, net buiten de lak
-    const gz = bodyHalfW(0, 0.58) + 0.008;
-    const sideGlow = mergeGeos([barGeo(1.75, 0.022, 0.016).translate(0, 0.58, gz), barGeo(1.75, 0.022, 0.016).translate(0, 0.58, -gz)]);
-    const tireGeo = new THREE.CylinderGeometry(WR, WR, 0.24, 18).rotateX(Math.PI / 2);
-    const rimGeo = mergeGeos([new THREE.CylinderGeometry(0.25, 0.25, 0.25, 16).rotateX(Math.PI / 2)]);
+    const tireGeo = new THREE.CylinderGeometry(WR, WR, 0.24, 10).rotateX(Math.PI / 2);
+    const rimGeo = mergeGeos([new THREE.CylinderGeometry(0.25, 0.25, 0.25, 8).rotateX(Math.PI / 2)]);
     // vijf gaten in de velg aan beide kanten: zo zie je de wielen draaien
     const holes = [];
     for (let k = 0; k < 5; k++) for (const side of [-1, 1]) {
@@ -89,18 +16,10 @@
       holes.push(new THREE.CylinderGeometry(0.052, 0.052, 0.01, 6).rotateX(Math.PI / 2).translate(Math.cos(a) * 0.15, Math.sin(a) * 0.15, side * 0.126));
     }
     const holeGeo = mergeGeos(holes);
-    // donkere wielkasten en onderkant: door de wielkast kijk je niet meer naar de overkant
-    const underGeo = mergeGeos([barGeo(3.5, 0.4, 1.22).translate(0, 0.52, 0), barGeo(0.84, 0.34, 1.56).translate(WHEEL_X, 0.6, 0), barGeo(0.84, 0.34, 1.56).translate(-WHEEL_X, 0.6, 0)]);
     const hubGeo = new THREE.TorusGeometry(0.19, 0.018, 4, 14);   // gloeiende ring in de velg
-    const PARTS = {
-      body:   { geo: bodyGeo, mat: new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.28, metalness: 0.35 }), per: 1, color: true },
-      canopy: { geo: canopyGeo, mat: new THREE.MeshStandardMaterial({ color: '#16202b', roughness: 0.2, metalness: 0.6 }), per: 1 },
-      front:  { geo: frontLight, mat: new THREE.MeshBasicMaterial({ color: '#eaffff' }), per: 1 },
-      rear:   { geo: rearLight, mat: new THREE.MeshBasicMaterial({ color: '#ff2a3a' }), per: 1 },
-      glow:   { geo: sideGlow, mat: new THREE.MeshBasicMaterial({ color: '#ffffff' }), per: 1, color: true },
-      tire:   { geo: tireGeo, mat: new THREE.MeshStandardMaterial({ color: '#1b1d20', roughness: 0.9 }), per: 4 },
-      under:  { geo: underGeo, mat: new THREE.MeshStandardMaterial({ color: '#121416', roughness: 0.95 }), per: 1 },
-      rim:    { geo: rimGeo, mat: new THREE.MeshStandardMaterial({ color: '#b9c0c8', roughness: 0.4, metalness: 0.35 }), per: 4 },
+    const PARTS = {   // wielen (gedeeld door alle typen); de carrosserieën staan per type in LPM
+      tire:   { geo: tireGeo, mat: new THREE.MeshStandardMaterial({ color: '#1b1d20', roughness: 0.9, flatShading: true }), per: 4 },
+      rim:    { geo: rimGeo, mat: new THREE.MeshStandardMaterial({ color: '#b9c0c8', roughness: 0.4, metalness: 0.35, flatShading: true }), per: 4 },
       holes:  { geo: holeGeo, mat: new THREE.MeshStandardMaterial({ color: '#202428', roughness: 0.7 }), per: 4 },
       hub:    { geo: hubGeo, mat: new THREE.MeshBasicMaterial({ color: '#ffffff' }), per: 8, color: true },
     };
@@ -116,10 +35,12 @@
     const LPM = {};
     for (const t of LP_TYPES) {
       const G = lpBuildVehicle(t), mk = (geo, mat, cast, color) => { const m = new THREE.InstancedMesh(geo, mat, CAP); m.frustumCulled = false; m.castShadow = cast; m.receiveShadow = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); if (color) { const w = new THREE.Color('#ffffff'); for (let i = 0; i < CAP; i++) m.setColorAt(i, w); } m.count = 0; m.userData.noOcc = true; scene.add(m); return m; };
-      LPM[t] = { body: mk(G.body, new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.6, metalness: 0.1, flatShading: true }), true, true), glass: G.glass ? mk(G.glass, new THREE.MeshStandardMaterial({ color: '#20303c', roughness: 0.25, metalness: 0.5, flatShading: true }), false, false) : null, lamp: mk(G.lamp, new THREE.MeshBasicMaterial({ vertexColors: true }), false, false) };
+      LPM[t] = { body: mk(G.body, new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: G.metal ? 0.35 : 0.55, metalness: G.metal ? 0.3 : 0.12, flatShading: true }), true, true),
+        trim: G.trim ? mk(G.trim, new THREE.MeshStandardMaterial({ color: '#25282c', roughness: 0.8, flatShading: true }), false, false) : null,
+        glow: G.glow ? mk(G.glow, new THREE.MeshBasicMaterial({ color: '#ffffff' }), false, true) : null, glass: G.glass ? mk(G.glass, new THREE.MeshStandardMaterial({ color: '#20303c', roughness: 0.25, metalness: 0.5, flatShading: true }), false, false) : null, lamp: mk(G.lamp, new THREE.MeshBasicMaterial({ vertexColors: true }), false, false) };
     }
     const PAINT = ['#f2f3f5', '#e9ecef', '#1c1f24', '#2b2f36', '#9ea7b0', '#c9ced4', '#1f3c5c', '#5a1f2a', '#d8c9a8', '#2f4a3f'];
-    const ACCENT = ['#3ef0ff', '#ff3ec8', '#ffb23e', '#7dff6a', '#7a8cff'];
+    const ACCENT = ['#ff2a3a', '#3ef0ff', '#ff3ec8', '#ffb23e', '#7dff6a', '#7a8cff'];
     let on = true;
     try { on = localStorage.getItem('hexstad-autos') !== '0'; } catch (e) {}
     const btn = document.getElementById('carsBtn');
@@ -240,7 +161,7 @@
       for (const c of list) { if (!validLeg(c)) spawn(c); else c.next = planNext(c); }
       while (list.length < target) {
         const c = { paint: pick(PAINT), accent: pick(ACCENT), id: carSeq++ };
-        { const u = Math.random(); c.type = u < 0.3 ? 'ev' : u < 0.62 ? 'stad' : u < 0.77 ? 'bestel' : u < 0.87 ? 'pickup' : 'taxi'; if (c.type !== 'ev') c.paint = c.type === 'taxi' ? '#f2c230' : pick(LP_PAINT); }
+        { const u = Math.random(); let acc = 0; c.type = LP_TYPES[LP_TYPES.length - 1]; for (const t of LP_TYPES) { acc += LP_WEIGHT[t]; if (u < acc) { c.type = t; break; } } c.paint = LP_FIXED[c.type] || pick(LP_PAINT); }
         if (!spawn(c)) break;
         list.push(c);
       }
@@ -289,16 +210,14 @@
       dt = keepDt;
     }
     function render() {
-      const all = list, cnt = { ev: 0 }; for (const t of LP_TYPES) cnt[t] = 0;
+      const all = list, cnt = {}; for (const t of LP_TYPES) cnt[t] = 0;
       all.forEach((c, i) => {
         // model wijst langs +x; eerst kantelen (rollen, stampen), dan draaien, dan op de vering zetten
         M.makeRotationY(-c.h).multiply(Q.makeRotationZ(c.pitch || 0)).multiply(Q.makeRotationX(c.roll || 0)).setPosition(c.x, c.sy ?? ASPH_H, c.z);
-        const ty = c.type && LPM[c.type] ? c.type : 'ev', ti = cnt[ty]++;
-        if (ty === 'ev') {
-          for (const k of ['body', 'canopy', 'front', 'rear', 'glow', 'under']) meshes[k].setMatrixAt(ti, M);
-          col.set(c.paint); meshes.body.setColorAt(ti, col);
-          col.set(c.accent); meshes.glow.setColorAt(ti, col);
-        } else { const L = LPM[ty]; L.body.setMatrixAt(ti, M); col.set(c.paint); L.body.setColorAt(ti, col); if (L.glass) L.glass.setMatrixAt(ti, M); L.lamp.setMatrixAt(ti, M); }
+        const ty = LPM[c.type] ? c.type : LP_TYPES[0], ti = cnt[ty]++, L = LPM[ty];
+        L.body.setMatrixAt(ti, M); col.set(c.paint); L.body.setColorAt(ti, col);
+        for (const k of ['glass', 'trim', 'lamp']) if (L[k]) L[k].setMatrixAt(ti, M);
+        if (L.glow) { L.glow.setMatrixAt(ti, M); col.set(c.accent); L.glow.setColorAt(ti, col); }
         WHEELS.forEach(([wx, wz], j) => {
           // wielen staan op hun eigen stukje grond, los van de kanteling van de carrosserie
           const [wxW, wzW] = wheelWorld(c, wx, wz);
@@ -315,9 +234,9 @@
           col.set(c.accent); meshes.hub.setColorAt(i * 8 + j * 2, col); meshes.hub.setColorAt(i * 8 + j * 2 + 1, col);
         });
       });
-      for (const t of LP_TYPES) { const L = LPM[t]; for (const m of [L.body, L.glass, L.lamp]) if (m) { m.count = cnt[t]; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; } }
+      for (const t of LP_TYPES) { const L = LPM[t]; for (const m of [L.body, L.glass, L.trim, L.glow, L.lamp]) if (m) { m.count = cnt[t]; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; } }
       for (const [k, pd] of Object.entries(PARTS)) {
-        const m = meshes[k]; m.count = (k === 'tire' || k === 'rim' || k === 'holes' || k === 'hub' ? all.length : cnt.ev) * pd.per; m.instanceMatrix.needsUpdate = true;
+        const m = meshes[k]; m.count = all.length * pd.per; m.instanceMatrix.needsUpdate = true;
         if (m.instanceColor) m.instanceColor.needsUpdate = true;
       }
     }
@@ -438,7 +357,7 @@
       // meetpunten voor de simulatietest: auto's naast de weg, vastgelopen, ongeldige posities
       setForce(n) { forceN = n; carsDirty = true; },
       crashLog, toss,
-      peek: () => list.map(c => ({ type: c.type || 'ev', x: c.x, z: c.z, h: c.h, v: c.v })),   // voor de tests
+      peek: () => list.map(c => ({ type: c.type, x: c.x, z: c.z, h: c.h, v: c.v })),   // voor de tests
       // files: groepjes auto's die al een tijd stilstaan (voor de Hulk)
       jams() {
         const slow = list.filter(c => c.path && !c.crash && !c.fly && c.v < 0.4 && (c.still || 0) > 6), out = [], used = new Set();
