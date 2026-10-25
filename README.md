@@ -4,6 +4,31 @@
 
 3D-stadsbouwer in de browser op een zeshoekraster, op ware grootte (vak 15,6 m breed, zijde 9 m). Gebouwd met three.js r128, zonder build-tools behalve één klein script.
 
+## Indeling van de repo
+
+| Map | Wat |
+|---|---|
+| `src/` | de webversie: `index.html`, `style.css`, `js/NN-naam.js` (zie hieronder) |
+| `build.js` | bouwt `dist/hexstad.html` (één bestand) of met `--site` de volledige pagina voor GitHub Pages (`site/`) |
+| `assets/` | geluiden |
+| `test/` | testscripts voor de logica (zie `test/README.md`); `test/visueel/` voor screenshots en de overlapcontrole op telefoon |
+| `docs/ontwikkeling/` | bewaarde screenshots en testbeelden van de ontwikkeling, met een overzicht in de README daar |
+| `lab/interface/` | het interfacelab waaruit de bediening (v100) komt |
+| `unity/` | de Unity-poort met bolvormige planeet (eigen `unity/README.md`) |
+| `.github/workflows/` | publiceert de site op GitHub Pages bij elke push |
+
+`dist/`, `site/`, `node_modules/` en `test/visueel/uit/` staan niet in git.
+
+## Interface: standen en telefoon
+
+- **Zweven** (bouwmodus boven de stad): bovenbalk met score, klok, geluid en Menu; onderaan snelbalk; gereedschap links en Bouwen/Lopen rechts.
+- **Lopen** heeft drie handen. *Kijken* en *slopen* zijn minimalistisch (bijna niets in beeld; met de hamer toont een label wat je weghaalt, `eraseTarget` in `12`); alleen *bouwen* toont het palet, de bouwgereedschappen en de laagkiezer. Dit staat in `style.css` onder "Minimalistisch beeld tijdens het lopen".
+- **Telefoon** (onderaan `style.css`): alles wat je bedient staat onderaan, in elke stand op dezelfde plek: snelbalk (alleen bouwen) helemaal onder, daarboven links de handen, in het midden het menu (☰) en rechts de Bouwen/Lopen-schakelaar, daarboven de joystick en de knoppen Spring en Bouw/Sloop. De hoogte van die rij volgt uit `--base`. Controleer elke wijziging met `test/visueel/overlap-mobiel.js` op 390x844, 360x640, 320x568 en 844x390.
+
+## Wegstijl: alles schuin
+
+Elke stoeprand is een schuine rand (`slopeInto`, `KERB_IN` 15 cm tot `KERB_OUT` 45 cm naast het asfalt) en nooit een verticale wand: rechte wegen, bochten, doodlopende koppen, de rotonde (buitenrand, overrijdbare rand, eiland), de middenberm van een laan en smalle paden. Een nieuw wegelement moet `slopeInto` gebruiken en de stoep laten beginnen bij `KERB_OUT`. Aansluitingen op de rotonde worden dwars op de weg gemeten (`inGap`), zodat de rotondestoep evenwijdig aan de wegstoep eindigt.
+
 ## Werken aan de code
 
 - `src/index.html` – de pagina (HUD, menu's, schets-app)

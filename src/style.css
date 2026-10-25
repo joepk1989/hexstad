@@ -1,3 +1,6 @@
+/* Inhoud (zoek op de kop): layout en HUD · bladeren door modules · module maker · loopmodus-handen · sneltoetsen · boetseren ·
+   instellingen · weer · bediening v100 (dock, snelbalk, laagkiezer) · welkomscherm · spreekballonnen ·
+   minimalistisch lopen · TELEFOON (onderaan, `--base`) · liggend. Latere regels overschrijven eerdere bewust: de telefoonblokken staan helemaal onderaan. */
 /* Layout: full-screen 3D bouwplaats, met zwevende bedieningspanelen als bouwkeet-borden langs de randen. */
 :root {
   --sky: #a9c2cf;

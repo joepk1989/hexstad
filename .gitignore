@@ -2,3 +2,4 @@ dist/
 node_modules/
 test/node_modules
 site/
+test/visueel/uit/
