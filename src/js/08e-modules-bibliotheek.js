@@ -52,6 +52,12 @@
       stair(li, x, z, d6, n, w = 1.2, kind = 'stair') { lv(li).s.push({ a: vAt(x, z), d: d6, n, w, k: kind }); return B; },
       // gat in de vloer van verdieping li boven een trap (zodat je er niet met je hoofd tegenaan loopt)
       hole(li, S) {
+        if (S.k === 'spiral') {   // wenteltrap: de vloer erboven weg, behalve het stuk waar je op de verdieping uitstapt
+          const L = lv(li), D = MV2.DIR6[S.d], a = mv2P(S.a[0], S.a[1], ts), dx = D[0] * ts * SQ3 / 2, dz = D[0] * ts / 2 + D[1] * ts, a0 = Math.atan2(dz, dx), sd = S.side || 1;
+          for (const id in L.f) { const [i, j, t] = id.split(',').map(Number), v = mv2TriVerts(i, j, t, ts), cx = (v[0][0] + v[1][0] + v[2][0]) / 3 - a[0], cz = (v[0][1] + v[1][1] + v[2][1]) / 3 - a[1];
+            if (Math.hypot(cx, cz) > 2.15) continue; const ph = ((sd * (Math.atan2(cz, cx) - a0)) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2); if (ph >= Math.PI * 11 / 6) continue; delete L.f[id]; }
+          return B;
+        }
         const L = lv(li), D = MV2.DIR6[S.d], a = mv2P(S.a[0], S.a[1], ts), dx = D[0] * ts * SQ3 / 2, dz = D[0] * ts / 2 + D[1] * ts, dl = Math.hypot(dx, dz) || 1, ux = dx / dl, uz = dz / dl, nx = -uz, nz = ux, len = S.n * ts, hw = (S.w || 1.2) / 2 + 0.3;
         const off = S.off || 0, inside = (x, z, alMax) => { const cx = x - a[0], cz = z - a[1], al = cx * ux + cz * uz, lat = cx * nx + cz * nz - off; return al > 0.3 * len && al < alMax && Math.abs(lat) < hw; };
         for (const id in L.f) { const [i, j, t] = id.split(',').map(Number), v = mv2TriVerts(i, j, t, ts); if (v.some(p => inside(p[0], p[1], len - 0.3)) || inside((v[0][0] + v[1][0] + v[2][0]) / 3, (v[0][1] + v[1][1] + v[2][1]) / 3, len + 0.2)) delete L.f[id]; }
@@ -60,9 +66,10 @@
       // trap van verdieping li naar li + 1, met het gat erboven
       stairUp(li, x, z, d6, n, w = 1.2, kind = 'stair') { const S = { a: vAt(x, z), d: d6, n, w, k: kind }; lv(li).s.push(S); if (m.lv[li + 1]) B.hole(li + 1, S); else { lv(li + 1); B.hole(li + 1, S); } return B; },
       // trappenhuis door alle verdiepingen: elke verdieping keert de trap om, zodat de trappen boven elkaar liggen
-      stairwell(floors, x, z, d6, n, w = 1.2) {
-        const D = MV2.DIR6[d6], a = vAt(x, z), bEnd = [a[0] + D[0] * n, a[1] + D[1] * n];
-        for (let f = 0; f < floors - 1; f++) { const even = f % 2 === 0, A = even ? a : bEnd, d = even ? d6 : (d6 + 3) % 6, pa = mv2P(A[0], A[1], ts); B.stairUp(f, pa[0], pa[1], d, n, w); }
+      stairwell(floors, x, z, d6, n, w = 1.2, ctr = [0, 0]) {   // wenteltrap, één omwenteling per verdieping; de volgende begint waar de vorige eindigt
+        const dxc = ctr[0] - x, dzc = ctr[1] - z, dist = Math.hypot(dxc, dzc) || 1, pull = dist > 2.5 ? 1.4 : 0, cx = x + dxc / dist * pull, cz = z + dzc / dist * pull;
+        let best = 0, bd = -2; MV2.DIR6.forEach((D, i) => { const ex = D[0] * ts * SQ3 / 2, ez = D[0] * ts / 2 + D[1] * ts, l = Math.hypot(ex, ez) || 1, dd = (ex * dxc + ez * dzc) / (l * dist); if (dd > bd) { bd = dd; best = i; } });
+        for (let f = 0; f < floors - 1; f++) B.stairUp(f, cx, cz, best, 1, 1.5, 'spiral');
         return B;
       },
       roof(li, q, r, kind = 'hip') { lv(li).r[q + ',' + r] = kind; return B; },
@@ -120,8 +127,8 @@
     villa('Stadsvilla plat', 'stone', 3, 'flat', false);
     villa('Tuinhuis', 'wood', 1, 'flat', true);
     { const b = libBuilder('Patiowoning', 'Wonen'); b.cell(0, 0, 0, 'tile').hex(0, 0, 0, 2.25, 'grass').cellRing(0, 0, 0, 'brick', { open: { 0: 'door' }, win: 2 }).ring(0, 0, 0, 2.25, 'glass', { open: { 3: 'door' } }); b.cell(1, 0, 0, 'concrete').hex(1, 0, 0, 2.25, null); b.obj(0, 'bush', 0, 0); add(b); }
-    { const b = libBuilder('Woonerf 7 huizen', 'Wonen', 1); b.all(0, 'paver'); for (let q = -1; q <= 1; q++) for (let r = -1; r <= 1; r++) if (mv2HexDist(q, r) === 1) { const c = mv2CellXZ(q, r); for (let f = 0; f < 2; f++) { b.hex(f, c[0], c[1], 6.75, f ? 'wood' : 'tile'); b.ring(f, c[0], c[1], 6.75, f % 2 ? 'plaster' : 'brick', { open: f ? {} : { [sideTo(c[0], c[1])]: 'door' }, win: 2 }); } b.hex(2, c[0], c[1], 6.75, 'concrete'); b.stairwell(2, c[0], c[1] + 4.5, 3, 2, 1.2); } b.circle(0, 'tree', 0, 0, 5, 3).obj(0, 'bench', 0, 0); add(b); }
-    { const b = libBuilder('Hofje met 6 woningen', 'Wonen', 1); b.all(0, 'grass').cell(0, 0, 0, 'paver'); for (let q = -1; q <= 1; q++) for (let r = -1; r <= 1; r++) if (mv2HexDist(q, r) === 1) { b.cell(0, q, r, 'tile'); b.cellRing(0, q, r, 'brick', { open: { [sideTo(...mv2CellXZ(q, r))]: 'door' }, win: 2 }); b.cell(1, q, r, 'wood'); b.cellRing(1, q, r, 'brick', { win: 2 }); b.roof(1, q, r, 'hip'); const cc = mv2CellXZ(q, r); b.stairwell(2, cc[0], cc[1] + 6.75, 3, 3, 1.2); } b.obj(0, 'fountain', 0, 0).circle(0, 'bench', 0, 0, 4.5, 3); add(b); }
+    { const b = libBuilder('Woonerf 7 huizen', 'Wonen', 1); b.all(0, 'paver'); for (let q = -1; q <= 1; q++) for (let r = -1; r <= 1; r++) if (mv2HexDist(q, r) === 1) { const c = mv2CellXZ(q, r); for (let f = 0; f < 2; f++) { b.hex(f, c[0], c[1], 6.75, f ? 'wood' : 'tile'); b.ring(f, c[0], c[1], 6.75, f % 2 ? 'plaster' : 'brick', { open: f ? {} : { [sideTo(c[0], c[1])]: 'door' }, win: 2 }); } b.hex(2, c[0], c[1], 6.75, 'concrete'); b.stairwell(2, c[0], c[1] + 4.5, 3, 2, 1.2, c); } b.circle(0, 'tree', 0, 0, 5, 3).obj(0, 'bench', 0, 0); add(b); }
+    { const b = libBuilder('Hofje met 6 woningen', 'Wonen', 1); b.all(0, 'grass').cell(0, 0, 0, 'paver'); for (let q = -1; q <= 1; q++) for (let r = -1; r <= 1; r++) if (mv2HexDist(q, r) === 1) { b.cell(0, q, r, 'tile'); b.cellRing(0, q, r, 'brick', { open: { [sideTo(...mv2CellXZ(q, r))]: 'door' }, win: 2 }); b.cell(1, q, r, 'wood'); b.cellRing(1, q, r, 'brick', { win: 2 }); b.roof(1, q, r, 'hip'); const cc = mv2CellXZ(q, r); b.stairwell(2, cc[0], cc[1] + 6.75, 3, 3, 1.2, cc); } b.obj(0, 'fountain', 0, 0).circle(0, 'bench', 0, 0, 4.5, 3); add(b); }
     // ---------- Werken ----------
     const office = (name, mat, floors) => { const b = libBuilder(name, 'Werken'); for (let f = 0; f < floors; f++) { b.cell(f, 0, 0, f ? 'carpet' : 'tile'); b.cellRing(f, 0, 0, mat, { open: f ? {} : { 0: 'door' }, win: WIN[mat] || 1 }); } b.cell(floors, 0, 0, 'concrete'); if (floors > 1) b.stairwell(floors, 0, 6.75, 3, 3, 1.5); b.obj(0, 'lamp', 7.3, -3.6).obj(0, 'bike', 6.5, 4.2, Math.PI / 6); add(b); };
     office('Kantoor glas 3 lagen', 'glass', 3);
@@ -206,7 +213,7 @@
     { const b = libBuilder('Hek rondom', 'Bouwdelen'); b.cell(0, 0, 0, 'grass').cellRing(0, 0, 0, 'fence', { open: { 0: 'door' } }); add(b); }
     { const b = libBuilder('Haag rondom', 'Bouwdelen'); b.cell(0, 0, 0, 'grass').cellRing(0, 0, 0, 'hedge', { open: { 0: 'open' } }); add(b); }
     { const b = libBuilder('Overkapping', 'Bouwdelen'); b.cell(0, 0, 0, 'paver').circle(0, 'pillar', 0, 0, 5, 3, Math.PI / 2).hex(1, 0, 0, 6.75, 'concrete'); add(b); }
-    { const b = libBuilder('Toren rond 6 lagen', 'Bouwdelen'); for (let f = 0; f < 6; f++) { b.hex(f, 0, 0, 4.5, f ? 'wood' : 'tile'); b.ring(f, 0, 0, 4.5, 'stone', { open: f ? {} : { 0: 'door' }, win: 2 }); } b.hex(6, 0, 0, 4.5, 'concrete'); b.ring(6, 0, 0, 4.5, 'stone'); b.cell(0, 0, 0, 'grass'); b.hex(0, 0, 0, 4.5, 'tile'); b.stairwell(7, 0, 2.25, 3, 1, 1.0); add(b); }
+    { const b = libBuilder('Toren rond 6 lagen', 'Bouwdelen'); for (let f = 0; f < 6; f++) { b.hex(f, 0, 0, 4.5, f ? 'wood' : 'tile'); b.ring(f, 0, 0, 4.5, 'stone', { open: f ? {} : { 0: 'door' }, win: 2 }); } b.hex(6, 0, 0, 4.5, 'concrete'); b.ring(6, 0, 0, 4.5, 'stone'); b.cell(0, 0, 0, 'grass'); b.hex(0, 0, 0, 4.5, 'tile'); b.stairwell(7, 0, 2.0, 3, 1, 1.0); add(b); }
     { const b = libBuilder('Hof met muren', 'Bouwdelen'); b.cell(0, 0, 0, 'paver').cellRing(0, 0, 0, 'brick', { open: { 0: 'gate', 3: 'gate' } }).obj(0, 'tree', 0, 0).circle(0, 'bench', 0, 0, 3.5, 3); add(b); }
     { const b = libBuilder('Tribune klein', 'Bouwdelen'); b.cell(0, 0, 0, 'concrete').stair(0, -3.897, -2.25, 0, 3, 3).stair(0, -3.897, 2.25, 0, 3, 3); add(b); }
     { const b = libBuilder('Pergola', 'Bouwdelen'); b.cell(0, 0, 0, 'grass').hex(0, 0, 0, 4.5, 'paver').circle(0, 'pillar', 0, 0, 4, 6).hex(1, 0, 0, 4.5, 'concrete').obj(0, 'bench', 0, 0); add(b); }

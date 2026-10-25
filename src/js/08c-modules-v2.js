@@ -102,8 +102,22 @@
   // opts.stacked: de module staat op een andere module (begane grond krijgt een plafond eronder en geen maaiveld-
   // details); opts.roofMask(x, z): daar staat een module op, dus daar geen dakvloer (een glazen lichtkap verdwijnt
   // zodra er iets op het vak staat, de dakbedekking alleen onder de vloer van de module erboven)
-  const OFF_ROAD = new Set(['tree', 'bush', 'bench', 'bin', 'table', 'bike', 'planter']);
+  const OFF_ROAD = new Set(['tree', 'bush', 'bench', 'bin', 'table', 'bike', 'planter']);   // zie offSpot
   const onRoadNow = (x, z) => typeof roadTop === 'function' && roadTop(x, z, 0) !== null;
+  // Staat op dit punt (met kruin erbij) een weg, stoep of een gebouw van een ander vak? Dan komt er geen boom of bankje.
+  const GREENISH = /^(Park|Bos|Tuin|Grasveld|Plein|Water|Vlak|Parkeer|Rij|Afscheiding|Kade)/;
+  const areaCache = new WeakMap();
+  function offSpot(I, x, z) {
+    if (onRoadNow(x, z)) return true;
+    let own = areaCache.get(I); if (!own || own.sig !== I.q + ',' + I.r + ',' + I.rot) { own = new Set(mv2Area(I).map(([q, r]) => q + ',' + r)); own.sig = I.q + ',' + I.r + ',' + I.rot; areaCache.set(I, own); }
+    for (let k = -1; k < 6; k++) {
+      const px = k < 0 ? x : x + Math.cos(k * Math.PI / 3) * 2.3, pz = k < 0 ? z : z + Math.sin(k * Math.PI / 3) * 2.3, [q, r] = worldToCell(px, pz), kk = q + ',' + r;
+      if (own.has(kk)) continue;
+      const t = modTop.get(kk); if (t && t.inst !== I && t.inst.m && !GREENISH.test(t.inst.m.name || '')) return true;
+      const b = cells.get(kk); if (Array.isArray(b) && b.some(n => !/^(park|water|pad|weg|laan|vlak)/.test(String(n)))) return true;
+    }
+    return false;
+  }
   function mv2Build(m, tf, origin = [0, 0], opts = {}) {
     mv2Fix(m);
     const Mt = mv2Mats(), ts = mv2Ts(m), LH = MV2.LV_H, bags = new Map(), group = new THREE.Group(), surfaces = [], walls = [];
@@ -207,6 +221,36 @@
         const dx = D[0] * ts * SQ3 / 2, dz = D[0] * ts / 2 + D[1] * ts, dl = Math.hypot(dx, dz) || 1, ux = dx / dl, uz = dz / dl, nx = -uz, nz = ux;
         const rise = S.h || LH, off = S.off || 0, at = (al, lat) => [a[0] + ux * al + nx * (lat + off), a[1] + uz * al + nz * (lat + off)];   // off: zijwaarts verschoven (trap in een galerijband)
         const landing = (al, y) => { pushWalk(at(al, -w / 2), at(al + 1, w / 2), at(al, w / 2), y, y, y); pushWalk(at(al, -w / 2), at(al + 1, -w / 2), at(al + 1, w / 2), y, y, y); };   // onzichtbare overloop van 1 m: geen gat naar de vloer
+        if (S.k === 'spiral') {   // zeshoekige wenteltrap: 12 trapezium-treden om een zeshoekige kern, één omwenteling per verdieping
+          const sd = S.side || 1, a0 = Math.atan2(uz, ux), NS = 12, Ap = 1.75, Ac = 0.32, hs = rise / NS, th = k => a0 + sd * k * Math.PI / 6, TH = 0.26;
+          const rad = (t, Aa) => { let d = (((t - a0) % (Math.PI / 3)) + Math.PI / 3) % (Math.PI / 3); if (d > Math.PI / 6) d -= Math.PI / 3; return Aa / Math.cos(d); };   // zeshoek: Aa is de apothema; zijmiddens op a0 + 60°·n
+          const Pt = (t, Aa) => { const r = rad(t, Aa); return [a[0] + Math.cos(t) * r, a[1] + Math.sin(t) * r]; };
+          const posTop = [], posSide = [];
+          const prism = (P4, yb, yt) => {
+            const Wd = P4.map(tfp), cx = (Wd[0][0] + Wd[1][0] + Wd[2][0] + Wd[3][0]) / 4, cz = (Wd[0][1] + Wd[1][1] + Wd[2][1] + Wd[3][1]) / 4, cy = (yb + yt) / 2, v = (p, y) => [p[0], y, p[1]];
+            const tri = (arr, A, B, C) => { const nx = (B[1] - A[1]) * (C[2] - A[2]) - (B[2] - A[2]) * (C[1] - A[1]), ny = (B[2] - A[2]) * (C[0] - A[0]) - (B[0] - A[0]) * (C[2] - A[2]), nz = (B[0] - A[0]) * (C[1] - A[1]) - (B[1] - A[1]) * (C[0] - A[0]);
+              const mx = (A[0] + B[0] + C[0]) / 3 - cx, my = (A[1] + B[1] + C[1]) / 3 - cy, mz = (A[2] + B[2] + C[2]) / 3 - cz; if (nx * mx + ny * my + nz * mz >= 0) arr.push(...A, ...B, ...C); else arr.push(...A, ...C, ...B); };
+            tri(posTop, v(Wd[0], yt), v(Wd[1], yt), v(Wd[2], yt)); tri(posTop, v(Wd[0], yt), v(Wd[2], yt), v(Wd[3], yt));
+            tri(posSide, v(Wd[0], yb), v(Wd[1], yb), v(Wd[2], yb)); tri(posSide, v(Wd[0], yb), v(Wd[2], yb), v(Wd[3], yb));
+            for (let i = 0; i < 4; i++) { const A = Wd[i], B = Wd[(i + 1) % 4]; tri(posSide, v(A, yb), v(B, yb), v(B, yt)); tri(posSide, v(A, yb), v(B, yt), v(A, yt)); }
+          };
+          const bar = (A, ya, B, yb) => { const pa = tfp(A), pb = tfp(B), va = new THREE.Vector3(pa[0], ya, pa[1]), vb = new THREE.Vector3(pb[0], yb, pb[1]), L2 = va.distanceTo(vb); if (L2 < 0.01) return; const g = new THREE.BoxGeometry(0.05, 0.05, L2); g.applyMatrix4(new THREE.Matrix4().lookAt(va, vb, new THREE.Vector3(0, 1, 0)).setPosition(va.clone().add(vb).multiplyScalar(0.5))); put(Mt.metal, g); };
+          for (let st = 0; st < NS; st++) {
+            const t0 = th(st), t1 = th(st + 1), i0 = Pt(t0, Ac), o0 = Pt(t0, Ap), o1 = Pt(t1, Ap), i1 = Pt(t1, Ac), top = y0 + (st + 1) * hs;
+            prism([i0, o0, o1, i1], top - TH, top);
+            pushWalk(i0, o0, o1, top, top, top); pushWalk(i0, o1, i1, top, top, top);
+            if (st >= 1 && st <= NS - 2) addWall(o0, o1, top - 0.5, top + 0.95, 0.05);   // buitenrand; de eerste en laatste tree blijven open (in- en uitstap)
+            addWall(i0, i1, y0, y0 + rise + 1.0, 0.05);
+          }
+          const mk = (arr, mat) => { if (!arr.length) return; const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(new Array(arr.length / 3 * 2).fill(0), 2)); g.computeVertexNormals(); put(mat, g); };
+          mk(posTop, Mt.wl.wood); mk(posSide, Mt.step);
+          { const pc = tfp(a), rc = Ac / 0.866, g = new THREE.CylinderGeometry(rc, rc, rise + 1.05, 6); g.translate(pc[0], y0 + (rise + 1.05) / 2, pc[1]); put(Mt.metal, g); }   // zeshoekige kern
+          for (let kk = 1; kk <= NS - 1; kk++) {   // leuning op palen langs de buitenkant, van tree 1 tot en met 10
+            const A = Pt(th(kk), Ap), yk = y0 + kk * hs; { const p2 = tfp(A), g = new THREE.CylinderGeometry(0.03, 0.03, 0.95 + TH, 6); g.translate(p2[0], yk - TH + (0.95 + TH) / 2, p2[1]); put(Mt.metal, g); }
+            if (kk < NS - 1) bar(A, yk + 0.95, Pt(th(kk + 1), Ap), yk + hs + 0.95);
+          }
+          continue;
+        }
         if (S.k === 'hexramp') {   // schans: het hele vak is een helling van de instapzijde (maaiveld) naar de overkant (3 m)
           const c = mv2CellXZ(S.q || 0, S.r || 0), f = FRAMES[(S.side || 0) % 6], ex = -f.nx, ez = -f.nz, lx = -ez, lz = ex;   // e: richting van de helling (instapzijde → uitstapzijde), l: dwars
           const pt = (u, lat) => [c[0] + ex * u + lx * lat, c[1] + ez * u + lz * lat], hz = u => y0 + rise * (u + INNER) / (2 * INNER);
@@ -386,11 +430,11 @@
     for (const I of live) {
       const cov = instCover(I), skip = skips.get(I) || new Set(), sig = cov.sig + '#' + [...skip].sort().join(';');
       let e = modGroups.get(I);
-      if (e && e.cand && e.sig === sig && e.off !== e.cand.map(c => onRoadNow(c[0], c[1]) ? 1 : 0).join('')) e.sig = '';   // er ligt nu een weg onder een boom of bankje (of juist niet meer)
+      if (e && e.cand && e.sig === sig && e.off !== e.cand.map(c => offSpot(I, c[0], c[1]) ? 1 : 0).join('')) e.sig = '';   // er ligt nu een weg onder een boom of bankje (of juist niet meer)
       if (e && e.sig === sig) { /* ongewijzigd */ } else {
         if (e) { e.group.traverse(o => { if (o.isMesh && o.userData.own) o.geometry.dispose(); }); scene.remove(e.group); }
-        const o = cellToWorld(I.q, I.r), G = gH(I.q, I.r) + instLv(I) * MV2.LV_H, b = mv2Build(I.m, mv2Tf(I.rot, I.q, I.r), [o.x, o.z], { stacked: instLv(I) > 0, roofMask: cov.mask, roofStyle: cov.style, skip, baseLv: instLv(I), offRoad: onRoadNow });
-        b.group.position.y += G; b.group.userData.inst = I; doors.clear(I); for (const d of b.doors) { d.y += G; doors.add(I, d); } e = { cand: b.cand, off: b.cand.map(c => onRoadNow(c[0], c[1]) ? 1 : 0).join(''), group: b.group, col: shiftCol({ surfaces: b.surfaces, walls: b.walls }, G), sig, roofed: !!cov.mask, mask: cov.mask, skip, style: cov.style }; scene.add(e.group); modGroups.set(I, e); touched = true;
+        const o = cellToWorld(I.q, I.r), G = gH(I.q, I.r) + instLv(I) * MV2.LV_H, b = mv2Build(I.m, mv2Tf(I.rot, I.q, I.r), [o.x, o.z], { stacked: instLv(I) > 0, roofMask: cov.mask, roofStyle: cov.style, skip, baseLv: instLv(I), offRoad: (x, z) => offSpot(I, x, z) });
+        b.group.position.y += G; b.group.userData.inst = I; doors.clear(I); for (const d of b.doors) { d.y += G; doors.add(I, d); } e = { cand: b.cand, off: b.cand.map(c => offSpot(I, c[0], c[1]) ? 1 : 0).join(''), group: b.group, col: shiftCol({ surfaces: b.surfaces, walls: b.walls }, G), sig, roofed: !!cov.mask, mask: cov.mask, skip, style: cov.style }; scene.add(e.group); modGroups.set(I, e); touched = true;
       }
       e.col.tag = (I.m.name || '') + ' @' + I.q + ',' + I.r + ' lv' + instLv(I) + ' rot' + I.rot + (I.mir ? ' mir' : '');
       for (const [q, r] of mv2Area(I)) { const k = q + ',' + r; if (!instLv(I)) modCellSet.add(k); let L = modCols.get(k); if (!L) modCols.set(k, L = []); L.push(e.col); }
