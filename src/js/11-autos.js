@@ -181,7 +181,7 @@
       return true;
     }
     function rebuild() {
-      vecGraph();
+      vecGraph(); tows.length = 0; for (const c of list) { c.towed = false; c.towT = false; }
       // hoe meer huizen en kantoren, hoe meer verkeer; nooit voller dan de wegen aankunnen
       const pop = cityCounts(), nRoad = VG.totalLen / 15.6, druk = cells.druk || 1;   // druk: extra verkeer (Filestad)
       const want = Math.round((nRoad / 14 + pop.homes * 0.3 + pop.offices * 0.2) * druk * PERF.crowd);
@@ -239,6 +239,75 @@
       }
       dt = keepDt;
     }
+    // ---------- Takelwagen ----------
+    // Een wrak (of een auto die telkens opnieuw botst) wordt opgeruimd: een gele takelwagen met knipperlicht rijdt langs de weg
+    // aan, steekt voorbij, achteruit naar de neus van het wrak, haakt het vast en sleept het de stad uit. Het wrak komt daarna
+    // schoon en heel ergens anders weer de weg op. Zo loopt een vastgelopen kruispunt vanzelf weer door.
+    const tows = []; let towTimer = 0, towScan = 0;
+    const TOW_LEN = 5.4;   // hart takelwagen tot hart wrak aan de haak
+    function towDispatch() {
+      if (tows.length >= (reckless ? 5 : 1) || list.length < 3) return;
+      let best = null, bs = 0;
+      for (const c of list) {
+        if (c.towed || c.fly || !c.path || c.towT) continue;
+        const wrecked = (c.crash && (c.trT || 0) > 1.5), stale = (c.stillT || 0) > 6;
+        if (!wrecked && !stale) continue;
+        let n = 0; for (const o of list) if (o !== c && o.v < 0.4 && Math.hypot(o.x - c.x, o.z - c.z) < 16) n++;
+        const sc = 1 + n * 1.5 + (c.stillT || 0) * 0.1 + (c.trT || 0) * 0.05 + (wrecked ? 1 : 0);
+        if (sc > bs) { bs = sc; best = c; }
+      }
+      if (!best) return;
+      const [x1, z1] = posOn(best, best.s), [x2, z2, h2] = posOn(best, best.s + 2);
+      const R = Math.hypot(x2 - x1, z2 - z1) > 0.01 ? Math.atan2(z2 - z1, x2 - x1) : h2, fx = Math.cos(R), fz = Math.sin(R), sx = -fz, sz = fx;
+      best.towT = true;
+      tows.push({ wreck: best, R, fx, fz, sx, sz, x: best.x - fx * 38 + sx * 2.6, z: best.z - fz * 46 + sz * 2.6, h: R, v: 0, spin: 0, steer: 0, pitch: 0, roll: 0, sy: ASPH_H, g: [ASPH_H, ASPH_H, ASPH_H, ASPH_H], type: 'bestel', paint: '#f2b300', accent: '#ffb23e', phase: 'in', t: 0, beep: 0, dist: 0 });
+      sound.fx('horn', best.x, 1, best.z, 0.6);
+    }
+    function towStep(T, dt) {
+      const W = T.wreck, alive = list.indexOf(W) >= 0 && !W.fly && W.path;
+      T.t += dt; T.flash = (T.flash || 0) + dt; T.accent = Math.floor(T.flash / 0.22) % 2 ? '#ffffff' : '#ff9a1f';
+      const ax = (x, z) => (x - W.x) * T.fx + (z - W.z) * T.fz, lat = (x, z) => (x - W.x) * T.sx + (z - W.z) * T.sz;
+      let dv = 0;
+      if (T.phase === 'in') {
+        const al = ax(T.x, T.z), rem = 9 - al;
+        if (!alive || (!W.towed && !W.crash && W.v > 2 && al > -10)) { T.phase = 'out'; W.towT = false; W.towed = false; W.ghost = 0; T.wreck = null; }
+        else if (rem <= 0.3) T.phase = 'swing';
+        else { const want = Math.max(2, Math.min(16, Math.sqrt(2 * 5 * rem))); T.v += Math.max(-10 * dt, Math.min(6 * dt, want - T.v)); dv = T.v; }
+      } else if (T.phase === 'swing') {
+        if (!alive) { T.phase = 'out'; W.towT = false; W.towed = false; W.ghost = 0; T.wreck = null; }
+        else {
+          const al = ax(T.x, T.z), la = lat(T.x, T.z);
+          T.v = -2.4; dv = T.v; T.beep -= dt; if (T.beep <= 0) { T.beep = 0.55; sound.fx('beep', T.x, 0.8, T.z); }
+          const k = Math.max(0, Math.min(1, (9 - al) / 3.6));   // zijwaarts terug op de as van het wrak
+          const tl = 2.6 * (1 - k), dl = tl - la; T.x += T.sx * dl * Math.min(1, dt * 4); T.z += T.sz * dl * Math.min(1, dt * 4);
+          if (al <= TOW_LEN + 0.15 && Math.abs(la) < 0.3) { T.phase = 'hook'; T.t = 0; T.v = 0; W.towed = true; W.crash = null; W.cvx = W.cvz = 0; W.w = 0; W.v = 0; W.ghost = 99; W.blood = W.blood; sound.fx('click', W.x, 0.8, W.z); }
+        }
+      } else if (T.phase === 'hook') {
+        if (!alive) { T.phase = 'out'; W.towT = false; W.towed = false; W.ghost = 0; T.wreck = null; }
+        else { const k = Math.min(1, T.t / 1.0); dv = 0; T.v = 0; if (T.t > 1.0) { T.phase = 'out'; T.t = 0; sound.fx('horn', T.x, 1, T.z, 0.5); } else if (T.t > 0.5 && !T.chain) { T.chain = 1; sound.fx('crunch', T.x, 0.5, T.z, 0.25); } }
+      } else {   // 'out': weg
+        T.v += Math.min(5 * dt, 13 - T.v); dv = T.v; T.dist += T.v * dt;
+        if (T.dist > 50) {
+          if (T.wreck) { const w = T.wreck; w.towed = false; w.towT = false; w.ghost = 0; w.blood = 0; w.bloodTrail = 0; w.crash = null; w.v = 0; w.roll = 0; w.pitch = 0; w.rx = undefined; w.stillT = 0; spawn(w); }
+          tows.splice(tows.indexOf(T), 1); return;
+        }
+      }
+      T.x += T.fx * dv * dt; T.z += T.fz * dv * dt; T.h = T.R; T.spin += dv / WR * dt;
+      { const t = roadTop(T.x, T.z, ASPH_H); T.sy = t ?? ASPH_H; T.g = [T.sy, T.sy, T.sy, T.sy]; }
+      // het wrak aan de haak: neus omhoog, volgt de wagen
+      if (T.wreck && (T.phase === 'hook' || T.phase === 'out')) {
+        const W2 = T.wreck, k = T.phase === 'out' ? 1 : Math.min(1, T.t / 1.0), e = k * k * (3 - 2 * k), tx = T.x - T.fx * TOW_LEN, tz = T.z - T.fz * TOW_LEN;
+        W2.x += (tx - W2.x) * Math.min(1, dt * (T.phase === 'out' ? 12 : 5)); W2.z += (tz - W2.z) * Math.min(1, dt * (T.phase === 'out' ? 12 : 5));
+        let dh = T.R - W2.h; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); W2.h += dh * Math.min(1, dt * 4);
+        W2.pitch = 0.2 * e; W2.roll = (W2.roll || 0) * (1 - Math.min(1, dt * 4)); W2.sy = T.sy + 0.28 * e; W2.g = [T.sy + 0.55 * e, T.sy + 0.55 * e, T.sy, T.sy];
+        W2.v = T.phase === 'out' ? T.v : 0; W2.spin += (T.phase === 'out' ? T.v : 0) / WR * dt; W2.steer = 0;
+      }
+    }
+    function towTick(dt) {
+      towScan += dt;
+      if (towScan >= 0.5) { for (const c of list) { c.stillT = (c.v < 0.25 && !c.towed) ? (c.stillT || 0) + towScan : 0; c.trT = ((c.crash || c.stillT > 0) && !c.towed) ? (c.trT || 0) + towScan : 0; } towScan = 0; towTimer += 0.5; if (towTimer >= 2.5) { towTimer = 0; towDispatch(); } }
+      for (let i = tows.length - 1; i >= 0; i--) towStep(tows[i], dt);
+    }
     // iemand wordt geraakt: druppels, spatten op de grond, bloed op de auto, een plas als hij blijft liggen
     function gore(c, a, vx, vz, sp) {
       if (!GORE.on) return;
@@ -268,7 +337,7 @@
     const GC2 = new THREE.Color(), GE = new THREE.Euler();
     function render() {
       goreRender();
-      const all = list, cnt = {}, bcnt = {}; for (const t of LP_TYPES) { cnt[t] = 0; bcnt[t] = [0, 0, 0]; }
+      const all = tows.length ? list.concat(tows) : list, cnt = {}, bcnt = {}; for (const t of LP_TYPES) { cnt[t] = 0; bcnt[t] = [0, 0, 0]; }
       all.forEach((c, i) => {
         // model wijst langs +x; eerst kantelen (rollen, stampen), dan draaien, dan op de vering zetten
         M.makeRotationY(-c.h).multiply(Q.makeRotationZ(c.pitch || 0)).multiply(Q.makeRotationX(c.roll || 0)).setPosition(c.x, c.sy ?? ASPH_H, c.z);
@@ -450,6 +519,8 @@
       get reckless() { return reckless; },
       get gore() { return GORE.on; },
       setGore(v) { GORE.on = !!v; try { localStorage.setItem('hexstad-bloed', v ? '1' : '0'); } catch (e) { } if (!v) { goreS.length = 0; goreP.length = 0; for (const c of list) { c.blood = 0; c.bloodTrail = 0; } } },
+      tows,
+      towTest: () => ({ n: tows.length, phases: tows.map(t => t.phase), towed: list.filter(c => c.towed).length }),
       goreTest: () => ({ splats: goreS.filter(Boolean).length, parts: goreP.length, bloody: list.filter(c => c.blood).length }),
       goreAt: (c, a, vx, vz, sp) => gore(c, a, vx, vz, sp),
       setReckless(v) {
@@ -475,7 +546,7 @@
         return false;
       },
       update(dt) {
-        goreTick(Math.min(dt, 0.1));
+        goreTick(Math.min(dt, 0.1)); towTick(Math.min(dt, 0.1));
         if (carsDirty) { carsDirty = false; rebuild(); }
         if (!list.length) { render(); return; }   // alleen geparkeerde auto's
         dt = Math.min(dt, 0.1);
@@ -483,6 +554,7 @@
         const lying = people.lying();
         const tNow = performance.now() / 1000;
         for (const c of list) {
+          if (c.towed) continue;   // hangt aan de takelwagen (towStep)
           if (!c.path) continue;   // kon nergens beginnen: wacht op de volgende herbouw
           if (c.fly) { flyStep(c, dt); continue; }
           if (c.hulkHold) { c.v = 0; c.wait = (c.wait || 0) + dt; continue; }   // de Hulk komt eraan: blijven staan
