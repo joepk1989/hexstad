@@ -696,3 +696,64 @@ body.walk.hand-kijken .crosshair { opacity: 0.45; transform: scale(0.7); }
 .crosshair.erase { background: #ff5a4d; box-shadow: 0 0 0 2px rgba(0,0,0,0.4), 0 0 10px rgba(255,90,77,0.8); transform: scale(1.5); }
 .aimlbl { position: fixed; left: 50%; top: calc(50% + 22px); transform: translateX(-50%); z-index: 6; pointer-events: none; font: 700 13px var(--font-ui); color: #fff; background: rgba(120, 24, 18, 0.88); border: 1px solid rgba(255, 150, 140, 0.55); padding: 4px 11px; border-radius: 999px; white-space: nowrap; }
 .aimlbl[hidden] { display: none; }
+
+/* ===== Telefoon: een opgeruimde indeling zonder overlap =====
+   Onderaan de snelbalk (alleen bij bouwen), daarboven bij het zweven gereedschap links en de schakelaar rechts.
+   Bij lopen staan de handen en de schakelaar bovenaan, en liggen joystick en knoppen vrij onderaan. */
+@media (max-width: 760px) {
+  :root { --sb: env(safe-area-inset-bottom, 0px); --st: env(safe-area-inset-top, 0px); }
+  .hslot { --s: min(44px, calc((100vw - 34px) / 9)); }
+  .hotbar { max-width: calc(100vw - 12px); }
+  .dockm { bottom: calc(var(--sb) + 8px); }
+  .hotname { position: absolute; bottom: 100%; margin-bottom: 6px; white-space: nowrap; }
+  #perf.perf-fps { top: calc(var(--st) + 58px); bottom: auto; left: auto; right: var(--gutter-r); }
+  .dockl, .modeswitch { bottom: calc(var(--sb) + 108px); }
+  .toast, body.walk .toast { bottom: calc(var(--sb) + 156px); }
+  .undo, body.walk .undo { bottom: calc(var(--sb) + 204px); }
+  /* lopen (aanraakscherm) */
+  body.coarse.walk .dockl { top: calc(var(--st) + 12px); bottom: auto; }
+  body.coarse.walk .modeswitch { top: calc(var(--st) + 12px); bottom: auto; left: 50%; right: auto; transform: translateX(-50%); }
+  body.coarse.walk .hud-left { display: none; }
+  body.coarse.walk .joy { width: 104px; height: 104px; left: calc(var(--gutter-l) + 4px); bottom: calc(var(--sb) + 24px); }
+  body.coarse.walk .knob { width: 46px; height: 46px; margin: -23px 0 0 -23px; }
+  body.coarse.walk .jump { width: 74px; height: 74px; right: calc(var(--gutter-r) + 6px); bottom: calc(var(--sb) + 24px); }
+  body.coarse.walk .place { width: 64px; height: 64px; right: calc(var(--gutter-r) + 11px); bottom: calc(var(--sb) + 108px); }
+  body.coarse.walk.hand-bouwen .joy, body.coarse.walk.hand-bouwen .jump { bottom: calc(var(--sb) + 112px); }
+  body.coarse.walk.hand-bouwen .place { bottom: calc(var(--sb) + 196px); }
+  body.coarse.walk .walk-hint { top: calc(var(--st) + 112px); max-width: calc(100% - 32px); }
+}
+@media (max-width: 480px) {
+  body.coarse.walk #todBtn, body.coarse.walk #soundBtn { display: none; }
+  body.coarse.walk .modeswitch .ms { font-size: 0; gap: 0; padding: 8px 12px; }
+  body.coarse.walk .modeswitch .ms svg { width: 18px; height: 18px; }
+}
+@media (max-width: 380px) {
+  .rt, .rtools .tool, .rtools .tool.rot { width: 34px; height: 34px; }
+  .modeswitch .ms { padding: 6px 8px; font-size: 12px; }
+}
+/* liggende telefoon: de laagkiezer staat rechts, dus springen en bouwen schuiven naar binnen */
+@media (max-height: 480px) and (orientation: landscape) {
+  body.coarse.walk .jump { right: calc(var(--gutter-r) + 62px); }
+  body.coarse.walk .place { right: calc(var(--gutter-r) + 67px); }
+  .layerpick { top: 50%; }
+}
+body.walk .hud-top { justify-content: flex-end; }
+@media (max-width: 380px) { .dockl .hands button { padding: 7px 8px; } }
+@media (max-height: 480px) and (orientation: landscape) {
+  #perf.perf-fps { top: calc(env(safe-area-inset-top, 0px) + 58px); bottom: auto; left: auto; right: var(--gutter-r); }
+  body:not(.walk) .dockl, body:not(.walk) .modeswitch { bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); }
+  body.coarse.walk .dockl { top: calc(env(safe-area-inset-top, 0px) + 12px); bottom: auto; }
+  body.coarse.walk .modeswitch { top: calc(env(safe-area-inset-top, 0px) + 12px); bottom: auto; }
+  body.coarse.walk .hud-left { display: none; }
+}
+@media (max-height: 480px) and (orientation: landscape) {
+  .hslot { --s: 40px; }
+  body.coarse.walk .modeswitch { left: 50%; right: auto; transform: translateX(-50%); }
+}
+@media (max-width: 340px) {
+  .modeswitch .ms { font-size: 0; gap: 0; padding: 7px 11px; }
+  .modeswitch .ms svg { width: 18px; height: 18px; }
+  .dockl .hands button { padding: 7px 6px; }
+  .rt, .rtools .tool, .rtools .tool.rot { width: 32px; height: 32px; }
+}
+@media (max-width: 340px) { .dockl .hands button { padding: 7px 4px; } .dockl .hands svg { width: 16px; height: 16px; } .dockl .hands { padding: 2px; } }
