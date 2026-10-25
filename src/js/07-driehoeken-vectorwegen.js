@@ -356,7 +356,7 @@
     const R = def.hw + (HEAD_EXT[e.t] || 0), cN = 0, J = Math.sqrt(Math.max(0, R * R - def.hw * def.hw));
     return { N, e, def, d: [dx, dz], r: [-dz, dx], R, cN, rho: HEAD_RHO[e.t] || 3, C: [N.x, N.z], trimW: cN + J, trimLane: cN + (e.t === 'laan' ? 0 : 3.2) };
   }
-  const vecTrimW0 = (G, n) => { const H = vecHead(G, n); if (H) return H.trimW; const t = vecJunctionTrim(G, n); if (t) return t + 0.3; const B = vecBend(G, n); return B ? vecBendTrim(G, n, B.hw + B.walk + 0.3) : 0; };
+  const vecTrimW0 = (G, n) => { if (G.nodes[n] && G.nodes[n].rot) return 2.75; /* de stoep van de weg begint net in de rotondestoep */ const H = vecHead(G, n); if (H) return H.trimW; const t = vecJunctionTrim(G, n); if (t) return t + 0.3; const B = vecBend(G, n); return B ? vecBendTrim(G, n, B.hw + B.walk + 0.3) : 0; };
   const vecTrimW = (G, n) => { const c = G.trimW || (G.trimW = new Map()); let v = c.get(n); if (v === undefined) c.set(n, v = vecTrimW0(G, n)); return v; };   // per graaf onthouden (de graaf wordt bij elke wijziging nieuw gebouwd)   // stoep: net voorbij de stopstreep
   function offsetPts(src, off) {   // de lijn opzij geschoven (rechts van de looprichting bij off > 0)
     const out = [];
@@ -841,13 +841,15 @@
       const C = R0.c, h0 = pathProf(R0.src).h[0] || 0; ctx(() => h0, gid++);
       const arms = [];
       for (const N of GR.nodes) { if (!N.rot || Math.abs(Math.hypot(N.x - C[0], N.z - C[1]) - ROT.Rc) > 1) continue; for (const id of N.edges) { const e = GR.edges.get(id); if (e.t !== 'ring') arms.push({ th: Math.atan2(N.z - C[1], N.x - C[0]), def: PATH_DEF[e.t] }); } }
-      const inGap = (th, gaps) => gaps.some(([g, d]) => Math.abs(Math.atan2(Math.sin(th - g), Math.cos(th - g))) < d);
-      const N0 = 72, ang = i => i / N0 * Math.PI * 2, P = (r, th) => [C[0] + Math.cos(th) * r, C[1] + Math.sin(th) * r];
-      const band = (L, r0, r1, y, gaps) => { for (let i = 0; i < N0; i++) { const a = ang(i), b = ang(i + 1); if (gaps && (inGap((a + b) / 2, gaps))) continue; polyInto(L, [P(r0, a), P(r1, a), P(r1, b), P(r0, b)], y); } };
-      const wallArc = (L, r, y0, y1, gaps) => { for (let i = 0; i < N0; i++) { const a = ang(i), b = ang(i + 1); if (gaps && inGap((a + b) / 2, gaps)) continue; wallSeg(L, P(r, a), P(r, b), y0, y1); } };
+      // stoep en rand van de rotonde: open waar een weg aansluit. De opening wordt dwars op de weg gemeten (niet in graden),
+      // zodat de rand van de rotondestoep evenwijdig loopt aan de stoeprand van de weg en er geen trap of kier ontstaat
+      const NF = 720, angF = i => i / NF * Math.PI * 2, P = (r, th) => [C[0] + Math.cos(th) * r, C[1] + Math.sin(th) * r];
+      const inGap = (th, r) => arms.some(A => { const d = Math.atan2(Math.sin(th - A.th), Math.cos(th - A.th)); return Math.abs(d) < 1.4 && Math.abs(r * Math.sin(d)) < A.def.hw + KERB_OUT; });
+      const N0 = 72, ang = i => i / N0 * Math.PI * 2;
+      const band = (L, r0, r1, y, gap) => { const n = gap ? NF : N0, an = i => i / n * Math.PI * 2; for (let i = 0; i < n; i++) { const a = an(i), b = an(i + 1); if (gap && inGap((a + b) / 2, (r0 + r1) / 2)) continue; polyInto(L, [P(r0, a), P(r1, a), P(r1, b), P(r0, b)], y); } };
+      const wallArc = (L, r, y0, y1, gap) => { const n = gap ? NF : N0, an = i => i / n * Math.PI * 2; for (let i = 0; i < n; i++) { const a = an(i), b = an(i + 1); if (gap && inGap((a + b) / 2, r)) continue; wallSeg(L, P(r, a), P(r, b), y0, y1); } };
       band(asph, ROT.Ri, ROT.Ro + 0.3, Y + 0.02);
-      const kg = arms.map(A => [A.th, Math.asin(Math.min(0.99, (A.def.hw + 0.3) / (ROT.Ro + 0.3)))]), wg = arms.map(A => [A.th, Math.asin(Math.min(0.99, (A.def.hw + 0.3) / (ROT.Ro + 2.3)))]);
-      wallArc(kerb, ROT.Ro + 0.3, Y, PW_H, kg); band(kerb, ROT.Ro + 0.3, ROT.Ro + 0.45, PW_H + 0.005, kg); band(walk, ROT.Ro + 0.3, ROT.Ro + 2.3, PW_H, wg); wallArc(walk, ROT.Ro + 2.3, 0, PW_H, wg);
+      wallArc(kerb, ROT.Ro + 0.3, Y, PW_H, true); band(kerb, ROT.Ro + 0.3, ROT.Ro + 0.45, PW_H + 0.005, true); band(walk, ROT.Ro + 0.3, ROT.Ro + 2.3, PW_H, true); wallArc(walk, ROT.Ro + 2.3, 0, PW_H, true);
       band(pave, ROT.isl, ROT.Ri, Y + 0.1); wallArc(kerb, ROT.Ri, Y, Y + 0.1);   // overrijdbare rand
       wallArc(kerb, ROT.isl, Y + 0.1, PW_H + 0.05); band(kerb, ROT.isl - 0.25, ROT.isl, PW_H + 0.05); discInto(grass, C, ROT.isl - 0.25, PW_H + 0.06);
       for (const A of arms) {   // haaientanden op de inrit (rechts van wie de rotonde op rijdt)

@@ -384,13 +384,39 @@
       m.material = mat; m.castShadow = false; m.receiveShadow = false; m.renderOrder = 3;
     });
   }
+  // Wat haalt de hamer weg als je nu slaat? Zelfde volgorde als walkAction: module, randweg, getekende weg, driehoek, blok
+  const PATH_NAMEN = { weg: 'Weg', brd: 'Brede weg', laan: 'Laan', pad: 'Pad', snel: 'Snelweg', klink: 'Klinkerstraat', fiets: 'Fietspad', ring: 'Rotonde', rot: 'Rotonde' };
+  function eraseTarget(res) {
+    if (!res || !res.point) return null;
+    const x = res.point.x, z = res.point.z;
+    if (cells.inst && cells.inst.length) {
+      let best = res.inst ? cells.inst.indexOf(res.inst) : -1, bd = 7;
+      if (best < 0) cells.inst.forEach((I, i) => { let d = 1e9; for (const a of instPts(I)) d = Math.min(d, Math.hypot(a[0] - x, a[1] - z)); if (d < bd) { bd = d; best = i; } });
+      if (best >= 0) return cells.inst[best].m.name || 'Module';
+    }
+    if (edgesOf().size && nearestExistingEdge(x, z, 4.5)) return 'Randweg';
+    if (cells.paths && cells.paths.length) {
+      let best = -1, bd = 1e9;
+      cells.paths.forEach((p, i) => { const d = p.t === 'rot' ? Math.hypot(x - p.p[0][0], z - p.p[0][1]) - ROT.Ro : distPoly(x, z, smoothPts(p.p)) - PATH_DEF[p.t].hw; if (d < 2 && d < bd) { bd = d; best = i; } });
+      if (best >= 0) return PATH_NAMEN[cells.paths[best].t] || 'Weg';
+    }
+    if (cells.tris && cells.tris.some(t => Math.hypot((t.v[0] + t.v[2] + t.v[4]) / 3 - x, (t.v[1] + t.v[3] + t.v[5]) / 3 - z) <= 3.2)) return 'Vlak';
+    if (res.erase) { const st = stackOf(res.erase[0], res.erase[1]); if (st.length) { const t = TY(st[st.length - 1]); return (t && t.name) || 'Blok'; } }
+    return null;
+  }
+  const aimLblEl = document.getElementById('aimLbl');
+  function aimLabel(res) {   // alleen met de hamer in de hand: de naam van wat je zou weghalen
+    const t = mode === 'walk' && hand === 'hamer' ? eraseTarget(res) : null;
+    if (aimLblEl) { aimLblEl.hidden = !t; if (t) aimLblEl.textContent = 'Weghalen: ' + t; }
+    if (crosshairEl) crosshairEl.classList.toggle('erase', !!t);
+  }
   let lastHover = null;
   function updateGhost(cx, cy) {
     if (cx == null) { if (!lastHover) return; [cx, cy] = lastHover; }
     lastHover = [cx, cy];
     ghostArrow.visible = false; vecCells.visible = false;
     if (!(VEC_TOOLS.has(tool) && !vecChain.on)) vecPreClear();
-    const res = pick(cx, cy); lastPickRes = res;
+    const res = pick(cx, cy); lastPickRes = res; aimLabel(res);
     edgeGhost.visible = false; moduleGhost.visible = false;
     if (terrHover(res, cx, cy)) { previewActive = false; ghost.visible = false; ghostEdges.visible = false; return; }
     if (!res || (mode === 'walk' && hand !== 'bouwen')) { ghost.visible = false; ghostEdges.visible = false; return; }

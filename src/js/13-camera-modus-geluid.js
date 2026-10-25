@@ -67,7 +67,7 @@
     document.querySelectorAll('#hands button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.hand === h)));
     hammer.visible = h === 'hamer'; handBlock.visible = h === 'bouwen'; handG.visible = h !== 'kijken' && mode === 'walk';
     const pb = document.getElementById('placeBtn'); pb.hidden = h === 'kijken'; pb.textContent = h === 'hamer' ? 'Sloop' : 'Bouw';
-    ghost.visible = false;
+    ghost.visible = false; { const al = document.getElementById('aimLbl'); if (al) al.hidden = true; const ch = document.querySelector('.crosshair'); if (ch) ch.classList.remove('erase'); }
     try { localStorage.setItem('hexstad-hand', h); } catch (e) { /* geen opslag */ }
   }
   function swingHand() { swing = 1; }
@@ -135,7 +135,7 @@
       hint.hidden = false; clearTimeout(setMode.hintT); setMode.hintT = setTimeout(() => { hint.hidden = true; }, 7000);
     }
     else {
-      handG.visible = false; document.body.classList.remove('hand-kijken', 'hand-bouwen', 'hand-hamer');
+      handG.visible = false; document.body.classList.remove('hand-kijken', 'hand-bouwen', 'hand-hamer'); { const al = document.getElementById('aimLbl'); if (al) al.hidden = true; }
       if (document.pointerLockElement) document.exitPointerLock();
       applyOrbit();
     }

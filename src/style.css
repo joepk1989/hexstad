@@ -673,3 +673,26 @@ body.walk #chatter .bub { font-size: 13.5px; }
 #chatter .bub.pos { background: #e4f5e8; box-shadow: 0 2px 8px rgba(0,0,0,.25), inset 0 0 0 1.5px #86c795; }
 #chatter .bub.neg { background: #fde6e3; box-shadow: 0 2px 8px rgba(0,0,0,.25), inset 0 0 0 1.5px #e58c82; }
 #chatter .bub.mid { background: #ffefd8; box-shadow: 0 2px 8px rgba(0,0,0,.25), inset 0 0 0 1.5px #f0b568; }
+
+/* Minimalistisch beeld tijdens het lopen: bij kijken en slopen bijna niets in beeld, alleen bij bouwen de bouwgereedschappen */
+body.walk.hand-kijken .hud-left, body.walk.hand-hamer .hud-left,
+body.walk.hand-kijken #todBtn, body.walk.hand-hamer #todBtn,
+body.walk.hand-kijken #soundBtn, body.walk.hand-hamer #soundBtn,
+body.walk.hand-kijken .dockm, body.walk.hand-hamer .dockm,
+body.walk.hand-kijken .layerpick, body.walk.hand-hamer .layerpick,
+body.walk.hand-kijken .rtools, body.walk.hand-hamer .rtools,
+body.walk.hand-kijken .reckless, body.walk.hand-hamer .reckless,
+body.walk.hand-kijken .city-arrow, body.walk.hand-hamer .city-arrow,
+body.walk.hand-kijken .walk-hint, body.walk.hand-hamer .walk-hint,
+body.walk.hand-kijken #perf, body.walk.hand-hamer #perf,
+body.walk.hand-kijken .keysbtn, body.walk.hand-hamer .keysbtn,
+body.walk.hand-kijken .palette, body.walk.hand-hamer .palette,
+body.walk.hand-kijken .incpanel, body.walk.hand-hamer .incpanel { display: none !important; }
+body.walk.hand-kijken #menuBtn, body.walk.hand-hamer #menuBtn { opacity: 0.55; padding-inline: 12px; font-size: 12px; height: 30px; }
+body.walk.hand-kijken #menuBtn:hover, body.walk.hand-hamer #menuBtn:hover, body.walk.hand-kijken #menuBtn:focus-visible { opacity: 1; }
+body.walk.hand-kijken .dockl .hands, body.walk.hand-hamer .dockl .hands { opacity: 0.8; }
+body.walk.hand-kijken .crosshair { opacity: 0.45; transform: scale(0.7); }
+/* wat je met de hamer weghaalt: een rood puntje en een naamlabel bij het richtpunt */
+.crosshair.erase { background: #ff5a4d; box-shadow: 0 0 0 2px rgba(0,0,0,0.4), 0 0 10px rgba(255,90,77,0.8); transform: scale(1.5); }
+.aimlbl { position: fixed; left: 50%; top: calc(50% + 22px); transform: translateX(-50%); z-index: 6; pointer-events: none; font: 700 13px var(--font-ui); color: #fff; background: rgba(120, 24, 18, 0.88); border: 1px solid rgba(255, 150, 140, 0.55); padding: 4px 11px; border-radius: 999px; white-space: nowrap; }
+.aimlbl[hidden] { display: none; }
