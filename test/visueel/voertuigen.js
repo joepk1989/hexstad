@@ -9,4 +9,5 @@ const D = require('./helper').OUT + '/';
  await p.waitForTimeout(2500); await p.screenshot({ path: D + 'lineup.png' });
  await p.evaluate(() => { const S = window.__SC(); S.orbit.theta = 2.4; S.applyOrbit(); });
  await p.waitForTimeout(2000); await p.screenshot({ path: D + 'lineup2.png' });
+ for (let i = 0; i < n; i++) { await p.evaluate(i => { const S = window.__SC(); S.orbit.target.set(0, 0.9, (i - 3) * 3); S.orbit.dist = 7.5; S.orbit.phi = 1.2; S.orbit.theta = 2.2; S.applyOrbit(); }, i); await p.waitForTimeout(1500); await p.screenshot({ path: D + 'auto' + i + '.png', clip: { x: 300, y: 120, width: 600, height: 420 } }); }
  await b.close(); })();

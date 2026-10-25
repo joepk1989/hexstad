@@ -37,7 +37,7 @@
       const G = lpBuildVehicle(t), mk = (geo, mat, cast, color) => { const m = new THREE.InstancedMesh(geo, mat, CAP); m.frustumCulled = false; m.castShadow = cast; m.receiveShadow = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); if (color) { const w = new THREE.Color('#ffffff'); for (let i = 0; i < CAP; i++) m.setColorAt(i, w); } m.count = 0; m.userData.noOcc = true; scene.add(m); return m; };
       LPM[t] = { body: mk(G.body, new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: G.metal ? 0.35 : 0.55, metalness: G.metal ? 0.3 : 0.12, flatShading: true }), true, true),
         trim: G.trim ? mk(G.trim, new THREE.MeshStandardMaterial({ color: '#25282c', roughness: 0.8, flatShading: true }), false, false) : null,
-        glow: G.glow ? mk(G.glow, new THREE.MeshBasicMaterial({ color: '#ffffff' }), false, true) : null, glass: G.glass ? mk(G.glass, new THREE.MeshStandardMaterial({ color: '#20303c', roughness: 0.25, metalness: 0.5, flatShading: true }), false, false) : null, lamp: mk(G.lamp, new THREE.MeshBasicMaterial({ vertexColors: true }), false, false) };
+        glow: G.glow ? mk(G.glow, new THREE.MeshBasicMaterial({ color: '#ffffff' }), false, true) : null, glass: G.glass ? mk(G.glass, new THREE.MeshStandardMaterial({ color: '#1d2b36', roughness: 0.6, metalness: 0.15, flatShading: true }), false, false) : null, lamp: mk(G.lamp, new THREE.MeshBasicMaterial({ vertexColors: true }), false, false) };
     }
     const PAINT = ['#f2f3f5', '#e9ecef', '#1c1f24', '#2b2f36', '#9ea7b0', '#c9ced4', '#1f3c5c', '#5a1f2a', '#d8c9a8', '#2f4a3f'];
     const ACCENT = ['#ff2a3a', '#3ef0ff', '#ff3ec8', '#ffb23e', '#7dff6a', '#7a8cff'];
