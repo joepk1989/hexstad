@@ -356,7 +356,7 @@
     const R = def.hw + (HEAD_EXT[e.t] || 0), cN = 0, J = Math.sqrt(Math.max(0, R * R - def.hw * def.hw));
     return { N, e, def, d: [dx, dz], r: [-dz, dx], R, cN, rho: HEAD_RHO[e.t] || 3, C: [N.x, N.z], trimW: cN + J, trimLane: cN + (e.t === 'laan' ? 0 : 3.2) };
   }
-  const vecTrimW0 = (G, n) => { if (G.nodes[n] && G.nodes[n].rot) return 2.75; /* de stoep van de weg begint net in de rotondestoep */ const H = vecHead(G, n); if (H) return H.trimW; const t = vecJunctionTrim(G, n); if (t) return t + 0.3; const B = vecBend(G, n); return B ? vecBendTrim(G, n, B.hw + B.walk + 0.3) : 0; };
+  const vecTrimW0 = (G, n) => { if (G.nodes[n] && G.nodes[n].rot) return 2.6; /* de stoep van de weg begint net in de rotondestoep */ const H = vecHead(G, n); if (H) return H.trimW; const t = vecJunctionTrim(G, n); if (t) return t + 0.3; const B = vecBend(G, n); return B ? vecBendTrim(G, n, B.hw + B.walk + 0.3) : 0; };
   const vecTrimW = (G, n) => { const c = G.trimW || (G.trimW = new Map()); let v = c.get(n); if (v === undefined) c.set(n, v = vecTrimW0(G, n)); return v; };   // per graaf onthouden (de graaf wordt bij elke wijziging nieuw gebouwd)   // stoep: net voorbij de stopstreep
   function offsetPts(src, off) {   // de lijn opzij geschoven (rechts van de looprichting bij off > 0)
     const out = [];
@@ -676,8 +676,8 @@
       if (e.t !== 'laan') continue;
       ctx(pathHF(e.src), gid++);
       const med = PATH_DEF.laan.med, mp = trimPts(e.pts, medTrim(e.a), medTrim(e.b)); if (mp.length < 2 || plen(mp) < 2) continue;
-      ribbonInto(grass, mp, med, PW_H + 0.005); for (const sg of [1, -1]) wallInto(kerb, mp, sg * med, Y, PW_H); ribbonInto(kerb, mp, med, PW_H, 0);
-      [mp[0], mp[mp.length - 1]].forEach(p => { ringWallInto(kerb, p, med, Y, PW_H); discInto(grass, p, med, PW_H + 0.005); });
+      ribbonInto(grass, mp, med, PW_H + 0.005); for (const sg of [1, -1]) slopeInto(kerb, offsetPts(mp, sg * (med + 0.3)), offsetPts(mp, sg * med), Y + 0.015, PW_H); ribbonInto(kerb, mp, med, PW_H, 0);
+      [mp[0], mp[mp.length - 1]].forEach(p => { const rg = r => Array.from({ length: 25 }, (_, i) => [p[0] + Math.cos(i / 24 * Math.PI * 2) * r, p[1] + Math.sin(i / 24 * Math.PI * 2) * r]); slopeInto(kerb, rg(med + 0.3), rg(med), Y + 0.015, PW_H); discInto(grass, p, med, PW_H + 0.005); });
       const L = plen(mp); let s = 5, i = 1, acc = 0;
       while (s < L - 4) {
         while (i < mp.length - 1 && acc + Math.hypot(mp[i][0] - mp[i - 1][0], mp[i][1] - mp[i - 1][1]) < s) { acc += Math.hypot(mp[i][0] - mp[i - 1][0], mp[i][1] - mp[i - 1][1]); i++; }
@@ -821,7 +821,7 @@
         if (def.walk >= 0.8) {   // schuine stoeprand, dan de stoep
           const sp = vecWalkPts(GR, e, 0, sg * (def.hw + (def.walk + KERB_OUT) / 2));
           ribbonInto(walk, sp, (def.walk - KERB_OUT) / 2, PW_H); slopeInto(kerb, vecWalkPts(GR, e, 0, sg * (def.hw + KERB_IN)), vecWalkPts(GR, e, 0, sg * (def.hw + KERB_OUT)), Y + 0.015, PW_H);
-        } else { const sp = vecWalkPts(GR, e, 0, sg * (def.hw + def.walk / 2)), kp = vecWalkPts(GR, e, 0, sg * (def.hw + 0.3)); ribbonInto(walk, sp, def.walk / 2, PW_H); wallInto(kerb, kp, 0, Y, PW_H); ribbonInto(kerb, vecWalkPts(GR, e, 0, sg * (def.hw + 0.15)), 0.15, PW_H + 0.005); }
+        } else { const sp = vecWalkPts(GR, e, 0, sg * (def.hw + def.walk / 2)), kp = vecWalkPts(GR, e, 0, sg * (def.hw + 0.3)); ribbonInto(walk, sp, def.walk / 2, PW_H); slopeInto(kerb, vecWalkPts(GR, e, 0, sg * (def.hw + 0.05)), kp, Y + 0.015, PW_H); }
         wallInto(walk, ep, 0, 0, PW_H);
       }
       // doodlopend eind: ronde kop (halve cirkel) met asfalt, stoeprand en stoep eromheen
@@ -832,7 +832,7 @@
         discInto(def.klink ? klink : asph, C, R + 0.3, Y + 0.02);
         const inner = arc(0), outer = arc(def.walk), kt = arc(0.3);
         if (def.walk >= 0.8) { const hB = arc(KERB_IN), hT = arc(KERB_OUT); slopeInto(kerb, hB, hT, Y + 0.015, PW_H); for (let i = 0; i < hT.length - 1; i++) { polyInto(walk, [hT[i], outer[i], outer[i + 1], hT[i + 1]], PW_H); wallSeg(walk, outer[i], outer[i + 1], 0, PW_H); } }
-        else for (let i = 0; i < inner.length - 1; i++) { polyInto(walk, [inner[i], outer[i], outer[i + 1], inner[i + 1]], PW_H); polyInto(kerb, [inner[i], kt[i], kt[i + 1], inner[i + 1]], PW_H + 0.005); wallSeg(kerb, kt[i], kt[i + 1], Y, PW_H); wallSeg(walk, outer[i], outer[i + 1], 0, PW_H); }
+        else { slopeInto(kerb, arc(0.05), kt, Y + 0.015, PW_H); for (let i = 0; i < inner.length - 1; i++) { polyInto(walk, [inner[i], outer[i], outer[i + 1], inner[i + 1]], PW_H); wallSeg(walk, outer[i], outer[i + 1], 0, PW_H); } }
       }
     }
     // Rotondes: rijbaan als ring, eiland met een overrijdbare klinkerrand en een boom, stoep eromheen (open waar een
@@ -849,9 +849,11 @@
       const band = (L, r0, r1, y, gap) => { const n = gap ? NF : N0, an = i => i / n * Math.PI * 2; for (let i = 0; i < n; i++) { const a = an(i), b = an(i + 1); if (gap && inGap((a + b) / 2, (r0 + r1) / 2)) continue; polyInto(L, [P(r0, a), P(r1, a), P(r1, b), P(r0, b)], y); } };
       const wallArc = (L, r, y0, y1, gap) => { const n = gap ? NF : N0, an = i => i / n * Math.PI * 2; for (let i = 0; i < n; i++) { const a = an(i), b = an(i + 1); if (gap && inGap((a + b) / 2, r)) continue; wallSeg(L, P(r, a), P(r, b), y0, y1); } };
       band(asph, ROT.Ri, ROT.Ro + 0.3, Y + 0.02);
-      wallArc(kerb, ROT.Ro + 0.3, Y, PW_H, true); band(kerb, ROT.Ro + 0.3, ROT.Ro + 0.45, PW_H + 0.005, true); band(walk, ROT.Ro + 0.3, ROT.Ro + 2.3, PW_H, true); wallArc(walk, ROT.Ro + 2.3, 0, PW_H, true);
-      band(pave, ROT.isl, ROT.Ri, Y + 0.1); wallArc(kerb, ROT.Ri, Y, Y + 0.1);   // overrijdbare rand
-      wallArc(kerb, ROT.isl, Y + 0.1, PW_H + 0.05); band(kerb, ROT.isl - 0.25, ROT.isl, PW_H + 0.05); discInto(grass, C, ROT.isl - 0.25, PW_H + 0.06);
+      for (let i = 0; i < NF; i++) { const a = angF(i), b = angF(i + 1); if (inGap((a + b) / 2, ROT.Ro + 0.4)) continue; slopeInto(kerb, [P(ROT.Ro + KERB_IN, a), P(ROT.Ro + KERB_IN, b)], [P(ROT.Ro + KERB_OUT, a), P(ROT.Ro + KERB_OUT, b)], Y + 0.015, PW_H); }   // schuine stoeprand, net als bij de wegen
+      band(walk, ROT.Ro + KERB_OUT, ROT.Ro + 2.3, PW_H, true); wallArc(walk, ROT.Ro + 2.3, 0, PW_H, true);
+      const ringPts = r => Array.from({ length: N0 + 1 }, (_, i) => P(r, ang(i)));
+      band(pave, ROT.isl, ROT.Ri, Y + 0.1); slopeInto(kerb, ringPts(ROT.Ri + 0.12), ringPts(ROT.Ri - 0.08), Y + 0.015, Y + 0.1);   // overrijdbare rand, schuin
+      slopeInto(kerb, ringPts(ROT.isl + 0.1), ringPts(ROT.isl - 0.2), Y + 0.1, PW_H + 0.05); band(kerb, ROT.isl - 0.25, ROT.isl, PW_H + 0.05); discInto(grass, C, ROT.isl - 0.25, PW_H + 0.06);
       for (const A of arms) {   // haaientanden op de inrit (rechts van wie de rotonde op rijdt)
         const d = [Math.cos(A.th), Math.sin(A.th)], r = [-d[1], d[0]], base = ROT.Ro + 0.8;
         for (let u = 0.35; u < A.def.hw - 0.2; u += 0.85) { const m = [C[0] + d[0] * base - r[0] * u, C[1] + d[1] * base - r[1] * u]; polyInto(dash, [[m[0] - r[0] * 0.3, m[1] - r[1] * 0.3], [m[0] + r[0] * 0.3, m[1] + r[1] * 0.3], [m[0] + d[0] * 0.75, m[1] + d[1] * 0.75]], Y + 0.035); }
