@@ -112,6 +112,12 @@
       if (pd.color) { const w = new THREE.Color('#ffffff'); for (let i = 0; i < CAP * pd.per; i++) m.setColorAt(i, w); }
       m.count = 0; m.userData.noOcc = true; scene.add(m); meshes[k] = m;
     }
+    // low-poly typen: per type een eigen carrosserie, ruit en lampen (zelfde wielen en afmetingen als de elektrische auto)
+    const LPM = {};
+    for (const t of LP_TYPES) {
+      const G = lpBuildVehicle(t), mk = (geo, mat, cast, color) => { const m = new THREE.InstancedMesh(geo, mat, CAP); m.frustumCulled = false; m.castShadow = cast; m.receiveShadow = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); if (color) { const w = new THREE.Color('#ffffff'); for (let i = 0; i < CAP; i++) m.setColorAt(i, w); } m.count = 0; m.userData.noOcc = true; scene.add(m); return m; };
+      LPM[t] = { body: mk(G.body, new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.6, metalness: 0.1, flatShading: true }), true, true), glass: G.glass ? mk(G.glass, new THREE.MeshStandardMaterial({ color: '#20303c', roughness: 0.25, metalness: 0.5, flatShading: true }), false, false) : null, lamp: mk(G.lamp, new THREE.MeshBasicMaterial({ vertexColors: true }), false, false) };
+    }
     const PAINT = ['#f2f3f5', '#e9ecef', '#1c1f24', '#2b2f36', '#9ea7b0', '#c9ced4', '#1f3c5c', '#5a1f2a', '#d8c9a8', '#2f4a3f'];
     const ACCENT = ['#3ef0ff', '#ff3ec8', '#ffb23e', '#7dff6a', '#7a8cff'];
     let on = true;
@@ -234,6 +240,7 @@
       for (const c of list) { if (!validLeg(c)) spawn(c); else c.next = planNext(c); }
       while (list.length < target) {
         const c = { paint: pick(PAINT), accent: pick(ACCENT), id: carSeq++ };
+        { const u = Math.random(); c.type = u < 0.3 ? 'ev' : u < 0.62 ? 'stad' : u < 0.77 ? 'bestel' : u < 0.87 ? 'pickup' : 'taxi'; if (c.type !== 'ev') c.paint = c.type === 'taxi' ? '#f2c230' : pick(LP_PAINT); }
         if (!spawn(c)) break;
         list.push(c);
       }
@@ -282,13 +289,16 @@
       dt = keepDt;
     }
     function render() {
-      const all = list;
+      const all = list, cnt = { ev: 0 }; for (const t of LP_TYPES) cnt[t] = 0;
       all.forEach((c, i) => {
         // model wijst langs +x; eerst kantelen (rollen, stampen), dan draaien, dan op de vering zetten
         M.makeRotationY(-c.h).multiply(Q.makeRotationZ(c.pitch || 0)).multiply(Q.makeRotationX(c.roll || 0)).setPosition(c.x, c.sy ?? ASPH_H, c.z);
-        for (const k of ['body', 'canopy', 'front', 'rear', 'glow', 'under']) meshes[k].setMatrixAt(i, M);
-        col.set(c.paint); meshes.body.setColorAt(i, col);
-        col.set(c.accent); meshes.glow.setColorAt(i, col);
+        const ty = c.type && LPM[c.type] ? c.type : 'ev', ti = cnt[ty]++;
+        if (ty === 'ev') {
+          for (const k of ['body', 'canopy', 'front', 'rear', 'glow', 'under']) meshes[k].setMatrixAt(ti, M);
+          col.set(c.paint); meshes.body.setColorAt(ti, col);
+          col.set(c.accent); meshes.glow.setColorAt(ti, col);
+        } else { const L = LPM[ty]; L.body.setMatrixAt(ti, M); col.set(c.paint); L.body.setColorAt(ti, col); if (L.glass) L.glass.setMatrixAt(ti, M); L.lamp.setMatrixAt(ti, M); }
         WHEELS.forEach(([wx, wz], j) => {
           // wielen staan op hun eigen stukje grond, los van de kanteling van de carrosserie
           const [wxW, wzW] = wheelWorld(c, wx, wz);
@@ -305,8 +315,9 @@
           col.set(c.accent); meshes.hub.setColorAt(i * 8 + j * 2, col); meshes.hub.setColorAt(i * 8 + j * 2 + 1, col);
         });
       });
+      for (const t of LP_TYPES) { const L = LPM[t]; for (const m of [L.body, L.glass, L.lamp]) if (m) { m.count = cnt[t]; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; } }
       for (const [k, pd] of Object.entries(PARTS)) {
-        const m = meshes[k]; m.count = all.length * pd.per; m.instanceMatrix.needsUpdate = true;
+        const m = meshes[k]; m.count = (k === 'tire' || k === 'rim' || k === 'holes' || k === 'hub' ? all.length : cnt.ev) * pd.per; m.instanceMatrix.needsUpdate = true;
         if (m.instanceColor) m.instanceColor.needsUpdate = true;
       }
     }
@@ -427,6 +438,7 @@
       // meetpunten voor de simulatietest: auto's naast de weg, vastgelopen, ongeldige posities
       setForce(n) { forceN = n; carsDirty = true; },
       crashLog, toss,
+      peek: () => list.map(c => ({ type: c.type || 'ev', x: c.x, z: c.z, h: c.h, v: c.v })),   // voor de tests
       // files: groepjes auto's die al een tijd stilstaan (voor de Hulk)
       jams() {
         const slow = list.filter(c => c.path && !c.crash && !c.fly && c.v < 0.4 && (c.still || 0) > 6), out = [], used = new Set();
