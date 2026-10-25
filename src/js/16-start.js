@@ -85,3 +85,4 @@
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
+  requestAnimationFrame(() => requestAnimationFrame(() => { if (window.__loadDone) window.__loadDone(); }));   // het eerste beeld staat: laadscherm weg

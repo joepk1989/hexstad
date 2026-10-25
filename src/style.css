@@ -762,3 +762,11 @@ body.walk .hud-top { justify-content: flex-end; }
   body.coarse.walk .modeswitch .ms { font-size: 0; gap: 0; padding: 8px 12px; }
   body.coarse.walk .modeswitch .ms svg { width: 18px; height: 18px; }
 }
+
+/* Laadscherm: donkere achtergrond met gele zeshoeken in een golf (zelfde kleuren en tempo als HexLoadingScreen in Unity) */
+#loadScr { position: fixed; inset: 0; z-index: 1000; background: #0d0d14; overflow: hidden; transition: opacity 0.5s ease; }
+#loadScr.weg { opacity: 0; pointer-events: none; }
+#loadScr i { position: absolute; width: calc(var(--hr) * 2); height: calc(var(--hr) * 1.7320508); background: #ffd11a; clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+  transform: scale(0.25); opacity: 0.1; animation: loadwave 1.5708s cubic-bezier(0.37, 0, 0.63, 1) infinite alternate; }
+@keyframes loadwave { from { transform: scale(0.25); opacity: 0.1; } to { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { #loadScr i { animation: none; transform: scale(0.6); opacity: 0.6; } }

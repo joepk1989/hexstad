@@ -97,3 +97,9 @@ Andere formaten: 360×640 ![](test/mobiel_360x640_bouwen.jpg) ![](test/mobiel_36
 
 **23_2026-10-25_1148**  
 ![](joep/23_2026-10-25_1148.jpg)
+
+## Laadscherm (25 oktober 2026)
+
+Gele zeshoeken op een donker raster die als een golf op en neer gaan, zelfde kleuren en tempo als `HexLoadingScreen` in Unity. Staat bovenaan de pagina, dus zichtbaar zodra de pagina begint te laden.
+
+![](test/laadscherm_desktop.jpg) ![](test/laadscherm_telefoon.jpg)
