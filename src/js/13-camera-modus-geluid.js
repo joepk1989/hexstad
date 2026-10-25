@@ -302,7 +302,7 @@
     const HEX_NOTES = [261.6, 293.7, 329.6, 392, 440, 523.3, 587.3, 659.3];   // zestonige toonladder (zonder halve tonen): klinkt altijd vriendelijk
     function fx(name, x, y, z, k = 1) {
       const t0 = ctx.currentTime, now = performance.now();
-      const gap = { place: 60, remove: 80, click: 40, deny: 250, squeal: 120, crunch: 90, door: 150, cricket: 0, jump: 150, gen: 600, whoosh: 200, undo: 120, rotate: 60, splash: 200, roar: 3000, coin: 300 }[name] ?? 80;
+      const gap = { place: 60, remove: 80, click: 40, deny: 250, squeal: 120, crunch: 90, door: 150, cricket: 0, jump: 150, gen: 600, whoosh: 200, undo: 120, rotate: 60, splash: 200, roar: 3000, coin: 300, beep: 600 }[name] ?? 80;
       if (now - (fxLast[name] || 0) < gap) return; fxLast[name] = now;
       const r = 0.94 + Math.random() * 0.12;
       if (name === 'place') {   // houten 'tok' met een helder tikje erbovenop
@@ -335,6 +335,7 @@
         fxNoise(d, true, 'lowpass', 500, 120, 0.8, t0, 0.004, 0.6 * v, 0.35); fxNoise(d, false, 'highpass', 1400, 0, 0.7, t0, 0.003, 0.35 * v, 0.22);
         for (const f of [1320, 2210, 3480, 4950]) fxNoise(d, false, 'bandpass', f * r, f * r * 0.92, 28, t0 + Math.random() * 0.03, 0.003, 0.22 * v, 0.5 + Math.random() * 0.3);
         if (k > 0.5) for (let i = 0; i < 6; i++) fxTone(d, 'sine', 3500 + Math.random() * 3000, 0, t0 + 0.08 + Math.random() * 0.25, 0.001, 0.03, 0.12);
+      } else if (name === 'beep') { const d = fxOut(x, y, z, 4, 1.4); fxTone(d, 'square', 1040, 0, t0, 0.005, 0.04, 0.16);
       } else if (name === 'cricket') {   // krekel: drie snelle tjirpjes
         const d = fxOut(x, y, z, 4, 1.4), f = 4300 + Math.random() * 600; for (let i = 0; i < 3; i++) fxTone(d, 'sine', f, 0, t0 + i * 0.055, 0.004, 0.025 * k, 0.03);
       } else if (name === 'splash') { const d = fxOut(x, y, z, 4); fxNoise(d, false, 'bandpass', 1400, 500, 0.8, t0, 0.01, 0.3 * k, 0.5); fxNoise(d, true, 'lowpass', 400, 0, 0.7, t0, 0.005, 0.25 * k, 0.2);

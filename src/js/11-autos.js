@@ -358,7 +358,8 @@
       // meetpunten voor de simulatietest: auto's naast de weg, vastgelopen, ongeldige posities
       setForce(n) { forceN = n; carsDirty = true; },
       crashLog, toss,
-      peek: () => list.map(c => ({ type: c.type, x: c.x, z: c.z, h: c.h, v: c.v, persona: c.persona, lat: c.latCur || 0, pass: c.passT > 0, dodge: c.dodgeT > 0, hunt: c.huntT > 0, crash: !!c.crash })),   // voor de tests
+      peek: () => list.map(c => ({ type: c.type, x: c.x, z: c.z, h: c.h, v: c.v, persona: c.persona, lat: c.latCur || 0, pass: c.passT > 0, dodge: c.dodgeT > 0, hunt: c.huntT > 0, crash: !!c.crash, rev: c.revT > 0, around: c.aroundT > 0, s: c.s, eid: c.eid, why: c.why, ahead: list.indexOf(c.aheadOf), revWait: c.revWait || 0, hold: !!c.hulkHold })),
+      stall(i) { const c = list[i]; if (c) { c.hulkHold = true; c.v = 0; c.why = ''; c.held = false; } return !!c; },   // voor de test: een auto die niet meer rijdt   // voor de tests
       // files: groepjes auto's die al een tijd stilstaan (voor de Hulk)
       jams() {
         const slow = list.filter(c => c.path && !c.crash && !c.fly && c.v < 0.4 && (c.still || 0) > 6), out = [], used = new Set();
@@ -553,6 +554,36 @@
           c.pwait = held ? 0 : c.v < 0.2 ? (c.pwait || 0) + dt : (c.v > 2 ? 0 : (c.pwait || 0));
           if (c.pwait > 10) c.pwait = 0;
           if (c.wait > 6) c.wait = 0;
+          // ---------- Vast achter een auto die niet meer rijdt: achteruit en er dan omheen ----------
+          // Alleen achter de kop van de rij (een gebotste of muurvaste auto), niet in een gewone rij voor het licht. Eerst een paar
+          // meter achteruit (als het achter vrij is; bestelbussen piepen), dan over de andere rijstrook erlangs. Netjes rijdend
+          // verkeer wacht daarvoor tot er geen tegenligger aankomt; roekeloos verkeer doet het sneller en kijkt niet.
+          {
+            const blk = c.aheadOf && c.aheadOf.x !== undefined ? c.aheadOf : null;
+            const head = blk && c.why === 'ahead' && (blk.crash || (blk.v < 0.3 && blk.why !== 'ahead' && !blk.held && blk.why !== 'light' && blk.why !== 'voorrang'));
+            if (!(c.revT > 0) && !(c.aroundT > 0) && c.v < 1.2 && head && !held && Math.hypot(blk.x - c.x, blk.z - c.z) < 9) { c.revWait = (c.revWait || 0) + dt; c.creepT = 0; c.wait = 0; } else if (!(c.revT > 0)) c.revWait = 0;   // (niet doorkruipen: we gaan eromheen)
+            if (c.revWait > (reckless ? 1.2 : 4)) { c.revWait = 0; c.revT = reckless ? 1.0 : 1.6; c.revFrom = blk; }
+            if (c.revT > 0) {
+              c.revT -= dt;
+              let free = c.s > 1.2;
+              for (const o of list) { if (o === c) continue; const dx = o.x - c.x, dz = o.z - c.z, al = dx * ch + dz * sh, lat = -dx * sh + dz * ch; if (al < 0 && al > -7.5 && Math.abs(lat) < 1.9) { free = false; break; } }
+              if (!reckless) for (const a of peds) { const dx = a.x - c.x, dz = a.z - c.z, al = dx * ch + dz * sh, lat = -dx * sh + dz * ch; if (lvlOf(a, c) < 0.3 && al < 0 && al > -5 && Math.abs(lat) < 1.6) { free = false; break; } }
+              want = free ? -(reckless ? 3 : 1.6) : 0; c.why = 'achteruit';
+              if (!free) c.revT = 0;
+              if (free && c.type === 'bestel' && sound.fx) sound.fx('beep', c.x, 0.8, c.z);
+              if (c.revT <= 0) { c.aroundT = reckless ? 3.5 : 5; c.aroundOf = c.revFrom; c.aroundWait = 0; }
+            } else if (c.aroundT > 0 && c.aroundOf) {
+              const A = c.aroundOf, dx = A.x - c.x, dz = A.z - c.z, al = dx * ch + dz * sh;
+              let clear = true;
+              if (!reckless && Math.abs(c.latCur || 0) < 1.5) for (const o of list) { if (o === c || o === A) continue; const ox = o.x - c.x, oz = o.z - c.z, oal = ox * ch + oz * sh, olat = -ox * sh + oz * ch; if (Math.cos(o.h - c.h) < -0.5 && oal > -3 && oal < 32 && olat < -0.8 && olat > -5) { clear = false; break; } }
+              if (!clear) { want = Math.min(want, 0); c.aroundWait += dt; if (c.aroundWait > 12) c.aroundT = 0; }   // tegenligger: even wachten
+              else {
+                c.aroundT -= dt; if (al > -6.5 && c.aroundT < 0.8) c.aroundT = 0.8;   // pas terug als hij er helemaal voorbij is
+                if (c.aheadOf === A) want = Math.max(want, 1.5); want = Math.min(Math.max(want, 2.5), reckless ? 14 : 4.5); c.why = c.why || 'eromheen';
+              }
+            }
+            if (c.revT > 0 || c.aroundT > 0) c.stuck = 0;
+          }
           // ---------- Roekeloos: drie soorten bestuurders ----------
           // racer: scheurt en haalt in over de andere rijstrook; ontwijker: stuurt om auto's en mensen heen in plaats van te remmen;
           // jager: kiest iemand op of naast de weg (ook jou) en stuurt erop af, desnoods over de stoep. Ze rijden allemaal een stukje naast
@@ -584,12 +615,13 @@
               if (best) { if (!(c.huntT > 0)) { c.huntT = 6; if (sound.horn) sound.horn(c.x, c.z); } T = Math.max(-4.5, Math.min(5.5, (c.latCur || 0) + best[1])); want = Math.max(want, Math.min(c.v + 5, 16)); }
               if (c.huntT > 0 && c.huntT < 0.1) { c.huntCool = 5; c.huntT = 0; }   // na zes seconden even rustig verder
             }
+            if (c.aroundT > 0 && !(c.revT > 0)) T = -2.7;   // om een vastgelopen auto heen
             c.latT = T;
             c.latCur = (c.latCur || 0) + (T - (c.latCur || 0)) * Math.min(1, dt * (c.persona === 'jager' ? 2.4 : 1.6));
-          } else c.latCur = 0;
+          } else c.latCur = (c.latCur || 0) + ((c.aroundT > 0 && !(c.revT > 0) && c.v > 0.3 ? -2.7 : 0) - (c.latCur || 0)) * Math.min(1, dt * 1.2);   // netjes: alleen opzij om een vastgelopen auto heen
           c.lastWant = want;
           c.v += Math.max(-(reckless ? 9 : 6) * dt, Math.min((reckless ? 7 : 2.5) * dt, want - c.v));
-          c.v = Math.max(0, c.v);
+          c.v = Math.max(c.revT > 0 ? -3 : 0, c.v);   // achteruit mag alleen bij het losrijden
           // rijden langs de rijlijn
           c.s += c.v * dt;
           while (c.s > c.path.len) {
@@ -607,7 +639,7 @@
             // Netjes rijden: voor- en achteras rijden allebei precies over de rijlijn; de carrosserie staat
             // ertussen en draait zo geleidelijk mee, ook over de grens van twee vakken.
             const [fx, fz, fh] = posOn(c, c.s + WB), [rx2, rz2] = posOn(c, c.s - WB);
-            const x = (fx + rx2) / 2, z = (fz + rz2) / 2, h = Math.atan2(fz - rz2, fx - rx2);
+            const h = Math.atan2(fz - rz2, fx - rx2), lo = c.latCur || 0, x = (fx + rx2) / 2 - Math.sin(h) * lo, z = (fz + rz2) / 2 + Math.cos(h) * lo;   // lo: opzij (om een vastgelopen auto heen)
             let st2 = fh - h; st2 = Math.atan2(Math.sin(st2), Math.cos(st2));
             c.steer += (Math.max(-0.55, Math.min(0.55, st2 * 1.6)) - c.steer) * Math.min(1, dt * 8);
             if (c.ease > 0) {   // net terug van roekeloos: rustig terug naar de rijlijn
