@@ -210,39 +210,67 @@
 
 </div>
 
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-hex" viewBox="0 0 24 24"><path d="M12 2.5l8.2 4.75v9.5L12 21.5l-8.2-4.75v-9.5z"/></symbol>
+  <symbol id="i-save" viewBox="0 0 24 24"><path d="M12 2.5l8.2 4.75v9.5L12 21.5l-8.2-4.75v-9.5z"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></symbol>
+  <symbol id="i-start" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v5.8M12 15.2V21M3 12h5.8M15.2 12H21"/></symbol>
+  <symbol id="i-city" viewBox="0 0 24 24"><path d="M3 21h18M5 21V10l4-2v13M9 21V5l5 2v14M14 21v-9l5-2v11"/><path d="M11 10h1M11 13h1M11 16h1"/></symbol>
+  <symbol id="i-jam" viewBox="0 0 24 24"><path d="M3 15l1.5-4h5L11 15M13 15l1.5-4h5L21 15"/><rect x="2.5" y="15" width="9" height="4" rx="1"/><rect x="12.5" y="15" width="9" height="4" rx="1"/><path d="M4.5 19v1.5M9.5 19v1.5M14.5 19v1.5M19.5 19v1.5"/></symbol>
+  <symbol id="i-dice" viewBox="0 0 24 24"><path d="M12 2.5l8.2 4.75v9.5L12 21.5l-8.2-4.75v-9.5z"/><path d="M12 7.5v14M3.8 7.25L12 12l8.2-4.75"/><circle cx="7.5" cy="15" r="0.9" fill="currentColor"/><circle cx="16.5" cy="15" r="0.9" fill="currentColor"/><circle cx="12" cy="5.2" r="0.9" fill="currentColor"/></symbol>
+  <symbol id="i-rot" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></symbol>
+  <symbol id="i-honey" viewBox="0 0 24 24"><path d="M12 7.5l3.5 2v4l-3.5 2-3.5-2v-4z"/><path d="M12 1.5l3.5 2v4M12 7.5L8.5 5.5v-4M15.5 9.5l3.5-2 3.5 2M15.5 13.5l3.5 2M8.5 9.5l-3.5-2L1.5 9.5M8.5 13.5l-3.5 2M12 15.5v4l3.5 2M12 19.5l-3.5 2"/></symbol>
+  <symbol id="i-ring" viewBox="0 0 24 24"><path d="M12 2.5l8.2 4.75v9.5L12 21.5l-8.2-4.75v-9.5z"/><circle cx="12" cy="12" r="2.2"/><path d="M12 2.5v7.3M20.2 7.25l-6.3 3.65M20.2 16.75l-6.3-3.65M12 21.5v-7.3M3.8 16.75l6.3-3.65M3.8 7.25l6.3 3.65"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></symbol>
+  <symbol id="i-paste" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2.5h6V4M8 10h8M8 14h8M8 18h5"/></symbol>
+  <symbol id="i-sketch" viewBox="0 0 24 24"><path d="M3 21l3.5-1 11-11-2.5-2.5-11 11z"/><path d="M14 7.5l2.5 2.5M17 4.5l2.5 2.5"/></symbol>
+  <symbol id="i-empty" viewBox="0 0 24 24"><path d="M12 2.5l8.2 4.75v9.5L12 21.5l-8.2-4.75v-9.5z" stroke-dasharray="3 2.5"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><path d="M12 3.5v4M12 16.5v4M3.5 12h4M16.5 12h4"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 4.5h6a2 2 0 0 1 2 2v13a1.5 1.5 0 0 0-1.5-1.5H4zM20 4.5h-6a2 2 0 0 0-2 2v13a1.5 1.5 0 0 1 1.5-1.5H20z"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.5l2.1 2.2 3-.5 1 2.9 2.8 1.2-.6 3 2 2.3-2 2.3.6 3-2.8 1.2-1 2.9-3-.5-2.1 2.2-2.1-2.2-3 .5-1-2.9-2.8-1.2.6-3-2-2.3 2-2.3-.6-3 2.8-1.2 1-2.9 3 .5z"/></symbol>
+  <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="7" r="3"/><path d="M3 20v-2a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v2"/><circle cx="17" cy="8" r="2.4"/><path d="M16 13.2a4 4 0 0 1 5 3.8v3"/></symbol>
+  <symbol id="i-car" viewBox="0 0 24 24"><path d="M4 14l2-5.5h12L20 14"/><rect x="2.5" y="14" width="19" height="4.5" rx="1.5"/><path d="M6 18.5v2M18 18.5v2M6.5 16h1.5M16 16h1.5"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 13v6H5V6h6"/></symbol>
+  <symbol id="i-go" viewBox="0 0 24 24"><path d="M6 4l13 8-13 8z"/></symbol>
+  <symbol id="i-score" viewBox="0 0 24 24"><path d="M12 2.5l8.2 4.75v9.5L12 21.5l-8.2-4.75v-9.5z"/><path d="M12 7l1.5 3.2 3.5.4-2.6 2.4.7 3.5L12 14.8l-3.1 1.7.7-3.5L7 10.6l3.5-.4z"/></symbol>
+</defs></svg>
 <div class="sheet" id="sheet" hidden>
-  <div class="sheet-card" role="dialog" aria-labelledby="sheetTitle">
-    <h2 id="sheetTitle">Menu</h2>
-    <p>Alles is op ware grootte: een vak is 15,6 m breed, een verdieping 3 m hoog, een straat 9 m en je ooghoogte 1,65 m.</p>
+  <div class="sheet-card menu" role="dialog" aria-labelledby="sheetTitle">
+    <div class="menu-head"><span class="logo-hex" aria-hidden="true"></span><h2 id="sheetTitle">Menu</h2><button class="btn icon-btn" type="button" data-act="cancel" aria-label="Sluiten">✕</button></div>
     <div class="mine-box">
-      <button class="btn mine" type="button" data-act="mine" id="mineBtn"><span>Mijn stad</span><small id="mineInfo"></small></button>
-      <button class="btn" type="button" data-act="adopt" id="adoptBtn" hidden>Deze stad bewaren als mijn stad</button>
+      <button class="btn mine" type="button" data-act="mine" id="mineBtn"><svg><use href="#i-hex"/></svg><span class="lbl"><span>Mijn stad</span><small id="mineInfo"></small></span></button>
+      <button class="btn mbtn" type="button" data-act="adopt" id="adoptBtn" hidden><svg><use href="#i-save"/></svg><span class="lbl"><b>Deze stad bewaren als mijn stad</b></span></button>
       <p class="mine-note" id="mineNote">Je eigen stad wordt automatisch bewaard. Een andere stad openen verandert er niets aan.</p>
     </div>
-    <p class="sheet-sub">De stad</p>
-    <div class="grid2">
-      <button class="btn" type="button" data-act="start" style="grid-column:1/-1">Startstadje: rotonde en ringweg</button>
-      <button class="btn" type="button" data-act="stad" style="grid-column:1/-1">Grote stad: ringweg, rotonde en alle buurten</button>
-      <button class="btn" type="button" data-act="file" style="grid-column:1/-1">Filestad: één drukke kruising, files en de Hulk</button>
-      <button class="btn" type="button" data-act="gen:dorp">Dorp (nieuw bij elke klik)</button>
-      <button class="btn" type="button" data-act="gen:rotonde">Dorp met rotonde</button>
-      <button class="btn" type="button" data-act="gen:kruis">Honingraatstad</button>
-      <button class="btn" type="button" data-act="gen:ring">Zeshoekige ringstad</button>
-      <button class="btn" type="button" data-act="copycity">Stad kopiëren als code</button>
-      <button class="btn" type="button" data-act="pastecity">Stad plakken uit klembord</button>
-      <button class="btn" type="button" data-act="sketch">Schets en modules</button>
-      <button class="btn" type="button" data-act="empty">Lege bouwgrond</button>
-      <button class="btn" type="button" data-act="home">Naar het midden</button>
+    <p class="sheet-sub">Kant-en-klare steden</p>
+    <div class="mgrid">
+      <button class="btn mbtn" type="button" data-act="start"><svg><use href="#i-start"/></svg><span class="lbl"><b>Startstadje</b><small>Rotonde, drie straten, vijver</small></span></button>
+      <button class="btn mbtn" type="button" data-act="stad"><svg><use href="#i-city"/></svg><span class="lbl"><b>Grote stad</b><small>Ringweg en alle buurten</small></span></button>
+      <button class="btn mbtn" type="button" data-act="file"><svg><use href="#i-jam"/></svg><span class="lbl"><b>Filestad</b><small>Drukke kruising, files en de Hulk</small></span></button>
+      <button class="btn mbtn" type="button" data-act="empty"><svg><use href="#i-empty"/></svg><span class="lbl"><b>Lege bouwgrond</b><small>Zelf vanaf nul</small></span></button>
     </div>
-    <p class="sheet-sub">Leven in de stad</p>
-    <div class="grid2">
-      <button class="btn" type="button" data-act="welcome" style="grid-column:1/-1">Welkom en uitleg</button>
-      <button class="btn" type="button" data-act="settings" id="setBtn" style="grid-column:1/-1">⚙ Instellingen: beeld, prestaties en opties</button>
-      <button class="btn" type="button" data-act="people" id="peopleBtn">Mensen: aan</button>
-      <button class="btn" type="button" data-act="cars" id="carsBtn">Auto's: aan</button>
-      <a class="btn" href="https://claude.ai/artifact/8eXMwz3T3bTYqZaVYgA6J2" target="_blank" rel="noopener" style="text-decoration:none;text-align:center;grid-column:1/-1">Werkplaats: wat komt er nog ↗</a>
+    <p class="sheet-sub">Nieuw dorp of stad maken</p>
+    <div class="mgrid">
+      <button class="btn mbtn" type="button" data-act="gen:dorp"><svg><use href="#i-dice"/></svg><span class="lbl"><b>Dorp</b><small>Elke klik een ander dorp</small></span></button>
+      <button class="btn mbtn" type="button" data-act="gen:rotonde"><svg><use href="#i-rot"/></svg><span class="lbl"><b>Dorp met rotonde</b><small>Zes armen vanuit het midden</small></span></button>
+      <button class="btn mbtn" type="button" data-act="gen:kruis"><svg><use href="#i-honey"/></svg><span class="lbl"><b>Honingraatstad</b><small>Wegen langs grote zeshoeken</small></span></button>
+      <button class="btn mbtn" type="button" data-act="gen:ring"><svg><use href="#i-ring"/></svg><span class="lbl"><b>Zeshoekige ringstad</b><small>Ringweg met zes spaken</small></span></button>
     </div>
-    <button class="btn" type="button" data-act="cancel">Sluiten</button>
+    <p class="sheet-sub">Delen en gereedschap</p>
+    <div class="mgrid">
+      <button class="btn mbtn" type="button" data-act="copycity"><svg><use href="#i-copy"/></svg><span class="lbl"><b>Stad kopiëren</b><small>Als code naar het klembord</small></span></button>
+      <button class="btn mbtn" type="button" data-act="pastecity"><svg><use href="#i-paste"/></svg><span class="lbl"><b>Stad plakken</b><small>Code uit het klembord</small></span></button>
+      <button class="btn mbtn" type="button" data-act="sketch"><svg><use href="#i-sketch"/></svg><span class="lbl"><b>Schets en modules</b><small>Eigen gebouwen tekenen</small></span></button>
+      <button class="btn mbtn" type="button" data-act="home"><svg><use href="#i-home"/></svg><span class="lbl"><b>Naar het midden</b><small>Camera terug naar het centrum</small></span></button>
+    </div>
+    <p class="sheet-sub">Leven en instellingen</p>
+    <div class="mgrid">
+      <button class="btn mbtn tog" type="button" data-act="people" id="peopleBtn"><svg><use href="#i-people"/></svg><span class="lbl"><b>Mensen</b><small class="state">aan</small></span></button>
+      <button class="btn mbtn tog" type="button" data-act="cars" id="carsBtn"><svg><use href="#i-car"/></svg><span class="lbl"><b>Auto's</b><small class="state">aan</small></span></button>
+      <button class="btn mbtn" type="button" data-act="settings" id="setBtn"><svg><use href="#i-gear"/></svg><span class="lbl"><b>Instellingen</b><small>Beeld, prestaties, weer, verkeer</small></span></button>
+      <button class="btn mbtn" type="button" data-act="welcome"><svg><use href="#i-book"/></svg><span class="lbl"><b>Welkom en uitleg</b><small>Bediening in het kort</small></span></button>
+      <a class="btn mbtn" href="https://claude.ai/artifact/8eXMwz3T3bTYqZaVYgA6J2" target="_blank" rel="noopener" style="grid-column:1/-1"><svg><use href="#i-link"/></svg><span class="lbl"><b>Werkplaats</b><small>Wat komt er nog</small></span></a>
+    </div>
+    <p class="menu-foot">Alles is op ware grootte: een vak is 15,6 m breed, een verdieping 3 m, een straat 9 m en je ooghoogte 1,65 m.</p>
   </div>
 </div>
 
@@ -255,19 +283,19 @@
       <li><b>Leven</b> — auto's rijden, mensen wandelen; in de file komt de Hulk.</li>
     </ul>
     <div class="welcome-btns">
-      <button class="btn mine" type="button" id="welcomeGo"><span>Verder bouwen</span><small id="welcomeInfo"></small></button>
-      <button class="btn" type="button" data-wact="start">Startstadje</button>
-      <button class="btn" type="button" data-wact="stad">Grote stad</button>
-      <button class="btn" type="button" data-wact="gen:dorp">Willekeurig dorp</button>
-      <button class="btn" type="button" data-wact="gen:kruis">Willekeurige honingraatstad</button>
-      <button class="btn" type="button" data-wact="empty">Lege bouwgrond</button>
+      <button class="btn mine" type="button" id="welcomeGo"><svg><use href="#i-go"/></svg><span class="lbl"><span>Verder bouwen</span><small id="welcomeInfo"></small></span></button>
+      <button class="btn mbtn" type="button" data-wact="start"><svg><use href="#i-start"/></svg><span class="lbl"><b>Startstadje</b></span></button>
+      <button class="btn mbtn" type="button" data-wact="stad"><svg><use href="#i-city"/></svg><span class="lbl"><b>Grote stad</b></span></button>
+      <button class="btn mbtn" type="button" data-wact="gen:dorp"><svg><use href="#i-dice"/></svg><span class="lbl"><b>Willekeurig dorp</b></span></button>
+      <button class="btn mbtn" type="button" data-wact="gen:kruis"><svg><use href="#i-honey"/></svg><span class="lbl"><b>Honingraatstad</b></span></button>
+      <button class="btn mbtn" type="button" data-wact="empty" style="grid-column:1/-1"><svg><use href="#i-empty"/></svg><span class="lbl"><b>Lege bouwgrond</b></span></button>
     </div>
     <label class="welcome-skip"><input type="checkbox" id="welcomeSkip"> Niet meer tonen bij het starten</label>
   </div>
 </div>
 <div class="sheet" id="setSheet" hidden>
   <div class="sheet-card" role="dialog" aria-labelledby="setTitle">
-    <h2 id="setTitle">Instellingen</h2>
+    <h2 id="setTitle"><svg class="h-ico"><use href="#i-gear"/></svg>Instellingen</h2>
     <p>Loopt het niet soepel? Zet het terrein op low poly, de schaduwen op eenvoudig of uit, of de beeldscherpte op snel.</p>
     <div class="set-rows" id="setRows"></div>
     <button class="btn" type="button" id="setClose">Sluiten</button>
@@ -276,7 +304,7 @@
 
 <div class="sheet" id="scoreSheet" hidden>
   <div class="sheet-card" role="dialog" aria-labelledby="scoreTitle">
-    <h2 id="scoreTitle">Schoonheid</h2>
+    <h2 id="scoreTitle"><svg class="h-ico"><use href="#i-score"/></svg>Schoonheid</h2>
     <div class="score-head">
       <span class="score-big" id="scoreBig">–</span>
       <div><strong id="scoreLabel"></strong><p id="scorePop"></p></div>

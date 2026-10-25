@@ -265,7 +265,7 @@
     mineInfo.textContent = n ? `${n} ${n === 1 ? 'blok' : 'blokken'}` : 'nog leeg';
     mineBtn.setAttribute('aria-current', String(slot === 'mijn'));
     adoptBtn.hidden = slot === 'mijn';
-    if (!adoptArmed) adoptBtn.textContent = 'Deze stad bewaren als mijn stad';
+    if (!adoptArmed) adoptBtn.querySelector('b').textContent = 'Deze stad bewaren als mijn stad';
     mineNote.textContent = slot === 'mijn'
       ? 'Je eigen stad wordt automatisch bewaard. Een andere stad openen verandert er niets aan.'
       : `Nu open: ${slotName}. Wat je hier bouwt hoort niet bij je eigen stad, tenzij je hem bewaart.`;
@@ -283,7 +283,7 @@
   function doAct(act) {
     vecChainEnd(true);
     if (act === 'adopt') {
-      if (!adoptArmed && hasMine()) { adoptArmed = true; adoptBtn.textContent = 'Tik nog eens: je huidige eigen stad wordt vervangen'; return; }
+      if (!adoptArmed && hasMine()) { adoptArmed = true; adoptBtn.querySelector('b').textContent = 'Tik nog eens: je huidige eigen stad wordt vervangen'; return; }
       slot = 'mijn'; slotName = 'Mijn stad'; changed(); toast('Bewaard als mijn stad'); adoptArmed = false;
     }
     if (act === 'welcome') { sheet.hidden = true; openWelcome(); return; }

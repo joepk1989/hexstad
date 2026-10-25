@@ -332,7 +332,7 @@
     let on = true;
     try { on = localStorage.getItem('hexstad-mensen') !== '0'; } catch (e) {}
     const btn = document.getElementById('peopleBtn');
-    const label = () => { btn.textContent = 'Mensen: ' + (on ? 'aan' : 'uit'); };
+    const label = () => { const st = btn.querySelector('.state'); if (st) st.textContent = on ? 'aan' : 'uit'; else btn.textContent = 'Mensen: ' + (on ? 'aan' : 'uit'); btn.classList.toggle('off', !on); };
     label();
 
     const pick = a => a[Math.floor(Math.random() * a.length)];

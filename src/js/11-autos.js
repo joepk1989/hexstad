@@ -44,7 +44,7 @@
     let on = true;
     try { on = localStorage.getItem('hexstad-autos') !== '0'; } catch (e) {}
     const btn = document.getElementById('carsBtn');
-    const label = () => { btn.textContent = "Auto's: " + (on ? 'aan' : 'uit'); };
+    const label = () => { const st = btn.querySelector('.state'); if (st) st.textContent = on ? 'aan' : 'uit'; else btn.textContent = "Auto's: " + (on ? 'aan' : 'uit'); btn.classList.toggle('off', !on); };
     label();
     const list = [];
     let reckless = false, carSeq = 0, forceN = 0; const crashLog = [];
