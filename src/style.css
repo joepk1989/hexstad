@@ -770,3 +770,7 @@ body.walk .hud-top { justify-content: flex-end; }
   transform: scale(0.25); opacity: 0.1; animation: loadwave 1.5708s cubic-bezier(0.37, 0, 0.63, 1) infinite alternate; }
 @keyframes loadwave { from { transform: scale(0.25); opacity: 0.1; } to { transform: scale(1); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { #loadScr i { animation: none; transform: scale(0.6); opacity: 0.6; } }
+
+/* Altijd het hele scherm: de pagina schuift en zoomt niet (zoomen doe je in het spel zelf) */
+html { position: fixed; inset: 0; width: 100%; height: 100%; overflow: hidden; touch-action: manipulation; -webkit-text-size-adjust: 100%; }
+body { position: fixed; inset: 0; width: 100%; height: 100%; margin: 0; box-sizing: border-box; overflow: hidden; }

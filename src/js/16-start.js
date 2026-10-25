@@ -86,3 +86,5 @@
   }
   requestAnimationFrame(frame);
   requestAnimationFrame(() => requestAnimationFrame(() => { if (window.__loadDone) window.__loadDone(); }));   // het eerste beeld staat: laadscherm weg
+  for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });   // iOS: knijpen zoomt niet de pagina in
+  document.addEventListener('touchmove', e => { if (e.touches.length > 1 && !e.target.closest('#schetsApp, #mmApp, .sheet, .palette, .keys')) e.preventDefault(); }, { passive: false });
