@@ -231,6 +231,14 @@
   <symbol id="i-car" viewBox="0 0 24 24"><path d="M4 14l2-5.5h12L20 14"/><rect x="2.5" y="14" width="19" height="4.5" rx="1.5"/><path d="M6 18.5v2M18 18.5v2M6.5 16h1.5M16 16h1.5"/></symbol>
   <symbol id="i-link" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 13v6H5V6h6"/></symbol>
   <symbol id="i-go" viewBox="0 0 24 24"><path d="M6 4l13 8-13 8z"/></symbol>
+  <symbol id="i-tree" viewBox="0 0 24 24"><path d="M12 2.5l5 5.5h-2.5l3.5 4.5h-2.5l3 4H5.5l3-4H6l3.5-4.5H7z"/><path d="M12 16.5V21.5"/></symbol>
+  <symbol id="i-door" viewBox="0 0 24 24"><path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"/><path d="M3 21h18M9 21V9h6v12"/><circle cx="13.5" cy="15" r="0.8" fill="currentColor"/></symbol>
+  <symbol id="i-road" viewBox="0 0 24 24"><path d="M3 21L9 3h6l6 18"/><path d="M12 5v2.5M12 10.5v3M12 17v3"/></symbol>
+  <symbol id="i-mix" viewBox="0 0 24 24"><path d="M3 21h18M4 21V13h4v8M10 21V6h4v15M16 21v-11h4v11"/></symbol>
+  <symbol id="i-lively" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.2"/><path d="M9 21l1.5-7.5L8 11l4-3 4 3-2.5 2.5L15 21M8 11l-3 2M16 11l3 2"/></symbol>
+  <symbol id="i-water" viewBox="0 0 24 24"><path d="M3 8c2.5-2.5 4.5-2.5 7 0s4.5 2.5 7 0 4-2 4 0M3 13c2.5-2.5 4.5-2.5 7 0s4.5 2.5 7 0 4-2 4 0M3 18c2.5-2.5 4.5-2.5 7 0s4.5 2.5 7 0 4-2 4 0"/></symbol>
+  <symbol id="i-cohesion" viewBox="0 0 24 24"><path d="M8 4.5l3.5 2v4l-3.5 2-3.5-2v-4zM16 4.5l3.5 2v4l-3.5 2-3.5-2v-4zM12 11.5l3.5 2v4l-3.5 2-3.5-2v-4z"/></symbol>
+  <symbol id="i-tip" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.8.6 1.5 1.5 1.5 2.1h4c0-.6.7-1.5 1.5-2.1A6 6 0 0 0 12 3z"/></symbol>
   <symbol id="i-score" viewBox="0 0 24 24"><path d="M12 2.5l8.2 4.75v9.5L12 21.5l-8.2-4.75v-9.5z"/><path d="M12 7l1.5 3.2 3.5.4-2.6 2.4.7 3.5L12 14.8l-3.1 1.7.7-3.5L7 10.6l3.5-.4z"/></symbol>
 </defs></svg>
 <div class="sheet" id="sheet" hidden>
@@ -303,15 +311,15 @@
 </div>
 
 <div class="sheet" id="scoreSheet" hidden>
-  <div class="sheet-card" role="dialog" aria-labelledby="scoreTitle">
-    <h2 id="scoreTitle"><svg class="h-ico"><use href="#i-score"/></svg>Schoonheid</h2>
+  <div class="sheet-card menu" role="dialog" aria-labelledby="scoreTitle">
+    <div class="menu-head"><svg class="h-ico"><use href="#i-score"/></svg><h2 id="scoreTitle">Schoonheid</h2><button class="btn icon-btn" type="button" id="scoreClose" aria-label="Sluiten">✕</button></div>
     <div class="score-head">
-      <span class="score-big" id="scoreBig">–</span>
+      <span class="score-hex"><span class="score-big" id="scoreBig">–</span></span>
       <div><strong id="scoreLabel"></strong><p id="scorePop"></p></div>
     </div>
+    <p class="sheet-sub">Onderdelen</p>
     <div class="score-rows" id="scoreRows"></div>
-    <p class="score-tip" id="scoreTip"></p>
-    <button class="btn" type="button" id="scoreClose">Sluiten</button>
+    <div class="score-tip"><svg><use href="#i-tip"/></svg><p id="scoreTip"></p></div>
   </div>
 </div>
 

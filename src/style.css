@@ -286,17 +286,23 @@ body.walk .walk-hint { top: calc(env(safe-area-inset-top, 0px) + 140px); }
 .score.up { background: rgba(57, 224, 122, 0.25); border-color: rgba(57, 224, 122, 0.8); }
 .score.down { background: rgba(224, 87, 62, 0.25); border-color: rgba(224, 87, 62, 0.8); }
 .score-head { display: flex; align-items: center; gap: 14px; }
-.score-big { font-family: var(--font-display); font-weight: 800; font-size: 56px; line-height: 1; color: var(--signal); font-variant-numeric: tabular-nums; }
+.score-big { font-family: var(--font-display); font-weight: 800; font-size: 40px; line-height: 1; color: var(--signal); font-variant-numeric: tabular-nums; }
 .score-head strong { font-size: 17px; }
 .score-head p { margin: 2px 0 0 !important; font-size: 13px !important; }
-.score-rows { display: flex; flex-direction: column; gap: 8px; }
+.score-rows { display: flex; flex-direction: column; gap: 6px; }
+.srow { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); }
+.srow-ico { width: 24px; height: 24px; flex: none; margin-top: 1px; fill: none; stroke: var(--signal); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.srow-body { flex: 1; min-width: 0; }
+.score-hex { display: grid; place-items: center; width: 84px; height: 84px; flex: none; background: rgba(242, 178, 51, 0.14); clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
 .srow-top { display: flex; justify-content: space-between; font-size: 14px; font-weight: 700; }
 .srow-top b { font-variant-numeric: tabular-nums; }
 .srow small { display: block; margin-top: 3px; font-size: 12px; color: var(--ink-dim); }
 .bar { height: 6px; border-radius: 3px; background: rgba(238, 241, 236, 0.12); margin-top: 4px; overflow: hidden; }
 .bar i { display: block; height: 100%; border-radius: 3px; background: var(--signal); }
 .srow.na { opacity: 0.55; }
-.score-tip { margin: 2px 0 0 !important; padding: 10px 12px; border-radius: 12px; background: rgba(242, 178, 51, 0.1); color: var(--ink) !important; font-size: 13.5px !important; }
+.score-tip { display: flex; gap: 10px; align-items: flex-start; margin: 2px 0 0; padding: 10px 12px; border-radius: 12px; background: rgba(242, 178, 51, 0.1); }
+.score-tip svg { width: 22px; height: 22px; flex: none; fill: none; stroke: var(--signal); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.score-tip p { margin: 0 !important; color: var(--ink) !important; font-size: 13.5px !important; }
 .reckless {
   position: fixed; z-index: 5; left: var(--gutter-l);
   top: calc(env(safe-area-inset-top, 0px) + 74px); height: 38px; font-size: 13px;

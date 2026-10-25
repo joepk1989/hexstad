@@ -105,7 +105,8 @@
     if (beauty) for (const x of beauty.rows) {
       const d = document.createElement('div'); d.className = 'srow' + (x.v === null ? ' na' : '');
       const v = x.v === null ? null : Math.round(x.v * 100);
-      d.innerHTML = `<div class="srow-top"><span></span><b>${v === null ? '–' : v}</b></div><div class="bar"><i style="width:${v || 0}%"></i></div><small></small>`;
+      const ico = { Groen: 'tree', Bereikbaar: 'door', Wegennet: 'road', Afwisseling: 'mix', Levendig: 'lively', Water: 'water', Samenhang: 'cohesion' }[x.name] || 'hex';
+      d.innerHTML = `<svg class="srow-ico"><use href="#i-${ico}"/></svg><div class="srow-body"><div class="srow-top"><span></span><b>${v === null ? '–' : v}</b></div><div class="bar"><i style="width:${v || 0}%"></i></div><small></small></div>`;
       d.querySelector('span').textContent = x.name;
       d.querySelector('small').textContent = x.v === null ? x.detail + ' · telt niet mee' : x.detail;
       rowsEl.appendChild(d);
