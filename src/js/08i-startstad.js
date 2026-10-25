@@ -25,7 +25,8 @@
     const PARK = ['Park · plantsoen', 'Park · bankjes', 'Tuin · rozentuin', 'Grasveld · leeg', 'Park · plantsoen', 'Tuin · boomgaard'];
     // vaste plekken: vijver in het park, fontein en terras bij de rotonde, een kerk als blikvanger, speeltuin
     const spot = (name, x, z) => { const [q, r] = worldToCell(x, z); if (has(q, r)) return; mod(name, q, r); };
-    spot('Park · vijver', Math.cos(2.45) * 40, Math.sin(2.45) * 40);
+    { const [wq, wr] = worldToCell(Math.cos(2.45) * 40, Math.sin(2.45) * 40);   // een echte vijver: drie vakken water in het park
+      for (const [a, b] of [[0, 0], [1, 0], [0, 1]]) if (!has(wq + a, wr + b)) { set(wq + a, wr + b, ['water']); used.add(key(wq + a, wr + b)); } }
     spot('Plein · fontein', Math.cos(0.5) * 36, Math.sin(0.5) * 36);
     spot('Plein · terras', Math.cos(4.6) * 38, Math.sin(4.6) * 38);
     spot('Kerk · toren', Math.cos(5.6) * 52, Math.sin(5.6) * 52);
