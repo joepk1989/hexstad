@@ -245,7 +245,7 @@
     function hitPeople(c, dt, peds, lying, vx, vz) {
       const sp = Math.hypot(vx, vz);
       // de speler zelf (met een eigen lichaam): netjes rijdend verkeer raakt je niet op de stoep, een auto die je raakt laat je vallen
-      if (sp > 2.5 && mode === 'walk' && !player.down && player.y - baseOf_(c) < 0.2 && player.y - baseOf_(c) > -1 && inside(c, player.x, player.z, 0.15, 0.2)) people.hitPlayer(vx * 1.1, vz * 1.1);
+      if (sp > 2.5 && mode === 'walk' && !player.down && player.y - baseOf_(c) < (reckless ? 0.35 : 0.2) && player.y - baseOf_(c) > -1 && inside(c, player.x, player.z, 0.15, 0.2)) people.hitPlayer(vx * 1.1, vz * 1.1);
       for (const a of peds) {
         { const ly = lvlOf(a, c); if (ly >= (reckless ? 0.3 : 0.2) || ly < -1 || !inside(c, a.x, a.z, 0.15, 0.2)) continue; }   // netjes rijdend verkeer raakt niemand op de stoep
         if (sp > 2) { if (crashLog.length < 40) crashLog.push({ hit: 1, car: [+c.x.toFixed(1), +c.z.toFixed(1), +c.h.toFixed(2), c.eid, c.kind, +sp.toFixed(1), c.next && c.next.kind], ped: [+a.x.toFixed(1), +a.z.toFixed(1), +a.y.toFixed(2), a.node && a.node.key, a.wps.length, a.wps[0] && a.wps[0].map(v => +v.toFixed(1))] }); people.hit(a, vx * 1.1, vz * 1.1); sound.carHit(Math.min(1, (sp - 2) / 10), a.x, 0.8, a.z); sound.grunt(a.x, 0.9, a.z, Math.min(1, (sp - 2) / 10), a.kid ? 'k' : a.female ? 'v' : a.old ? 'o' : 'm'); }
@@ -357,7 +357,7 @@
       // meetpunten voor de simulatietest: auto's naast de weg, vastgelopen, ongeldige posities
       setForce(n) { forceN = n; carsDirty = true; },
       crashLog, toss,
-      peek: () => list.map(c => ({ type: c.type, x: c.x, z: c.z, h: c.h, v: c.v })),   // voor de tests
+      peek: () => list.map(c => ({ type: c.type, x: c.x, z: c.z, h: c.h, v: c.v, persona: c.persona, lat: c.latCur || 0, pass: c.passT > 0, dodge: c.dodgeT > 0, hunt: c.huntT > 0, crash: !!c.crash })),   // voor de tests
       // files: groepjes auto's die al een tijd stilstaan (voor de Hulk)
       jams() {
         const slow = list.filter(c => c.path && !c.crash && !c.fly && c.v < 0.4 && (c.still || 0) > 6), out = [], used = new Set();
@@ -418,7 +418,8 @@
           if (c.crash) { crashStep(c, dt, peds, lying); continue; }
           const ch = Math.cos(c.h), sh = Math.sin(c.h);
           // gewenste snelheid: 30 km/u, langzamer in bochten en bij het keren (roekeloos: 75 km/u en bochten op de rand)
-          let want = reckless ? 21 : ({ snel: 36.1, klink: 4.5, ring: 6.5 }[(VG.edges.get(c.eid) || {}).t] ?? 8.3); c.why = ''; c.yieldTo = -1;   // snelweg 130 km/u, klinkers stapvoets, rotonde rustig
+          if (reckless && !c.persona) { const u = Math.random(); c.persona = u < 0.35 ? 'racer' : u < 0.75 ? 'ontwijker' : 'jager'; }
+          let want = reckless ? ({ racer: 26, jager: 17 }[c.persona] || 20) : ({ snel: 36.1, klink: 4.5, ring: 6.5 }[(VG.edges.get(c.eid) || {}).t] ?? 8.3); c.why = ''; c.yieldTo = -1;   // snelweg 130 km/u, klinkers stapvoets, rotonde rustig
           { const lim = t => ({ snel: 36.1, klink: 4.5, ring: 6.5 }[t] ?? 8.3), vN = c.next ? Math.min(lim((VG.edges.get(c.next.eid) || {}).t), c.next.kind === 'turn' ? 5.5 : 99) : 99;   // van de snelweg af: op tijd afremmen tot de snelheid van wat komt
             if (vN < want) want = Math.min(want, Math.sqrt(vN * vN + 2 * 3.5 * Math.max(0, c.path.len - c.s))); }
           const [, , hAhead] = posOn(c, c.s + Math.max(7, c.v * 1.4));
@@ -474,7 +475,7 @@
           if (!(c.creepT > 0) && !(c.ghost > 0)) { for (const o of list) if (o !== c && Math.abs((o.sy ?? 0) - (c.sy ?? 0)) < 2) {
             // wie op mijn keerlus wacht, staat niet in de weg (anders wachten we op elkaar)
             if (keerT && o.next && o.next.q === c.q && o.next.r === c.r && o.next.outS === o.next.inS) continue;
-            const before = want; ahead(o.x, o.z, reckless ? 1.7 : 2.0, reckless ? 4.5 : 7, o);
+            const before = want; ahead(o.x, o.z, reckless ? (c.passT > 0 || c.dodgeT > 0 ? 1.1 : 1.7) : 2.0, reckless ? 4.5 : 7, o);
             // een auto die schuin staat (afslaan, wachten in de middenberm): ook de voor- en achterkant tellen
             if (straightNow) { const oc = Math.cos(o.h), os = Math.sin(o.h);
               ahead(o.x + oc * 2.1, o.z + os * 2.1, 1.25, reckless ? 2.6 : 4.2, o); ahead(o.x - oc * 2.1, o.z - os * 2.1, 1.25, reckless ? 2.6 : 4.2, o); }
@@ -551,6 +552,40 @@
           c.pwait = held ? 0 : c.v < 0.2 ? (c.pwait || 0) + dt : (c.v > 2 ? 0 : (c.pwait || 0));
           if (c.pwait > 10) c.pwait = 0;
           if (c.wait > 6) c.wait = 0;
+          // ---------- Roekeloos: drie soorten bestuurders ----------
+          // racer: scheurt en haalt in over de andere rijstrook; ontwijker: stuurt om auto's en mensen heen in plaats van te remmen;
+          // jager: kiest iemand op of naast de weg (ook jou) en stuurt erop af, desnoods over de stoep. Ze rijden allemaal een stukje naast
+          // hun rijlijn (latT: + is rechts); het stuur hieronder volgt die verschoven lijn.
+          if (reckless) {
+            let T = 0;
+            for (const k of ['passT', 'dodgeT', 'huntT', 'huntCool']) if (c[k] > 0) c[k] -= dt;
+            const rel = (x, z) => { const dx = x - c.x, dz = z - c.z; return [dx * ch + dz * sh, -dx * sh + dz * ch]; };
+            // inhalen: een tragere auto voor me op een recht stuk
+            const slow = c.why === 'ahead' && c.aheadOf && c.aheadOf.v !== undefined ? c.aheadOf : null;
+            if (slow && !(c.passT > 0) && c.persona !== 'jager' && straightNow && c.v > 3 && slow.v < c.v - 0.5) {
+              const [al, lat] = rel(slow.x, slow.z);
+              if (al > 3 && al < 26) { c.passT = 3.5; c.passSide = c.persona === 'racer' ? -1 : (lat > 0 ? -1 : 1); c.passOf = slow; if (sound.horn) sound.horn(c.x, c.z); }
+            }
+            if (c.passT > 0 && c.passOf) { const [al, lat] = rel(c.passOf.x, c.passOf.z); if (al > -7 && Math.abs(lat) < 4.5 && c.passT < 0.6) c.passT = 0.6; }   // pas terug als hij er voorbij is
+            if (c.passT > 0) { T = c.passSide * 2.7; want = Math.max(want, Math.min(c.v + 4, { racer: 26, jager: 17 }[c.persona] || 20)); }
+            // ontwijken: iemand of een stilstaande auto recht voor me
+            if (c.persona !== 'jager' && !(c.passT > 0)) {
+              for (const a of peds) { const ly = lvlOf(a, c); if (ly > 0.3 || ly < -1) continue; const [al, lat] = rel(a.x, a.z); if (al > 3 && al < 6 + c.v * 0.9 && Math.abs(lat) < 1.6) { c.dodgeT = 1.4; c.dodgeSide = lat > 0 ? -1 : 1; break; } }
+              if (c.why === 'ahead' && c.aheadOf && c.persona === 'ontwijker' && !(c.dodgeT > 0)) { const [al, lat] = rel(c.aheadOf.x, c.aheadOf.z); if (al > 3 && al < 14) { c.dodgeT = 1.6; c.dodgeSide = lat > 0 ? -1 : 1; } }
+              if (c.dodgeT > 0) T = c.dodgeSide * 2.4;
+            }
+            // jagen: het dichtstbijzijnde doelwit vóór de auto, binnen een kegel
+            if (c.persona === 'jager' && !(c.huntCool > 0)) {
+              let best = null, bs = 1e9;
+              const cand = peds.map(a => ({ x: a.x, z: a.z, ly: lvlOf(a, c) }));
+              if (mode === 'walk' && !player.down && player.y < 1.2) cand.push({ x: player.x, z: player.z, ly: player.y - baseOf_(c) });
+              for (const a of cand) { if (a.ly > 0.6 || a.ly < -1) continue; const [al, lat] = rel(a.x, a.z); if (al < 2.5 || al > 34 || Math.abs(lat) > 3 + al * 0.45) continue; const sc = al + Math.abs(lat) * 2; if (sc < bs) { bs = sc; best = [al, lat]; } }
+              if (best) { if (!(c.huntT > 0)) { c.huntT = 6; if (sound.horn) sound.horn(c.x, c.z); } T = Math.max(-4.5, Math.min(5.5, (c.latCur || 0) + best[1])); want = Math.max(want, Math.min(c.v + 5, 16)); }
+              if (c.huntT > 0 && c.huntT < 0.1) { c.huntCool = 5; c.huntT = 0; }   // na zes seconden even rustig verder
+            }
+            c.latT = T;
+            c.latCur = (c.latCur || 0) + (T - (c.latCur || 0)) * Math.min(1, dt * (c.persona === 'jager' ? 2.4 : 1.6));
+          } else c.latCur = 0;
           c.lastWant = want;
           c.v += Math.max(-(reckless ? 9 : 6) * dt, Math.min((reckless ? 7 : 2.5) * dt, want - c.v));
           c.v = Math.max(0, c.v);
@@ -596,7 +631,7 @@
           const eLat = -(mx2 - pcx) * Math.sin(hp) + (mz2 - pcz) * Math.cos(hp);   // + = rechts van de lijn
           let eHead = hp - c.h; eHead = Math.atan2(Math.sin(eHead), Math.cos(eHead));
           const dMax = c.v < 4 ? 0.95 : 0.7;   // stapvoets (keren) mag het stuur verder om
-          const dWant = Math.max(-dMax, Math.min(dMax, Math.atan(L2 * kap) + eHead + Math.atan(-1.6 * eLat / (1.5 + c.v))));
+          const dWant = Math.max(-dMax, Math.min(dMax, Math.atan(L2 * kap) + eHead + Math.atan(-1.6 * (eLat - (c.latCur || 0)) / (1.5 + c.v))));   // latCur: bewust naast de rijlijn (inhalen, ontwijken, jagen)
           c.delta += Math.max(-2.6 * dt, Math.min(2.6 * dt, dWant - c.delta));
           c.h += c.v / L2 * Math.tan(c.delta) * dt;
           c.rx += Math.cos(c.h) * c.v * dt; c.rz += Math.sin(c.h) * c.v * dt;
@@ -605,7 +640,7 @@
             const [px, pz, ph] = posOn(c, c.s - WB), e = (c.rx - px) * Math.cos(ph) + (c.rz - pz) * Math.sin(ph);
             c.s += Math.max(-0.5, Math.min(0.5, e)) * Math.min(1, dt * 3);
             // te ver van de rijlijn (na een botsing of een vreemde sprong): terugzetten
-            if (Math.hypot(c.rx - px, c.rz - pz) > 3) { c.rx = px; c.rz = pz; c.h = ph; }
+            if (Math.hypot(c.rx - px, c.rz - pz) > 3 + Math.abs(c.latCur || 0)) { c.rx = px; c.rz = pz; c.h = ph; }
           }
           c.x = c.rx + Math.cos(c.h) * WB; c.z = c.rz + Math.sin(c.h) * WB;
           c.steer = c.delta;
@@ -613,7 +648,7 @@
           if (c.onCurb) {   // stoeprand geraakt: wat snelheid kwijt en terug naar de rijlijn
             c.v *= 1 - Math.min(0.5, 1.2 * dt);
             const [px, pz] = posOn(c, c.s - WB);
-            c.rx += (px - c.rx) * Math.min(1, dt * 1.5); c.rz += (pz - c.rz) * Math.min(1, dt * 1.5);
+            if (Math.abs(c.latCur || 0) < 1) { c.rx += (px - c.rx) * Math.min(1, dt * 1.5); c.rz += (pz - c.rz) * Math.min(1, dt * 1.5); }   // bewust op de stoep (jagen, ontwijken): niet terugtrekken
           }
           }
           c.spin += Math.min(c.v / WR, SPIN_MAX) * dt;

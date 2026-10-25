@@ -267,6 +267,19 @@
         o.connect(g); g.connect(p); o.start(t0 + dtt); o.stop(t0 + dtt + 0.3);
       });
     }
+    // Claxon: twee lage, lichtvals tegen elkaar in gestemde tonen (inhalen in de roekeloze stand)
+    let lastHorn = 0;
+    function horn(x, z) {
+      if (ctx.currentTime - lastHorn < 0.8) return; lastHorn = ctx.currentTime;
+      const t0 = ctx.currentTime, p = ctx.createPanner(), f = ctx.createBiquadFilter(), len = 0.35 + Math.random() * 0.3;
+      Object.assign(p, { panningModel: 'equalpower', distanceModel: 'inverse', refDistance: 5, rolloffFactor: 1.4 });
+      placeAt(p, x, 0.8, z); f.type = 'lowpass'; f.frequency.value = 1800; f.connect(p); p.connect(master);
+      for (const fr of [392, 466]) {
+        const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sawtooth'; o.frequency.value = fr * (0.97 + Math.random() * 0.06);
+        g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.07, t0 + 0.02); g.gain.setValueAtTime(0.07, t0 + len); g.gain.exponentialRampToValueAtTime(0.0001, t0 + len + 0.06);
+        o.connect(g); g.connect(f); o.start(t0); o.stop(t0 + len + 0.08);
+      }
+    }
     function step(grass) {   // voetstap: kort ruisje, dof op gras, harder op klinkers
       const t0 = ctx.currentTime, src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
       src.buffer = noiseBuf; f.type = 'bandpass'; f.frequency.value = grass ? 380 : 1100 + Math.random() * 300; f.Q.value = grass ? 0.8 : 1.4;
@@ -332,6 +345,7 @@
         src.connect(f); f.connect(g); g.connect(master); src.start(t0, Math.random() * 2, len + 0.05);
       },
       chime(x, z) { if (on && ctx) chime(x, z); },
+      horn(x, z) { if (on && ctx) horn(x, z); },
       // Stemmen: brabbeltaal (zoals in Animal Crossing). Elke lettergreep is een korte toon door twee formantfilters
       // (klinker) met soms een ruisje ervoor (medeklinker); de toonhoogte zweeft per persoon en per zin. 'hi' = een kort
       // groetje dat omhoog gaat; anders een zin van dur seconden met woordpauzes. Zachter naarmate het verder weg is.
