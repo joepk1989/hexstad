@@ -41,6 +41,36 @@
     }
     const PAINT = ['#f2f3f5', '#e9ecef', '#1c1f24', '#2b2f36', '#9ea7b0', '#c9ced4', '#1f3c5c', '#5a1f2a', '#d8c9a8', '#2f4a3f'];
     const ACCENT = ['#ff2a3a', '#3ef0ff', '#ff3ec8', '#ffb23e', '#7dff6a', '#7a8cff'];
+    // ---------- Bloed (laag-poly: zeshoekige spatten, driehoekige druppels) ----------
+    // Wie wordt aangereden bloedt: spatten op het wegdek, een plas bij wie blijft liggen, vlekken op de auto en bloedige
+    // bandensporen. Aan/uit in de instellingen.
+    const GORE = { on: true, SC: 420, PC: 220 };
+    try { GORE.on = localStorage.getItem('hexstad-bloed') !== '0'; } catch (e) { }
+    const goreSplat = new THREE.InstancedMesh(new THREE.CircleGeometry(1, 6).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#ffffff', polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }), GORE.SC);
+    const gorePart = new THREE.InstancedMesh(new THREE.TetrahedronGeometry(0.13), new THREE.MeshBasicMaterial({ color: '#c4101e' }), GORE.PC);
+    { const w = new THREE.Color('#ffffff'); for (let i = 0; i < GORE.SC; i++) goreSplat.setColorAt(i, w); }   // eerst de kleurbuffer (hij krijgt de grootte van count), dan pas count 0
+    for (const m of [goreSplat, gorePart]) { m.frustumCulled = false; m.count = 0; m.userData.noOcc = true; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(m); }
+    const goreS = [], goreP = [], goreLater = []; let goreI = 0;   // spatten (ringbuffer), druppels, plassen die later komen
+    const GM = new THREE.Matrix4(), GQ = new THREE.Quaternion(), GV = new THREE.Vector3(), GS = new THREE.Vector3(), GY = new THREE.Vector3(0, 1, 0), GC = new THREE.Color();
+    function goreSplatAt(x, y, z, size, fresh) {
+      if (!GORE.on) return;
+      const o = { x, y: y + 0.035 + (goreI % 7) * 0.002, z, s: size, rot: Math.random() * 6.28, sx: 0.7 + Math.random() * 0.6, t: fresh ? 0 : 12 };
+      goreS[goreI % GORE.SC] = o; goreI++;
+    }
+    // bloed op de auto: per type drie plekken (voorbumper, motorkap, voorruit), gevonden met een straal op de echte carrosserie
+    const goreProbe = (geo, ox, oy, oz, dx, dy, dz) => { const mm = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })), rc = new THREE.Raycaster(new THREE.Vector3(ox, oy, oz), new THREE.Vector3(dx, dy, dz).normalize(), 0, 20), h = rc.intersectObject(mm)[0]; if (!h) return null; const n = h.face.normal.clone(); if (n.dot(rc.ray.direction) > 0) n.negate(); return { p: h.point, n }; };
+    for (const t of LP_TYPES) {
+      const G = lpBuildVehicle(t); G.body.computeBoundingBox(); const bb = G.body.boundingBox, L = LPM[t]; L.blood = [];
+      const spots = [
+        goreProbe(G.body, bb.max.x + 2, bb.min.y + (bb.max.y - bb.min.y) * 0.35, 0.18, -1, 0, 0),
+        goreProbe(G.body, bb.max.x * 0.55, bb.max.y + 2, -0.22, 0, -1, 0),
+        goreProbe(G.glass || G.body, bb.max.x * 0.12, bb.max.y + 2, 0.2, 0, -1, 0)];
+      spots.forEach((sp, li) => {
+        if (!sp) { L.blood.push(null); return; }
+        const geo = new THREE.CircleGeometry([0.3, 0.38, 0.34][li], 6); GM.compose(sp.p.clone().addScaledVector(sp.n, 0.02), GQ.setFromUnitVectors(new THREE.Vector3(0, 0, 1), sp.n), new THREE.Vector3(1.2, 0.8, 1)); geo.applyMatrix4(GM);
+        const m = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ color: '#8d0f18', side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), CAP); m.frustumCulled = false; m.count = 0; m.visible = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.userData.noOcc = true; scene.add(m); L.blood.push(m);
+      });
+    }
     let on = true;
     try { on = localStorage.getItem('hexstad-autos') !== '0'; } catch (e) {}
     const btn = document.getElementById('carsBtn');
@@ -209,8 +239,36 @@
       }
       dt = keepDt;
     }
+    // iemand wordt geraakt: druppels, spatten op de grond, bloed op de auto, een plas als hij blijft liggen
+    function gore(c, a, vx, vz, sp) {
+      if (!GORE.on) return;
+      const px = a.x, pz = a.z, py = (a.y || 0), k = Math.min(1, sp / 10), dl = Math.hypot(vx, vz) || 1, dx = vx / dl, dz = vz / dl;
+      c.blood = Math.min(3, (c.blood || 0) + 1); c.bloodTrail = 6 + 4 * k;
+      for (let i = 0; i < 10 + k * 12; i++) goreP.push({ x: px, y: py + 0.9, z: pz, vx: dx * (2 + Math.random() * 6 * (0.4 + k)) + (Math.random() - 0.5) * 3, vy: 1.5 + Math.random() * 4, vz: dz * (2 + Math.random() * 6 * (0.4 + k)) + (Math.random() - 0.5) * 3, t: 0, s: 0.6 + Math.random() * 0.8, g: py });
+      if (goreP.length > GORE.PC) goreP.splice(0, goreP.length - GORE.PC);
+      for (let i = 0; i < 3; i++) goreSplatAt(px + dx * (0.3 + i * 0.7) + (Math.random() - 0.5) * 0.6, py, pz + dz * (0.3 + i * 0.7) + (Math.random() - 0.5) * 0.6, 0.35 + Math.random() * 0.45, true);
+      goreLater.push({ a, t: 1.1 });   // een plas onder wie blijft liggen
+    }
+    function goreTick(dt) {
+      for (let i = goreLater.length - 1; i >= 0; i--) { const q = goreLater[i]; q.t -= dt; if (q.t > 0) continue; goreLater.splice(i, 1); const a = q.a, pr = a.rag && a.rag.p; const x = pr ? pr[6] : a.x, z = pr ? pr[8] : a.z; goreSplatAt(x, a.y || 0, z, 0.9 + Math.random() * 0.5, true); goreSplatAt(x + (Math.random() - 0.5) * 1.2, a.y || 0, z + (Math.random() - 0.5) * 1.2, 0.4 + Math.random() * 0.3, true); }
+      for (let i = goreP.length - 1; i >= 0; i--) { const q = goreP[i]; q.t += dt; q.vy -= 14 * dt; q.x += q.vx * dt; q.y += q.vy * dt; q.z += q.vz * dt; if (q.y <= q.g + 0.04 || q.t > 1.5) { if (q.t < 1.5 && goreI % 2 === 0) goreSplatAt(q.x, q.g, q.z, 0.12 + q.s * 0.14, true); goreP.splice(i, 1); } }
+    }
+    function goreRender() {
+      let n = 0; const now = performance.now() / 1000;
+      for (let i = 0; i < GORE.SC; i++) {
+        const o = goreS[i]; if (!o) continue;
+        if (o.t0 === undefined) o.t0 = now - o.t;
+        const age = now - o.t0, fade = age > 150 ? Math.max(0, 1 - (age - 150) / 30) : 1; if (!fade) continue;
+        GQ.setFromAxisAngle(GY, o.rot); GM.compose(GV.set(o.x, o.y, o.z), GQ, GS.set(o.s * o.sx * fade, 1, o.s * fade));
+        goreSplat.setMatrixAt(n, GM); goreSplat.setColorAt(n, GC.set('#b3101c').lerp(GC2.set('#4a0b11'), Math.min(1, age / 45))); n++;
+      }
+      goreSplat.count = n; goreSplat.instanceMatrix.needsUpdate = true; if (goreSplat.instanceColor) goreSplat.instanceColor.needsUpdate = true;
+      gorePart.count = goreP.length; goreP.forEach((q, i) => { GM.makeRotationFromEuler(GE.set(q.t * 9, q.t * 7, 0)).setPosition(q.x, q.y, q.z); GM.scale(GS.set(q.s, q.s, q.s)); gorePart.setMatrixAt(i, GM); }); gorePart.instanceMatrix.needsUpdate = true;
+    }
+    const GC2 = new THREE.Color(), GE = new THREE.Euler();
     function render() {
-      const all = list, cnt = {}; for (const t of LP_TYPES) cnt[t] = 0;
+      goreRender();
+      const all = list, cnt = {}, bcnt = {}; for (const t of LP_TYPES) { cnt[t] = 0; bcnt[t] = [0, 0, 0]; }
       all.forEach((c, i) => {
         // model wijst langs +x; eerst kantelen (rollen, stampen), dan draaien, dan op de vering zetten
         M.makeRotationY(-c.h).multiply(Q.makeRotationZ(c.pitch || 0)).multiply(Q.makeRotationX(c.roll || 0)).setPosition(c.x, c.sy ?? ASPH_H, c.z);
@@ -218,6 +276,11 @@
         L.body.setMatrixAt(ti, M); col.set(c.paint); L.body.setColorAt(ti, col);
         for (const k of ['glass', 'trim', 'lamp']) if (L[k]) L[k].setMatrixAt(ti, M);
         if (L.glow) { L.glow.setMatrixAt(ti, M); col.set(c.accent); L.glow.setColorAt(ti, col); }
+        if (L.blood && c.blood) { for (let k = 0; k < Math.min(3, c.blood); k++) { const bm = L.blood[k]; if (bm) { bm.setMatrixAt(bcnt[ty][k]++, M); } } }
+        if (c.bloodTrail > 0 && GORE.on && !c.fly && Math.hypot(c.x - (c.btx ?? 1e9), c.z - (c.btz ?? 1e9)) > 1.4) {   // bloedige bandensporen
+          if (c.btx !== undefined) for (const j2 of [2, 3]) { const [wx2, wz2] = WHEELS[j2], [bx, bz] = wheelWorld(c, wx2, wz2); goreSplatAt(bx, c.g ? c.g[j2] : ASPH_H, bz, 0.28, true); }
+          c.btx = c.x; c.btz = c.z; c.bloodTrail -= 0.5;
+        }
         WHEELS.forEach(([wx, wz], j) => {
           // wielen staan op hun eigen stukje grond, los van de kanteling van de carrosserie
           const [wxW, wzW] = wheelWorld(c, wx, wz);
@@ -234,7 +297,8 @@
           col.set(c.accent); meshes.hub.setColorAt(i * 8 + j * 2, col); meshes.hub.setColorAt(i * 8 + j * 2 + 1, col);
         });
       });
-      for (const t of LP_TYPES) { const L = LPM[t]; for (const m of [L.body, L.glass, L.trim, L.glow, L.lamp]) if (m) { m.count = cnt[t]; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; } }
+      for (const t of LP_TYPES) { const L = LPM[t]; (L.blood || []).forEach((bm, k) => { if (!bm) return; bm.count = bcnt[t][k]; bm.visible = bcnt[t][k] > 0; bm.instanceMatrix.needsUpdate = true; });
+        for (const m of [L.body, L.glass, L.trim, L.glow, L.lamp]) if (m) { m.count = cnt[t]; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; } }
       for (const [k, pd] of Object.entries(PARTS)) {
         const m = meshes[k]; m.count = all.length * pd.per; m.instanceMatrix.needsUpdate = true;
         if (m.instanceColor) m.instanceColor.needsUpdate = true;
@@ -245,10 +309,10 @@
     function hitPeople(c, dt, peds, lying, vx, vz) {
       const sp = Math.hypot(vx, vz);
       // de speler zelf (met een eigen lichaam): netjes rijdend verkeer raakt je niet op de stoep, een auto die je raakt laat je vallen
-      if (sp > 2.5 && mode === 'walk' && !player.down && player.y - baseOf_(c) < (reckless ? 0.35 : 0.2) && player.y - baseOf_(c) > -1 && inside(c, player.x, player.z, 0.15, 0.2)) people.hitPlayer(vx * 1.1, vz * 1.1);
+      if (sp > 2.5 && mode === 'walk' && !player.down && player.y - baseOf_(c) < (reckless ? 0.35 : 0.2) && player.y - baseOf_(c) > -1 && inside(c, player.x, player.z, 0.15, 0.2)) { people.hitPlayer(vx * 1.1, vz * 1.1); gore(c, { x: player.x, y: player.y, z: player.z }, vx, vz, sp); }
       for (const a of peds) {
         { const ly = lvlOf(a, c); if (ly >= (reckless ? 0.3 : 0.2) || ly < -1 || !inside(c, a.x, a.z, 0.15, 0.2)) continue; }   // netjes rijdend verkeer raakt niemand op de stoep
-        if (sp > 2) { if (crashLog.length < 40) crashLog.push({ hit: 1, car: [+c.x.toFixed(1), +c.z.toFixed(1), +c.h.toFixed(2), c.eid, c.kind, +sp.toFixed(1), c.next && c.next.kind], ped: [+a.x.toFixed(1), +a.z.toFixed(1), +a.y.toFixed(2), a.node && a.node.key, a.wps.length, a.wps[0] && a.wps[0].map(v => +v.toFixed(1))] }); people.hit(a, vx * 1.1, vz * 1.1); sound.carHit(Math.min(1, (sp - 2) / 10), a.x, 0.8, a.z); sound.grunt(a.x, 0.9, a.z, Math.min(1, (sp - 2) / 10), a.kid ? 'k' : a.female ? 'v' : a.old ? 'o' : 'm'); }
+        if (sp > 2) { if (crashLog.length < 40) crashLog.push({ hit: 1, car: [+c.x.toFixed(1), +c.z.toFixed(1), +c.h.toFixed(2), c.eid, c.kind, +sp.toFixed(1), c.next && c.next.kind], ped: [+a.x.toFixed(1), +a.z.toFixed(1), +a.y.toFixed(2), a.node && a.node.key, a.wps.length, a.wps[0] && a.wps[0].map(v => +v.toFixed(1))] }); people.hit(a, vx * 1.1, vz * 1.1); gore(c, a, vx, vz, sp); sound.carHit(Math.min(1, (sp - 2) / 10), a.x, 0.8, a.z); sound.grunt(a.x, 0.9, a.z, Math.min(1, (sp - 2) / 10), a.kid ? 'k' : a.female ? 'v' : a.old ? 'o' : 'm'); }
         else {   // stapvoets: mensen worden zacht opzij geschoven
           const dx = a.x - c.x, dz = a.z - c.z, lat = -dx * Math.sin(c.h) + dz * Math.cos(c.h), sgn = lat >= 0 ? 1 : -1;
           a.x += -Math.sin(c.h) * sgn * dt * 1.5; a.z += Math.cos(c.h) * sgn * dt * 1.5;
@@ -317,7 +381,7 @@
         sound.impact(1, c.x, 0.6, c.z, false); sound.carHit(0.8, c.x, 0.7, c.z, true);
         c.fly = null; c.roll = Math.round((c.roll || 0) / Math.PI) * Math.PI; c.pitch = 0; c.sy = F.g0 + (Math.abs(Math.cos(c.roll)) < 0.5 ? 0.5 : Math.abs(Math.round(c.roll / Math.PI)) % 2 ? 0.9 : 0);
         c.crash = { t: 9, still: 0 }; c.cvx = F.vx * 0.3; c.cvz = F.vz * 0.3; c.w = 0;
-        if (typeof people !== 'undefined') for (const a of people.agents) if ((a.state === 'walk' || a.state === 'pause') && Math.hypot(a.x - c.x, a.z - c.z) < 3.5) people.hit(a, F.vx * 0.5, F.vz * 0.5);
+        if (typeof people !== 'undefined') for (const a of people.agents) if ((a.state === 'walk' || a.state === 'pause') && Math.hypot(a.x - c.x, a.z - c.z) < 3.5) { people.hit(a, F.vx * 0.5, F.vz * 0.5); gore(c, a, F.vx, F.vz, 8); }
       }
     }
     function crashStep(c, dt, peds, lying) {
@@ -384,6 +448,10 @@
       list,
       get on() { return on; },
       get reckless() { return reckless; },
+      get gore() { return GORE.on; },
+      setGore(v) { GORE.on = !!v; try { localStorage.setItem('hexstad-bloed', v ? '1' : '0'); } catch (e) { } if (!v) { goreS.length = 0; goreP.length = 0; for (const c of list) { c.blood = 0; c.bloodTrail = 0; } } },
+      goreTest: () => ({ splats: goreS.filter(Boolean).length, parts: goreP.length, bloody: list.filter(c => c.blood).length }),
+      goreAt: (c, a, vx, vz, sp) => gore(c, a, vx, vz, sp),
       setReckless(v) {
         reckless = v;
         // Weer netjes: wie nog na een botsing ergens dwars staat, over een ander heen staat of van zijn rijstrook is
@@ -407,6 +475,7 @@
         return false;
       },
       update(dt) {
+        goreTick(Math.min(dt, 0.1));
         if (carsDirty) { carsDirty = false; rebuild(); }
         if (!list.length) { render(); return; }   // alleen geparkeerde auto's
         dt = Math.min(dt, 0.1);
