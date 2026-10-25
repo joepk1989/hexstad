@@ -235,9 +235,9 @@ body.walk .walk-hint { top: calc(env(safe-area-inset-top, 0px) + 140px); }
 .sheet {
   position: fixed; inset: 0; z-index: 10;
   background: rgba(10, 14, 18, 0.5);
-  display: grid; place-items: end center;
+  display: grid; place-items: center;
   padding-left: var(--gutter-l); padding-right: var(--gutter-r);
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  padding-top: calc(env(safe-area-inset-top, 0px) + 12px); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
 }
 .sheet-card {
   width: min(420px, 100%);
