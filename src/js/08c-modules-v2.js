@@ -102,10 +102,12 @@
   // opts.stacked: de module staat op een andere module (begane grond krijgt een plafond eronder en geen maaiveld-
   // details); opts.roofMask(x, z): daar staat een module op, dus daar geen dakvloer (een glazen lichtkap verdwijnt
   // zodra er iets op het vak staat, de dakbedekking alleen onder de vloer van de module erboven)
+  const OFF_ROAD = new Set(['tree', 'bush', 'bench', 'bin', 'table', 'bike', 'planter']);
+  const onRoadNow = (x, z) => typeof roadTop === 'function' && roadTop(x, z, 0) !== null;
   function mv2Build(m, tf, origin = [0, 0], opts = {}) {
     mv2Fix(m);
     const Mt = mv2Mats(), ts = mv2Ts(m), LH = MV2.LV_H, bags = new Map(), group = new THREE.Group(), surfaces = [], walls = [];
-    const nLv = m.lv.length, stacked = !!opts.stacked, roofLi = m.lv.length > 1 && modRoofOnly(m) ? m.lv.length - 1 : -1, mask = opts.roofMask || null;
+    const cand = [], nLv = m.lv.length, stacked = !!opts.stacked, roofLi = m.lv.length > 1 && modRoofOnly(m) ? m.lv.length - 1 : -1, mask = opts.roofMask || null;
     const put = (mat, g) => { let L = bags.get(mat); if (!L) bags.set(mat, L = []); L.push(g); };
     const tfp = p => tf(p[0], p[1]);
     // doos tussen twee punten a en b (op de grond), dik t, van y0 tot y1; off schuift hem dwars
@@ -285,6 +287,7 @@
           if (O.t === 'tree') O = Object.assign({}, O, { t: opts.roofStyle === 'hall' ? 'fountain' : 'planter' });
         }
         const W = tf(O.x, O.z), W2 = tf(O.x + Math.cos(O.rot || 0), O.z + Math.sin(O.rot || 0)), ang = Math.atan2(-(W2[1] - W[1]), W2[0] - W[0]);
+        if ((opts.baseLv || 0) + li === 0 && OFF_ROAD.has(O.t)) { cand.push([W[0], W[1]]); if (opts.offRoad && opts.offRoad(W[0], W[1])) continue; }   // bomen, struiken en bankjes nooit op een weg of stoep
         const place = (mat, g) => { g.rotateY(ang); g.translate(W[0], y0, W[1]); put(mat, g); };
         const box = (mat, sx, sy, sz, x, y, z) => place(mat, new THREE.BoxGeometry(sx, sy, sz).translate(x, y, z));
         const col = (mat, rt, rb, h, x, y, z, n = 8) => place(mat, new THREE.CylinderGeometry(rt, rb, h, n).translate(x, y + h / 2, z));
@@ -314,7 +317,7 @@
       }
     }
     for (const [mat, list] of bags) { const mesh = new THREE.Mesh(mergeGeos(list), mat); mesh.castShadow = true; mesh.receiveShadow = true; mesh.userData.own = true; group.add(mesh); }
-    return { group, surfaces, walls, doors: doorsOut };
+    return { group, surfaces, walls, doors: doorsOut, cand };
   }
   // ---------- In de stad ----------
   const mv2Tf = (rot, q0, r0) => { const th = -rot * Math.PI / 3, c = Math.cos(th), s = Math.sin(th), o = cellToWorld(q0, r0); return (x, z) => [o.x + x * c - z * s, o.z + x * s + z * c]; };
@@ -383,10 +386,11 @@
     for (const I of live) {
       const cov = instCover(I), skip = skips.get(I) || new Set(), sig = cov.sig + '#' + [...skip].sort().join(';');
       let e = modGroups.get(I);
+      if (e && e.cand && e.sig === sig && e.off !== e.cand.map(c => onRoadNow(c[0], c[1]) ? 1 : 0).join('')) e.sig = '';   // er ligt nu een weg onder een boom of bankje (of juist niet meer)
       if (e && e.sig === sig) { /* ongewijzigd */ } else {
         if (e) { e.group.traverse(o => { if (o.isMesh && o.userData.own) o.geometry.dispose(); }); scene.remove(e.group); }
-        const o = cellToWorld(I.q, I.r), G = gH(I.q, I.r) + instLv(I) * MV2.LV_H, b = mv2Build(I.m, mv2Tf(I.rot, I.q, I.r), [o.x, o.z], { stacked: instLv(I) > 0, roofMask: cov.mask, roofStyle: cov.style, skip, baseLv: instLv(I) });
-        b.group.position.y += G; b.group.userData.inst = I; doors.clear(I); for (const d of b.doors) { d.y += G; doors.add(I, d); } e = { group: b.group, col: shiftCol({ surfaces: b.surfaces, walls: b.walls }, G), sig, roofed: !!cov.mask, mask: cov.mask, skip, style: cov.style }; scene.add(e.group); modGroups.set(I, e); touched = true;
+        const o = cellToWorld(I.q, I.r), G = gH(I.q, I.r) + instLv(I) * MV2.LV_H, b = mv2Build(I.m, mv2Tf(I.rot, I.q, I.r), [o.x, o.z], { stacked: instLv(I) > 0, roofMask: cov.mask, roofStyle: cov.style, skip, baseLv: instLv(I), offRoad: onRoadNow });
+        b.group.position.y += G; b.group.userData.inst = I; doors.clear(I); for (const d of b.doors) { d.y += G; doors.add(I, d); } e = { cand: b.cand, off: b.cand.map(c => onRoadNow(c[0], c[1]) ? 1 : 0).join(''), group: b.group, col: shiftCol({ surfaces: b.surfaces, walls: b.walls }, G), sig, roofed: !!cov.mask, mask: cov.mask, skip, style: cov.style }; scene.add(e.group); modGroups.set(I, e); touched = true;
       }
       e.col.tag = (I.m.name || '') + ' @' + I.q + ',' + I.r + ' lv' + instLv(I) + ' rot' + I.rot + (I.mir ? ' mir' : '');
       for (const [q, r] of mv2Area(I)) { const k = q + ',' + r; if (!instLv(I)) modCellSet.add(k); let L = modCols.get(k); if (!L) modCols.set(k, L = []); L.push(e.col); }

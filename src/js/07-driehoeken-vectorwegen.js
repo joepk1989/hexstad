@@ -627,6 +627,7 @@
     vecLightReg = []; pathGroup = pathBuild(cells.paths, vecLightReg, quick); scene.add(pathGroup); carsDirty = true; vecDirty = true;
     if (!quick) { peopleDirty = true; peopleLocalEdit = true; }   // een weg erbij of weg: de voetgangers blijven waar ze zijn (alleen wie zijn plek kwijt is, begint opnieuw); tijdens het slepen helemaal niets
     if (!quick) roadCols = pathGroup.userData.col || new Map();
+    if (!quick) setTimeout(() => { try { if (typeof buildModNet === 'function' && modGroups.size) buildModNet(); } catch (e) {} }, 0);   // bomen op een nieuwe weg verdwijnen
     vecCover = vecCoverOf(cells.paths);
     if (!quick) terrRoadsChanged();   // het maaiveld langs de wegen sluit aan op de weg
     // (geen zandkleurige zeshoeken meer onder de weg: de rand van de weg volgt de weg zelf, niet het raster)
