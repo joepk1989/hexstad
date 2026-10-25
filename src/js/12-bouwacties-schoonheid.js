@@ -14,69 +14,148 @@
   // Een score van 0 tot 100 uit zes dingen die een stad mooi maken: groen, bereikbaarheid, een logisch
   // wegennet, afwisseling, water en samenhang (geen gaten of losse blokken).
   const clamp01 = x => Math.max(0, Math.min(1, x));
+  // Wat een module is, uit zijn naam en inhoud (een keer per exemplaar berekend): oppervlak in vakken, groen- en waterdeel
+  // van de vloer, bomen, verdiepingen en soort. De naam is 'Soort · materiaal · 2L' en de categorie Wonen, Winkels, Werken, ...
+  const modStatCache = new WeakMap();
+  function modStat(I) {
+    let S = modStatCache.get(I.m); if (S) return S;
+    const M = modMeta(I.m), L0 = I.m.lv[0], f = Object.values(L0.f || {}).map(v => typeof v === 'string' ? v : v && v.m), nf = Math.max(1, f.length);
+    const grass = f.filter(v => v === 'grass').length / nf, wat = f.filter(v => v === 'water').length / nf;
+    let trees = 0, furn = 0; for (const L of I.m.lv) for (const o of L.o || []) { if (o.t === 'tree' || o.t === 'bush') trees++; else if (o.t !== 'lamp' && o.t !== 'bin') furn++; }
+    const cat = I.m.cat || '', fam = String(I.m.name || '').split(' · ')[0];
+    S = { n: M.n, fl: M.fl, bouw: M.bouw, deur: M.deur, cat, fam, grass, wat, trees, furn, kind: cat + ':' + fam + ':' + (String(I.m.name || '').split(' · ')[1] || '') };
+    modStatCache.set(I.m, S); return S;
+  }
+  // inwoners en werkplekken: 1 verdieping woonmodule = 1 woonblok; winkels, horeca en openbaar tellen voor een half kantoor
+  function modPeople() {
+    let homes = 0, offices = 0;
+    for (const I of cells.inst || []) { if (I.m.v !== 2) continue; const S = modStat(I); if (!S.bouw) continue; if (S.cat === 'Wonen') homes += S.fl; else if (S.cat === 'Werken') offices += S.fl; else if (S.cat === 'Winkels' || S.cat === 'Openbaar') offices += S.fl * 0.5; }
+    return { homes, offices };
+  }
   function cityBeauty() {
-    const N = cells.size;
-    if (N < 5) return null;
+    const mods = (cells.inst || []).filter(I => I.m && I.m.v === 2 && Number.isInteger(I.q) && Number.isInteger(I.r));
+    // bezette vakken: oude blokken, modules en vakken van getekende wegen
+    const occ = new Set(cells.keys()), modKeys = new Set();
+    for (const I of mods) for (const [q, r] of mv2Area(I)) { occ.add(key(q, r)); modKeys.add(key(q, r)); }
+    for (const k of vecCover) occ.add(k);
+    const N = occ.size;
+    if (cells.size + mods.length < 5) return null;
     let roads = 0, parks = 0, water = 0, bridges = 0, laan = 0, padsGround = 0, deadEnds = 0, isolated = 0, bld = 0, bldOK = 0, roofGreen = 0, holes = 0, loose = 0, pedSpots = 0;
-    const types = new Set(), heights = new Set(), seen = new Set();
+    let homes = 0, dests = 0;
+    const greenAt = new Map(), built = new Set(vecCover);   // groen per vak; vakken met gebouw of weg
+    const kinds = new Set(), heights = new Set(), seen = new Set(), waterKeys = new Set();
     for (const [k, st] of cells) {
       const [q, r] = k.split(',').map(Number), b0 = baseOf(st[0]);
       let h = 0, hasB = false;
       st.forEach((t, i) => {
-        const b = baseOf(t); types.add(b);
+        const b = baseOf(t); kinds.add('b:' + b);
         if (i > 0 && b === 'park') roofGreen++;
         if (isBuilding(b) && (i === 0 || !isBuilding(baseOf(st[i - 1])))) {
-          bld++;
+          bld++; if (b === 'woning') homes++; else dests++;
           if (NEIGH.some(([dq, dr]) => walkableAtLevel(q + dq, r + dr, h) === 2)) bldOK++;
         }
         if (isBuilding(b)) hasB = true;
         h += TY(t).h;
       });
       if (hasB) heights.add(Math.round(h / 3));
-      if (b0 === 'park') parks++;
-      if (b0 === 'water') water++;
+      if (b0 === 'park') { parks++; greenAt.set(k, 1); }
+      if (hasB) built.add(k);
+      if (b0 === 'water') { water++; waterKeys.add(k); }
       if (b0 === 'pad') padsGround++;
       for (const t of st) if (['pad', 'hof', 'trap', 'zuilen', 'looppad', 'trappad', 'tribune', 'hofhelling', 'helling', 'tunnel'].includes(baseOf(t))) pedSpots++;
-      let nb = 0;
+    }
+    // modules: gebouwen (met bereikbaarheid via de ingangsknopen), groen, water en plekken voor voetgangers
+    const doorOK = new Map();   // module-nummer → heeft een ingang die op een stoep of straat uitkomt
+    try {
+      for (const n of people.graph().values()) if (n.kind.b === 'mdoor') {
+        const m = /^md(\d+):/.exec(n.key); if (!m) continue;
+        let ok = false; for (const e of n.edges.values()) if (e.vecDoor) ok = true;
+        if (!ok && n.kind.outside) ok = roadTop(n.kind.outside[0], n.kind.outside[1]) != null;
+        if (ok) doorOK.set(+m[1], true);
+      }
+    } catch (e) { }
+    (cells.inst || []).forEach((I, ii) => {
+      if (!I.m || I.m.v !== 2) return;
+      const S = modStat(I); kinds.add('m:' + S.kind);
+      if (S.bouw) {
+        bld++; if (doorOK.get(ii)) bldOK++;
+        for (const [q, r] of mv2Area(I)) built.add(key(q, r));
+        if (S.cat === 'Wonen') homes++; else dests++;
+        heights.add(S.fl);
+      } else {
+        // een open module: groen (gras en bomen), water of een plek om te zijn
+        const gr = clamp01(S.grass * 0.8 + Math.min(1, S.trees / (S.n * 3)) * 0.4);
+        const gv = S.cat === 'Groen' ? gr : gr * 0.5; if (gv > 0) for (const [q, r] of mv2Area(I)) greenAt.set(key(q, r), Math.max(greenAt.get(key(q, r)) || 0, gv));
+        if (S.wat > 0.3) { water += S.n * S.wat; for (const [q, r] of mv2Area(I)) waterKeys.add(key(q, r)); }
+        if (S.cat === 'Pleinen' || S.cat === 'Verbindingen' || S.cat === 'Openbaar' || S.furn >= 3) pedSpots += S.n;
+        else if (S.cat === 'Groen' && S.furn) pedSpots += S.n * 0.5;
+      }
+    });
+    // lege gaten (leeg vak met minstens vier bezette buren) en losse blokken (zonder buren)
+    for (const k of occ) {
+      if (vecCover.has(k) && !cells.has(k) && !modKeys.has(k)) continue;
+      const [q, r] = k.split(',').map(Number); let nb = 0;
       for (const [dq, dr] of NEIGH) {
         const k2 = key(q + dq, r + dr);
-        if (cells.has(k2)) { nb++; continue; }
+        if (occ.has(k2)) { nb++; continue; }
         if (seen.has(k2)) continue;
         seen.add(k2);
-        let c = 0; for (const [eq, er] of NEIGH) if (cells.has(key(q + dq + eq, r + dr + er))) c++;
+        let c = 0; for (const [eq, er] of NEIGH) if (occ.has(key(q + dq + eq, r + dr + er))) c++;
         if (c >= 4) holes++;
       }
       if (!nb) loose++;
     }
-    // wegen: het getekende net. Een laan telt als groen (bomen op de middenberm); doodlopend = knoop met één tak
-    { const G = cars.vecGraph(); roads = Math.round(G.totalLen / 15.6); for (const e of G.edges.values()) if (e.t === 'laan') laan += Math.round(e.len / 15.6); for (const n of G.nodes) if (n.edges.length === 1) deadEnds++; isolated = G.nodes.filter(n => n.edges.length === 1 && G.nodes[G.edges.get(n.edges[0]).a === G.nodes.indexOf(n) ? G.edges.get(n.edges[0]).b : G.edges.get(n.edges[0]).a].edges.length === 1).length / 2 | 0; }
-    const green = parks + roofGreen + laan * 0.5 + padsGround * 0.3, roadShare = roads / Math.max(N, roads + 1);
+    // wegen: het getekende net. Een laan telt als groen (bomen op de middenberm); doodlopend = knoop met één tak; een brug = weg over water
+    { const G = cars.vecGraph(); roads = Math.round(G.totalLen / 15.6);
+      for (const e of G.edges.values()) { if (e.t === 'laan') laan += Math.round(e.len / 15.6); }
+      for (const n of G.nodes) if (n.edges.length === 1) deadEnds++;
+      isolated = G.nodes.filter(n => n.edges.length === 1 && G.nodes[G.edges.get(n.edges[0]).a === G.nodes.indexOf(n) ? G.edges.get(n.edges[0]).b : G.edges.get(n.edges[0]).a].edges.length === 1).length / 2 | 0;
+      if (waterKeys.size) for (const e of G.edges.values()) {
+        const pts = e.pts || e.p || null; if (!pts || e.t === 'pad') continue;
+        for (const P of pts) { const c = worldToCell(P[0], P[1]); if (c && waterKeys.has(key(c.q, c.r))) { bridges++; break; } }
+      } }
+    // groen telt alleen in de bebouwde kom: vakken binnen één vak van een gebouw of weg (een bos ver erbuiten telt niet mee)
+    let core = new Set(built);
+    for (let it = 0; it < 1; it++) { const nx = new Set(core); for (const k of core) { const [q, r] = k.split(',').map(Number); for (const [dq, dr] of NEIGH) nx.add(key(q + dq, r + dr)); } core = nx; }
+    let coreN = 0, greenMod = 0; for (const k of occ) if (core.has(k)) coreN++;
+    for (const [k, v] of greenAt) if (core.has(k)) greenMod += v;
+    const total = Math.max(1, N), cn = Math.max(1, coreN);
+    const green = greenMod + roofGreen + laan * 0.5 + padsGround * 0.3, roadShare = roads / Math.max(total, roads + 1);
+    const greenShare = green / cn;
+    const gV = clamp01(greenShare / 0.3) * (greenShare > 0.6 ? clamp01(1 - (greenShare - 0.6) * 1.5) : 1);   // te veel groen is ook niets: dan is het geen stad
+    // afwisseling: veel soorten, en ook goed verdeeld (niet 90% hetzelfde)
+    const kn = kinds.size;
+    const hV = heights.size ? clamp01((heights.size - 1) / 4) : 0;
+    const wonenShare = bld ? homes / bld : 0;
+    const mix = bld >= 3 ? clamp01(1 - Math.abs(wonenShare - 0.72) * 2.2) : 0;   // rond 7 op de 10 woningen, de rest winkels, werk en openbaar
+    const pedV = bld ? clamp01(pedSpots / (bld * 0.35)) : 0;
+    const mixV = homes ? clamp01(dests / (homes * 0.14)) : (dests ? 1 : 0);
     const rows = [
-      { name: 'Groen', w: 0.2, v: clamp01(green / (N * 0.22)),
-        detail: `${parks} ${parks === 1 ? 'park' : 'parken'}${roofGreen ? `, ${roofGreen} daktuin${roofGreen === 1 ? '' : 'en'}` : ''}, ${laan} laanvak${laan === 1 ? '' : 'ken'} met bomen`,
-        tip: 'Leg een park aan of trek een laan: die heeft bomen op de middenberm.' },
+      { name: 'Groen', w: 0.18, v: gV,
+        detail: `${Math.round(greenShare * 100)}% groen${roofGreen ? `, ${roofGreen} daktuin${roofGreen === 1 ? '' : 'en'}` : ''}${laan ? `, ${laan} laanvak${laan === 1 ? '' : 'ken'} met bomen` : ''}${greenShare > 0.6 ? ' · te veel, het wordt een bos' : ''}`,
+        tip: greenShare > 0.6 ? 'Zet er gebouwen tussen: een stad is geen bos.' : 'Leg een park, een tuin of een laan aan: een derde groen is mooi.' },
       { name: 'Bereikbaar', w: 0.2, v: bld ? bldOK / bld : null,
-        detail: bld ? `${bldOK} van de ${bld} gebouwen ${bldOK === 1 ? 'ligt' : 'liggen'} aan een straat of voetpad` : 'Nog geen gebouwen',
-        tip: 'Zet gebouwen aan een weg of voetpad, zodat je er via de voordeur kunt komen.' },
+        detail: bld ? `${bldOK} van de ${bld} gebouwen ${bldOK === 1 ? 'ligt' : 'liggen'} met de voordeur aan een straat of voetpad` : 'Nog geen gebouwen',
+        tip: 'Geef elk gebouw een voordeur aan een weg, stoep of pad.' },
       { name: 'Wegennet', w: 0.14, v: roads ? clamp01(1 - (deadEnds * 0.6 + isolated * 1.5) / roads) * (roadShare > 0.5 ? clamp01(1 - (roadShare - 0.5) * 2.5) : 1) : null,
         detail: roads ? `${roads} vakken weg, ${deadEnds} doodlopende ${deadEnds === 1 ? 'eind' : 'einden'}${isolated ? `, ${isolated} los stuk` : ''}${roadShare > 0.5 ? ', erg veel asfalt' : ''}` : 'Nog geen wegen',
         tip: 'Verbind doodlopende wegen tot rondjes, en laat niet de halve stad uit asfalt bestaan.' },
-      { name: 'Afwisseling', w: 0.14, v: 0.6 * clamp01((types.size - 2) / 9) + 0.4 * (heights.size ? clamp01((heights.size - 1) / 5) : 0),
-        detail: `${types.size} soorten blokken, ${heights.size} verschillende bouwhoogtes`,
-        tip: 'Wissel af: hoog en laag, pleinen, hofjes, paden en trappen.' },
-      { name: 'Levendig', w: 0.12, v: bld ? clamp01(pedSpots / (bld * 0.35)) : null,
-        detail: bld ? `${pedSpots} plekken voor voetgangers (paden, hofjes, pleinen, trappen)` : 'Nog geen gebouwen',
-        tip: 'Maak plekken voor voetgangers: paden, hofjes, trappen en pleintjes tussen de gebouwen.' },
-      { name: 'Water', w: 0.08, v: water ? clamp01(0.7 + (bridges ? 0.3 : 0) - Math.max(0, water / N - 0.25) * 3) : 0.35,
-        detail: water ? `${water} watervakken, ${bridges} ${bridges === 1 ? 'brug' : 'bruggen'}` : 'Geen water',
-        tip: 'Een gracht met een brug erover maakt een stad meteen mooier.' },
-      { name: 'Samenhang', w: 0.16, v: clamp01(1 - (holes * 0.7 + loose) / Math.max(4, N * 0.12)),
+      { name: 'Afwisseling', w: 0.14, v: 0.55 * clamp01((kn - 3) / 12) + 0.25 * hV + 0.2 * mix,
+        detail: `${kn} soorten gebouwen en plekken, ${heights.size} bouwhoogtes${bld >= 3 ? `, ${Math.round(wonenShare * 100)}% woningen` : ''}`,
+        tip: 'Wissel af: hoog en laag, woningen met winkels en werk ertussen, pleinen, hofjes en tuinen.' },
+      { name: 'Levendig', w: 0.12, v: bld ? 0.6 * pedV + 0.4 * mixV : null,
+        detail: bld ? `${Math.round(pedSpots)} plekken voor voetgangers, ${dests} winkels en werkplekken bij ${homes} woningen` : 'Nog geen gebouwen',
+        tip: 'Maak pleintjes, paden en trappen, en zet winkels en werk tussen de woningen: dat geeft leven.' },
+      { name: 'Water', w: 0.08, v: water ? clamp01(0.7 + (bridges ? 0.3 : 0) - Math.max(0, water / total - 0.25) * 3) : 0.35,
+        detail: water ? `${Math.round(water)} watervakken, ${bridges} ${bridges === 1 ? 'brug' : 'bruggen'}` : 'Geen water',
+        tip: 'Een vijver of gracht met een brug erover maakt een stad meteen mooier.' },
+      { name: 'Samenhang', w: 0.16, v: clamp01(1 - (holes * 0.7 + loose) / Math.max(4, total * 0.12)),
         detail: `${holes} lege ${holes === 1 ? 'gat' : 'gaten'} tussen de bebouwing, ${loose} losse ${loose === 1 ? 'blok' : 'blokken'}`,
         tip: 'Vul lege gaten tussen gebouwen op en haal losse blokken weg.' },
     ];
     let sw = 0, sv = 0;
     for (const x of rows) if (x.v !== null) { sw += x.w; sv += x.w * x.v; }
-    const score = Math.round(Math.pow(sv / sw, 1.4) * 100);   // de top is moeilijker te halen dan het midden
+    const score = Math.round(Math.pow(sv / sw, 1.6) * 100);   // de top is moeilijker te halen dan het midden
     const label = score >= 85 ? 'Prachtig' : score >= 70 ? 'Mooi' : score >= 55 ? 'Gezellig' : score >= 35 ? 'Gewoon' : 'Rommelig';
     const weakest = rows.filter(x => x.v !== null).sort((a, b) => a.v * a.w - b.v * b.w)[0];
     return { score, label, rows, tip: weakest && weakest.v < 0.9 ? weakest.tip : 'Een prachtige stad. Loop er eens doorheen!' };
@@ -96,10 +175,10 @@
     if (!scoreSheet.hidden) renderScore();
   }
   function renderScore() {
-    const pop = cityCounts();
+    const pop = cityCounts(), mp = modPeople();
     document.getElementById('scoreBig').textContent = beauty ? beauty.score : '–';
     document.getElementById('scoreLabel').textContent = beauty ? beauty.label : 'Nog te klein';
-    document.getElementById('scorePop').textContent = `≈ ${pop.homes * 3} inwoners · ${pop.offices * 20} werkplekken · ${people.agents.length} mensen en ${cars.list.length} auto's op straat`;
+    document.getElementById('scorePop').textContent = `≈ ${Math.round((pop.homes + mp.homes) * 3)} inwoners · ${Math.round((pop.offices + mp.offices) * 20)} werkplekken · ${people.agents.length} mensen en ${cars.list.length} auto's op straat`;
     const rowsEl = document.getElementById('scoreRows');
     rowsEl.innerHTML = '';
     if (beauty) for (const x of beauty.rows) {
@@ -113,7 +192,7 @@
     }
     document.getElementById('scoreTip').textContent = beauty ? beauty.tip : 'Bouw minstens vijf vakken, dan krijgt je stad een score.';
   }
-  scoreBtn.addEventListener('click', () => { renderScore(); scoreSheet.hidden = false; });
+  scoreBtn.addEventListener('click', () => { updateScore(); renderScore(); scoreSheet.hidden = false; });
   const recklessBtn = document.getElementById('recklessBtn');
   recklessBtn.addEventListener('click', () => {
     const v = !cars.reckless;
