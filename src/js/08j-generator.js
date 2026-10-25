@@ -21,13 +21,13 @@
         for (let k = 0; k < 6; k++) { const p1 = P(...pol(k * A60 + A60 / 2, Rh, [cx, cz])), p2 = P(...pol((k + 1) * A60 + A60 / 2, Rh, [cx, cz])), id = [p1, p2].map(v => Math.round(v[0] / 3) + ',' + Math.round(v[1] / 3)).sort().join('|'); if (seen.has(id) || Math.hypot(p1[0], p1[1]) > Rd + 20 || Math.hypot(p2[0], p2[1]) > Rd + 20) continue; seen.add(id); W(p1, p2); } } }
     else if (layout === 'ring') {   // zeshoekige ringweg met zes spaken
       rot = true; const RING = Rd * 0.62, a0 = hv(2, 5) * A60, pts = []; for (let i = 0; i <= 6; i++) pts.push(P(...pol(a0 + i * A60, RING))); c.paths.push({ t: 'weg', l: 0, r: 0, p: pts });
-      for (let k = 0; k < 6; k++) W(pol(a0 + k * A60, 24), pol(a0 + k * A60, Rd)); }
-    else { rot = true; const a0 = hv(3, 1) * A60; for (let k = 0; k < 6; k++) W(pol(a0 + k * A60, 20), pol(a0 + k * A60, Rd));   // rotonde met zes armen
+      for (let k = 0; k < 6; k++) W([0, 0], pol(a0 + k * A60, Rd)); }
+    else { rot = true; const a0 = hv(3, 1) * A60; for (let k = 0; k < 6; k++) W([0, 0], pol(a0 + k * A60, Rd));   // rotonde met zes armen
       const RL = Rd * 0.55, pts = []; for (let i = 0; i <= 6; i++) pts.push(P(...pol(a0 + A60 / 2 + i * A60, RL))); c.paths.push({ t: 'weg', l: 0, r: 0, p: pts }); }
     if (rot) c.paths.unshift({ t: 'rot', l: 0, r: 0, p: [[0, 0]] });
     // doorsluipjes: smalle paden haaks op de straat, tussen de huizen door naar de tweede rij (huizen ernaast mogen er hun deur op hebben)
     { const base0 = c.paths.filter(p => p.t === 'weg').map(p => smoothPts(p.p)); let k = 0;
-      for (const pts of base0) { let acc = 0; for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]); acc += L; if (acc < 70 + hv(i, 9, 1) * 40) continue; acc = 0; const ang = Math.atan2(b[1] - a[1], b[0] - a[0]) + (hv(i, k++, 2) < 0.5 ? 1 : -1) * Math.PI / 3, nx = Math.cos(ang), nz = Math.sin(ang), side = 1, rr = Math.hypot(a[0], a[1]); if (rr < 30 || rr > Rd * 0.85) continue; const len = 26 + hv(i, 3, 5) * 8; c.paths.push({ t: 'pad', l: 0, r: 0, p: [P(a[0], a[1]), P(a[0] + nx * side * len, a[1] + nz * side * len)] }); } } }
+      for (const pts of base0) { let acc = 0; for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]); acc += L; if (acc < 70 + hv(i, 9, 1) * 40) continue; acc = 0; const ang = Math.atan2(b[1] - a[1], b[0] - a[0]) + (hv(i, k++, 2) < 0.5 ? 1 : -1) * Math.PI / 3, nx = Math.cos(ang), nz = Math.sin(ang), side = 1, rr = Math.hypot(a[0], a[1]); if (rr < 30 || rr > Rd * 0.85) continue; const len = 26 + hv(i, 3, 5) * 8; const e0 = PATH_DEF.weg.hw + PATH_DEF.weg.walk; c.paths.push({ t: 'pad', l: 0, r: 0, p: [P(a[0] + nx * e0, a[1] + nz * e0), P(a[0] + nx * side * len, a[1] + nz * side * len)] }); } } }
     const roads = c.paths.filter(p => p.t !== 'rot').map(p => ({ def: PATH_DEF[p.t], pts: smoothPts(p.p) }));
     const roadDist = (x, z) => { let d = rot ? Math.hypot(x, z) - 22 : 1e9; for (const r of roads) d = Math.min(d, distPoly(x, z, r.pts) - r.def.hw - r.def.walk); return d; };
     const base = n => (n || '').replace(/( · \d+[Lv])+$/, ''), std = new Map(libStandard().map(m => [base(m.name), m])), byName = new Map(modules.map(m => [base(m.name), m]));
@@ -55,9 +55,10 @@
       else if (p < 0.3 && rad < Rd + 10) mod('Bos · bomen', q, r, ['park']);
     }
     // zichtbaar pad van elk huis/winkel naar de straat (smal pad vanaf de gevel tot aan de weg)
-    for (const I of c.inst) { if (!/^(Rijhuis|Stadswoning|Winkel|Horeca|Kantoor)/.test(base(I.m.name))) continue; const w = cellToWorld(I.q, I.r); let best = null, bd = 1e9;
-      for (const rd of roads) { if (rd.def === PATH_DEF.pad) continue; const pts = rd.pts; for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], ex = b[0] - a[0], ez = b[1] - a[1], l2 = ex * ex + ez * ez || 1e-9, t = Math.max(0, Math.min(1, ((w.x - a[0]) * ex + (w.z - a[1]) * ez) / l2)), px = a[0] + ex * t, pz = a[1] + ez * t, dd = Math.hypot(px - w.x, pz - w.z); if (dd < bd) { bd = dd; best = [px, pz]; } } }
-      if (best && bd > 6) { const f = 5 / bd; c.paths.push({ t: 'pad', l: 0, r: 0, p: [P(w.x + (best[0] - w.x) * f, w.z + (best[1] - w.z) * f), P(best[0], best[1])] }); } }
+    for (const I of c.inst) { if (!/^(Rijhuis|Stadswoning|Winkel|Horeca|Kantoor)/.test(base(I.m.name))) continue; const w = cellToWorld(I.q, I.r); let best = null, bd = 1e9, bdef = null;
+      for (const rd of roads) { if (rd.def === PATH_DEF.pad) continue; const pts = rd.pts; for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], ex = b[0] - a[0], ez = b[1] - a[1], l2 = ex * ex + ez * ez || 1e-9, t = Math.max(0, Math.min(1, ((w.x - a[0]) * ex + (w.z - a[1]) * ez) / l2)), px = a[0] + ex * t, pz = a[1] + ez * t, dd = Math.hypot(px - w.x, pz - w.z); if (dd < bd) { bd = dd; best = [px, pz]; bdef = rd.def; } } }
+      const eg = bdef ? bdef.hw + bdef.walk : 4.5;   // het pad stopt aan de rand van de stoep, niet op het asfalt
+      if (best && bd > eg + 5) { const f = 5 / bd, g = (bd - eg) / bd; c.paths.push({ t: 'pad', l: 0, r: 0, p: [P(w.x + (best[0] - w.x) * f, w.z + (best[1] - w.z) * f), P(w.x + (best[0] - w.x) * g, w.z + (best[1] - w.z) * g)] }); } }
     c.sec = {};   // randvulling: vakken half op de weg worden een park in stukjes
     for (let q = -n; q <= n; q++) for (let r = -n; r <= n; r++) {
       const w = cellToWorld(q, r), rad = Math.hypot(w.x, w.z); if (rad > Rd + 24 || has(q, r) || used.has(key(q, r))) continue;
