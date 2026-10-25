@@ -14,11 +14,14 @@
     else if (layout === 'ring') { rot = true; const RING = Rd * 0.62, p = []; for (let i = 0; i <= 36; i++) { const a = i / 36 * Math.PI * 2; p.push(P(Math.cos(a) * RING, Math.sin(a) * RING)); } c.paths.push({ t: 'weg', l: 0, r: 0, p }); for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + hv(k, 5) * 0.4; W([0, 0], [Math.cos(a) * Rd, Math.sin(a) * Rd]); } }
     else { rot = true; for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + 0.5; W([0, 0], [Math.cos(a) * Rd, Math.sin(a) * Rd]); } }
     if (rot) c.paths.unshift({ t: 'rot', l: 0, r: 0, p: [[0, 0]] });
+    // doorsluipjes: smalle paden haaks op de straat, tussen de huizen door naar de tweede rij (huizen ernaast mogen er hun deur op hebben)
+    { const base0 = c.paths.filter(p => p.t === 'weg').map(p => smoothPts(p.p)); let k = 0;
+      for (const pts of base0) { let acc = 0; for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]); acc += L; if (acc < 52 + hv(i, 9, 1) * 20) continue; acc = 0; const nx = -(b[1] - a[1]) / L, nz = (b[0] - a[0]) / L, side = hv(i, k++, 2) < 0.5 ? -1 : 1, rr = Math.hypot(a[0], a[1]); if (rr < 30 || rr > Rd * 0.85) continue; const len = 40 + hv(i, 3, 5) * 10; c.paths.push({ t: 'pad', l: 0, r: 0, p: [P(a[0], a[1]), P(a[0] + nx * side * len, a[1] + nz * side * len)] }); } } }
     const roads = c.paths.filter(p => p.t !== 'rot').map(p => ({ def: PATH_DEF[p.t], pts: smoothPts(p.p) }));
     const roadDist = (x, z) => { let d = rot ? Math.hypot(x, z) - 22 : 1e9; for (const r of roads) d = Math.min(d, distPoly(x, z, r.pts) - r.def.hw - r.def.walk); return d; };
     const base = n => (n || '').replace(/( · \d+[Lv])+$/, ''), std = new Map(libStandard().map(m => [base(m.name), m])), byName = new Map(modules.map(m => [base(m.name), m]));
     const lib = name => byName.get(name) || std.get(name) || null;
-    const toRoad = (q, r) => { const w = cellToWorld(q, r); let best = null, bd = 1e9; for (const rd of roads) { const pts = rd.pts; for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], ex = b[0] - a[0], ez = b[1] - a[1], l2 = ex * ex + ez * ez || 1e-9, t = Math.max(0, Math.min(1, ((w.x - a[0]) * ex + (w.z - a[1]) * ez) / l2)), px = a[0] + ex * t, pz = a[1] + ez * t, dd = Math.hypot(px - w.x, pz - w.z); if (dd < bd) { bd = dd; best = [px - w.x, pz - w.z]; } } } if (!best) best = [-w.x, -w.z]; const ang = Math.atan2(best[1], best[0]); return ((Math.round(-ang / (Math.PI / 3)) % 6) + 6) % 6; };
+    const toRoad = (q, r) => { const w = cellToWorld(q, r); let best = null, bd = 1e9; for (const rd of roads) { if (rd.def === PATH_DEF.pad) continue; const pts = rd.pts; for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], ex = b[0] - a[0], ez = b[1] - a[1], l2 = ex * ex + ez * ez || 1e-9, t = Math.max(0, Math.min(1, ((w.x - a[0]) * ex + (w.z - a[1]) * ez) / l2)), px = a[0] + ex * t, pz = a[1] + ez * t, dd = Math.hypot(px - w.x, pz - w.z); if (dd < bd) { bd = dd; best = [px - w.x, pz - w.z]; } } } if (!best) best = [-w.x, -w.z]; const ang = Math.atan2(best[1], best[0]); return ((Math.round(-ang / (Math.PI / 3)) % 6) + 6) % 6; };
     const used = new Set();
     const mod = (name, q, r, fb) => { const m = lib(name); if (!m) { if (fb) set(q, r, fb.slice()); return; } c.inst.push({ mid: m.id, m: instData(m, false), q, r, rot: (toRoad(q, r) + 1) % 6 }); used.add(key(q, r)); };
     const RIJ = ['Rijhuis · baksteen', 'Rijhuis · wit', 'Rijhuis · natuursteen', 'Rijhuis · hout', 'Stadswoning · wit', 'Rijhuis · baksteen'];
@@ -40,6 +43,10 @@
       else if (d < 34) mod(p < 0.28 ? 'Bos · bomen' : GROEN[Math.floor(p * 53) % GROEN.length], q, r, ['park']);
       else if (p < 0.3 && rad < Rd + 10) mod('Bos · bomen', q, r, ['park']);
     }
+    // zichtbaar pad van elk huis/winkel naar de straat (smal pad vanaf de gevel tot aan de weg)
+    for (const I of c.inst) { if (!/^(Rijhuis|Stadswoning|Winkel|Horeca|Kantoor)/.test(base(I.m.name))) continue; const w = cellToWorld(I.q, I.r); let best = null, bd = 1e9;
+      for (const rd of roads) { if (rd.def === PATH_DEF.pad) continue; const pts = rd.pts; for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], ex = b[0] - a[0], ez = b[1] - a[1], l2 = ex * ex + ez * ez || 1e-9, t = Math.max(0, Math.min(1, ((w.x - a[0]) * ex + (w.z - a[1]) * ez) / l2)), px = a[0] + ex * t, pz = a[1] + ez * t, dd = Math.hypot(px - w.x, pz - w.z); if (dd < bd) { bd = dd; best = [px, pz]; } } }
+      if (best && bd > 6) { const f = 5 / bd; c.paths.push({ t: 'pad', l: 0, r: 0, p: [P(w.x + (best[0] - w.x) * f, w.z + (best[1] - w.z) * f), P(best[0], best[1])] }); } }
     c.sec = {};   // randvulling: vakken half op de weg worden een park in stukjes
     for (let q = -n; q <= n; q++) for (let r = -n; r <= n; r++) {
       const w = cellToWorld(q, r), rad = Math.hypot(w.x, w.z); if (rad > Rd + 24 || has(q, r) || used.has(key(q, r))) continue;
