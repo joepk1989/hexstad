@@ -103,3 +103,9 @@ Andere formaten: 360×640 ![](test/mobiel_360x640_bouwen.jpg) ![](test/mobiel_36
 Gele zeshoeken op een donker raster die als een golf op en neer gaan, zelfde kleuren en tempo als `HexLoadingScreen` in Unity. Staat bovenaan de pagina, dus zichtbaar zodra de pagina begint te laden.
 
 ![](test/laadscherm_desktop.jpg) ![](test/laadscherm_telefoon.jpg)
+
+## Startstadje met modules (25 oktober 2026)
+
+De kleine ringstad gebruikt nu modules uit de bibliotheek: rijhuizen, winkels en horeca bij de rotonde, een vijver, plein met fontein en terras, kerk, speeltuin, bibliotheek, villa's en bos buiten de ring.
+
+![](test/startstadje_boven.jpg) ![](test/startstadje_schuin.jpg)
