@@ -29,7 +29,7 @@
       for (const [a, b] of [[0, 0], [1, 0], [0, 1]]) if (!has(wq + a, wr + b)) { set(wq + a, wr + b, ['water']); used.add(key(wq + a, wr + b)); } }
     spot('Plein · fontein', Math.cos(0.5) * 36, Math.sin(0.5) * 36);
     spot('Plein · terras', Math.cos(4.6) * 38, Math.sin(4.6) * 38);
-    spot('Kerk · toren', Math.cos(5.6) * 52, Math.sin(5.6) * 52);
+    spot('Tuin · rozentuin', Math.cos(5.6) * 52, Math.sin(5.6) * 52);
     spot('Park · speeltuin', Math.cos(1.3) * 96, Math.sin(1.3) * 96);
     spot('Bibliotheek · glas', Math.cos(3.7) * 98, Math.sin(3.7) * 98);
     for (let q = -9; q <= 9; q++) for (let r = -9; r <= 9; r++) {
@@ -40,12 +40,12 @@
       if (rad < RING - 14) {   // binnen de ring: aan de rotondekant een parkje, verder rijhuizen, winkels bij de rotonde
         if (ang > 1.9 && ang < 3.0 && rad < 48) { mod(PARK[h % PARK.length], q, r, ['park']); continue; }
         if (street) { if (rad < 52 && h % 3 !== 2) mod(WINKEL[h % WINKEL.length], q, r, ['woning']); else if (h < 3) mod('Kantoor · baksteen', q, r, ['kantoor', 'kantoor']); else mod(RIJ[h % RIJ.length], q, r, ['woning']); }
-        else if (h < 10) mod(h < 4 ? 'Patiowoning · baksteen' : h < 7 ? 'Bungalow · baksteen' : 'Tuinhuis · hout', q, r, ['woning']); else mod(PARK[h % PARK.length], q, r, ['park']);
+        else mod(PARK[h % PARK.length], q, r, ['park']);   // tweede rij: groen (huizen staan alleen aan de straat, zodat elke deur een stoep heeft)
         continue;
       }
       if (rad > RING + 14 && rad < 108) {   // buiten de ring: alleen aan de straat, en wat groen
         if (street) { if (h < 3) mod('Kantoor · glas', q, r, ['kantoor', 'kantoor', 'kantoor']); else if (h < 13) mod(RIJ[(h + q) % RIJ.length], q, r, ['woning', 'woning']); else mod(h === 15 ? 'Bos · bomen' : PARK[h % PARK.length], q, r, ['park']); }
-        else if (h < 8 && rad < 100) { if (h < 4) mod(h < 2 ? 'Villa · wit · tuin' : 'Villa · baksteen · tuin', q, r, ['woning']); else mod('Bos · bomen', q, r, ['park']); }
+        else if (h < 8 && rad < 100) mod(h < 4 ? 'Park · plantsoen' : 'Bos · bomen', q, r, ['park']);
       }
     }
     // Randvulling: vakken die half op de weg liggen worden een park in stukjes (alleen de taartpunten die vrij zijn)
