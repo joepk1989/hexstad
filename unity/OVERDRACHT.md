@@ -1,4 +1,4 @@
-# Overdracht webversie → Unity (stand 25 oktober 2026)
+# Overdracht webversie → Unity (stand 26 oktober 2026)
 
 Dit document beschrijft alles wat er in de webversie van Raatstad (`src/js/`) is bijgekomen sinds de laatste Unity-versie
 (planeet-wegensysteem, zie `unity/README.md`), met de maten, regels en formules die je nodig hebt om het in Unity na te bouwen.
@@ -73,13 +73,15 @@ in de lakkleur blijven staan), wielkasten donkere halve zeshoeken over de flank 
 Lakkleuren (`LP_PAINT`): #e8c547 #d9534f #4a90a4 #f2f3f5 #3d5a80 #7bb356 #e07a3f #2b2f36 #b8a9c9 #c9ced4 #5a1f2a #b5a36a #1c1f24. Ruitkleur #1d2b36 (roughness 0,6).
 Wielen: band 10-hoek, velg 8-hoek, vijf gaten, gloeiende ring (hub) in de accentkleur. Test-opstelling: `node test/visueel/voertuigen.js`.
 
-## 4. Roekeloos rijgedrag (`11-autos.js`, instelling "Roekeloos rijgedrag")
+## 4. Totale chaos: rijgedrag (`11-autos.js`, knop en instelling "Totale chaos", intern `cars.reckless`; heette eerst "Roekeloos rijgedrag")
 Elke auto krijgt een persona zodra de stand aan gaat:
 - **racer** (35 %): doelsnelheid 26 m/s. Achter een tragere auto op een recht stuk (3–26 m voor hem, hij rijdt > 3 m/s en de ander > 0,5 m/s trager): claxon, 3,5 s inhalen over de **linker** rijstrook (zijdelingse verschuiving 2,7 m), pas terug als de ander > 7 m achter hem is.
 - **ontwijker** (40 %): doelsnelheid 20 m/s. Iemand 3 tot `6 + 0,9·v` m vooruit binnen 1,6 m zijwaarts, of een auto 3–14 m vooruit die hem laat remmen: 1,4–1,6 s uitwijken (2,4 m naar de vrije kant), remt niet.
 - **jager** (25 %): doelsnelheid 17 m/s. Kiest het dichtstbijzijnde doelwit in een kegel vóór zich (2,5–34 m, zijwaarts < `3 + 0,45·afstand`), ook de speler in loopstand; stuurt erop af (zijwaartse verschuiving tot −4,5…+5,5 m, dus ook over de stoep), claxon bij de start, 6 s jagen, dan 5 s rust. Snelheid tot 16 m/s.
 - Sturen: fietsmodel (Stanley-regelaar) met een doelverschuiving `latCur` naast de rijlijn: `δ = atan(L·κ) + eHead + atan(−1,6·(eLat − latCur)/(1,5 + v))`, `δ` begrensd op 0,7 rad (0,95 onder 4 m/s), stuursnelheid 2,6 rad/s. Op de stoep (`onCurb`) verliest hij snelheid, maar wordt niet teruggetrokken als `|latCur| ≥ 1`.
 - Roekeloze auto's raken de speler ook op de stoeprand (hoogteverschil < 0,35 m i.p.v. 0,2). Versnellen 7 m/s², remmen 9 m/s² (netjes 2,5 / 6).
+- Lange rechte weg (`kind === 'lane'`, stuk > 30 m): doelsnelheid racer 42, jager 30, ontwijker 32 m/s; optrekken racer 12, anderen 9 m/s². Afremmen voor wat komt: `want = √(vN² + 2·7,5·late·rest)` met `vN` = 9 m/s voor een bocht; `late` = 1, of bij 40 % van de bestuurders per stuk weg 1,6–3,2 (te laat remmen).
+- Zie ook 12–14 (slippen, schade, terugvinden).
 - Test: `node test/visueel/roekeloos.js` (30 auto's, 30 s: tellingen inhalen/ontwijken/jagen/botsingen).
 
 ## 5. Vastzitten: achteruit en eromheen (`11-autos.js`, blok "Vast achter een auto die niet meer rijdt")
@@ -133,12 +135,88 @@ meer = place, minder = remove, gelijk met toast "Gedraaid"/"Dak" = rotate, gelij
 - Laadscherm: hexraster met een golf (zelfde stijl als `HexLoadingScreen.cs`: R = min(36, max(18, min(W,H)/11)) px, gap R/6, vertraging `afstand·0,005 − 0,785` s).
 - Startstadje: rotonde met drie wegen, modulehuizen met de deur naar de straat, vijver van drie vakken, plein met fontein, rozentuin, speeltuin, bibliotheek; tweede rij parkmodules.
 
-## 9. Open punten
+## 10. Schoonheidsscore met modules (`12-bouwacties-schoonheid.js`, `cityBeauty`)
+Zeven rijen, gewogen gemiddelde `sv/sw`, score = `round((sv/sw)^1,6 · 100)` (de top is moeilijker dan het midden).
+| rij | gewicht | wat |
+|---|---|---|
+| Groen | 0,18 | aandeel groen (Groen-modules volledig, andere modules met groen half), ideaal 0,3, boven 0,6 straf; groen telt door tot 1 vak rond de bebouwing |
+| Bereikbaar | 0,20 | aandeel gebouwen met een deur die het loopnetwerk bereikt (`people.graph()`, deurknopen `mdoor`) |
+| Wegennet | 0,14 | `1 − (doodlopend·0,6 + los·1,5)/wegen`, straf als meer dan de helft weg is |
+| Afwisseling | 0,14 | `0,55·soorten + 0,25·hoogteverschil + 0,2·mix`, mix ideaal ~72 % wonen |
+| Levendig | 0,12 | `0,6·voetgangersplekken + 0,4·mix` |
+| Water | 0,08 | water met bruggen (bruggen gevonden via wegpunten boven water), te veel water straf |
+| Samenhang | 0,16 | `1 − (gaten·0,7 + losse blokken) / max(4, 0,12·vakken)`: lege gaten tussen bebouwing en losse blokken kosten punten |
+Modules tellen per footprint (`modStat`, `modPeople`). De knop rekent eerst opnieuw (`updateScore()`).
+
+## 11. Bloed (`11-autos.js`, blok "Bloed", instelling "Bloed")
+Laag-poly: zeshoekige spatten (`CircleGeometry(1, 6)` plat, InstancedMesh 420, ringbuffer) en driehoekige druppels (tetraëder 0,13, 220 stuks, zwaartekracht 14 m/s²,
+max 1,5 s). Spat kleurt van #b3101c naar #4a0b11 in 45 s en vervaagt na 150 s in 30 s. Per autotype drie plekken op de carrosserie (voorbumper, motorkap, voorruit,
+gevonden met een straal op de echte romp) en bloedige bandensporen; een plas als iemand blijft liggen. Let op in Unity/three: zet eerst de kleur van alle instances, pas dan `count = 0`.
+
+## 12. Slippen en uitvliegen (`11-autos.js`, alleen totale chaos)
+- In een bocht (`turn`/`u`) of op de rotonde (wegtype `ring`), bij `v > 7`: kromming uit de koersverandering over de komende 6 m, `ratio = v²·|Δh|/6 / grip`, grip racer 6,5, jager 7,5, ontwijker 9,5 m/s².
+  Bij `ratio > 1` per seconde kans `(ratio − 1)·1,1` (rotonde ·2,2).
+- Gevolg: langs de **raaklijn** glijden met 1,05·v en tollen (`w = ±0,8–2,4 rad/s`), glijwrijving 3,6 m/s² (gewone botsing 6, op de stoeprand 9). Op de rotonde in 60 % van de gevallen
+  de lucht in: `vy = 2,5–5,5 m/s`, draaien om twee assen, landing = botsing met 30 schade. Er wordt **niet** op gebouwen gemikt.
+- Tegen een gebouw, blok of terrein (terrein voor de auto > 0,9 m hoger dan waar hij staat, ook 1,8 m vooruit gemeten): terugstuiteren met −0,25·v en schade.
+
+## 13. Schade, rook, vuur en explosie (`11-autos.js`, blok "Schade"; vervangt de takelwagens)
+- `hp` 100. Klap tussen auto's: `impact·1,9` voor allebei; tegen een gebouw/terrein: `snelheid·1,2` (vanaf 3 m/s); landing: 30. Hooguit één schadeklap per 0,5 s.
+- `hp < 65`: lichte rook (4 wolkjes/s), `< 35`: donkere rook (9/s), `≤ 0`: brand (`ignite`): hij rolt uit, staat stil, 26 deeltjes/s vuur + rook; na 4,5–7,5 s `explode`:
+  22 vuurdeeltjes radiaal 1,5–6,5 m/s, 16 grote rookwolken, geluid `boom`, voetgangers binnen 7 m worden weggeslingerd (7 m/s) met bloed, auto's binnen 5,5 m krijgen 35 schade
+  (kettingreactie). Daarna begint de auto ergens anders opnieuw met 100.
+- Deeltjes: icosaëders (detail 0), rook transparant 0,5 (van #3a3835 naar #9b9a96, groeit 0,55→2 m, of 1,1→4,6 bij een explosie), vuur additief (#fff2a0 → #ff7a1a → #a8200c, krimpt).
+  Rook en vuur worden niet uitgezonden verder dan 260 m van de camera. Geluid `boom`: bruine ruis lowpass 900→70 Hz 0,9 s + bandpass 600→180 + sinus 90→34 Hz + vijf metaaltikjes.
+- Geen takelwagens meer (`towDispatch` doet niets).
+
+## 14. Zelf de weg terugvinden en geen sprongen (`11-autos.js`, `rejoin`)
+- Na een botsing (stilstand 2,5 s of 12 s voorbij) en meer dan 1,5 m van de rijlijn: zoek rijstroken binnen 60 m, score = afstand − 5·(cos tussen rijrichting en eigen koers),
+  probeer de beste zes. Pad = punt bij de achteras (zodat het midden van de auto niet verspringt) + bézier vanuit de huidige koers naar een punt 7 m verder op de rijstrook
+  + de rest van die rijstrook. Een bézierpunt in een gebouwvak of blok: volgende kandidaat. Na het terugvinden 3 s "spook" (geen botsingen, max 2,5 m/s).
+- Rijdt een roekeloze auto meer dan `3 + |latCur|` m naast zijn lijn: niet terugzetten maar zijdelings terugschuiven met max 3,5 m/s en bijdraaien; meer dan 14 m: `rejoin`.
+- Gemeten (16 auto's, chaos, 4 min): 91× zelf terug, 0× opnieuw beginnen, 0 sprongen.
+
+## 15. Instorten (`11c-instorten.js`, instelling "Instorten")
+- Pas bij een klap wordt het gebouw in losse stukken opgebouwd (`mv2Build(..., { pieces: true })`): elke muur, vloertegel, dakdeel en elk voorwerp een eigen mesh met een doos.
+  Contact: dozen die elkaar binnen 0,16 m raken zijn buren.
+- **Dragers**: een stuk blijft staan zolang er een pad van steun naar de grond is (Dijkstra; omhoog gratis, opzij 1 stap, naar beneden hangen 2, meer dan 3 stappen houdt niets).
+  Hoekpalen en muren zijn zo vanzelf de dragers; aparte dragers per module zijn niet nodig.
+- Klap met snelheid `sp` (vanaf 4 m/s): alles binnen `R = min(13, 2,4 + (sp − 3)·0,6)` m en tot 3,6 m hoog (bij `sp > 14` tot 6,6 m) breekt los met snelheid `0,22·sp` in de rijrichting.
+  Daarna valt wat geen steun meer heeft (zwaartekracht, een paar stuiters), stof (tetraëders), puin zakt na een tijd weg. Max 170 losse stukken tegelijk.
+- Wat blijft staan wordt over alle kapotte gebouwen heen per materiaal samengevoegd (anders honderden tekenopdrachten). De botsing van het hele gebouw vervalt (geen onzichtbare muren);
+  bij weghalen of een nieuwe stad verdwijnen de brokstukken mee.
+- Alleen gebouwen (`modMeta(m).bouw`), geen parken. Oude blokken (woning/kantoor) worden bij een harde klap eerst omgezet naar een module.
+
+## 16. Oude blokken naar modules (`08k-oud-omzetten.js`, `oudOmzetten`)
+Kolommen van woning/kantoor/blok/zuilen/hof/tribune/tunnel (een dak bovenop valt weg) worden bibliotheekmodules met dezelfde hoogte, deur naar de dichtstbijzijnde straat,
+per soort aaneengesloten lagen opgestapeld (`lv`). Woning: 1 Bungalow, 2 Rijhuis (vier varianten), 3 Rijhuis/Stadswoning, 4 Herenhuis, 5–6 Appartementen, 7 Woontoren;
+kantoor: 1 Werkplaats, 3–5 Kantoor, 7 Kantoortoren; hogere kolommen gestapeld. Gebeurt automatisch in `rebuildAll()`; kolommen met pad/park/trap erin blijven oud.
+Verkeer en bewoners tellen modules mee per verdieping (`cityCounts`): Wonen = huizen, Werken = kantoren, Winkels ×0,6, Openbaar ×0,4.
+
+## 17. Totale chaos: mensen (`10-mensen.js`, `10b-stadspraat.js`)
+- Lopen ×2,4–3,5 (kinderen ×2,2, ouderen ×1,6): ~3 m/s gemiddeld. Geen pauzes, geen praatjes.
+- Schreeuwen: per persoon elke 5–17 s (alleen binnen 70 m van de camera), hooguit 3 kreten tegelijk en minstens 0,6 s ertussen. Opnames in `assets/schreeuw.mp3`
+  (paniek ×6, kort ×3, gruwel ×1, bloed ×1; stukken in `SCR`); stemhoogte kind ×1,35, vrouw ×1,2, oudere ×0,86. De bloedkreet hoort bij het bloedeffect, de gruwelkreet bij een explosie.
+- Spreekballonnen alleen paniek en verwarring (`PANIC`, plus brand- en instortzinnen als dat echt gebeurt), rood en trillend; om de 0,8–2,4 s iemand, met een korte kreet.
+
+## 18. Cameramodus (`13-camera-modus-geluid.js`, `flyCam`)
+Spatie in de bouwmodus aan/uit (Esc ook). Geen interface en geen bouwvoorbeeld; bouwen, slopen en wegen trekken zijn geblokkeerd. Muis kijkt (aanwijzer vast), W/A/S/D vliegt met
+vaart (snelheid volgt het doel met `dt·3,5`), E/Q omhoog/omlaag, snelheid `max(12, hoogte·0,9)` m/s, Shift ×3, Ctrl ×0,25, wiel zoomt (beeldhoek 12–95°, start 65°), F slaat een png
+zonder knoppen op. Minimaal 2 m boven terrein of blok. Bij stoppen komt het draaipunt op wat je aankijkt.
+
+## 19. Prestaties (`08c-modules-v2.js` `batchMods`, `15c-instellingen.js`)
+- Modules worden per 6×6 vakken en per gelijk materiaal (`matKey`, niet per materiaalobject) samengevoegd; de losse modules blijven onzichtbaar maar raakbaar voor klikken.
+  Tekenopdrachten −60 tot −77 %. Schaduwkaart om het andere beeld. Beeldscherpte "Automatisch" past de resolutie aan op de beeldtijd.
+- Module maker: de camera vliegt in 380 ms naar de helft van de afstand en de maker vervaagt in; op de telefoon één werkbalkrij en een uitklapbaar paneel.
+
+## 20. Open punten
 - Unity: noord- en zuidpool op de bol (vraag staat open); `unity/README.md` is niet bijgewerkt sinds het planeet-wegensysteem.
-- Web: modulehuizen hebben platte daken, blokhuizen rode kappen (keuze nog open); doorsluipjes kruisen elkaar soms; oude parkblokken en laanbomen houden nog geen rekening met wegen; water- en verkeerslichtgeluiden nog niet.
+- Web: eerste klap op een gebouw geeft een korte hapering (omzetten naar stukken); mensen ontwijken brokstukken niet en het loopnetwerk kent de gaten niet; instortingen worden niet bewaard; jagers maken soms nog sprongetjes van 3–7 m.
+- Web (ouder): modulehuizen hebben platte daken, blokhuizen rode kappen (keuze nog open); doorsluipjes kruisen elkaar soms; oude parkblokken en laanbomen houden nog geen rekening met wegen; water- en verkeerslichtgeluiden nog niet.
 - Alles is getest in een headless browser (playwright, swiftshader); niets is op een echte telefoon nagekeken.
 
 ## Bestanden in de webversie
 `08j-generator.js` generator · `08c-modules-v2.js` modules, wenteltrap, offSpot · `08e-modules-bibliotheek.js` modulebibliotheek, `stairwell` ·
-`11-0-lowpoly-voertuigen.js` carrosserieën · `11-autos.js` rijgedrag, roekeloos, achteruit · `13-camera-modus-geluid.js` geluid · `15f-geluid-haken.js` haken ·
-`test/visueel/{generator,voertuigen,roekeloos,achteruit,geluid}.js` tests.
+`11-0-lowpoly-voertuigen.js` carrosserieën · `11-autos.js` rijgedrag, chaos, schade, rejoin, bloed · `11c-instorten.js` instorten · `08k-oud-omzetten.js` oude blokken ·
+`10-mensen.js` / `10b-stadspraat.js` paniek · `12-bouwacties-schoonheid.js` score · `13-camera-modus-geluid.js` geluid · `15f-geluid-haken.js` haken ·
+`test/visueel/{generator,voertuigen,roekeloos,achteruit,geluid,instorten,zien,brand2,rejoin,slip,berg,cam,camklik,chaos2}.js` tests.
