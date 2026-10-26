@@ -451,12 +451,35 @@
     $('bExportAll').onclick = () => download('hexstad-modules.json', JSON.stringify(modules));
     $('bFile').onchange = e => { const f = e.target.files && e.target.files[0]; if (!f) return; f.text().then(t => { try { const o = JSON.parse(t), list = Array.isArray(o) ? o : [o]; let n = 0; for (const m of list) { if (!m || typeof m !== 'object') continue; if (m.v === 2) mv2Fix(m); else if (!Array.isArray(m.edges)) continue; m.id = uid(); modules.push(m); n++; } saveMods(); renderStrip(); renderLib(); say(n + ' module(s) geladen'); } catch (err) { say('Geen geldig bestand'); } e.target.value = ''; }); };
         $('bStd').onclick = () => { if (!sure('std', 'Standaardmodules terugzetten? Aangepaste standaardmodules worden overschreven; je eigen modules blijven staan')) return; const n = libInstall(true); for (const m of modules) if (m.v === 2) syncModule(m); renderStrip(); renderLib(); say(n + ' standaardmodules teruggezet'); };
-    $('bClose').onclick = () => { if (E.dirty && !sure('close', 'Niet-bewaarde wijzigingen weggooien?')) return; app.hidden = true; renderStrip(); };
+    // Vloeiend wisselen tussen stad en ontwerper: de camera vliegt eerst naar de plek (de stad blijft draaien), de ontwerper
+    // schuift er dan zacht overheen; terug gaat andersom. Zolang de ontwerper open is staat de stad stil en kost hij niets.
+    const reduced = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let flyId = 0;
+    function flyDist(to, ms, done) {
+      const id = ++flyId, d0 = orbit.dist, t0 = performance.now();
+      const step = now => { if (id !== flyId) return; const k = Math.min(1, (now - t0) / ms), e = 1 - Math.pow(1 - k, 3); orbit.dist = d0 + (to - d0) * e; applyOrbit(); if (k < 1) requestAnimationFrame(step); else if (done) done(); };
+      requestAnimationFrame(step);
+    }
+    function leave() {
+      if (reduced()) { app.hidden = true; renderStrip(); return; }
+      app.classList.remove('mm-enter'); app.classList.add('mm-leave');
+      setTimeout(() => {
+        app.hidden = true; app.classList.remove('mm-leave'); renderStrip();
+        if (E.fromDist && typeof mode !== 'undefined' && mode === 'build') { const back = E.fromDist; E.fromDist = 0; requestAnimationFrame(() => flyDist(back, 450)); }
+      }, 220);
+    }
+    $('bClose').onclick = () => { if (E.dirty && !sure('close', 'Niet-bewaarde wijzigingen weggooien?')) return; leave(); };
     // ---------- openen ----------
-    openMakerFn = (m) => {
+    const openNow = (m) => {
+      app.classList.remove('mm-leave'); if (!reduced()) { app.classList.remove('mm-enter'); void app.offsetWidth; app.classList.add('mm-enter'); }
       app.hidden = false; resize();
       if (m && m.v === 2) loadModule(m, modules.indexOf(m)); else if (!E.m) newModule(); else { renderLib(); changed(); }
       setTool(E.tool); setView(E.vm); renderCtx(); fit();
+    };
+    openMakerFn = (m) => {
+      if (!app.hidden) return openNow(m);
+      if (reduced() || typeof mode === 'undefined' || mode !== 'build') { E.fromDist = 0; return openNow(m); }
+      E.fromDist = orbit.dist; flyDist(Math.max(16, orbit.dist * 0.5), 380, () => openNow(m));
     };
     bUpto.setAttribute('aria-pressed', String(E.upto));
   })();

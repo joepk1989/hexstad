@@ -448,6 +448,10 @@ body.night .btn.tod { color: #cdd8ff; }
   --ui: system-ui, sans-serif; --mono: ui-monospace, Menlo, Consolas, monospace;
   position: fixed; inset: 0; z-index: 70; display: grid; grid-template-rows: auto 1fr; grid-template-columns: 1fr 300px; background: var(--panel); color: var(--ink); font: 600 14px/1.3 var(--ui); color-scheme: dark; }
 #mmApp[hidden] { display: none; }
+#mmApp.mm-enter { animation: mmIn .32s cubic-bezier(.2, .8, .2, 1) both; }
+#mmApp.mm-leave { animation: mmOut .22s ease-in both; pointer-events: none; }
+@keyframes mmIn { from { opacity: 0; transform: scale(1.03); } to { opacity: 1; transform: none; } }
+@keyframes mmOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: scale(0.985); } }
 #mmApp [hidden] { display: none !important; }
 #mm_top { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
 #mmApp .mm-close { background: var(--signal); color: var(--signal-ink); border: 0; border-radius: 8px; font: 700 14px var(--ui); padding: 8px 12px; cursor: pointer; }
