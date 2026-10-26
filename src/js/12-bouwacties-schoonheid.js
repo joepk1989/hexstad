@@ -497,6 +497,10 @@
   }
   let lastHover = null;
   function updateGhost(cx, cy) {
+    if (flyCam.on) {   // cameramodus: geen enkel bouwvoorbeeld, ook niet op lege vakken
+      ghost.visible = false; ghostArrow.visible = false; ghostEdges.visible = false; edgeGhost.visible = false; moduleGhost.visible = false; vecGhost.visible = false; vecCells.visible = false; previewGroup.visible = false;
+      vecPreClear(); terrHover(null); return;
+    }
     if (cx == null) { if (!lastHover) return; [cx, cy] = lastHover; }
     lastHover = [cx, cy];
     ghostArrow.visible = false; vecCells.visible = false;

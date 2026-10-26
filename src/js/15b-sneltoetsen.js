@@ -11,7 +11,7 @@
     ['Modules', null], [K(',', '.'), 'vorige / volgende module'], [K('F'), 'module spiegelen'], [K('/'), 'zoek een module (Enter kiest de eerste)'],
     ['Terrein', null], ['slepen', 'boetseren (ingedrukt houden)'], [K('Shift') + '+slepen', 'andersom (ophogen ↔ afgraven)'],
     ['Weg slepen', null], [K('E', 'Q'), 'hoger / lager (ook Page Up/Down, wiel)'], ['stilhouden', 'hoekpunt: bocht in één sleep'],
-    ['Cameramodus', null], [K('Spatie'), 'aan / uit (of Esc)'], ['muis', 'rondkijken'], [K('W', 'A', 'S', 'D'), 'vliegen'], [K('E', 'Q'), 'omhoog / omlaag'], [K('Shift') + ' / ' + K('Ctrl'), 'sneller / langzamer'], ['wiel', 'zoomen'], [K('F'), 'foto (png, zonder knoppen)'],
+    ['Cameramodus', null], [K('Spatie'), 'aan / uit (of Esc)'], ['muis', 'rondkijken'], [K('W', 'A', 'S', 'D'), 'vliegen'], [K('E', 'Q'), 'omhoog / omlaag'], [K('Shift') + ' / ' + K('Ctrl'), 'sneller / langzamer'], ['wiel', 'zoomen'], [K('F'), 'foto (png, zonder knoppen)'], [K('P'), 'tijd stilzetten'], [K('O'), 'ander weer'],
     ['Overig', null], [K('G'), 'raster aan/uit'], [K('P'), 'tijd pauze / verder'], [K('O'), 'weer: volgende (Shift: vorige)'], [K('L'), 'lopen'], [K('M'), 'menu'], [K('?'), 'dit overzicht'],
   ];
   const KEYS_WALK = [
@@ -40,6 +40,7 @@
   const busy = e => { const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return true; const mm = document.getElementById('mmApp'), sk = document.getElementById('schetsApp'); return (mm && !mm.hidden) || (sk && !sk.hidden) || e.ctrlKey || e.metaKey || e.altKey; };
   window.addEventListener('keydown', e => {
     if (busy(e)) return;
+    if (flyCam.on && e.code !== 'KeyP') return;   // cameramodus: alleen pauze (P) en weer (O, zie 13b) werken
     if (e.key === '?' || (e.code === 'Slash' && e.shiftKey)) { toggleKeys(); e.preventDefault(); return; }
     if (e.code === 'Escape') { if (vecChain.on) { vecChainEnd(); return; } if (!keysPanel.hidden) toggleKeys(false); const sh = document.getElementById('sheet'); if (sh && !sh.hidden) sh.hidden = true; return; }
     if (e.code === 'Tab' && !e.ctrlKey && !e.altKey) { e.preventDefault(); toggleCatalog(); return; }

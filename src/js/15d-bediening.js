@@ -158,6 +158,7 @@
     window.addEventListener('keydown', e => {
       const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
       const mm = document.getElementById('mmApp'), sk = document.getElementById('schetsApp'); if ((mm && !mm.hidden) || (sk && !sk.hidden)) return;
+      if (flyCam.on) return;   // cameramodus: niets ongedaan maken of lagen kiezen
       if ((e.ctrlKey || e.metaKey) && e.code === 'KeyZ' && !e.shiftKey) { e.preventDefault(); undo(); return; }
       if (e.code === 'Escape' && !paletteEl.hidden) { catalog(false); return; }
       if (mode === 'build' && !roadDrag.on && (e.code === 'PageUp' || e.code === 'PageDown')) {

@@ -200,7 +200,7 @@ Verkeer en bewoners tellen modules mee per verdieping (`cityCounts`): Wonen = hu
 - Spreekballonnen alleen paniek en verwarring (`PANIC`, plus brand- en instortzinnen als dat echt gebeurt), rood en trillend; om de 0,8–2,4 s iemand, met een korte kreet.
 
 ## 18. Cameramodus (`13-camera-modus-geluid.js`, `flyCam`)
-Spatie in de bouwmodus aan/uit (Esc ook). Geen interface en geen bouwvoorbeeld; bouwen, slopen en wegen trekken zijn geblokkeerd. Muis kijkt (aanwijzer vast), W/A/S/D vliegt met
+Spatie in de bouwmodus aan/uit (Esc ook). Geen interface, geen bouwvoorbeeld (ook niet op lege vakken), geen rasterlijnen; bouwen, slopen, wegen trekken, ongedaan maken en de bouwtoetsen zijn geblokkeerd (alleen P pauze en O weer werken). Muis kijkt (aanwijzer vast), W/A/S/D vliegt met
 vaart (snelheid volgt het doel met `dt·3,5`), E/Q omhoog/omlaag, snelheid `max(12, hoogte·0,9)` m/s, Shift ×3, Ctrl ×0,25, wiel zoomt (beeldhoek 12–95°, start 65°), F slaat een png
 zonder knoppen op. Minimaal 2 m boven terrein of blok. Bij stoppen komt het draaipunt op wat je aankijkt.
 

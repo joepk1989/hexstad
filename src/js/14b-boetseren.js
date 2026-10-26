@@ -70,7 +70,7 @@
     };
   })();
   function terrHover(res, cx, cy) {
-    if (!TERR_TOOLS.has(tool) || !res || !res.point || mode !== 'build') { brushRing.hide(); terrPreview.hide(); terrLbl.hidden = true; if (!SC.on) guideLine.hide(); return false; }
+    if (!TERR_TOOLS.has(tool) || !res || !res.point || mode !== 'build' || flyCam.on) { brushRing.hide(); terrPreview.hide(); terrLbl.hidden = true; if (!SC.on) guideLine.hide(); return false; }
     const [q, r] = worldToCell(res.point.x, res.point.z), c = cellToWorld(q, r);
     brushRing.show(c.x, c.z, tool);
     if (!SC.on) terrPreview.show(q, r, tool, keys.ShiftLeft || keys.ShiftRight); else terrPreview.hide();

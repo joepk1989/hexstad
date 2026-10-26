@@ -11,7 +11,7 @@
     flyCam.on = true; flyCam.x = camera.position.x; flyCam.y = camera.position.y; flyCam.z = camera.position.z;
     flyCam.yaw = Math.atan2(-d.x, -d.z); flyCam.pitch = Math.asin(Math.max(-1, Math.min(1, d.y)));
     flyCam.fov = camera.fov; flyCam.near = camera.near; flyCam.fovT = 65; flyCam.vx = flyCam.vy = flyCam.vz = 0; camera.fov = 65; camera.near = 0.3; camera.rotation.order = 'YXZ'; camera.updateProjectionMatrix();
-    document.body.classList.add('fly'); ghost.visible = false; ghostArrow.visible = false; ghostEdges.visible = false;
+    document.body.classList.add('fly'); gridLines.visible = false; ghost.visible = false; ghostArrow.visible = false; ghostEdges.visible = false;
     try { const pr = canvas.requestPointerLock && canvas.requestPointerLock(); if (pr && pr.catch) pr.catch(() => {}); } catch (_) {}
     if (!flyCam.badge) { flyCam.badge = document.createElement('div'); flyCam.badge.className = 'flybadge'; document.body.appendChild(flyCam.badge); }
     flyCam.badge.innerHTML = '<b>Cameramodus</b> · muis kijkt · W A S D · E/Q hoger/lager · Shift snel · wiel zoomt · F foto · Spatie stopt';
@@ -20,7 +20,7 @@
   }
   function flyStop() {
     if (!flyCam.on) return;
-    flyCam.on = false; document.body.classList.remove('fly'); if (flyCam.badge) flyCam.badge.hidden = true;
+    flyCam.on = false; document.body.classList.remove('fly'); gridLines.visible = mode === 'build' && gridOn; if (flyCam.badge) flyCam.badge.hidden = true;
     if (document.pointerLockElement) document.exitPointerLock();
     camera.fov = flyCam.fov; camera.near = flyCam.near; camera.updateProjectionMatrix();
     const cp = new THREE.Vector3(flyCam.x, flyCam.y, flyCam.z), d = new THREE.Vector3(-Math.sin(flyCam.yaw) * Math.cos(flyCam.pitch), Math.sin(flyCam.pitch), -Math.cos(flyCam.yaw) * Math.cos(flyCam.pitch));
