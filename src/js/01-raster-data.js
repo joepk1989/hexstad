@@ -635,6 +635,10 @@
   function cityCounts() {
     let homes = 0, offices = 0;
     for (const st of cells.values()) for (const t of st) { const b = baseOf(t); if (b === 'woning') homes++; else if (b === 'kantoor') offices++; }
+    for (const I of cells.inst || []) {   // modules tellen per verdieping (zonder dak) mee: wonen = huizen, werken en winkels = kantoren
+      const m = I.m; if (!m || m.v !== 2) continue; const fl = Math.max(1, ((m.lv && m.lv.length) || 1) - 1);
+      if (m.cat === 'Wonen') homes += fl; else if (m.cat === 'Werken') offices += fl; else if (m.cat === 'Winkels') offices += fl * 0.6; else if (m.cat === 'Openbaar') offices += fl * 0.4;
+    }
     return { homes, offices };
   }
   const columnTop = (q, r) => stackOf(q, r).reduce((s, t) => s + TY(t).h, 0);
