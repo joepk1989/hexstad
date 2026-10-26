@@ -363,6 +363,45 @@
     for (const [mat, list] of bags) { const mesh = new THREE.Mesh(mergeGeos(list), mat); mesh.castShadow = true; mesh.receiveShadow = true; mesh.userData.own = true; group.add(mesh); }
     return { group, surfaces, walls, doors: doorsOut, cand };
   }
+  // ---------- Samenvoegen per buurt ----------
+  // Elke module bestaat uit een stuk of twaalf meshes (een per materiaal). Een stad met honderd modules is dan al ruim
+  // tweeduizend tekenopdrachten, en elke opdracht kost de processor tijd (dat is op een telefoon het knelpunt). Daarom worden
+  // de modules per buurt van 6×6 vakken per materiaal samengevoegd tot één mesh. De losse meshes van de modules blijven
+  // staan (onzichtbaar) voor aanwijzen, wisselen en weghalen; alleen de samengevoegde buurtmeshes worden getekend en
+  // opnieuw opgebouwd als er in die buurt iets verandert.
+  const modBatchGroup = new THREE.Group(); modBatchGroup.name = 'modBatch'; scene.add(modBatchGroup);
+  const modBatches = new Map();   // buurt → { sig, meshes }
+  const BATCH_ON = { v: true };
+  function batchMods(live) {
+    const by = new Map();
+    for (const I of live) { const e = modGroups.get(I); if (!e || !e.group) continue; const k = Math.floor(I.q / 6) + ',' + Math.floor(I.r / 6); let L = by.get(k); if (!L) by.set(k, L = []); L.push(e); }
+    for (const [k, B] of modBatches) if (!by.has(k)) { for (const m of B.meshes) { modBatchGroup.remove(m); m.geometry.dispose(); } modBatches.delete(k); }
+    for (const [k, L] of by) {
+      const sig = BATCH_ON.v ? L.map(e => e.group.uuid).sort().join('|') : 'uit', old = modBatches.get(k);
+      if (old && old.sig === sig) continue;
+      if (old) { for (const m of old.meshes) { modBatchGroup.remove(m); m.geometry.dispose(); } modBatches.delete(k); }
+      if (!BATCH_ON.v) { for (const e of L) e.group.traverse(o => { if (o.isMesh) o.visible = true; }); modBatches.set(k, { sig, meshes: [] }); continue; }
+      const bags = new Map(), MM = new THREE.Matrix4();
+      for (const e of L) {
+        e.group.updateMatrixWorld(true);
+        e.group.traverse(o => {
+          if (!o.isMesh || o.isInstancedMesh || Array.isArray(o.material) || !o.geometry.attributes.position || !o.geometry.attributes.normal || o.renderOrder) return;
+          const mm = o.material, key = [mm.type, mm.color && mm.color.getHex(), mm.map && mm.map.uuid, mm.transparent, mm.opacity, mm.side, mm.flatShading, mm.roughness, mm.metalness, mm.emissive && mm.emissive.getHex(), mm.emissiveIntensity, mm.vertexColors, mm.alphaTest, mm.depthWrite, mm.polygonOffset, o.castShadow, o.receiveShadow].join('|');   // zelfde uiterlijk = samen (veel modules maken eigen, gelijke materialen)
+          let b = bags.get(key); if (!b) bags.set(key, b = { mat: o.material, cast: o.castShadow, recv: o.receiveShadow, list: [], src: [] });
+          const g = (o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()).applyMatrix4(MM.copy(o.matrixWorld));
+          if (MM.determinant() < 0) { const P = g.attributes.position, N = g.attributes.normal, U = g.attributes.uv; for (let v = 0; v + 2 < P.count; v += 3) for (const A of [P, N, U]) if (A) for (let c = 0; c < A.itemSize; c++) { const t = A.array[(v + 1) * A.itemSize + c]; A.array[(v + 1) * A.itemSize + c] = A.array[(v + 2) * A.itemSize + c]; A.array[(v + 2) * A.itemSize + c] = t; } }
+          b.list.push(g); b.src.push(o);
+        });
+      }
+      const meshes = [];
+      for (const b of bags.values()) {
+        const mesh = new THREE.Mesh(mergeGeos(b.list), b.mat); mesh.castShadow = b.cast; mesh.receiveShadow = b.recv; mesh.userData.batch = true; mesh.matrixAutoUpdate = false;
+        modBatchGroup.add(mesh); meshes.push(mesh);
+        for (const o of b.src) o.visible = false;   // het origineel blijft alleen voor aanwijzen
+      }
+      modBatches.set(k, { sig, meshes });
+    }
+  }
   // ---------- In de stad ----------
   const mv2Tf = (rot, q0, r0) => { const th = -rot * Math.PI / 3, c = Math.cos(th), s = Math.sin(th), o = cellToWorld(q0, r0); return (x, z) => [o.x + x * c - z * s, o.z + x * s + z * c]; };
   const mv2Area = I => { const k = I.m.k || 0, out = []; for (let q = -k; q <= k; q++) for (let r = -k; r <= k; r++) if (mv2HexDist(q, r) <= k) { let [a, b] = [q, r]; for (let i = 0; i < (I.rot || 0) % 6; i++) [a, b] = [a + b, -a]; out.push([a + I.q, b + I.r]); } return out; };
@@ -439,6 +478,7 @@
       e.col.tag = (I.m.name || '') + ' @' + I.q + ',' + I.r + ' lv' + instLv(I) + ' rot' + I.rot + (I.mir ? ' mir' : '');
       for (const [q, r] of mv2Area(I)) { const k = q + ',' + r; if (!instLv(I)) modCellSet.add(k); let L = modCols.get(k); if (!L) modCols.set(k, L = []); L.push(e.col); }
     }
+    try { batchMods(live); } catch (e) { console.warn('batchMods', e); }
     // het terrein onder een module is een plateau: bij een nieuwe of weggehaalde module de stukken eromheen bijwerken
     const diff = []; for (const k of modCellSet) if (!before.has(k)) diff.push(k.split(',').map(Number)); for (const k of before) if (!modCellSet.has(k)) diff.push(k.split(',').map(Number));
     if (diff.length && cells.terr && Object.keys(cells.terr).length) { terrDirty(diff); terrFlush(); }
