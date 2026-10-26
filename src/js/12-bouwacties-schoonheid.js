@@ -334,10 +334,10 @@
   const REACH = 30;   // zo ver kun je bouwen tijdens het lopen (m)
   const raycaster = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
-  function pick(cx, cy) {
+  function pick(cx, cy, withMods) {
     ndc.set(cx / window.innerWidth * 2 - 1, -(cy / window.innerHeight) * 2 + 1);
     raycaster.setFromCamera(ndc, camera);
-    const hits = hudPickFilter(curvedHits(raycaster, [ground, terrGroup, blocks, ...(tool === 'module' || tool === 'gum' ? [...modGroups.values()].map(e => e.group) : [])]));   // laagkiezer: wat erboven ligt is doorzichtig en niet aan te klikken
+    const hits = hudPickFilter(curvedHits(raycaster, [ground, terrGroup, blocks, ...(withMods || tool === 'module' || tool === 'gum' ? [...modGroups.values()].map(e => e.group) : [])]));   // laagkiezer: wat erboven ligt is doorzichtig en niet aan te klikken
     if (!hits.length) return null;
     const h = hits[0];
     if (mode === 'walk' && h.distance > REACH) return null;
@@ -359,7 +359,7 @@
   // Rechtermuisknop: haalt de bovenste laag weg, welk blok er ook gekozen is
   function eraseAt(cx, cy) {
     if (vecChain.on) { vecChainEnd(); return; }   // rechts klikken stopt de weg-klikmodus
-    const res = pick(cx, cy);
+    const res = pick(cx, cy, true);   // ook met een ander gereedschap in de hand moet een module te raken zijn
     if (res && eraseModuleAt(res)) { updateGhost(cx, cy); return; }
     if (res && eraseEdgeAt(res)) { updateGhost(cx, cy); return; }
     if (res && (erasePathAt(res) || eraseTriAt(res))) { updateGhost(cx, cy); return; }   // getekende weg: de hele lijn in één keer

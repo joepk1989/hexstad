@@ -39,12 +39,14 @@
         a.nb.push(j); b.nb.push(i);
       }
       e.collapsed = true; modBatchRefresh(); mods.set(I, S); S.baked = false;
+      if (e.col) { S.colBak = { w: e.col.walls, s: e.col.surfaces }; e.col.walls = []; e.col.surfaces = []; S.col = e.col; }   // geen onzichtbare muren meer: de botsing van het hele gebouw valt weg
       return S;
     }
     function drop(I) {
       const S = mods.get(I); if (!S) return; mods.delete(I);
       unbake(S); gDirty = true; root.remove(S.grp); for (const p of S.P) if (p.mesh.parent === S.grp) p.mesh.geometry.dispose();
       for (let i = debris.length - 1; i >= 0; i--) if (debris[i].S === S) { root.remove(debris[i].p.mesh); debris[i].p.mesh.geometry.dispose(); debris.splice(i, 1); }
+      if (S.col && S.colBak) { S.col.walls = S.colBak.w; S.col.surfaces = S.colBak.s; }
       if (S.e) S.e.collapsed = false; modBatchRefresh();
     }
     // Wat blijft staan wordt weer per materiaal samengevoegd, over alle kapotte gebouwen heen (anders kost elk kapot gebouw
@@ -136,6 +138,7 @@
       return best;
     }
     function update(dt) {
+      for (const [I, S] of [...mods]) if (!cells.inst || !cells.inst.includes(I) || modGroups.get(I) !== S.e) drop(I);   // weggehaald, vervangen of nieuwe stad: de brokstukken verdwijnen mee
       if (gDirty && !mods.size) rebuildGlobal();
       if (!mods.size && !dust.length) return;
       tNow += dt; dt = Math.min(dt, 0.05); gT += dt;

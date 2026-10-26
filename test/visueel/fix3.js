@@ -1,0 +1,20 @@
+const { open } = require('./helper');
+(async () => {
+  const { b, p } = await open({ width: 800, height: 500 });
+  p.on('pageerror', e => console.log('FOUT', e.message));
+  const r = await p.evaluate(() => { const S = window.__SC(), c = S.getCells(); const I = c.inst.find(I => I.m.cat === 'Wonen' && !I.lv); const w = S.cellToWorld(I.q, I.r);
+    const e0 = S.collapse.dbg ? 1 : 0; S.collapse.hit(w.x, w.z, 25, 1, 0);
+    for (let i = 0; i < 80; i++) S.collapse.update(0.05);
+    const st = S.collapse.stats(); let walls = 0; for (let dx = -8; dx <= 8; dx += 2) for (let dz = -8; dz <= 8; dz += 2) if (S.blockedAt(w.x + dx, w.z + dz, 0)) walls++;
+    return { st, walls, name: I.m.name }; });
+  console.log('na instorten', JSON.stringify(r));
+  await p.evaluate(() => { const S = window.__SC(); S.collapse.setOn(false); S.collapse.setOn(true); });
+  const w2 = await p.evaluate(() => { const S = window.__SC(), c = S.getCells(); const I = c.inst.find(I => I.m.cat === 'Wonen' && !I.lv); const w = S.cellToWorld(I.q, I.r); let walls = 0; for (let dx = -8; dx <= 8; dx += 2) for (let dz = -8; dz <= 8; dz += 2) if (S.blockedAt(w.x + dx, w.z + dz, 0)) walls++; return walls; });
+  console.log('na herstel (zonder instorten) botsingspunten', w2);
+  await p.evaluate(() => { const S = window.__SC(); S.cars.setForce(14); S.cars.setReckless(true); for (let i = 0; i < 800; i++) S.cars.update(0.05); });
+  const acc = () => p.evaluate(() => document.getElementById('incBtn').textContent);
+  console.log('teller voor', await acc());
+  await p.evaluate(() => window.__SC().doAct('sample')); await p.waitForTimeout(500);
+  console.log('teller na nieuwe stad', await acc());
+  await b.close();
+})();
