@@ -1,21 +1,20 @@
   // ---------- Camera: bouwen (orbit) ----------
   const orbit = { target: new THREE.Vector3(0, 0, 0), theta: 0.75, phi: 0.92, dist: 190 };
-  // ---------- Vrij vliegen in de bouwmodus: spatiebalk aan/uit ----------
-  // De camera wordt los van het draaipunt: de muis kijkt (aanwijzer vastgezet), W/A/S/D vliegt in de kijkrichting, E en Q gaan
-  // omhoog en omlaag, Shift is sneller, het wiel stelt de snelheid in. Klikken bouwt of sloopt waar het puntje wijst. Spatie of
-  // Esc stopt; het draaipunt komt dan op wat je aankijkt, zodat de gewone camera daar verdergaat.
-  const flyCam = { on: false, x: 0, y: 60, z: 0, yaw: 0, pitch: -0.4, k: 1, fov: 45, near: 1 };
+  // ---------- Cameramodus: spatiebalk aan/uit in de bouwmodus ----------
+  // Vrij rondvliegen zonder interface: de muis kijkt (aanwijzer vastgezet), W/A/S/D vliegt in de kijkrichting (met wat
+  // vaart, zoals een drone), E en Q gaan omhoog en omlaag, Shift is sneller, Ctrl langzamer, het wiel zoomt (beeldhoek)
+  // en F maakt een foto zonder knoppen erop. Spatie of Esc stopt; het draaipunt komt dan op wat je aankijkt.
+  const flyCam = { on: false, x: 0, y: 60, z: 0, yaw: 0, pitch: -0.4, k: 1, fov: 45, near: 1, vx: 0, vy: 0, vz: 0, fovT: 65 };
   function flyStart() {
     if (flyCam.on || mode !== 'build') return false;
     const d = new THREE.Vector3(); camera.getWorldDirection(d);
     flyCam.on = true; flyCam.x = camera.position.x; flyCam.y = camera.position.y; flyCam.z = camera.position.z;
     flyCam.yaw = Math.atan2(-d.x, -d.z); flyCam.pitch = Math.asin(Math.max(-1, Math.min(1, d.y)));
-    flyCam.fov = camera.fov; flyCam.near = camera.near; camera.fov = 65; camera.near = 0.3; camera.rotation.order = 'YXZ'; camera.updateProjectionMatrix();
+    flyCam.fov = camera.fov; flyCam.near = camera.near; flyCam.fovT = 65; flyCam.vx = flyCam.vy = flyCam.vz = 0; camera.fov = 65; camera.near = 0.3; camera.rotation.order = 'YXZ'; camera.updateProjectionMatrix();
     document.body.classList.add('fly'); ghost.visible = false; ghostArrow.visible = false; ghostEdges.visible = false;
     try { const pr = canvas.requestPointerLock && canvas.requestPointerLock(); if (pr && pr.catch) pr.catch(() => {}); } catch (_) {}
     if (!flyCam.badge) { flyCam.badge = document.createElement('div'); flyCam.badge.className = 'flybadge'; document.body.appendChild(flyCam.badge); }
-    const tn = (typeof TYPES !== 'undefined' && TYPES[tool] && TYPES[tool].name) || (tool === 'gum' ? 'Gum' : '');
-    flyCam.badge.innerHTML = '<b>Vrij vliegen</b> · muis kijkt · W A S D · E/Q hoger/lager · Shift snel' + (tn ? ' · klik: ' + tn : '') + ' · Spatie stopt';
+    flyCam.badge.innerHTML = '<b>Cameramodus</b> · muis kijkt · W A S D · E/Q hoger/lager · Shift snel · wiel zoomt · F foto · Spatie stopt';
     flyCam.badge.hidden = false; flyCam.badge.classList.remove('dim'); clearTimeout(flyCam.dimT); flyCam.dimT = setTimeout(() => { if (flyCam.badge) flyCam.badge.classList.add('dim'); }, 3500);
     return true;
   }
@@ -35,12 +34,24 @@
   function flyUpdate(dt) {
     const f = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0), s = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0), u = (keys.KeyE ? 1 : 0) - (keys.KeyQ ? 1 : 0);
     const cy = Math.cos(flyCam.pitch), fx = -Math.sin(flyCam.yaw) * cy, fy = Math.sin(flyCam.pitch), fz = -Math.cos(flyCam.yaw) * cy, rx = Math.cos(flyCam.yaw), rz = -Math.sin(flyCam.yaw);
-    const speed = Math.max(12, flyCam.y * 0.9) * flyCam.k * (keys.ShiftLeft || keys.ShiftRight ? 3 : 1);
-    flyCam.x += (fx * f + rx * s) * speed * dt; flyCam.y += (fy * f + u) * speed * dt; flyCam.z += (fz * f + rz * s) * speed * dt;
+    const speed = Math.max(12, flyCam.y * 0.9) * flyCam.k * (keys.ShiftLeft || keys.ShiftRight ? 3 : 1) * (keys.ControlLeft || keys.ControlRight ? 0.25 : 1) * (camera.fov / 65);   // ingezoomd: rustiger
+    const kv = Math.min(1, dt * 3.5);   // vaart: optrekken en uitglijden zoals een drone
+    flyCam.vx += ((fx * f + rx * s) * speed - flyCam.vx) * kv; flyCam.vy += ((fy * f + u) * speed - flyCam.vy) * kv; flyCam.vz += ((fz * f + rz * s) * speed - flyCam.vz) * kv;
+    flyCam.x += flyCam.vx * dt; flyCam.y += flyCam.vy * dt; flyCam.z += flyCam.vz * dt;
+    if (Math.abs(camera.fov - flyCam.fovT) > 0.05) { camera.fov += (flyCam.fovT - camera.fov) * Math.min(1, dt * 6); camera.updateProjectionMatrix(); }
     const [q, r] = worldToCell(flyCam.x, flyCam.z), floor = Math.max(terrGround(flyCam.x, flyCam.z), colTopW(q, r)) + 2;
     flyCam.y = Math.min(1800, Math.max(floor, flyCam.y));
     camera.position.set(flyCam.x, flyCam.y, flyCam.z); camera.rotation.set(flyCam.pitch, flyCam.yaw, 0, 'YXZ');
     orbit.target.set(flyCam.x, 0, flyCam.z); orbit.dist = Math.min(600, Math.max(30, flyCam.y * 1.6));   // grond, mist en detailniveau volgen mee
+  }
+  function flyPhoto() {   // foto zonder knoppen: het beeld zelf, als png
+    try {
+      renderer.render(scene, camera);
+      const url = renderer.domElement.toDataURL('image/png'), a = document.createElement('a'), d = new Date(), z = n => String(n).padStart(2, '0');
+      a.href = url; a.download = `raatstad-${d.getFullYear()}${z(d.getMonth() + 1)}${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}${z(d.getSeconds())}.png`; a.click();
+      const fl = document.createElement('div'); fl.className = 'flyflash'; document.body.appendChild(fl); setTimeout(() => fl.remove(), 450);
+      if (typeof sound !== 'undefined') sound.fx('click');
+    } catch (e) { toast('Foto maken lukte niet', 1600); }
   }
   document.addEventListener('pointerlockchange', () => { if (flyCam.on && document.pointerLockElement !== canvas) flyStop(); });
   function applyOrbit() {

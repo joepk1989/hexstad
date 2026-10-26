@@ -154,7 +154,7 @@
       if (mode === 'build') updateGhost(e.clientX, e.clientY);
       return;
     }
-    if (flyCam.on) { flyCam.k = Math.min(6, Math.max(0.25, flyCam.k * (e.deltaY < 0 ? 1.2 : 1 / 1.2))); toast('Vliegsnelheid ×' + flyCam.k.toFixed(1), 700); return; }
+    if (flyCam.on) { flyCam.fovT = Math.min(95, Math.max(12, flyCam.fovT * (e.deltaY < 0 ? 1 / 1.12 : 1.12))); return; }   // cameramodus: wiel zoomt
     zoom(1 + Math.max(-0.3, Math.min(0.3, e.deltaY * 0.0012)));
     applyOrbit(); updateGhost(e.clientX, e.clientY);
   }, { passive: false });
@@ -176,6 +176,8 @@
     if (roadDrag.on && roadDrag.vp && e.code === 'KeyL') { e.preventDefault(); roadAbsToggle(); return; }
     if (roadDrag.on && roadDrag.vp && ['KeyE', 'KeyQ', 'PageUp', 'PageDown', 'Equal', 'Minus', 'NumpadAdd', 'NumpadSubtract'].includes(e.code)) { e.preventDefault(); roadHeightStep(['KeyE', 'PageUp', 'Equal', 'NumpadAdd'].includes(e.code) ? 1 : -1); return; }
     if (mode === 'walk' && e.code === 'KeyQ') { const H = ['kijken', 'bouwen', 'hamer']; setHand(H[(H.indexOf(hand) + 1) % 3]); toast(hand === 'kijken' ? 'Kijken' : hand === 'bouwen' ? 'Bouwen: ' + (TYPES[toolBase(tool)] ? TYPES[toolBase(tool)].name : tool) : 'Hamer: klik om te slopen', 1200); return; }
+    if (flyCam.on && e.code === 'KeyF') { e.preventDefault(); flyPhoto(); return; }
+    if (flyCam.on) return;   // cameramodus: geen bouwtoetsen
     if (e.code === 'KeyR') { e.shiftKey ? resetRotation() : rotateDir(); return; }
     if (e.code === 'KeyF' && mode === 'build' && tool === 'module') { toggleMirror(); return; }
     if (n >= 1 && n <= 9 && !e.ctrlKey && !e.metaKey && !e.altKey) hotSelect(n - 1);   // snelbalk (15d)
@@ -183,20 +185,10 @@
   window.addEventListener('keyup', e => { keys[e.code] = false; });
   window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
   document.getElementById('jumpBtn').addEventListener('pointerdown', e => { e.preventDefault(); jump(); });
-  // Vrij vliegen: klikken bouwt of sloopt waar het puntje wijst (linkermuisknop bouwt, rechts of de gum sloopt)
+  // Cameramodus: een klik vangt alleen de muis (weer); bouwen doe je buiten de cameramodus
   function flyPointer(e) {
     if (e.pointerType !== 'mouse') return;
-    if (document.pointerLockElement !== canvas) { try { const pr = canvas.requestPointerLock(); if (pr && pr.catch) pr.catch(() => {}); } catch (_) {} return; }
-    const cx = window.innerWidth / 2, cy = window.innerHeight / 2, erase = e.button === 2 || tool === 'gum', res = pick(cx, cy);
-    if (!res) return toast('Richt het puntje op de grond of een gebouw');
-    lastPickRes = res;
-    if (erase) {
-      if (eraseModuleAt(res) || eraseEdgeAt(res) || erasePathAt(res) || eraseTriAt(res)) { sound.impact(1.2, res.point.x, res.point.y, res.point.z, false); return; }
-      if (res.erase) { removeTop(res.erase[0], res.erase[1]); sound.impact(1.2, res.point.x, res.point.y, res.point.z, false); } else toast('Hier valt niets weg te halen');
-      return;
-    }
-    if (e.button === 0 && DRAG_TOOLS.has(tool)) { const st = stackOf(res.place[0], res.place[1]); if (st.length && baseOf(st[st.length - 1]) === toolBase(tool)) { place(res.place[0], res.place[1]); return; } roadDragStart(res.place); return; }
-    place(res.place[0], res.place[1]);
+    if (document.pointerLockElement !== canvas) { try { const pr = canvas.requestPointerLock(); if (pr && pr.catch) pr.catch(() => {}); } catch (_) {} }
   }
   // Bouwen tijdens het lopen: wat in het midden van het beeld ligt
   let handHintT = 0;

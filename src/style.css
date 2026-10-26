@@ -841,16 +841,18 @@ body.walk .hud-top { justify-content: flex-end; }
 html { position: fixed; inset: 0; width: 100%; height: 100%; overflow: hidden; touch-action: manipulation; -webkit-text-size-adjust: 100%; }
 body { position: fixed; inset: 0; width: 100%; height: 100%; margin: 0; box-sizing: border-box; overflow: hidden; }
 
-/* vrij vliegen (spatiebalk in de bouwmodus): het puntje in het midden wijst waar je bouwt */
-body.fly .crosshair { display: block; opacity: 1; }
+/* cameramodus (spatiebalk in de bouwmodus): geen puntje, geen cursor */
+body.fly .crosshair { display: none; }
 body.fly #scene { cursor: none; }
 /* totale chaos: spreekballonnen in paniek, schuin en trillend */
 #chatter .bub.panic { background: #fff1ee; color: #8a1a10; border-color: #e0573f; font-weight: 800; animation: bubShake .18s linear infinite alternate; }
 @keyframes bubShake { from { margin-left: -1.5px; } to { margin-left: 1.5px; } }
 @media (prefers-reduced-motion: reduce) { #chatter .bub.panic { animation: none; } }
-/* vrij vliegen: minimale interface, alleen het puntje, de meldingen en een klein label */
+/* cameramodus: geen interface, alleen meldingen en een klein label */
 body.fly .hud-top, body.fly #todPanel, body.fly #recklessBtn, body.fly #incPanel, body.fly #palette, body.fly #dockL, body.fly #dockM,
 body.fly #modeBtn, body.fly #layerPick, body.fly .city-arrow, body.fly #catBtn, body.fly .keys, body.fly #keysBtn { opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; transition: opacity .25s, visibility 0s .25s; }
 .flybadge { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 18px); transform: translateX(-50%); z-index: 6; pointer-events: none; padding: 6px 14px; border-radius: 999px; background: rgba(20,24,18,.55); color: #eef1ec; font: 600 12px/1.2 system-ui, sans-serif; letter-spacing: .02em; transition: opacity .8s; white-space: nowrap; }
 .flybadge b { color: #f2b233; font-weight: 700; }
 .flybadge.dim { opacity: .45; }
+.flyflash { position: fixed; inset: 0; z-index: 9; background: #fff; pointer-events: none; animation: flyFlash .45s ease-out forwards; }
+@keyframes flyFlash { from { opacity: .85; } to { opacity: 0; } }

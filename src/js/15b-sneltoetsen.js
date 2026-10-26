@@ -11,7 +11,7 @@
     ['Modules', null], [K(',', '.'), 'vorige / volgende module'], [K('F'), 'module spiegelen'], [K('/'), 'zoek een module (Enter kiest de eerste)'],
     ['Terrein', null], ['slepen', 'boetseren (ingedrukt houden)'], [K('Shift') + '+slepen', 'andersom (ophogen ↔ afgraven)'],
     ['Weg slepen', null], [K('E', 'Q'), 'hoger / lager (ook Page Up/Down, wiel)'], ['stilhouden', 'hoekpunt: bocht in één sleep'],
-    ['Vrij vliegen', null], [K('Spatie'), 'aan / uit (of Esc)'], ['muis', 'rondkijken'], [K('W', 'A', 'S', 'D'), 'vliegen'], [K('E', 'Q'), 'omhoog / omlaag'], [K('Shift'), 'sneller'], ['wiel', 'vliegsnelheid'], ['klik', 'bouwen op het puntje (rechts: slopen)'],
+    ['Cameramodus', null], [K('Spatie'), 'aan / uit (of Esc)'], ['muis', 'rondkijken'], [K('W', 'A', 'S', 'D'), 'vliegen'], [K('E', 'Q'), 'omhoog / omlaag'], [K('Shift') + ' / ' + K('Ctrl'), 'sneller / langzamer'], ['wiel', 'zoomen'], [K('F'), 'foto (png, zonder knoppen)'],
     ['Overig', null], [K('G'), 'raster aan/uit'], [K('P'), 'tijd pauze / verder'], [K('O'), 'weer: volgende (Shift: vorige)'], [K('L'), 'lopen'], [K('M'), 'menu'], [K('?'), 'dit overzicht'],
   ];
   const KEYS_WALK = [

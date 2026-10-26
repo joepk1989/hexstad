@@ -65,7 +65,7 @@
     else if (flyCam.on) {
       flyUpdate(dt);
       if (roadDrag.on) { const res = pick(window.innerWidth / 2, window.innerHeight / 2); if (res) roadPaintTo(res.place); }
-      if ((frameNo++ & 1) === 0) updateGhost(window.innerWidth / 2, window.innerHeight / 2);
+      ghost.visible = false; ghostArrow.visible = false; ghostEdges.visible = false; vecGhost.visible = false; moduleGhost.visible = false;   // vrij vliegen: geen bouwvoorbeeld in beeld
     }
     else updateBuildKeys(dt);
     // oneindige bouwgrond: grond en rasterlijnen schuiven mee met waar je bent (rasterlijnen in hele vakken)

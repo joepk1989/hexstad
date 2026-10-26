@@ -1,0 +1,11 @@
+const { open, OUT } = require('./helper');
+(async () => { const { b, p } = await open({ width: 800, height: 500 }, { acceptDownloads: true });
+ p.on('pageerror', e => console.log('FOUT', e.message));
+ await p.keyboard.press('Space'); await p.waitForTimeout(2000);
+ await p.evaluate(() => { const f = window.__SC().flyCam; f.x = 40; f.z = 100; f.y = 22; f.yaw = 0.3; f.pitch = -0.2; });
+ await p.mouse.move(400, 250); await p.mouse.wheel(0, -400); await p.waitForTimeout(3000);
+ const dl = p.waitForEvent('download', { timeout: 60000 }).catch(() => null);
+ await p.keyboard.press('KeyF');
+ const d = await dl; if (d) { await d.saveAs(OUT + '/foto.png'); console.log('foto', d.suggestedFilename()); } else console.log('geen download');
+ console.log(JSON.stringify(await p.evaluate(() => { const S = window.__SC(); return { on: S.flyCam.on, fovT: +S.flyCam.fovT.toFixed(1), fov: +S.camera.fov.toFixed(1), badge: document.querySelector('.flybadge').textContent }; })));
+ await b.close(); })();
