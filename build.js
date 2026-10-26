@@ -4,7 +4,7 @@ const root = __dirname, src = p => fs.readFileSync(path.join(root, 'src', p), 'u
 const js = fs.readdirSync(path.join(root, 'src/js')).filter(f => f.endsWith('.js')).sort().map(f => src('js/' + f).replace(/\n$/, '')).join('\n');
 // Syntaxcontrole vóór het schrijven: een kapotte pagina laadt anders helemaal niet
 try { new Function('(() => {\n' + js + '\n})();'); } catch (e) { console.error('Syntaxfout in de code: ' + e.message); process.exit(1); }
-const html = src('index.html').replace('/*__CSS__*/', src('style.css').replace(/\n$/, '')).replace('/*__JS__*/', js);
+const html = src('index.html').replace('/*__CSS__*/', src('style.css').replace(/\n$/, '')).replace('/*__JS__*/', js).replace('/*__VERSIE__*/', (() => { let h = ''; try { h = require('child_process').execSync('git rev-parse --short HEAD', { cwd: root }).toString().trim(); } catch (e) { } const d = new Date().toLocaleString('nl-NL', { timeZone: 'Europe/Amsterdam', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); return d + (h ? ' · ' + h : ''); })());
 fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
 fs.writeFileSync(path.join(root, 'dist/hexstad.html'), html);
 for (const f of fs.readdirSync(path.join(root, 'assets'))) fs.copyFileSync(path.join(root, 'assets', f), path.join(root, 'dist', f));

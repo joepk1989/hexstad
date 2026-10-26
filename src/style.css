@@ -856,3 +856,4 @@ body.fly #modeBtn, body.fly #layerPick, body.fly .city-arrow, body.fly #catBtn, 
 .flybadge.dim { opacity: .45; }
 .flyflash { position: fixed; inset: 0; z-index: 9; background: #fff; pointer-events: none; animation: flyFlash .45s ease-out forwards; }
 @keyframes flyFlash { from { opacity: .85; } to { opacity: 0; } }
+.menu-head .ver { margin-left: auto; margin-right: 8px; font: 500 11px/1 ui-monospace, Menlo, monospace; opacity: .55; white-space: nowrap; }
