@@ -457,13 +457,13 @@
       const C = c.crash; C.t += dt;
       // banden glijden over de weg: afremmen met ~0,6 g, tollen dempt uit
       let sp = Math.hypot(c.cvx, c.cvz);
-      const dec = Math.min(sp, (c.onCurb ? 9 : 6) * dt);
+      const dec = Math.min(sp, (c.onCurb ? 9 : c.slide ? 3.6 : 6) * dt);   // een uit de bocht gevlogen auto glijdt verder
       if (sp > 1e-6) { c.cvx -= c.cvx / sp * dec; c.cvz -= c.cvz / sp * dec; }
       c.w *= Math.exp(-1.8 * dt);
       const nx = c.x + c.cvx * dt, nz = c.z + c.cvz * dt;
       // tegen een gebouw of blok: daar stopt het
       const [q, r] = worldToCell(nx, nz);
-      if (columnTop(q, r) > 1.0 || (sp > 2.5 && collapse.probe(nx, nz, sp, c.cvx, c.cvz))) { c.cvx *= -0.25; c.cvz *= -0.25; c.w *= 0.5; sound.impact(Math.min(1, sp / 10), c.x, 0.6, c.z, false); }
+      if (columnTop(q, r) > 1.0 || (sp > 2.5 && collapse.probe(nx + c.cvx / sp * 1.7, nz + c.cvz / sp * 1.7, sp, c.cvx, c.cvz))) { c.cvx *= -0.25; c.cvz *= -0.25; c.w *= 0.5; sound.impact(Math.min(1, sp / 10), c.x, 0.6, c.z, false); }
       else { c.x = nx; c.z = nz; }
       c.h += c.w * dt;
       sp = Math.hypot(c.cvx, c.cvz); c.v = sp;
@@ -473,7 +473,7 @@
       hitPeople(c, dt, peds, lying, c.cvx, c.cvz);
       C.still = sp < 0.3 && Math.abs(c.w) < 0.25 ? C.still + dt : 0;
       if (C.still > 2.5 || C.t > 12) {   // weer verder: terug naar de rijbaan (of ergens anders opnieuw)
-        c.crash = null; c.v = 0; c.w = 0; c.rx = undefined; c.roll = 0; c.pitch = 0;
+        c.crash = null; c.slide = 0; c.v = 0; c.w = 0; c.rx = undefined; c.roll = 0; c.pitch = 0;
         const [px, pz] = posOn(c, c.s);
         if (Math.hypot(px - c.x, pz - c.z) > 6) spawn(c); else c.ease = 2.5;
       }
@@ -562,6 +562,11 @@
           const ch = Math.cos(c.h), sh = Math.sin(c.h);
           // gewenste snelheid: 30 km/u, langzamer in bochten en bij het keren (roekeloos: 75 km/u en bochten op de rand)
           if (reckless && !c.persona) { const u = Math.random(); c.persona = u < 0.35 ? 'racer' : u < 0.75 ? 'ontwijker' : 'jager'; }
+          // roekeloos: een racer die te hard een bocht in gaat raakt de macht kwijt en glijdt rechtdoor (soms een huis in)
+          if (reckless && c.persona === 'racer' && (c.kind === 'turn' || c.kind === 'u') && c.v > 12 && !(c.ghost > 0) && Math.random() < dt * 0.3) {
+            const aim = Math.random() < 0.85 ? collapse.ahead(c.x, c.z, c.h) : null, sv = aim ? Math.min(27, Math.sqrt(15 * 15 + 2 * 3.6 * Math.max(0, aim[2] - 8))) : c.v * 1.08; c.crash = { t: 0, still: 0 }; c.cvx = aim ? aim[0] * sv : Math.cos(c.h) * c.v * 1.05; c.cvz = aim ? aim[1] * sv : Math.sin(c.h) * c.v * 1.05; if (aim) c.h = Math.atan2(aim[1], aim[0]); c.w = (Math.random() < 0.5 ? -1 : 1) * (1.2 + Math.random() * 1.8); c.rx = undefined; c.held = false; c.slide = 1;
+            sound.fx('squeal', c.x, 0.5, c.z, 1); crashStep(c, dt, peds, lying); continue;
+          }
           let want = reckless ? ({ racer: 26, jager: 17 }[c.persona] || 20) : ({ snel: 36.1, klink: 4.5, ring: 6.5 }[(VG.edges.get(c.eid) || {}).t] ?? 8.3); c.why = ''; c.yieldTo = -1;   // snelweg 130 km/u, klinkers stapvoets, rotonde rustig
           { const lim = t => ({ snel: 36.1, klink: 4.5, ring: 6.5 }[t] ?? 8.3), vN = c.next ? Math.min(lim((VG.edges.get(c.next.eid) || {}).t), c.next.kind === 'turn' ? 5.5 : 99) : 99;   // van de snelweg af: op tijd afremmen tot de snelheid van wat komt
             if (vN < want) want = Math.min(want, Math.sqrt(vN * vN + 2 * 3.5 * Math.max(0, c.path.len - c.s))); }

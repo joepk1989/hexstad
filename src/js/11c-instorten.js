@@ -11,7 +11,7 @@
     dustMesh.frustumCulled = false; dustMesh.count = 0; dustMesh.userData.noOcc = true; dustMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(dustMesh);
     const root = new THREE.Group(); root.name = 'instorten'; scene.add(root);
     const M4 = new THREE.Matrix4(), Q4 = new THREE.Quaternion(), V3 = new THREE.Vector3(), S3 = new THREE.Vector3(), AX = new THREE.Vector3(), EU = new THREE.Euler();
-    let tNow = 0;
+    let tNow = 0; const LOG = [], CNT = { call: 0, mod: 0, bouw: 0, nohit: 0, hit: 0, slow: 0 };
     const groundAt = (x, z) => { let y = 0; try { y = terrainHeightAt(x, z) || 0; } catch (e) { } const r = roadTop(x, z, 0.5); return r != null ? Math.max(y, r) : y; };
 
     // gebouw omzetten naar losse stukken (een keer)
@@ -99,9 +99,9 @@
 
     // een auto raakt het gebouw bij (x, z) met snelheid sp
     function probe(x, z, sp, vx, vz) {
-      if (!ST.on) return false;
-      const [q, r] = worldToCell(x, z), top = modTop.get(q + ',' + r); if (!top || !top.inst) return false;
-      const I = top.inst; if (!modGroups.get(I)) return false;
+      if (!ST.on) return false; CNT.call++;
+      const [q, r] = worldToCell(x, z), top = modTop.get(q + ',' + r); if (!top || !top.inst) return false; CNT.mod++;
+      const I = top.inst; if (!modGroups.get(I) || !modMeta(I.m).bouw) return false; CNT.bouw++;   // alleen gebouwen (geen parken en pleinen)
       let S = mods.get(I) && mods.get(I).e === modGroups.get(I) ? mods.get(I) : null;
       if (!S) {
         // eerst kijken of een stuk (muur of vloer) echt in de weg zit: dan pas het gebouw omzetten
@@ -110,21 +110,31 @@
       }
       const reach = 1.1;
       const hit = S.P.filter(p => p.st === 'stand' && Math.abs(x - p.c.x) <= p.hx + reach && Math.abs(z - p.c.z) <= p.hz + reach && p.c.y - p.hy < S.G + 3.6 && !p.flat);
-      if (!hit.length) return false;
-      if (sp < 4) return true;
-      const R = Math.min(6, 1.2 + Math.max(0, sp - 4) * 0.2), dl = Math.hypot(vx, vz) || 1, dx = vx / dl, dz = vz / dl;
+      if (!hit.length) { CNT.nohit++; return false; }
+      if (sp < 4) { CNT.slow++; return true; }
+      CNT.hit++;
+      const R = Math.min(8, 1.6 + Math.max(0, sp - 3) * 0.38), dl = Math.hypot(vx, vz) || 1, dx = vx / dl, dz = vz / dl;
       let n = 0;
       for (const p of S.P) {
         if (p.st !== 'stand') continue;
         const d = Math.hypot(p.c.x - x, p.c.z - z); if (d > R || p.c.y - p.hy > S.G + 3.6 + (sp > 14 ? 3 : 0)) continue;
         release(S, p, dx * sp * 0.22 * (1 - d / (R + 0.5)) + (Math.random() - 0.5), dz * sp * 0.22 * (1 - d / (R + 0.5)) + (Math.random() - 0.5), Math.random() * 0.08); n++;
       }
+      LOG.push([I.m.name, +sp.toFixed(1), n, hit.length]); if (LOG.length > 60) LOG.shift();
       if (!n) return true;
       puff(x, S.G + 1.2, z, 10 + Math.min(14, n)); S.clock = 0.25; unbake(S);
       try { sound.fx('crunch', x, 1, z, Math.min(1, sp / 14)); sound.impact(Math.min(1, sp / 12), x, 0.8, z, false); } catch (e) { }
       return true;
     }
 
+    // een gebouw vlak voor een auto: richting (eenheidsvector) van de dichtstbijzijnde gevel binnen 45 m en 55 graden, of null
+    let tgtCache = null, tgtSig = -1;
+    function ahead(x, z, h) {
+      const live = (cells.inst || []).length; if (tgtSig !== live || !tgtCache) { tgtSig = live; tgtCache = []; for (const I of cells.inst || []) if (I.m && I.m.v === 2 && !I.lv && modMeta(I.m).bouw) { const w = cellToWorld(I.q, I.r); tgtCache.push([w.x, w.z]); } }
+      let best = null, bd = 1e9; const cx = Math.cos(h), sz = Math.sin(h);
+      for (const [wx, wz] of tgtCache) { const dx = wx - x, dz = wz - z, d = Math.hypot(dx, dz); if (d > 45 || d < 8) continue; if ((dx * cx + dz * sz) / d < Math.cos(0.96)) continue; if (d < bd) { bd = d; best = [dx / d, dz / d, d]; } }
+      return best;
+    }
     function update(dt) {
       if (gDirty && !mods.size) rebuildGlobal();
       if (!mods.size && !dust.length) return;
@@ -167,10 +177,11 @@
     }
     function reset() { for (const I of [...mods.keys()]) drop(I); dust.length = 0; dustMesh.count = 0; }
     return {
-      probe, update, reset,
+      probe, update, reset, ahead,
       get on() { return ST.on; }, setOn(v) { ST.on = !!v; if (!v) reset(); },
       // voor tests: raak het gebouw op deze plek
       hit(x, z, sp, vx, vz) { return probe(x, z, sp, vx, vz); },
+      log: LOG, cnt: CNT,
       dbg: () => [...mods.values()][0],
       stats: () => ({ baked: [...mods.values()].filter(S => S.baked).length, gm: gMeshes.length, liveMeshes: [...mods.values()].reduce((n, S) => n + S.P.filter(p => p.st === 'stand' && p.mesh.visible).length, 0), modules: mods.size, debris: debris.length, dust: dust.length, standing: [...mods.values()].reduce((n, S) => n + S.P.filter(p => p.st === 'stand').length, 0), pieces: [...mods.values()].reduce((n, S) => n + S.P.length, 0), pending: [...mods.values()].reduce((n, S) => n + S.pend, 0) })
     };
