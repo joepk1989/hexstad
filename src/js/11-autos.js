@@ -557,7 +557,8 @@
       const nx = c.x + c.cvx * dt, nz = c.z + c.cvz * dt;
       // tegen een gebouw of blok: daar stopt het
       const [q, r] = worldToCell(nx, nz);
-      if (columnTop(q, r) > 1.0 || (sp > 2.5 && collapse.probe(nx + c.cvx / sp * 1.7, nz + c.cvz / sp * 1.7, sp, c.cvx, c.cvz))) { c.cvx *= -0.25; c.cvz *= -0.25; c.w *= 0.5; if (sp > 3) hurt(c, sp * 1.2); sound.impact(Math.min(1, sp / 10), c.x, 0.6, c.z, false); }
+      const tb = sp > 0.5 && (terrGround(nx, nz) - baseOf_(c) > 0.9 || terrGround(nx + c.cvx / sp * 1.8, nz + c.cvz / sp * 1.8) - baseOf_(c) > 0.9);   // een berg of heuvel in de weg
+      if (tb || columnTop(q, r) > 1.0 || (sp > 2.5 && collapse.probe(nx + c.cvx / sp * 1.7, nz + c.cvz / sp * 1.7, sp, c.cvx, c.cvz))) { c.cvx *= -0.25; c.cvz *= -0.25; c.w *= 0.5; if (sp > 3) hurt(c, sp * 1.2); sound.impact(Math.min(1, sp / 10), c.x, 0.6, c.z, false); }
       else { c.x = nx; c.z = nz; }
       c.h += c.w * dt;
       sp = Math.hypot(c.cvx, c.cvz); c.v = sp;
@@ -919,7 +920,11 @@
             const [px, pz, ph] = posOn(c, c.s - WB), e = (c.rx - px) * Math.cos(ph) + (c.rz - pz) * Math.sin(ph);
             c.s += Math.max(-0.5, Math.min(0.5, e)) * Math.min(1, dt * 3);
             // te ver van de rijlijn (na een botsing of een vreemde sprong): terugzetten
-            if (Math.hypot(c.rx - px, c.rz - pz) > 3 + Math.abs(c.latCur || 0)) { c.rx = px; c.rz = pz; c.h = ph; }
+            const dev = Math.hypot(c.rx - px, c.rz - pz), lim = 3 + Math.abs(c.latCur || 0);
+            if (dev > lim) {   // te ver van de rijlijn: geen sprong, maar zijdelings terugschuiven en bijdraaien; echt kwijt (>14 m): zelf de weg terugzoeken
+              if (dev > 14 && !c.crash) { c.rx = undefined; if (!rejoin(c)) { c.rx = px; c.rz = pz; c.h = ph; } }
+              else { const st = Math.min(dev - lim + 0.05, 3.5 * dt), k = st / dev; c.rx += (px - c.rx) * k; c.rz += (pz - c.rz) * k; let dh = ph - c.h; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); c.h += dh * Math.min(1, dt * 1.5); }
+            }
           }
           c.x = c.rx + Math.cos(c.h) * WB; c.z = c.rz + Math.sin(c.h) * WB;
           c.steer = c.delta;
