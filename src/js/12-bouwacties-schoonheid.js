@@ -229,6 +229,7 @@
     return false;
   }
   function place(q, r) {
+    if (flyCam.on) return;   // cameramodus: niets bouwen of slopen
     if (TERR_TOOLS.has(tool)) return terrImpulse(q, r);
     if ((tool === 'heuvel' || tool === 'kuil') && terrBrush > 0) {
       const list = []; for (let dq = -terrBrush; dq <= terrBrush; dq++) for (let dr = -terrBrush; dr <= terrBrush; dr++) if (hexDist(dq, dr) <= terrBrush && terrainEdit(q + dq, r + dr, tool)) list.push([q + dq, r + dr]);
@@ -311,6 +312,7 @@
     people.onPlaced(q, r, y0, columnTop(q, r));
   }
   function removeTop(q, r) {
+    if (flyCam.on) return;   // cameramodus: niets bouwen of slopen
     const k = key(q, r); const st = cells.get(k);
     if (!st || !st.length) return;
     st.pop();
@@ -358,6 +360,7 @@
   }
   // Rechtermuisknop: haalt de bovenste laag weg, welk blok er ook gekozen is
   function eraseAt(cx, cy) {
+    if (flyCam.on) return;   // cameramodus: niets bouwen of slopen
     if (vecChain.on) { vecChainEnd(); return; }   // rechts klikken stopt de weg-klikmodus
     const res = pick(cx, cy, true);   // ook met een ander gereedschap in de hand moet een module te raken zijn
     if (res && eraseModuleAt(res)) { updateGhost(cx, cy); return; }
@@ -369,6 +372,7 @@
   // Op een touchscreen eerst een voorbeeld tonen bij blokken met een richting: tik = voorbeeld, nog een tik = plaatsen
   let pendingKey = null, lastPickRes = null;
   function handleTap(cx, cy) {
+    if (flyCam.on) return;   // cameramodus: niets bouwen of slopen
     const res = pick(cx, cy); lastPickRes = res;
     if (!res) return;
     if (coarse && DIRECTIONAL.has(tool) && mode === 'build') {

@@ -611,6 +611,7 @@
     changed();
   }
   function roadDragStart(cell) { vecChainEnd(true); vecPreClear(); roadDrag.on = true; roadDrag.last = null; roadDrag.count = 0; roadDrag.skip = 0; roadDrag.lp = null; roadDrag.sp = null; roadDrag.vp = null; roadDrag.vstart = null; roadDrag.prior = null; roadDrag.tool = tool; ghost.visible = false; ghostArrow.visible = false; vecGhost.visible = false; previewGroup.visible = false; roadPaintTo(cell); }
+    if (flyCam.on) return;   // cameramodus: geen wegen trekken
   function roadDragEnd() {
     if (!roadDrag.on) return;
     roadDrag.on = false; roadDrag.last = null;

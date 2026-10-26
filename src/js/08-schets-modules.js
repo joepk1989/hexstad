@@ -55,6 +55,7 @@
   // Klik op het dak van een module: de gekozen module komt erbovenop (gelaagde stad). Klik op de gevel: wisselen
   // naar de variant die het best aansluit (zoals voorheen).
   function placeModule(q0, r0, lv) {
+    if (flyCam.on) return;   // cameramodus: niets bouwen of slopen
     const mod = modules[moduleSel]; if (!mod) { openSchets(); return false; }
     ensureIds();
     if (lv === undefined && mod.v === 2 && hudLayer() !== null) lv = hudLayer();   // laagkiezer (15d)
