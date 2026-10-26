@@ -563,7 +563,7 @@
           // gewenste snelheid: 30 km/u, langzamer in bochten en bij het keren (roekeloos: 75 km/u en bochten op de rand)
           if (reckless && !c.persona) { const u = Math.random(); c.persona = u < 0.35 ? 'racer' : u < 0.75 ? 'ontwijker' : 'jager'; }
           // roekeloos: een racer die te hard een bocht in gaat raakt de macht kwijt en glijdt rechtdoor (soms een huis in)
-          if (reckless && c.persona === 'racer' && (c.kind === 'turn' || c.kind === 'u') && c.v > 12 && !(c.ghost > 0) && Math.random() < dt * 0.3) {
+          if (reckless && c.persona === 'racer' && (c.kind === 'turn' || c.kind === 'u') && c.v > 9 && !(c.ghost > 0) && Math.random() < dt * 0.7) {
             const aim = Math.random() < 0.85 ? collapse.ahead(c.x, c.z, c.h) : null, sv = aim ? Math.min(27, Math.sqrt(15 * 15 + 2 * 3.6 * Math.max(0, aim[2] - 8))) : c.v * 1.08; c.crash = { t: 0, still: 0 }; c.cvx = aim ? aim[0] * sv : Math.cos(c.h) * c.v * 1.05; c.cvz = aim ? aim[1] * sv : Math.sin(c.h) * c.v * 1.05; if (aim) c.h = Math.atan2(aim[1], aim[0]); c.w = (Math.random() < 0.5 ? -1 : 1) * (1.2 + Math.random() * 1.8); c.rx = undefined; c.held = false; c.slide = 1;
             sound.fx('squeal', c.x, 0.5, c.z, 1); crashStep(c, dt, peds, lying); continue;
           }

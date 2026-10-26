@@ -113,7 +113,7 @@
       if (!hit.length) { CNT.nohit++; return false; }
       if (sp < 4) { CNT.slow++; return true; }
       CNT.hit++;
-      const R = Math.min(8, 1.6 + Math.max(0, sp - 3) * 0.38), dl = Math.hypot(vx, vz) || 1, dx = vx / dl, dz = vz / dl;
+      const R = Math.min(13, 2.4 + Math.max(0, sp - 3) * 0.6), dl = Math.hypot(vx, vz) || 1, dx = vx / dl, dz = vz / dl;
       let n = 0;
       for (const p of S.P) {
         if (p.st !== 'stand') continue;
