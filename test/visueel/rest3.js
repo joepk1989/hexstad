@@ -1,10 +1,5 @@
 const { open } = require('./helper');
-(async () => {
-  const { b, p } = await open({ width: 700, height: 450 });
-  await p.evaluate(() => window.__SC().doAct('gen:ring:5')); await p.waitForTimeout(2500);
-  const r = await p.evaluate(async () => { const S = window.__SC(); await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-    const by = {};
-    S.scene.traverse(o => { if (!(o.isMesh && o.visible)) return; let a = o; while (a && a !== S.scene) { if (!a.visible) return; a = a.parent; } let top = o; while (top.parent && top.parent !== S.scene) top = top.parent; if (top.name === 'modBatch') return; const k = top.type + ' ' + (top.name || '') + ' ud:' + Object.keys(top.userData).join(',') + ' | ' + o.geometry.type + (o.isInstancedMesh ? ' inst' + o.count : '') + (o.castShadow ? ' sh' : '') + ' mat:' + o.material.type; by[k] = (by[k] || 0) + 1; });
-    return Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 12); });
-  console.log(JSON.stringify(r, null, 0)); await b.close();
-})();
+(async () => { const { b, p } = await open({ width: 600, height: 400 });
+ for (const a of ['sample', 'blocks', 'layers', 'dorp1']) { await p.evaluate(a => window.__SC().doAct(a), a); await p.waitForTimeout(800);
+  console.log(a, JSON.stringify(await p.evaluate(() => { const c = window.__SC().getCells(), o = {}; for (const [k, s] of c.entries()) if (s.some(t => /^(woning|kantoor|blok|zuilen|hof|tribune|tunnel)/.test(t))) { const key = s.join('>'); o[key] = (o[key] || 0) + 1; } return o; }))); }
+ await b.close(); })();

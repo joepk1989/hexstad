@@ -25,11 +25,15 @@
     for (const [k, st] of (only ? [[only, map.get(only)]] : [...map.entries()])) {
       if (!st) continue;
       let s = st.map(baseOf); while (s.length && s[s.length - 1] === 'dak') s.pop();
-      const kind = s[0]; if (!s.length || !OUD_MAP[kind] || s.some(t => t !== kind)) { if (s.some(t => OUD_MAP[t])) kept++; continue; }
-      const [q, r] = k.split(',').map(Number), sizes = Object.keys(OUD_MAP[kind]).map(Number).sort((a, b) => b - a), h = (q * 7 + r * 13 + 99) % 17, rot = facing(q, r);
-      let left = s.length, lv = 0, mir = false; const put = [];
-      while (left > 0) { const f = sizes.find(x => x <= left); const nm = OUD_MAP[kind][f]; const m = byName.get(nm[(h + lv) % nm.length]); if (!m) break; put.push({ mid: m.id, m: instData(m, false), q, r, rot, ...(lv ? { lv } : {}) }); lv += f; left -= f; }
-      if (left > 0) { kept++; continue; }
+      if (!s.length || s.some(tp => !OUD_MAP[tp])) { if (s.some(tp => OUD_MAP[tp])) kept++; continue; }
+      const [q, r] = k.split(',').map(Number), h = (q * 7 + r * 13 + 99) % 17, rot = facing(q, r), put = []; let lv = 0, ok = true;
+      for (let i = 0; i < s.length && ok;) {   // per soort een stuk aaneengesloten lagen (blok, dan woning, ...), elk als eigen module opgestapeld
+        let j = i; while (j < s.length && s[j] === s[i]) j++;
+        const kind = s[i], sizes = Object.keys(OUD_MAP[kind]).map(Number).sort((x, y) => y - x); let left = j - i;
+        while (left > 0) { const f = sizes.find(x => x <= left); const nm = f && OUD_MAP[kind][f], m = nm && byName.get(nm[(h + lv) % nm.length]); if (!m) { ok = false; break; } put.push({ mid: m.id, m: instData(m, false), q, r, rot, ...(lv ? { lv } : {}) }); lv += f; left -= f; }
+        i = j;
+      }
+      if (!ok) { kept++; continue; }
       map.delete(k); for (const I of put) map.inst.push(I); done++; mods += put.length;
     }
     return { done, kept, mods };

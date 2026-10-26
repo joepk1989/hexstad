@@ -317,3 +317,7 @@ Het gebouw wordt op dat moment in losse stukken opgebouwd (`mv2Build` met `piece
 (steun = kortste weg naar de grond: omhoog gratis, opzij 1, naar beneden 2, meer dan 3 houdt niets). Hoekposten en muren zijn zo
 de dragers. Puin valt met zwaartekracht en zakt na ~10 s weg; wat blijft staan wordt samengevoegd getekend. Instelling: Instorten
 (aan/uit; uit zet alles terug). Test: `test/visueel/instorten*.js`. Ontwerp voor Unity: zelfde steungraaf, echte physics voor het vallen.
+
+## Autoschade en oude blokken
+- **Schade** (`11-autos.js`, blok "Schade"): elke auto heeft `hp` (100). Een botsing (`hurt`) kost `impact × 1,9`, tegen een gebouw `snelheid × 1,2`, een landing na de Hulk 30. Onder 65 gaat hij roken, onder 35 zwaarder, op 0 brandt hij (`ignite`: hij rolt uit en staat stil) en na 4,5–7,5 s ontploft hij (`explode`): vuur en rook, een dreun (`sound.fx('boom')`), wie dichtbij loopt wordt geraakt, buurauto's krijgen 35 schade (kettingreactie) en de auto begint ergens anders opnieuw met 100. Er zijn geen takelwagens meer (`towDispatch` doet niets).
+- **Oude blokken** (`08k-oud-omzetten.js`): `oudOmzetten(cells)` zet kolommen woning/kantoor/blok/zuilen/hof/tribune/tunnel om in bibliotheekmodules, gelijke hoogte, deur naar de straat. Gebeurt automatisch in `rebuildAll()`; Menu → "Oude blokken omzetten" doet het ook los. Kolommen met iets anders (pad, park, trap) blijven oud.

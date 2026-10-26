@@ -246,6 +246,7 @@
     const tows = []; let towTimer = 0, towScan = 0;
     const TOW_LEN = 5.4;   // hart takelwagen tot hart wrak aan de haak
     function towDispatch() {
+      return;   // geen takelwagens meer: een kapotte auto brandt uit en ontploft (zie hurt/ignite/explode)
       if (tows.length >= (reckless ? 5 : 1) || list.length < 3) return;
       let best = null, bs = 0;
       for (const c of list) {
@@ -308,6 +309,61 @@
       if (towScan >= 0.5) { for (const c of list) { c.stillT = (c.v < 0.25 && !c.towed) ? (c.stillT || 0) + towScan : 0; c.trT = ((c.crash || c.stillT > 0) && !c.towed) ? (c.trT || 0) + towScan : 0; } towScan = 0; towTimer += 0.5; if (towTimer >= 2.5) { towTimer = 0; towDispatch(); } }
       for (let i = tows.length - 1; i >= 0; i--) towStep(tows[i], dt);
     }
+    // ---------- Schade: een auto overleeft een paar klappen, gaat dan roken, vat vlam en ontploft; dan is hij weg ----------
+    const SM = { N: 170, F: 120 };
+    const smokeMesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.5, 0), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.5, depthWrite: false }), SM.N);
+    const fireMesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.5, 0), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }), SM.F);
+    { const w = new THREE.Color('#ffffff'); for (let i = 0; i < SM.N; i++) smokeMesh.setColorAt(i, w); for (let i = 0; i < SM.F; i++) fireMesh.setColorAt(i, w); }
+    for (const m of [smokeMesh, fireMesh]) { m.frustumCulled = false; m.count = 0; m.userData.noOcc = true; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(m); }
+    const smokeP = [], fireP = [], FC0 = new THREE.Color('#fff2a0'), FC1 = new THREE.Color('#ff7a1a'), FC2 = new THREE.Color('#a8200c'), SC0 = new THREE.Color('#3a3835'), SC1 = new THREE.Color('#9b9a96');
+    const rnd = () => Math.random() - 0.5;
+    function puffSmoke(x, y, z, dark, big) { if (smokeP.length >= SM.N) smokeP.shift(); smokeP.push({ x, y, z, vx: rnd() * (big ? 3 : 0.7), vy: (big ? 2.2 : 1.1) + Math.random() * 1.1, vz: rnd() * (big ? 3 : 0.7), t: 0, life: (big ? 3 : 1.8) + Math.random() * 1.3, s0: big ? 1.1 : 0.55, s1: big ? 4.6 : 2.0, dark }); }
+    function puffFire(x, y, z, big, vx, vz) { if (fireP.length >= SM.F) fireP.shift(); fireP.push({ x, y, z, vx: vx ?? rnd() * 0.8, vy: (big ? 2.5 : 1.4) + Math.random() * 1.6, vz: vz ?? rnd() * 0.8, t: 0, life: (big ? 0.7 : 0.4) + Math.random() * 0.3, s0: big ? 1.5 : 0.8, s1: 0.2 }); }
+    function fxTick(dt) {
+      for (const L of [smokeP, fireP]) for (let i = L.length - 1; i >= 0; i--) { const q = L[i]; q.t += dt; if (q.t >= q.life) { L.splice(i, 1); continue; } q.x += q.vx * dt; q.y += q.vy * dt; q.z += q.vz * dt; q.vx *= 1 - dt * 0.6; q.vz *= 1 - dt * 0.6; }
+    }
+    function fxRender() {
+      let n = 0;
+      for (const q of smokeP) { const k = q.t / q.life, s = (q.s0 + (q.s1 - q.s0) * Math.min(1, k * 1.4)) * (k > 0.75 ? (1 - k) / 0.25 : 1); GM.compose(GV.set(q.x, q.y, q.z), GQ.identity(), GS.set(s, s, s)); smokeMesh.setMatrixAt(n, GM); smokeMesh.setColorAt(n, GC.copy(q.dark ? SC0 : SC1).lerp(SC1, q.dark ? k * 0.7 : 0)); n++; }
+      smokeMesh.count = n; smokeMesh.instanceMatrix.needsUpdate = true; if (smokeMesh.instanceColor) smokeMesh.instanceColor.needsUpdate = true;
+      n = 0;
+      for (const q of fireP) { const k = q.t / q.life, s = q.s0 + (q.s1 - q.s0) * k; GM.compose(GV.set(q.x, q.y, q.z), GQ.identity(), GS.set(s, s, s)); fireMesh.setMatrixAt(n, GM); fireMesh.setColorAt(n, k < 0.5 ? GC.copy(FC0).lerp(FC1, k * 2) : GC.copy(FC1).lerp(FC2, (k - 0.5) * 2)); n++; }
+      fireMesh.count = n; fireMesh.instanceMatrix.needsUpdate = true; if (fireMesh.instanceColor) fireMesh.instanceColor.needsUpdate = true;
+    }
+    function hurt(c, amt) {   // een klap: schade, maar nooit twee keer binnen een halve seconde (dezelfde botsing)
+      if (c.burn || c.dmgT > 0 || !(amt > 0)) return;
+      c.dmgT = 0.5; c.hp = (c.hp ?? 100) - amt;
+      if (c.hp <= 0) ignite(c);
+    }
+    function ignite(c) {   // vlam: hij rolt uit en blijft staan tot hij ontploft
+      c.burn = { t: 0, T: 4.5 + Math.random() * 3 };
+      if (!c.crash) { const ch = Math.cos(c.h), sh = Math.sin(c.h); c.crash = { t: 0, still: 0 }; c.cvx = ch * c.v; c.cvz = sh * c.v; c.w = 0; }
+      c.slide = 1; c.held = false; c.fly = c.fly || null;
+    }
+    function explode(c) {
+      const y = baseOf_(c) + 1.0;
+      for (let i = 0; i < 22; i++) { const a = Math.random() * 6.28, sp = 1.5 + Math.random() * 5; puffFire(c.x + rnd() * 2, y + Math.random() * 0.8, c.z + rnd() * 2, true, Math.cos(a) * sp, Math.sin(a) * sp); }
+      for (let i = 0; i < 16; i++) puffSmoke(c.x + rnd() * 2.5, y + Math.random() * 1.2, c.z + rnd() * 2.5, true, true);
+      sound.fx('boom', c.x, 1, c.z, 1); sound.impact(1, c.x, 0.6, c.z, false);
+      for (const a of people.agents) { const dx = a.x - c.x, dz = a.z - c.z, d = Math.hypot(dx, dz); if (d < 7 && (a.state === 'walk' || a.state === 'pause')) { people.hit(a, dx / (d || 1) * 7, dz / (d || 1) * 7); gore(c, a, dx / (d || 1) * 7, dz / (d || 1) * 7, 8); } }
+      for (const o of list) if (o !== c && !o.burn && Math.hypot(o.x - c.x, o.z - c.z) < 5.5) hurt(o, 35);   // buurauto's lopen schade op: een kettingreactie kan
+      c.burn = null; c.hp = 100; c.dmgT = 0; c.crash = null; c.slide = 0; c.v = 0; c.w = 0; c.cvx = c.cvz = 0; c.roll = 0; c.pitch = 0; c.rx = undefined; c.blood = 0; c.bloodTrail = 0; c.ghost = 0; c.stuck = 0; c.wait = 0;
+      spawn(c);   // de wrakstukken zijn weg; elders in de stad begint een nieuwe auto
+    }
+    function carFx(c, dt, far) {
+      if (c.dmgT > 0) c.dmgT -= dt;
+      const hp = c.hp ?? 100; if (hp >= 65 && !c.burn) return;
+      if (c.burn) { c.burn.t += dt; if (c.burn.t > c.burn.T) { explode(c); return; } }
+      if (far) return;
+      const rate = c.burn ? 26 : hp < 35 ? 9 : 4;
+      c.fxA = (c.fxA || 0) + dt * rate;
+      const ch = Math.cos(c.h), sh = Math.sin(c.h), y = baseOf_(c) + 1.1;
+      while (c.fxA >= 1) {
+        c.fxA -= 1; const px = c.x + ch * 1.5 + rnd() * 0.6, pz = c.z + sh * 1.5 + rnd() * 0.6;
+        if (c.burn) { puffFire(px, y, pz, false); if (Math.random() < 0.6) puffSmoke(px, y + 0.5, pz, true, false); }
+        else puffSmoke(px, y, pz, hp < 35, false);
+      }
+    }
     // iemand wordt geraakt: druppels, spatten op de grond, bloed op de auto, een plas als hij blijft liggen
     function gore(c, a, vx, vz, sp) {
       if (!GORE.on) return;
@@ -336,7 +392,7 @@
     }
     const GC2 = new THREE.Color(), GE = new THREE.Euler();
     function render() {
-      goreRender();
+      goreRender(); fxRender();
       const all = tows.length ? list.concat(tows) : list, cnt = {}, bcnt = {}; for (const t of LP_TYPES) { cnt[t] = 0; bcnt[t] = [0, 0, 0]; }
       all.forEach((c, i) => {
         // model wijst langs +x; eerst kantelen (rollen, stampen), dan draaien, dan op de vering zetten
@@ -433,6 +489,7 @@
           c.w = (c.w || 0) + (rrx * fz - rrz * fx) / INERT * 0.9 + (Math.random() - 0.5) * 0.4;
           c.rx = undefined; c.held = false;
         }
+        hurt(A, impact * 1.9); hurt(B, impact * 1.9);
         sound.impact(Math.min(1, impact / 8), (A.x + B.x) / 2, 0.6, (A.z + B.z) / 2, false);
         sound.carHit(Math.min(1, impact / 9), (A.x + B.x) / 2, 0.7, (A.z + B.z) / 2, true);
       }
@@ -447,7 +504,7 @@
       const F = c.fly; F.t += dt; F.vy -= 9.81 * dt; F.y += F.vy * dt; c.x += F.vx * dt; c.z += F.vz * dt;
       c.roll = (c.roll || 0) + F.wr * dt; c.pitch = (c.pitch || 0) + F.wp * dt; c.sy = F.g0 + F.y + 0.6;
       if (F.y <= 0 && F.vy < 0) {   // landing: een klap, daarna op zijn kop of op zijn wielen blijven liggen en opnieuw beginnen
-        sound.impact(1, c.x, 0.6, c.z, false); sound.carHit(0.8, c.x, 0.7, c.z, true);
+        sound.impact(1, c.x, 0.6, c.z, false); sound.carHit(0.8, c.x, 0.7, c.z, true); hurt(c, 30);
         c.fly = null; c.roll = Math.round((c.roll || 0) / Math.PI) * Math.PI; c.pitch = 0; c.sy = F.g0 + (Math.abs(Math.cos(c.roll)) < 0.5 ? 0.5 : Math.abs(Math.round(c.roll / Math.PI)) % 2 ? 0.9 : 0);
         c.crash = { t: 9, still: 0 }; c.cvx = F.vx * 0.3; c.cvz = F.vz * 0.3; c.w = 0;
         if (typeof people !== 'undefined') for (const a of people.agents) if ((a.state === 'walk' || a.state === 'pause') && Math.hypot(a.x - c.x, a.z - c.z) < 3.5) { people.hit(a, F.vx * 0.5, F.vz * 0.5); gore(c, a, F.vx, F.vz, 8); }
@@ -463,7 +520,7 @@
       const nx = c.x + c.cvx * dt, nz = c.z + c.cvz * dt;
       // tegen een gebouw of blok: daar stopt het
       const [q, r] = worldToCell(nx, nz);
-      if (columnTop(q, r) > 1.0 || (sp > 2.5 && collapse.probe(nx + c.cvx / sp * 1.7, nz + c.cvz / sp * 1.7, sp, c.cvx, c.cvz))) { c.cvx *= -0.25; c.cvz *= -0.25; c.w *= 0.5; sound.impact(Math.min(1, sp / 10), c.x, 0.6, c.z, false); }
+      if (columnTop(q, r) > 1.0 || (sp > 2.5 && collapse.probe(nx + c.cvx / sp * 1.7, nz + c.cvz / sp * 1.7, sp, c.cvx, c.cvz))) { c.cvx *= -0.25; c.cvz *= -0.25; c.w *= 0.5; if (sp > 3) hurt(c, sp * 1.2); sound.impact(Math.min(1, sp / 10), c.x, 0.6, c.z, false); }
       else { c.x = nx; c.z = nz; }
       c.h += c.w * dt;
       sp = Math.hypot(c.cvx, c.cvz); c.v = sp;
@@ -472,7 +529,7 @@
       c.spin += Math.min(sp / WR, SPIN_MAX) * dt;
       hitPeople(c, dt, peds, lying, c.cvx, c.cvz);
       C.still = sp < 0.3 && Math.abs(c.w) < 0.25 ? C.still + dt : 0;
-      if (C.still > 2.5 || C.t > 12) {   // weer verder: terug naar de rijbaan (of ergens anders opnieuw)
+      if (!c.burn && (C.still > 2.5 || C.t > 12)) {   // weer verder: terug naar de rijbaan (of ergens anders opnieuw)
         c.crash = null; c.slide = 0; c.v = 0; c.w = 0; c.rx = undefined; c.roll = 0; c.pitch = 0;
         const [px, pz] = posOn(c, c.s);
         if (Math.hypot(px - c.x, pz - c.z) > 6) spawn(c); else c.ease = 2.5;
@@ -531,7 +588,7 @@
           const [px, pz] = posOn(c, c.s);
           const off = Math.hypot(px - c.x, pz - c.z) > 2;
           const over = list.some(o => o !== c && Math.hypot(o.x - c.x, o.z - c.z) < 4.2);
-          if (c.crash || off || over) { c.crash = null; spawn(c); }
+          if (c.crash || off || over) { c.crash = null; c.burn = null; c.hp = 100; spawn(c); }
           c.ghost = 0; c.stuck = 0; c.wait = 0;
         }
       },
@@ -546,15 +603,18 @@
         return false;
       },
       update(dt) {
-        goreTick(Math.min(dt, 0.1)); towTick(Math.min(dt, 0.1));
+        goreTick(Math.min(dt, 0.1)); fxTick(Math.min(dt, 0.1));
         if (carsDirty) { carsDirty = false; rebuild(); }
         if (!list.length) { render(); return; }   // alleen geparkeerde auto's
         dt = Math.min(dt, 0.1);
         const peds = people.agents.filter(a => (a.state === 'walk' || a.state === 'pause'));
         const lying = people.lying();
         const tNow = performance.now() / 1000;
+        const camP = camera.position;
         for (const c of list) {
-          if (c.towed) continue;   // hangt aan de takelwagen (towStep)
+          carFx(c, dt, Math.hypot(c.x - camP.x, c.z - camP.z) > 260);
+          if (!c.path) continue;
+          if (c.towed) continue;
           if (!c.path) continue;   // kon nergens beginnen: wacht op de volgende herbouw
           if (c.fly) { flyStep(c, dt); continue; }
           if (c.hulkHold) { c.v = 0; c.wait = (c.wait || 0) + dt; continue; }   // de Hulk komt eraan: blijven staan
