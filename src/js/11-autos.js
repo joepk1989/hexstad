@@ -661,10 +661,20 @@
           const ch = Math.cos(c.h), sh = Math.sin(c.h);
           // gewenste snelheid: 30 km/u, langzamer in bochten en bij het keren (roekeloos: 75 km/u en bochten op de rand)
           if (reckless && !c.persona) { const u = Math.random(); c.persona = u < 0.35 ? 'racer' : u < 0.75 ? 'ontwijker' : 'jager'; }
-          // roekeloos: een racer die te hard een bocht in gaat raakt de macht kwijt en glijdt rechtdoor (soms een huis in)
-          if (reckless && c.persona === 'racer' && (c.kind === 'turn' || c.kind === 'u') && c.v > 9 && !(c.ghost > 0) && Math.random() < dt * 0.7) {
-            const aim = Math.random() < 0.85 ? collapse.ahead(c.x, c.z, c.h) : null, sv = aim ? Math.min(27, Math.sqrt(15 * 15 + 2 * 3.6 * Math.max(0, aim[2] - 8))) : c.v * 1.08; c.crash = { t: 0, still: 0 }; c.cvx = aim ? aim[0] * sv : Math.cos(c.h) * c.v * 1.05; c.cvz = aim ? aim[1] * sv : Math.sin(c.h) * c.v * 1.05; if (aim) c.h = Math.atan2(aim[1], aim[0]); c.w = (Math.random() < 0.5 ? -1 : 1) * (1.2 + Math.random() * 1.8); c.rx = undefined; c.held = false; c.slide = 1;
-            sound.fx('squeal', c.x, 0.5, c.z, 1); crashStep(c, dt, peds, lying); continue;
+          // roekeloos: te hard een bocht of rotonde in is meer dwarskracht dan de banden aankunnen: dan glijdt de auto rechtdoor
+          // (langs de raaklijn, hij mikt dus nergens op), op de rotonde vliegt hij er vaak over de rand uit
+          if (reckless && c.v > 7 && !(c.ghost > 0) && (c.kind === 'turn' || c.kind === 'u' || (VG.edges.get(c.eid) || {}).t === 'ring')) {
+            const [x1, z1, h1] = posAt(c, c.s), [x2, z2, h2] = posAt(c, Math.min(c.path.len, c.s + 6)); let dh = h2 - h1; dh = Math.atan2(Math.sin(dh), Math.cos(dh));
+            const grip = { racer: 6.5, jager: 7.5, ontwijker: 9.5 }[c.persona] || 8, ratio = c.v * c.v * (Math.abs(dh) / 6) / grip, onRing = (VG.edges.get(c.eid) || {}).t === 'ring';
+            if (ratio > 1 && Math.random() < dt * (ratio - 1) * (onRing ? 2.2 : 1.1)) {
+              const ch2 = Math.cos(c.h), sh2 = Math.sin(c.h), sv = c.v * 1.05;
+              c.rx = undefined; c.held = false; c.w = (dh > 0 ? 1 : -1) * (0.8 + Math.random() * 1.6);
+              if (onRing && Math.random() < 0.6) { c.fly = { vx: ch2 * sv, vz: sh2 * sv, vy: 2.5 + Math.random() * 3, y: 0, t: 0, wr: (Math.random() - 0.5) * 5, wp: (Math.random() - 0.5) * 2 }; c.fly.g0 = c.sy ?? ASPH_H; c.crash = null; c.v = 0; }   // over de rand de lucht in
+              else { c.crash = { t: 0, still: 0 }; c.cvx = ch2 * sv; c.cvz = sh2 * sv; c.slide = 1; }
+              sound.fx('squeal', c.x, 0.5, c.z, 1);
+              if (c.fly) flyStep(c, dt); else crashStep(c, dt, peds, lying);
+              continue;
+            }
           }
           let want = reckless ? ({ racer: 26, jager: 17 }[c.persona] || 20) : ({ snel: 36.1, klink: 4.5, ring: 6.5 }[(VG.edges.get(c.eid) || {}).t] ?? 8.3); c.why = ''; c.yieldTo = -1;   // snelweg 130 km/u, klinkers stapvoets, rotonde rustig
           { const lim = t => ({ snel: 36.1, klink: 4.5, ring: 6.5 }[t] ?? 8.3), vN = c.next ? Math.min(lim((VG.edges.get(c.next.eid) || {}).t), c.next.kind === 'turn' ? 5.5 : 99) : 99;   // van de snelweg af: op tijd afremmen tot de snelheid van wat komt
