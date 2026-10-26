@@ -364,6 +364,43 @@
         else puffSmoke(px, y, pz, hp < 35, false);
       }
     }
+    // Na een botsing zoekt de auto zelf de weg terug: hij pakt de dichtstbijzijnde rijstrook (liefst in zijn eigen richting),
+    // rijdt er in een vloeiende bocht naartoe en gaat dan gewoon verder; geen teleportatie. Staat er een gebouw in de weg: dan pas opnieuw beginnen.
+    const RJ = { ok: 0, fail: 0 };
+    function rejoin(c) {
+      if (!VG.edges.size) return false;
+      const hx = Math.cos(c.h), hz = Math.sin(c.h), cand = [];
+      for (const e of VG.edges.values()) {
+        const nl = VLANE[e.t].length;
+        for (const dir of (e.oneway ? [0] : [0, 1])) {
+          const nA = dir ? e.b : e.a, nB = dir ? e.a : e.b;
+          for (let lane = 0; lane < nl; lane++) {
+            const pts = trimPts(lanePts(e, dir, laneOff(e, lane)), nodeTrim(nA), nodeTrim(nB)); if (!pts || pts.length < 2) continue;
+            for (let i = 0; i < pts.length - 1; i++) {
+              const a = pts[i], b = pts[i + 1], ex = b[0] - a[0], ez = b[1] - a[1], l2 = ex * ex + ez * ez || 1e-9, tt = Math.max(0, Math.min(1, ((c.x - a[0]) * ex + (c.z - a[1]) * ez) / l2));
+              const d = Math.hypot(a[0] + ex * tt - c.x, a[1] + ez * tt - c.z), sc = d - 5 * ((ex * hx + ez * hz) / Math.sqrt(l2));
+              if (d < 60) cand.push({ sc, d, e, dir, lane, pts, i });
+            }
+          }
+        }
+      }
+      cand.sort((x, y) => x.sc - y.sc);
+      const seen = new Set();
+      for (const best of cand) {   // de beste rijstrook eerst; staat er een gebouw in de weg, dan de volgende
+        const key = best.e.id + '/' + best.dir + '/' + best.lane; if (seen.has(key)) continue; seen.add(key); if (seen.size > 6) break;
+        const { pts, e, dir, lane } = best; let m = best.i + 1, run = 0;
+        while (m < pts.length - 1 && run < 7) { run += Math.hypot(pts[m + 1][0] - pts[m][0], pts[m + 1][1] - pts[m][1]); m++; }
+        const nB = dir ? e.a : e.b, join = bez([c.x, c.z], [hx, hz], pts[m], dirAt(pts, m), 0.42, 16);
+        let free = true;
+        for (let i = 3; i < join.length && free; i++) { const [q, r] = worldToCell(join[i][0], join[i][1]), T = modTop.get(q + ',' + r); if (columnTop(q, r) > 1.0 || (T && T.inst && modMeta(T.inst.m).bouw)) free = false; }
+        if (!free) continue;
+        const all = [[c.x - hx * WB, c.z - hz * WB]].concat(join, pts.slice(m + 1));   // begint bij de achteras: het midden van de auto blijft precies waar het was
+        useLeg(c, { vec: true, eid: e.id, dir, lane, nodeEnd: nB, q: 100000 + nB, r: 1, inS: 0, outS: 3, kind: 'lane', path: mkPath(all), cx: 0, cz: 0, exitPt: all[all.length - 1], exitD: dirAt(all, all.length - 1) });
+        c.prev = null; c.s = WB; c.ghost = 3; c.ease = 0; c.stuck = 0; c.wait = 0; c.v = 0;
+        return true;
+      }
+      return false;
+    }
     // iemand wordt geraakt: druppels, spatten op de grond, bloed op de auto, een plas als hij blijft liggen
     function gore(c, a, vx, vz, sp) {
       if (!GORE.on) return;
@@ -532,7 +569,8 @@
       if (!c.burn && (C.still > 2.5 || C.t > 12)) {   // weer verder: terug naar de rijbaan (of ergens anders opnieuw)
         c.crash = null; c.slide = 0; c.v = 0; c.w = 0; c.rx = undefined; c.roll = 0; c.pitch = 0;
         const [px, pz] = posOn(c, c.s);
-        if (Math.hypot(px - c.x, pz - c.z) > 6) spawn(c); else c.ease = 2.5;
+        const dd = Math.hypot(px - c.x, pz - c.z);
+        if (dd > 1.5) { if (rejoin(c)) RJ.ok++; else { RJ.fail++; if (dd > 6) spawn(c); else c.ease = 2.5; } } else c.ease = 2.5;
       }
     }
     // Ligt punt (x, z) binnen de auto (plus marge)?
@@ -576,7 +614,7 @@
       get reckless() { return reckless; },
       get gore() { return GORE.on; },
       setGore(v) { GORE.on = !!v; try { localStorage.setItem('hexstad-bloed', v ? '1' : '0'); } catch (e) { } if (!v) { goreS.length = 0; goreP.length = 0; for (const c of list) { c.blood = 0; c.bloodTrail = 0; } } },
-      tows,
+      tows, rejoinStats: RJ,
       towTest: () => ({ n: tows.length, phases: tows.map(t => t.phase), towed: list.filter(c => c.towed).length }),
       goreTest: () => ({ splats: goreS.filter(Boolean).length, parts: goreP.length, bloody: list.filter(c => c.blood).length }),
       goreAt: (c, a, vx, vz, sp) => gore(c, a, vx, vz, sp),
