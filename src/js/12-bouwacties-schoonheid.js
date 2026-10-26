@@ -198,7 +198,7 @@
     const v = !cars.reckless;
     cars.setReckless(v); recklessBtn.setAttribute('aria-pressed', String(v));
     if (v && !cars.on) cars.setOn(true);
-    toast(v ? "Roekeloos rijgedrag: de auto's scheuren door rood · pas op bij het oversteken!" : "De auto's rijden weer netjes", 2400);
+    toast(v ? "Totale chaos: auto's scheuren door rood en iedereen rent gillend rond · pas op bij het oversteken!" : "De rust is terug: de auto's rijden weer netjes", 2400);
   });
   document.getElementById('scoreClose').addEventListener('click', () => { scoreSheet.hidden = true; });
   scoreSheet.addEventListener('click', e => { if (e.target === scoreSheet) scoreSheet.hidden = true; });

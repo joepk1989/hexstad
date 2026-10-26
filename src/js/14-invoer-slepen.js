@@ -17,6 +17,7 @@
   canvas.addEventListener('mousedown', e => { if (e.button === 1) e.preventDefault(); });   // middelste knop: draaien, niet autoscrollen
   let roadHold = 0;
   canvas.addEventListener('pointerdown', e => {
+    if (flyCam.on) { flyPointer(e); return; }
     try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
     if (mode === 'walk') {
       if (e.pointerType === 'mouse') {
@@ -116,6 +117,7 @@
     }
   });
   function endPointer(e) {
+    if (flyCam.on) { if (roadDrag.on && e.pointerType === 'mouse') roadDragEnd(); return; }
     if (mode === 'walk') {
       if (roadDrag.on && e.pointerType === 'mouse') roadDragEnd();
       if (e.pointerId === joyId) { joyId = null; joyVec.x = joyVec.y = 0; joyEl.classList.remove('active'); joyEl.style.left = joyEl.style.top = joyEl.style.bottom = ''; knobEl.style.transform = ''; }
@@ -152,11 +154,13 @@
       if (mode === 'build') updateGhost(e.clientX, e.clientY);
       return;
     }
+    if (flyCam.on) { flyCam.k = Math.min(6, Math.max(0.25, flyCam.k * (e.deltaY < 0 ? 1.2 : 1 / 1.2))); toast('Vliegsnelheid ×' + flyCam.k.toFixed(1), 700); return; }
     zoom(1 + Math.max(-0.3, Math.min(0.3, e.deltaY * 0.0012)));
     applyOrbit(); updateGhost(e.clientX, e.clientY);
   }, { passive: false });
 
   document.addEventListener('mousemove', e => {
+    if (flyCam.on && document.pointerLockElement === canvas) { flyCam.yaw -= e.movementX * 0.0022; flyCam.pitch = Math.max(-1.5, Math.min(1.5, flyCam.pitch - e.movementY * 0.0022)); return; }
     if (mode !== 'walk' || document.pointerLockElement !== canvas) return;
     player.yaw -= e.movementX * 0.0022;
     player.pitch = Math.max(-1.45, Math.min(1.45, player.pitch - e.movementY * 0.0022));
@@ -166,6 +170,7 @@
     if (mmApp && !mmApp.hidden) return;   // de module maker heeft zijn eigen toetsen
     if (e.target.closest && e.target.closest('button') && (e.code === 'Space' || e.code === 'Enter')) return;
     keys[e.code] = true;
+    if (e.code === 'Space' && mode === 'build' && !e.repeat && !(e.target.closest && e.target.closest('input, textarea, select')) && (typeof sheet === 'undefined' || sheet.hidden)) { e.preventDefault(); if (flyCam.on) flyStop(); else flyStart(); return; }
     if (mode === 'walk' && e.code === 'Space') { e.preventDefault(); jump(); }
     const n = parseInt(e.key, 10);
     if (roadDrag.on && roadDrag.vp && e.code === 'KeyL') { e.preventDefault(); roadAbsToggle(); return; }
@@ -178,6 +183,21 @@
   window.addEventListener('keyup', e => { keys[e.code] = false; });
   window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
   document.getElementById('jumpBtn').addEventListener('pointerdown', e => { e.preventDefault(); jump(); });
+  // Vrij vliegen: klikken bouwt of sloopt waar het puntje wijst (linkermuisknop bouwt, rechts of de gum sloopt)
+  function flyPointer(e) {
+    if (e.pointerType !== 'mouse') return;
+    if (document.pointerLockElement !== canvas) { try { const pr = canvas.requestPointerLock(); if (pr && pr.catch) pr.catch(() => {}); } catch (_) {} return; }
+    const cx = window.innerWidth / 2, cy = window.innerHeight / 2, erase = e.button === 2 || tool === 'gum', res = pick(cx, cy);
+    if (!res) return toast('Richt het puntje op de grond of een gebouw');
+    lastPickRes = res;
+    if (erase) {
+      if (eraseModuleAt(res) || eraseEdgeAt(res) || erasePathAt(res) || eraseTriAt(res)) { sound.impact(1.2, res.point.x, res.point.y, res.point.z, false); return; }
+      if (res.erase) { removeTop(res.erase[0], res.erase[1]); sound.impact(1.2, res.point.x, res.point.y, res.point.z, false); } else toast('Hier valt niets weg te halen');
+      return;
+    }
+    if (e.button === 0 && DRAG_TOOLS.has(tool)) { const st = stackOf(res.place[0], res.place[1]); if (st.length && baseOf(st[st.length - 1]) === toolBase(tool)) { place(res.place[0], res.place[1]); return; } roadDragStart(res.place); return; }
+    place(res.place[0], res.place[1]);
+  }
   // Bouwen tijdens het lopen: wat in het midden van het beeld ligt
   let handHintT = 0;
   function walkAction(erase) {

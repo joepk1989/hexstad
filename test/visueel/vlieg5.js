@@ -1,0 +1,12 @@
+const { open, OUT } = require('./helper');
+(async () => { const { b, p } = await open({ width: 800, height: 500 });
+ p.on('pageerror', e => console.log('FOUT', e.message));
+ await p.keyboard.press('Space'); await p.waitForTimeout(2500);
+ await p.evaluate(() => { const f = window.__SC().flyCam; f.x = 40; f.z = 100; f.y = 14; f.yaw = 0.3; f.pitch = -0.12; });
+ await p.waitForTimeout(3500);
+ await p.screenshot({ path: OUT + '/vlieg1.png', timeout: 120000 });
+ console.log(JSON.stringify(await p.evaluate(() => { const f = window.__SC().flyCam; return { on: f.on, y: +f.y.toFixed(1) }; })));
+ await p.keyboard.press('Space'); await p.waitForTimeout(3000);
+ console.log(JSON.stringify(await p.evaluate(() => { const S = window.__SC(); return { on: S.flyCam.on, dist: +S.orbit.dist.toFixed(0), phi: +S.orbit.phi.toFixed(2), cam: S.camera.position.toArray().map(v => +v.toFixed(0)), t: S.orbit.target.toArray().map(v => +v.toFixed(0)), fov: S.camera.fov }; })));
+ await p.screenshot({ path: OUT + '/vlieg2.png', timeout: 120000 });
+ await b.close(); })();

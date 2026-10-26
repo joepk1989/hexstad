@@ -543,7 +543,7 @@
           const facing = Math.cos(o.heading - a.heading) < -0.2;   // tegemoet
           if (!facing) continue;
           const r = Math.random();
-          if (!rain && a.friendly && o.friendly && !a.wetHurry && r < 0.12 && !a.umb && !o.umb) {   // praatje: allebei even staan
+          if (!rain && !(typeof cars !== 'undefined' && cars.reckless) && a.friendly && o.friendly && !a.wetHurry && r < 0.12 && !a.umb && !o.umb) {   // praatje: allebei even staan
             const t = 3 + Math.random() * 5;
             for (const [p, q] of [[a, o], [o, a]]) { p.state = 'pause'; p.timer = t; p.chatT = t; p.smileT = t; p.lookAt = [q.x, q.z]; p.greetCool = 40 + Math.random() * 30; p.waveT = 0.9; p.chatPartner = q; p.talkT = p === a ? 0.3 : 1e6; }
             return;
@@ -1198,6 +1198,7 @@
         pbTick(Math.min(dt, 0.1));
         if (!agents.length) { if (PB && mode === 'walk') render(); else for (const k in meshes) meshes[k].count = 0; return; }
         dt = Math.min(dt, 0.1);
+        const chaos = typeof cars !== 'undefined' && cars.reckless;   // totale chaos: iedereen rent en schreeuwt
         // snelheid van de speler, om te bepalen of je iemand opzij duwt of omver loopt
         const walking = mode === 'walk' && lastMode === 'walk';
         const pvx = walking ? (player.x - lastPX) / dt : 0, pvz = walking ? (player.z - lastPZ) / dt : 0, pSpeed = Math.hypot(pvx, pvz);
@@ -1213,6 +1214,11 @@
           if (a.fade < 1) a.fade = Math.min(1, a.fade + dt * 1.5);
           if (a.state === 'inside') { a.timer -= dt; if (a.timer <= 0 && nodeList.length) { const n = doorList.length ? pick(doorList) : pick(nodeList); place(a, n, true); } continue; }
           if (a.state === 'getup' || a.state === 'rag') { ragTick(a, dt); continue; }
+          if (chaos && (a.state === 'walk' || a.state === 'pause')) {
+            if (a.state === 'pause') { a.timer = Math.min(a.timer, 0.3); a.chatT = 0; }   // geen tijd voor een praatje
+            a.scrT = (a.scrT ?? 1 + Math.random() * 8) - dt;
+            if (a.scrT <= 0) { a.scrT = 5 + Math.random() * 12; if (Math.hypot(a.x - camera.position.x, a.z - camera.position.z) < 70) sound.scream(a.x, a.y + 1.6 * (a.scale || 1), a.z, 'paniek', a.kid ? 'k' : a.female ? 'v' : a.old ? 'o' : 'm'); }
+          }
           // tegen de speler aan?
           if (walking) {
             const dx = a.x - player.x, dz = a.z - player.z, d = Math.hypot(dx, dz);
@@ -1238,7 +1244,7 @@
           if (!a.wps.length) {
             if (a.goingIn) { a.state = 'inside'; a.timer = (4 + Math.random() * 10) * (1 + 2.5 * Math.min(1, WXK.rain + WXK.snow * 0.5)); a.goingIn = false; continue; }   // bij slecht weer blijven ze langer binnen
             const k = a.node.kind;
-            if ((k.b === 'hof' || (k.b === 'looppad' && a.node.edges.size >= 3) || k.level === 'high' || (k.b === 'mod' && k.open)) && Math.random() < 0.18) { a.state = 'pause'; a.timer = 2 + Math.random() * 5; }
+            if ((k.b === 'hof' || (k.b === 'looppad' && a.node.edges.size >= 3) || k.level === 'high' || (k.b === 'mod' && k.open)) && !chaos && Math.random() < 0.18) { a.state = 'pause'; a.timer = 2 + Math.random() * 5; }
             go(a, chooseNext(a));
             continue;
           }
@@ -1259,7 +1265,7 @@
           a.heading = Math.atan2(Math.sin(a.heading), Math.cos(a.heading));
           const align = Math.cos(Math.min(Math.abs(err), Math.PI / 2));
           if ((a.umbT = (a.umbT || Math.random()) - dt) <= 0) { a.umbT = 0.8; umbCheck(a); }
-          const want = a.startleT > 0 ? 0 : a.speed * Math.max(0, (align - 0.35) / 0.65) * (a.follow || 1) * (a.precise ? 0.85 : 1) * (a.wetHurry ? 1.3 : 1) * (WXK.snow > 0.3 ? 0.85 : 1) * (a.waveT > 0 ? 0.75 : 1);
+          const want = a.startleT > 0 ? 0 : a.speed * Math.max(0, (align - 0.35) / 0.65) * (a.follow || 1) * (a.precise ? 0.85 : 1) * (a.wetHurry ? 1.3 : 1) * (WXK.snow > 0.3 ? 0.85 : 1) * (a.waveT > 0 ? 0.75 : 1) * (chaos ? (a.panicK || (a.panicK = a.kid ? 2.2 : a.old ? 1.6 : 2.4 + Math.random() * 1.1)) : 1);
           a.spd += (want - a.spd) * Math.min(1, dt * (want > a.spd ? 2.5 : 5));
           const step = Math.min(d, a.spd * dt), [fx, fz] = fwdOf(a.heading);
           // oversteken: niet de rijbaan op als er een auto aankomt

@@ -1,6 +1,47 @@
   // ---------- Camera: bouwen (orbit) ----------
   const orbit = { target: new THREE.Vector3(0, 0, 0), theta: 0.75, phi: 0.92, dist: 190 };
+  // ---------- Vrij vliegen in de bouwmodus: spatiebalk aan/uit ----------
+  // De camera wordt los van het draaipunt: de muis kijkt (aanwijzer vastgezet), W/A/S/D vliegt in de kijkrichting, E en Q gaan
+  // omhoog en omlaag, Shift is sneller, het wiel stelt de snelheid in. Klikken bouwt of sloopt waar het puntje wijst. Spatie of
+  // Esc stopt; het draaipunt komt dan op wat je aankijkt, zodat de gewone camera daar verdergaat.
+  const flyCam = { on: false, x: 0, y: 60, z: 0, yaw: 0, pitch: -0.4, k: 1, fov: 45, near: 1 };
+  function flyStart() {
+    if (flyCam.on || mode !== 'build') return false;
+    const d = new THREE.Vector3(); camera.getWorldDirection(d);
+    flyCam.on = true; flyCam.x = camera.position.x; flyCam.y = camera.position.y; flyCam.z = camera.position.z;
+    flyCam.yaw = Math.atan2(-d.x, -d.z); flyCam.pitch = Math.asin(Math.max(-1, Math.min(1, d.y)));
+    flyCam.fov = camera.fov; flyCam.near = camera.near; camera.fov = 65; camera.near = 0.3; camera.rotation.order = 'YXZ'; camera.updateProjectionMatrix();
+    document.body.classList.add('fly'); ghost.visible = false; ghostArrow.visible = false; ghostEdges.visible = false;
+    try { const pr = canvas.requestPointerLock && canvas.requestPointerLock(); if (pr && pr.catch) pr.catch(() => {}); } catch (_) {}
+    toast('Vrij vliegen: muis kijkt · W A S D vliegt · E omhoog · Q omlaag · Shift sneller · klik bouwt · Spatie of Esc stopt', 4200);
+    return true;
+  }
+  function flyStop() {
+    if (!flyCam.on) return;
+    flyCam.on = false; document.body.classList.remove('fly');
+    if (document.pointerLockElement) document.exitPointerLock();
+    camera.fov = flyCam.fov; camera.near = flyCam.near; camera.updateProjectionMatrix();
+    const cp = new THREE.Vector3(flyCam.x, flyCam.y, flyCam.z), d = new THREE.Vector3(-Math.sin(flyCam.yaw) * Math.cos(flyCam.pitch), Math.sin(flyCam.pitch), -Math.cos(flyCam.yaw) * Math.cos(flyCam.pitch));
+    let tg = null;
+    { const h = groundHit(window.innerWidth / 2, window.innerHeight / 2); if (h && h.distance > 8 && h.distance < 1500) tg = h.point.clone(); }
+    if (!tg) { const s = d.y < -0.05 ? -cp.y / d.y : 120; tg = cp.clone().addScaledVector(d, Math.min(600, Math.max(20, s))); tg.y = Math.max(0, tg.y); }
+    const dv = cp.clone().sub(tg), dist = Math.min(2200, Math.max(14, dv.length()));
+    orbit.target.copy(tg); orbit.dist = dist; orbit.theta = Math.atan2(dv.x, dv.z); orbit.phi = Math.max(0.12, Math.min(1.5, Math.acos(Math.max(-1, Math.min(1, dv.y / (dv.length() || 1))))));
+    applyOrbit();
+  }
+  function flyUpdate(dt) {
+    const f = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0), s = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0), u = (keys.KeyE ? 1 : 0) - (keys.KeyQ ? 1 : 0);
+    const cy = Math.cos(flyCam.pitch), fx = -Math.sin(flyCam.yaw) * cy, fy = Math.sin(flyCam.pitch), fz = -Math.cos(flyCam.yaw) * cy, rx = Math.cos(flyCam.yaw), rz = -Math.sin(flyCam.yaw);
+    const speed = Math.max(12, flyCam.y * 0.9) * flyCam.k * (keys.ShiftLeft || keys.ShiftRight ? 3 : 1);
+    flyCam.x += (fx * f + rx * s) * speed * dt; flyCam.y += (fy * f + u) * speed * dt; flyCam.z += (fz * f + rz * s) * speed * dt;
+    const [q, r] = worldToCell(flyCam.x, flyCam.z), floor = Math.max(terrGround(flyCam.x, flyCam.z), colTopW(q, r)) + 2;
+    flyCam.y = Math.min(1800, Math.max(floor, flyCam.y));
+    camera.position.set(flyCam.x, flyCam.y, flyCam.z); camera.rotation.set(flyCam.pitch, flyCam.yaw, 0, 'YXZ');
+    orbit.target.set(flyCam.x, 0, flyCam.z); orbit.dist = Math.min(600, Math.max(30, flyCam.y * 1.6));   // grond, mist en detailniveau volgen mee
+  }
+  document.addEventListener('pointerlockchange', () => { if (flyCam.on && document.pointerLockElement !== canvas) flyStop(); });
   function applyOrbit() {
+    if (flyCam.on) return;
     const { target, theta, phi, dist } = orbit;
     camera.position.set(target.x + dist * Math.sin(phi) * Math.sin(theta), target.y + dist * Math.cos(phi), target.z + dist * Math.sin(phi) * Math.cos(theta));
     camera.lookAt(target);
@@ -119,6 +160,7 @@
     : 'Klik om de muis te vangen · WASD lopen · Q: kijken, bouwen of hamer · 1–9 of scrollwiel: blok uit de snelbalk · Tab: alle blokken';
 
   function setMode(m) {
+    if (flyCam.on) flyStop();
     if (typeof vecChainEnd === 'function') vecChainEnd(true);
     if (mode !== m && typeof sound !== 'undefined') sound.fx('whoosh');
     mode = m;
@@ -156,9 +198,11 @@
     let ctx = null, master = null, on = false;
     let birdBus, stepBus, noiseBuf, brownBuf, birdBed = null, indoorF, out;
     let rainBed = null, rainLow = null, windBed = null;
-    let nextMix = 0, stepDist = 0, klapBuf = null, lastKlap = 0, gruntBuf = null, lastGrunt = 0;
+    let nextMix = 0, stepDist = 0, klapBuf = null, lastKlap = 0, gruntBuf = null, lastGrunt = 0, scrBuf = null, lastScr = 0, scrLive = 0;
     // stukken in grunts.mp3 (iemand die kreunt als hij geraakt wordt): [begin, duur] in seconden
     const GRUNT = [[0.47, 0.35], [1.51, 0.31], [3.28, 0.3], [4.55, 0.32], [5.59, 0.35], [6.87, 0.42], [8.06, 0.51], [9.41, 0.36], [11.03, 0.34], [12.13, 0.37], [13.32, 0.39], [14.49, 0.39], [15.79, 0.43], [17.09, 0.31], [18.12, 0.32], [19.14, 0.33], [20.31, 0.35], [21.45, 0.37], [22.54, 0.36], [23.62, 0.31], [24.79, 0.5], [25.87, 0.39], [27.16, 0.37], [28.23, 0.37], [30.14, 0.39], [31.12, 0.68], [32.4, 0.59], [33.82, 0.69], [35.29, 0.36], [36.48, 0.69], [37.87, 0.46], [39.05, 0.45], [40.31, 0.46]];
+    // stukken in schreeuw.mp3 (totale chaos): paniek, korte kreten, één lange gruwelkreet en de kreet bij bloed
+    const SCR = { paniek: [[0, 2.05], [2.3, 2.35], [4.9, 1.9], [7.05, 2.45], [9.75, 2.75], [12.75, 2.6]], kort: [[15.6, 0.5], [16.35, 0.32], [16.92, 0.45]], horror: [[17.62, 5.08]], bloed: [[22.958, 1.69]] };
     // stukken in klap.mp3: [begin, duur] in seconden
     const KLAP = { hard: [[0, 1.0], [1.08, 0.89], [2.05, 2.29], [4.42, 1.89], [6.39, 0.85], [7.32, 0.79], [8.19, 0.79], [9.06, 0.72]],
       light: [[9.86, 0.63], [10.57, 0.69], [11.34, 0.66], [12.08, 0.57], [12.73, 0.67], [13.48, 0.65]] };
@@ -184,6 +228,9 @@
       fetch('klap.mp3').then(r => r.ok ? r.arrayBuffer() : Promise.reject())
         .then(ab => new Promise((res, rej) => ctx.decodeAudioData(ab, res, rej)))
         .then(buf => { klapBuf = buf; }).catch(() => {});
+      fetch('schreeuw.mp3').then(r => r.ok ? r.arrayBuffer() : Promise.reject())
+        .then(ab => new Promise((res, rej) => ctx.decodeAudioData(ab, res, rej)))
+        .then(buf => { scrBuf = buf; }).catch(() => {});
       fetch('grunts.mp3').then(r => r.ok ? r.arrayBuffer() : Promise.reject())
         .then(ab => new Promise((res, rej) => ctx.decodeAudioData(ab, res, rej)))
         .then(buf => { gruntBuf = buf; }).catch(() => {});
@@ -494,6 +541,26 @@
         g.gain.value = 0.55 + 0.45 * Math.min(1, strength || 0.5);
         src.connect(g); g.connect(pn); pn.connect(master);
         src.start(now + 0.07, off, dur);
+      },
+      // Schreeuwen (totale chaos): hooguit drie tegelijk en niet vlak na elkaar, behalve de kreet bij bloed die gaat altijd voor
+      scream(x, y, z, kind = 'paniek', who) {
+        if (!on || !ctx || !scrBuf) return false;
+        const now = ctx.currentTime;
+        if (kind !== 'bloed' && (now - lastScr < 0.6 || scrLive >= 3)) return false;
+        lastScr = now;
+        let L = SCR[kind] || SCR.paniek; if (kind === 'paniek') { const u = Math.random(); if (u < 0.3) L = SCR.kort; else if (u < 0.36) L = SCR.horror; }
+        const [off, dur] = L[Math.floor(Math.random() * L.length)];
+        const src = ctx.createBufferSource(), g = ctx.createGain(), pn = ctx.createPanner();
+        Object.assign(pn, { panningModel: 'equalpower', distanceModel: 'inverse', refDistance: 5, rolloffFactor: 1.2, maxDistance: 300 });
+        placeAt(pn, x, y, z);
+        src.buffer = scrBuf;
+        const base = who === 'k' ? 1.35 : who === 'v' ? 1.2 : who === 'o' ? 0.86 : 1;
+        src.playbackRate.value = base * (0.94 + Math.random() * 0.12);
+        g.gain.value = kind === 'bloed' ? 1 : 0.75;
+        src.connect(g); g.connect(pn); pn.connect(master);
+        scrLive++; src.onended = () => { scrLive = Math.max(0, scrLive - 1); };
+        src.start(now + 0.02, off, dur);
+        return true;
       },
       walked(dist, grass, running) {
         if (!on || !ctx || dist <= 0) return;

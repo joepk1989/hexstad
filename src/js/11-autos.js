@@ -346,7 +346,7 @@
       for (let i = 0; i < 22; i++) { const a = Math.random() * 6.28, sp = 1.5 + Math.random() * 5; puffFire(c.x + rnd() * 2, y + Math.random() * 0.8, c.z + rnd() * 2, true, Math.cos(a) * sp, Math.sin(a) * sp); }
       for (let i = 0; i < 16; i++) puffSmoke(c.x + rnd() * 2.5, y + Math.random() * 1.2, c.z + rnd() * 2.5, true, true);
       sound.fx('boom', c.x, 1, c.z, 1); sound.impact(1, c.x, 0.6, c.z, false);
-      for (const a of people.agents) { const dx = a.x - c.x, dz = a.z - c.z, d = Math.hypot(dx, dz); if (d < 7 && (a.state === 'walk' || a.state === 'pause')) { people.hit(a, dx / (d || 1) * 7, dz / (d || 1) * 7); gore(c, a, dx / (d || 1) * 7, dz / (d || 1) * 7, 8); } }
+      for (const a of people.agents) { const dx = a.x - c.x, dz = a.z - c.z, d = Math.hypot(dx, dz); if (d < 7 && (a.state === 'walk' || a.state === 'pause')) { sound.scream(a.x, 1.5, a.z, 'horror', a.kid ? 'k' : a.female ? 'v' : 'm'); people.hit(a, dx / (d || 1) * 7, dz / (d || 1) * 7); gore(c, a, dx / (d || 1) * 7, dz / (d || 1) * 7, 8); } }
       for (const o of list) if (o !== c && !o.burn && Math.hypot(o.x - c.x, o.z - c.z) < 5.5) hurt(o, 35);   // buurauto's lopen schade op: een kettingreactie kan
       c.burn = null; c.hp = 100; c.dmgT = 0; c.crash = null; c.slide = 0; c.v = 0; c.w = 0; c.cvx = c.cvz = 0; c.roll = 0; c.pitch = 0; c.rx = undefined; c.blood = 0; c.bloodTrail = 0; c.ghost = 0; c.stuck = 0; c.wait = 0;
       spawn(c);   // de wrakstukken zijn weg; elders in de stad begint een nieuwe auto
@@ -405,6 +405,7 @@
     // iemand wordt geraakt: druppels, spatten op de grond, bloed op de auto, een plas als hij blijft liggen
     function gore(c, a, vx, vz, sp) {
       if (!GORE.on) return;
+      sound.scream(a.x, (a.y || 0) + 1.2, a.z, 'bloed', a.kid ? 'k' : a.female ? 'v' : a.old ? 'o' : 'm');   // de kreet hoort bij het bloed
       const px = a.x, pz = a.z, py = (a.y || 0), k = Math.min(1, sp / 10), dl = Math.hypot(vx, vz) || 1, dx = vx / dl, dz = vz / dl;
       c.blood = Math.min(3, (c.blood || 0) + 1); c.bloodTrail = 6 + 4 * k;
       for (let i = 0; i < 10 + k * 12; i++) goreP.push({ x: px, y: py + 0.9, z: pz, vx: dx * (2 + Math.random() * 6 * (0.4 + k)) + (Math.random() - 0.5) * 3, vy: 1.5 + Math.random() * 4, vz: dz * (2 + Math.random() * 6 * (0.4 + k)) + (Math.random() - 0.5) * 3, t: 0, s: 0.6 + Math.random() * 0.8, g: py });

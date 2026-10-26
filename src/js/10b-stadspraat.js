@@ -142,8 +142,25 @@
     const NIGHT = ['De stad is mooi bij nacht.', 'Zo stil in het donker.'];
     const NEUTRAL = ['Mooie dag voor een wandeling.', 'Even de benen strekken.', 'Ik vraag me af wat ze hier nog gaan bouwen.', 'Wat zou hier nog komen?'];
     const HI = ['Hoi!', 'Goedemorgen!', 'Hé, hallo!', 'Hallo daar!'];
+    // Totale chaos: paniek en verwarring. Een deel hangt af van wat er echt gebeurt (brand, instortingen, gewonden).
+    const PANIC = ['HELP!', 'Rennen!!', 'Wat gebeurt er?!', 'Pas op, een auto!', 'Ze rijden gewoon door rood!', 'Mama!!', 'Bel de politie!', 'Weg hier!', 'Waar moet ik heen?!',
+      'Links! Nee, rechts! Nee...', 'Iedereen naar binnen!', 'Is dit een film?', 'Ik had vandaag thuis moeten blijven.', 'Wie rijdt er nou zo?!', 'Mijn boodschappen!',
+      'Ik ben mijn hond kwijt!', 'Is dit normaal hier?', 'Waar is de stoep gebleven?', 'Ik dacht dat dit een rustige buurt was.', 'Niet weer...', 'Wat is dit voor stad?!',
+      'Wie heeft deze stad ontworpen?!', 'Ik wil naar huis!', 'Waar is de uitgang van deze stad?', 'Is er iemand gewond?', 'Help, ik zie niks!', 'Was dat nou een vrachtwagen?',
+      'Iemand moet hier iets aan doen!', 'Ik weet niet meer welke kant op!', 'AAAAH!', 'Ren voor je leven!', 'Waar is mijn fiets?', 'Het is het einde van de wereld!'];
+    const PANIC_FIRE = ['Brand! Er staat een auto in brand!', 'Ik ruik rook...', 'Daar ontplofte iets!', 'Blijf weg bij die auto, hij gaat ontploffen!'];
+    const PANIC_FALL = ['Dat huis stort in!', 'Mijn huis! MIJN HUIS!', 'Waarom staat dat gebouw scheef?', 'Pas op, vallende stenen!'];
+    const chaosOn = () => typeof cars !== 'undefined' && cars.reckless;
+    function panicPick() {
+      const extra = [];
+      if (cars.list && cars.list.some(c => c.burn || (c.hp ?? 100) < 35)) extra.push(...PANIC_FIRE);
+      if (typeof collapse !== 'undefined' && collapse.stats().modules) extra.push(...PANIC_FALL);
+      const pool = extra.length && Math.random() < 0.45 ? extra : PANIC, ok = pool.filter(t => !recent.includes(t)), L = ok.length ? ok : pool;
+      const t = L[Math.floor(Math.random() * L.length)]; recent.push(t); if (recent.length > 40) recent.shift(); return t;
+    }
     function pick(a) {
       const n = review;
+      if (chaosOn()) return panicPick();
       if (WXK.snow > 0.3 && Math.random() < 0.5) return SNOW[Math.floor(Math.random() * SNOW.length)];
       if (WXK.rain > 0.3 && Math.random() < 0.6) return WET[Math.floor(Math.random() * WET.length)];
       if (typeof nightK !== 'undefined' && nightK > 0.7 && Math.random() < 0.25) return NIGHT[Math.floor(Math.random() * NIGHT.length)];
@@ -170,20 +187,21 @@
       if (now - reviewT > 6000 || !review) { review = measure(); reviewT = now; }
       const text = pick(a); if (!text) return 0;
       const dur = Math.max(1.8, Math.min(4.8, 1.2 + text.length * 0.07));
-      return say(a, text, dur, moodOf(text) + (tone(a) === 'lomp' ? ' lomp' : '')) ? dur : 0;
+      return say(a, text, dur, (chaosOn() && (PANIC.includes(text) || PANIC_FIRE.includes(text) || PANIC_FALL.includes(text)) ? 'neg panic' : moodOf(text)) + (tone(a) === 'lomp' ? ' lomp' : '')) ? dur : 0;
     }
-    function greet(a) { if (live.length >= MAXB - 2) return; say(a, HI[Math.floor(Math.random() * HI.length)], 1.4, 'hi pos'); }
+    function greet(a) { if (live.length >= MAXB - 2) return; if (chaosOn()) { say(a, panicPick(), 1.8, 'neg panic'); return; } say(a, HI[Math.floor(Math.random() * HI.length)], 1.4, 'hi pos'); }
     const v = new THREE.Vector3();
     function update(dt) {
       const cp = camera.position;
       // af en toe een opmerking van iemand dichtbij die toch niet in een praatje zit
       idleT -= dt;
-      if (idleT <= 0 && live.length < 3 && people.agents && people.agents.length) {
-        idleT = 4 + Math.random() * 5;
+      const chaosNow = chaosOn();
+      if (idleT <= 0 && live.length < (chaosNow ? 5 : 3) && people.agents && people.agents.length) {
+        idleT = chaosNow ? 0.8 + Math.random() * 1.6 : 4 + Math.random() * 5;   // in de chaos roept iedereen door elkaar
         const near = people.agents.filter(a => a.id && a.state === 'walk' && !a.chatT && Math.hypot(a.x - cp.x, a.z - cp.z) < RANGE * 0.75 && Math.abs(a.y - cp.y) < 60);
         if (near.length) {
           const a = near[Math.floor(Math.random() * near.length)];
-          const dur = opine(a); if (dur) sound.talk(a.x, a.y + 1.5 * (a.scale || 1), a.z, dur * 0.8, a.voice || 1);
+          const dur = opine(a); if (dur && chaosNow) sound.scream(a.x, a.y + 1.6 * (a.scale || 1), a.z, 'kort', a.kid ? 'k' : a.female ? 'v' : a.old ? 'o' : 'm'); else if (dur) sound.talk(a.x, a.y + 1.5 * (a.scale || 1), a.z, dur * 0.8, a.voice || 1);
         }
       }
       const W = window.innerWidth, H = window.innerHeight, kc = CURVE.on ? CURVE.k.value : 0, cc = CURVE.c.value;

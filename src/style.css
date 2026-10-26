@@ -840,3 +840,11 @@ body.walk .hud-top { justify-content: flex-end; }
 /* Altijd het hele scherm: de pagina schuift en zoomt niet (zoomen doe je in het spel zelf) */
 html { position: fixed; inset: 0; width: 100%; height: 100%; overflow: hidden; touch-action: manipulation; -webkit-text-size-adjust: 100%; }
 body { position: fixed; inset: 0; width: 100%; height: 100%; margin: 0; box-sizing: border-box; overflow: hidden; }
+
+/* vrij vliegen (spatiebalk in de bouwmodus): het puntje in het midden wijst waar je bouwt */
+body.fly .crosshair { display: block; opacity: 1; }
+body.fly #scene { cursor: none; }
+/* totale chaos: spreekballonnen in paniek, schuin en trillend */
+#chatter .bub.panic { background: #fff1ee; color: #8a1a10; border-color: #e0573f; font-weight: 800; animation: bubShake .18s linear infinite alternate; }
+@keyframes bubShake { from { margin-left: -1.5px; } to { margin-left: 1.5px; } }
+@media (prefers-reduced-motion: reduce) { #chatter .bub.panic { animation: none; } }

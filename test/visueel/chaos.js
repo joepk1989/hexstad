@@ -1,0 +1,10 @@
+const { open, OUT } = require('./helper');
+(async () => { const { b, p } = await open({ width: 900, height: 560 });
+ p.on('pageerror', e => console.log('FOUT', e.message));
+ await p.evaluate(() => { document.getElementById('recklessBtn').click(); });
+ await p.evaluate(() => { const S = window.__SC(); S.orbit.target.set(0, 0, 0); S.orbit.dist = 40; S.orbit.phi = 0.9; S.applyOrbit(); });
+ await p.waitForTimeout(8000);
+ const r = await p.evaluate(() => { const S = window.__SC(), A = S.people.agents.filter(a => a.state === 'walk'); return { btn: document.getElementById('recklessBtn').textContent, rek: S.cars.reckless, n: A.length, vgem: +(A.reduce((s, a) => s + (a.spd || 0), 0) / Math.max(1, A.length)).toFixed(2), bubbles: [...document.querySelectorAll('#chatter .bub')].map(b => b.className + ': ' + b.textContent), scream: typeof S.sound.scream }; });
+ console.log(JSON.stringify(r, null, 1));
+ await p.screenshot({ path: OUT + '/chaos.png', timeout: 120000 });
+ await b.close(); })();
