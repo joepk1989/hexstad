@@ -321,6 +321,7 @@
       orbit.target.set(0, 0, 0); orbit.dist = act === 'random' ? 240 : 200; orbit.phi = 0.85; applyOrbit();
       toast({ random: 'Nieuwe stad', blocks: 'Nieuwe blokkenstad', layers: 'Nieuwe gelaagde stad' }[act] + ' · nummer ' + seed + ' · je eigen stad staat veilig');
     }
+    if (act === 'oud') { const r = oudOmzetten(cells); if (r.done) { rebuildAll(); changed(); } toast(r.done ? r.done + ' oude blokken omgezet naar modules' + (r.kept ? ' · ' + r.kept + ' met iets anders erin bleven staan' : '') : (r.kept ? 'Geen kolom is zuiver genoeg om om te zetten (' + r.kept + ' blijven oud)' : 'Er staan geen oude blokken in deze stad'), 3200); }
     if (act === 'home') { orbit.target.set(0, 0, 0); applyOrbit(); toast('Terug in het midden', 1200); }
     if (act === 'empty') { cells = new Map(); rebuildAll(); changed(); toast('Lege bouwgrond · bewaar wat je bouwt via Menu → Deze stad bewaren'); }
     if (act === 'cars') { cars.setOn(!cars.on); toast(cars.on ? 'Er rijden weer auto\'s' : 'Geen auto\'s meer op straat'); }
