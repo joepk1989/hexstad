@@ -1,0 +1,10 @@
+const { open, OUT } = require('./helper');
+(async () => { const { b, p } = await open({ width: 900, height: 560 });
+ p.on('pageerror', e => console.log('FOUT', e.message));
+ await p.keyboard.press('Space'); await p.waitForTimeout(2500);
+ await p.evaluate(() => { const f = window.__SC().flyCam; f.x = 40; f.z = 100; f.y = 22; f.yaw = 0.3; f.pitch = -0.2; });
+ await p.waitForTimeout(3000);
+ await p.screenshot({ path: OUT + '/vlieg3.png', timeout: 120000 });
+ await p.keyboard.press('Space'); await p.waitForTimeout(2500);
+ console.log(await p.evaluate(() => [window.__SC().flyCam.on, getComputedStyle(document.getElementById('palette')).visibility, document.querySelector('.flybadge').hidden]));
+ await b.close(); })();
