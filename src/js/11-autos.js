@@ -84,6 +84,7 @@
     function useLeg(c, L) {
       c.q = L.q; c.r = L.r; c.inS = L.inS; c.outS = L.outS; c.path = L.path; c.cx = L.cx; c.cz = L.cz;
       c.vec = !!L.vec; c.u = !!L.u; c.eid = L.eid; c.dir = L.dir; c.lane = L.lane; c.nodeEnd = L.nodeEnd; c.exitPt = L.exitPt; c.exitD = L.exitD;
+      c.late = reckless && Math.random() < 0.4 ? 1.6 + Math.random() * 1.6 : 1;
       c.kind = L.kind; c.pri = ['ring', 'snel'].includes((VG.edges.get(L.eid) || {}).t) ? 2 : 1;   // op de rotonde en de snelweg heb je voorrang
       c.next = planNext(c);
     }
@@ -676,9 +677,10 @@
               continue;
             }
           }
-          let want = reckless ? ({ racer: 26, jager: 17 }[c.persona] || 20) : ({ snel: 36.1, klink: 4.5, ring: 6.5 }[(VG.edges.get(c.eid) || {}).t] ?? 8.3); c.why = ''; c.yieldTo = -1;   // snelweg 130 km/u, klinkers stapvoets, rotonde rustig
+          const longSt = reckless && c.kind === 'lane' && c.path.len > 45 && !(c.ghost > 0);   // lange rechte weg: vol gas
+          let want = reckless ? (longSt ? ({ racer: 42, jager: 30 }[c.persona] || 32) : ({ racer: 26, jager: 17 }[c.persona] || 20)) : ({ snel: 36.1, klink: 4.5, ring: 6.5 }[(VG.edges.get(c.eid) || {}).t] ?? 8.3); c.why = ''; c.yieldTo = -1;   // snelweg 130 km/u, klinkers stapvoets, rotonde rustig
           { const lim = t => ({ snel: 36.1, klink: 4.5, ring: 6.5 }[t] ?? 8.3), vN = c.next ? Math.min(lim((VG.edges.get(c.next.eid) || {}).t), c.next.kind === 'turn' ? 5.5 : 99) : 99;   // van de snelweg af: op tijd afremmen tot de snelheid van wat komt
-            if (vN < want) want = Math.min(want, Math.sqrt(vN * vN + 2 * 3.5 * Math.max(0, c.path.len - c.s))); }
+            if (vN < want) want = Math.min(want, Math.sqrt(vN * vN + 2 * (reckless ? 6 : 3.5) * (c.late || 1) * Math.max(0, c.path.len - c.s))); }   // late: een bestuurder die het remmen verkeerd inschat (te laat, dus te hard de bocht in)
           const [, , hAhead] = posOn(c, c.s + Math.max(7, c.v * 1.4));
           let dh = hAhead - c.h; dh = Math.abs(Math.atan2(Math.sin(dh), Math.cos(dh)));
           const straightNow = c.outS === (c.inS + 3) % 6 && dh < 0.15;   // rechtdoor, en er komt nog geen bocht
@@ -875,7 +877,7 @@
             c.latCur = (c.latCur || 0) + (T - (c.latCur || 0)) * Math.min(1, dt * (c.persona === 'jager' ? 2.4 : 1.6));
           } else c.latCur = (c.latCur || 0) + ((c.aroundT > 0 && !(c.revT > 0) && c.v > 0.3 ? -2.7 : 0) - (c.latCur || 0)) * Math.min(1, dt * 1.2);   // netjes: alleen opzij om een vastgelopen auto heen
           c.lastWant = want;
-          c.v += Math.max(-(reckless ? 9 : 6) * dt, Math.min((reckless ? 7 : 2.5) * dt, want - c.v));
+          c.v += Math.max(-(reckless ? 9 : 6) * dt, Math.min((reckless ? (longSt ? (c.persona === 'racer' ? 12 : 9) : 7) : 2.5) * dt, want - c.v));
           c.v = Math.max(c.revT > 0 ? -3 : 0, c.v);   // achteruit mag alleen bij het losrijden
           // rijden langs de rijlijn
           c.s += c.v * dt;
