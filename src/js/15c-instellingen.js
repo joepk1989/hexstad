@@ -3,7 +3,7 @@
   // beeldscherpte, wolken) en de opties die ook in de balk staan (raster, tijd, mensen, auto's, geluid).
   // Beeld en prestaties worden bewaard in localStorage 'hexstad-set'.
   const SET_KEY = 'hexstad-set';
-  const setState = (() => { const d = { terr: 'laag', shadow: 'zacht', res: 'scherp', clouds: true, contour: true }; try { const o = Object.assign(d, JSON.parse(localStorage.getItem(SET_KEY) || '{}')); if (COARSE && !o.mob) { o.mob = 1; o.shadow = 'eenvoudig'; o.res = 'normaal'; o.crowd = 0.5; o.clouds = true; } if (!o.tv) { o.terr = 'laag'; o.tv = 1; } return o; } catch (e) { return d; } })();   // low poly is de standaard; tv = opgeslagen na die wissel
+  const setState = (() => { const d = { terr: 'laag', shadow: 'zacht', res: 'auto', clouds: true, contour: true }; try { const o = Object.assign(d, JSON.parse(localStorage.getItem(SET_KEY) || '{}')); if (COARSE && !o.mob) { o.mob = 1; o.shadow = 'eenvoudig'; o.res = 'normaal'; o.crowd = 0.5; o.clouds = true; } if (!o.tv) { o.terr = 'laag'; o.tv = 1; } return o; } catch (e) { return d; } })();   // low poly is de standaard; tv = opgeslagen na die wissel
   const saveSet = () => { try { localStorage.setItem(SET_KEY, JSON.stringify(setState)); } catch (e) { /* geen opslag */ } };
   function applyShadow(v) {
     sun.castShadow = v !== 'uit';
@@ -13,13 +13,30 @@
       renderer.shadowMap.type = type; scene.traverse(o => { if (o.material) for (const m of [].concat(o.material)) m.needsUpdate = true; });
     }
   }
-  function applyRes(v) { const d = window.devicePixelRatio || 1; renderer.setPixelRatio(v === 'snel' ? Math.min(d, 1) * 0.75 : v === 'normaal' ? Math.min(d, 1) : Math.min(d, 2)); resize(); }
+  function applyRes(v) { const d = window.devicePixelRatio || 1; renderer.setPixelRatio(v === 'snel' ? Math.min(d, 1) * 0.75 : v === 'normaal' ? Math.min(d, 1) : Math.min(d, 2)); AUTO_RES.r = renderer.getPixelRatio(); resize(); }
+  // Automatisch: begint scherp en zakt vanzelf (in stapjes, tot 60%) als de beeldtijd te lang wordt; wordt het weer snel
+  // dan klimt hij terug. Zo haalt een trage telefoon of een volle stad toch een vloeiend beeld. Niet op software-rendering.
+  const AUTO_RES = { r: 0, t: 0, lo: 0, hi: 0 };
+  function autoResTick(now, ms) {
+    if (setState.res !== 'auto' || softGpu) return;
+    const top = Math.min(window.devicePixelRatio || 1, 2), floor = Math.max(0.6, top * 0.55);
+    if (!AUTO_RES.r) AUTO_RES.r = renderer.getPixelRatio();
+    if (now - AUTO_RES.t < 1200) return;
+    if (ms > 24) { AUTO_RES.lo++; AUTO_RES.hi = 0; } else if (ms < 17.5) { AUTO_RES.hi++; AUTO_RES.lo = 0; } else { AUTO_RES.lo = AUTO_RES.hi = 0; }
+    let r = AUTO_RES.r;
+    if (AUTO_RES.lo >= 2 && r > floor + 0.01) r = Math.max(floor, r * 0.88);
+    else if (AUTO_RES.hi >= 5 && r < top - 0.01) r = Math.min(top, r * 1.1);
+    else return;
+    AUTO_RES.lo = AUTO_RES.hi = 0; AUTO_RES.t = now;
+    if (Math.abs(r - AUTO_RES.r) > 0.01) { AUTO_RES.r = r; renderer.setPixelRatio(r); resize(); }
+  }
   // bij het opstarten (het terrein leest zijn detail zelf al in, zie 07b)
-  applyShadow(setState.shadow); if (setState.res !== 'scherp') applyRes(setState.res); clouds.setOn(setState.clouds);
+  applyShadow(setState.shadow); if (setState.res !== 'scherp' && setState.res !== 'auto') applyRes(setState.res); clouds.setOn(setState.clouds);
   PERF.crowd = setState.crowd || 1;
   // Prestatiemeter: beelden per seconde, tekenopdrachten, driehoeken en de videokaart die de browser gebruikt
   const perfEl = document.createElement('div'); perfEl.id = 'perf'; perfEl.hidden = true; document.body.appendChild(perfEl);
   const gpuName = (() => { try { const gl = renderer.getContext(), x = gl.getExtension('WEBGL_debug_renderer_info'); return x ? gl.getParameter(x.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER); } catch (e) { return '?'; } })();
+  const softGpu = /swiftshader|llvmpipe|software|mesa offscreen/i.test(gpuName);
   let perfN = 0, perfT = performance.now(), perfMin = 1e9, perfLast = performance.now();
   function perfTick() {
     if (perfEl.hidden) return;
@@ -41,7 +58,7 @@
     { id: 'terr', name: 'Terrein', note: 'Low poly: de driehoeken van het raster, strak en het snelst', opts: [['hoog', 'Hoog'], ['normaal', 'Normaal'], ['laag', 'Low poly']], get: () => setState.terr, set: v => { setState.terr = v; terrQuality(v); } },
     { id: 'wereld', name: 'Wereld', note: 'Bol: de stad als kleine planeet, de horizon buigt weg (bouwen blijft gewoon)', opts: [['plat', 'Plat'], ['bol', 'Bol']], get: () => setState.wereld || 'plat', set: v => { setState.wereld = v; curveSet(v === 'bol'); } },
     { id: 'shadow', name: 'Schaduwen', opts: [['zacht', 'Zacht'], ['eenvoudig', 'Eenvoudig'], ['uit', 'Uit']], get: () => setState.shadow, set: v => { setState.shadow = v; applyShadow(v); } },
-    { id: 'res', name: 'Beeldscherpte', note: 'Snel tekent minder pixels', opts: [['scherp', 'Scherp'], ['normaal', 'Normaal'], ['snel', 'Snel']], get: () => setState.res, set: v => { setState.res = v; applyRes(v); } },
+    { id: 'res', name: 'Beeldscherpte', note: 'Automatisch zakt zelf als het te traag wordt; Snel tekent minder pixels', opts: [['auto', 'Automatisch'], ['scherp', 'Scherp'], ['normaal', 'Normaal'], ['snel', 'Snel']], get: () => setState.res, set: v => { setState.res = v; applyRes(v); } },
     { id: 'crowd', name: 'Drukte', note: "Minder mensen en auto's is lichter voor een telefoon", opts: [[1, 'Vol'], [0.5, 'Rustig'], [0.25, 'Weinig']], get: () => setState.crowd || 1, set: v => { setState.crowd = v; PERF.crowd = v; peopleDirty = true; carsDirty = true; } },
     { id: 'perf', name: 'Prestatiemeter', note: 'Beelden per seconde en wat de videokaart tekent', opts: [['fps', 'Alleen fps'], [true, 'Uitgebreid'], [false, 'Uit']], get: () => setState.perf === 'fps' ? 'fps' : !!setState.perf, set: v => setPerf(v) },
     { id: 'clouds', name: 'Wolken', opts: [[true, 'Aan'], [false, 'Uit']], get: () => setState.clouds, set: v => { setState.clouds = v; clouds.setOn(v); } },
