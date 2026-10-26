@@ -6,6 +6,8 @@
   (() => {
     const app = document.getElementById('mmApp'); if (!app) return;
     const $ = id => document.getElementById('mm_' + id);
+    { const sb = document.getElementById('mm_sheet'), sd = document.getElementById('mm_side');   // op de telefoon: de zijbalk is een uitklapbaar paneel onderin
+      if (sb && sd) sb.addEventListener('click', () => { const o = !sd.classList.contains('mm-open'); sd.classList.toggle('mm-open', o); sb.setAttribute('aria-expanded', String(o)); window.dispatchEvent(new Event('resize')); }); }
     const cv = $('cv'), ctx = cv.getContext('2d'), cv3 = $('cv3'), stage = $('stage');
     const E = window.__MME = { m: null, lv: 0, tool: 'wall', wmat: 'brick', fmat: 'paver', open: 'door', obj: 'tree', skind: 'stair', brush: 'hex', view: { x: 0, z: 0, s: 14 }, vm: '3d', th: 0.6, ph: 0.85, upto: true, undo: [], redo: [], hover: null, drag: null, editing: -1, dirty: false, pan: null };
     let W = 0, H = 0, dpr = 1, drawReq = false, msgT = 0;
