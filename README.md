@@ -310,3 +310,10 @@ Alles behalve de vogels, de aanrijdingsklappen en het kreunen is gesynthetiseerd
 bouwen (tok), draaien (tik), slopen (gruis), kan niet (zoem), ongedaan maken, wisselen tussen bouwen en lopen (zwiep), een nieuwe stad (akkoordje),
 mooier geworden (tingeltje), springen, deuren (kraak en klik), piepende banden en botsend metaal (roekeloos), claxon, krekels 's nachts en de brul van de Hulk.
 De haken voor bouwen en slopen staan in `15f-geluid-haken.js`.
+
+## Instorten
+Raakt een auto (die slipt na een botsing) hard een modulegebouw, dan breken de stukken bij de inslag af (`src/js/11c-instorten.js`).
+Het gebouw wordt op dat moment in losse stukken opgebouwd (`mv2Build` met `pieces: true`); wat nergens meer op steunt valt ook
+(steun = kortste weg naar de grond: omhoog gratis, opzij 1, naar beneden 2, meer dan 3 houdt niets). Hoekposten en muren zijn zo
+de dragers. Puin valt met zwaartekracht en zakt na ~10 s weg; wat blijft staan wordt samengevoegd getekend. Instelling: Instorten
+(aan/uit; uit zet alles terug). Test: `test/visueel/instorten*.js`. Ontwerp voor Unity: zelfde steungraaf, echte physics voor het vallen.

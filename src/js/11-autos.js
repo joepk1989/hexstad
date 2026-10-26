@@ -463,7 +463,7 @@
       const nx = c.x + c.cvx * dt, nz = c.z + c.cvz * dt;
       // tegen een gebouw of blok: daar stopt het
       const [q, r] = worldToCell(nx, nz);
-      if (columnTop(q, r) > 1.0) { c.cvx *= -0.25; c.cvz *= -0.25; c.w *= 0.5; sound.impact(Math.min(1, sp / 10), c.x, 0.6, c.z, false); }
+      if (columnTop(q, r) > 1.0 || (sp > 2.5 && collapse.probe(nx, nz, sp, c.cvx, c.cvz))) { c.cvx *= -0.25; c.cvz *= -0.25; c.w *= 0.5; sound.impact(Math.min(1, sp / 10), c.x, 0.6, c.z, false); }
       else { c.x = nx; c.z = nz; }
       c.h += c.w * dt;
       sp = Math.hypot(c.cvx, c.cvz); c.v = sp;

@@ -122,7 +122,9 @@
     mv2Fix(m);
     const Mt = mv2Mats(), ts = mv2Ts(m), LH = MV2.LV_H, bags = new Map(), group = new THREE.Group(), surfaces = [], walls = [];
     const cand = [], nLv = m.lv.length, stacked = !!opts.stacked, roofLi = m.lv.length > 1 && modRoofOnly(m) ? m.lv.length - 1 : -1, mask = opts.roofMask || null;
-    const put = (mat, g) => { let L = bags.get(mat); if (!L) bags.set(mat, L = []); L.push(g); };
+    const pieceList = opts.pieces ? [] : null;   // instorten: elk stuk apart (muur, vloertegel, dakdeel, voorwerp) in plaats van per materiaal samengevoegd
+    const put = (mat, g) => { if (pieceList) { pieceList.push({ mat, g }); return; } let L = bags.get(mat); if (!L) bags.set(mat, L = []); L.push(g); };
+    const tilesOf = tris => { const o = new Map(); for (const v of tris) { const cx = (v[0][0] + v[1][0] + v[2][0]) / 3, cz = (v[0][1] + v[1][1] + v[2][1]) / 3, k = Math.floor(cx / 4.5) + ',' + Math.floor(cz / 4.5); let L = o.get(k); if (!L) o.set(k, L = []); L.push(v); } return [...o.values()]; };
     const tfp = p => tf(p[0], p[1]);
     // doos tussen twee punten a en b (op de grond), dik t, van y0 tot y1; off schuift hem dwars
     const wallBox = (mat, a, b, y0, y1, t, off = 0) => {
@@ -160,6 +162,7 @@
       }
       for (const mat in byMat) {
         const top = lifted ? y0 + 0.02 : (mat === 'water' ? -0.25 : 0.05);
+        if (pieceList) { for (const T of tilesOf(byMat[mat])) { put(Mt.fl[mat] || Mt.fl.concrete, triGeo(T, top)); if (lifted && mat !== 'glass') put(Mt.ceiling, triGeo(T, y0 - MV2.FLOOR_T, false)); } continue; }
         put(Mt.fl[mat] || Mt.fl.concrete, triGeo(byMat[mat], top));
         if (lifted && mat !== 'glass') put(Mt.ceiling, triGeo(byMat[mat], y0 - MV2.FLOOR_T, false));
       }
@@ -361,7 +364,16 @@
       }
     }
     for (const [mat, list] of bags) { const mesh = new THREE.Mesh(mergeGeos(list), mat); mesh.castShadow = true; mesh.receiveShadow = true; mesh.userData.own = true; group.add(mesh); }
-    return { group, surfaces, walls, doors: doorsOut, cand };
+    return { group, surfaces, walls, doors: doorsOut, cand, pieces: pieceList };
+  }
+  // zelfde uiterlijk = zelfde sleutel (veel modules maken eigen, gelijke materialen)
+  const matKey = (mm, cast, recv) => [mm.type, mm.color && mm.color.getHex(), mm.map && mm.map.uuid, mm.transparent, mm.opacity, mm.side, mm.flatShading, mm.roughness, mm.metalness, mm.emissive && mm.emissive.getHex(), mm.emissiveIntensity, mm.vertexColors, mm.alphaTest, mm.depthWrite, mm.polygonOffset, cast, recv].join('|');
+  const modBatchRefresh = () => batchMods(new Set((cells.inst || []).filter(I => I.m && I.m.v === 2)));
+  // stukken van een module (voor het instorten): zelfde bouw als in de stad, maar elk stuk apart
+  function modPiecesOf(I) {
+    const e = modGroups.get(I); if (!e) return null; const o = cellToWorld(I.q, I.r), G = gH(I.q, I.r) + instLv(I) * MV2.LV_H;
+    const b = mv2Build(I.m, mv2Tf(I.rot, I.q, I.r), [o.x, o.z], { stacked: instLv(I) > 0, roofMask: e.mask, roofStyle: e.style, skip: e.skip, baseLv: instLv(I), offRoad: (x, z) => offSpot(I, x, z), pieces: true });
+    return { e, G, pieces: b.pieces };
   }
   // ---------- Samenvoegen per buurt ----------
   // Elke module bestaat uit een stuk of twaalf meshes (een per materiaal). Een stad met honderd modules is dan al ruim
@@ -374,7 +386,7 @@
   const BATCH_ON = { v: true };
   function batchMods(live) {
     const by = new Map();
-    for (const I of live) { const e = modGroups.get(I); if (!e || !e.group) continue; const k = Math.floor(I.q / 6) + ',' + Math.floor(I.r / 6); let L = by.get(k); if (!L) by.set(k, L = []); L.push(e); }
+    for (const I of live) { const e = modGroups.get(I); if (!e || !e.group || e.collapsed) continue; const k = Math.floor(I.q / 6) + ',' + Math.floor(I.r / 6); let L = by.get(k); if (!L) by.set(k, L = []); L.push(e); }
     for (const [k, B] of modBatches) if (!by.has(k)) { for (const m of B.meshes) { modBatchGroup.remove(m); m.geometry.dispose(); } modBatches.delete(k); }
     for (const [k, L] of by) {
       const sig = BATCH_ON.v ? L.map(e => e.group.uuid).sort().join('|') : 'uit', old = modBatches.get(k);
@@ -386,7 +398,7 @@
         e.group.updateMatrixWorld(true);
         e.group.traverse(o => {
           if (!o.isMesh || o.isInstancedMesh || Array.isArray(o.material) || !o.geometry.attributes.position || !o.geometry.attributes.normal || o.renderOrder) return;
-          const mm = o.material, key = [mm.type, mm.color && mm.color.getHex(), mm.map && mm.map.uuid, mm.transparent, mm.opacity, mm.side, mm.flatShading, mm.roughness, mm.metalness, mm.emissive && mm.emissive.getHex(), mm.emissiveIntensity, mm.vertexColors, mm.alphaTest, mm.depthWrite, mm.polygonOffset, o.castShadow, o.receiveShadow].join('|');   // zelfde uiterlijk = samen (veel modules maken eigen, gelijke materialen)
+          const mm = o.material, key = matKey(mm, o.castShadow, o.receiveShadow);
           let b = bags.get(key); if (!b) bags.set(key, b = { mat: o.material, cast: o.castShadow, recv: o.receiveShadow, list: [], src: [] });
           const g = (o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()).applyMatrix4(MM.copy(o.matrixWorld));
           if (MM.determinant() < 0) { const P = g.attributes.position, N = g.attributes.normal, U = g.attributes.uv; for (let v = 0; v + 2 < P.count; v += 3) for (const A of [P, N, U]) if (A) for (let c = 0; c < A.itemSize; c++) { const t = A.array[(v + 1) * A.itemSize + c]; A.array[(v + 1) * A.itemSize + c] = A.array[(v + 2) * A.itemSize + c]; A.array[(v + 2) * A.itemSize + c] = t; } }
