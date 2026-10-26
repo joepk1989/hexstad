@@ -677,10 +677,10 @@
               continue;
             }
           }
-          const longSt = reckless && c.kind === 'lane' && c.path.len > 45 && !(c.ghost > 0);   // lange rechte weg: vol gas
+          const longSt = reckless && c.kind === 'lane' && c.path.len > 30 && !(c.ghost > 0);   // lange rechte weg: vol gas
           let want = reckless ? (longSt ? ({ racer: 42, jager: 30 }[c.persona] || 32) : ({ racer: 26, jager: 17 }[c.persona] || 20)) : ({ snel: 36.1, klink: 4.5, ring: 6.5 }[(VG.edges.get(c.eid) || {}).t] ?? 8.3); c.why = ''; c.yieldTo = -1;   // snelweg 130 km/u, klinkers stapvoets, rotonde rustig
-          { const lim = t => ({ snel: 36.1, klink: 4.5, ring: 6.5 }[t] ?? 8.3), vN = c.next ? Math.min(lim((VG.edges.get(c.next.eid) || {}).t), c.next.kind === 'turn' ? 5.5 : 99) : 99;   // van de snelweg af: op tijd afremmen tot de snelheid van wat komt
-            if (vN < want) want = Math.min(want, Math.sqrt(vN * vN + 2 * (reckless ? 6 : 3.5) * (c.late || 1) * Math.max(0, c.path.len - c.s))); }   // late: een bestuurder die het remmen verkeerd inschat (te laat, dus te hard de bocht in)
+          { const lim = t => ({ snel: 36.1, klink: 4.5, ring: 6.5 }[t] ?? 8.3), vN = c.next ? Math.min(lim((VG.edges.get(c.next.eid) || {}).t), c.next.kind === 'turn' ? (reckless ? 9 : 5.5) : 99) : 99;   // van de snelweg af: op tijd afremmen tot de snelheid van wat komt
+            if (vN < want) want = Math.min(want, Math.sqrt(vN * vN + 2 * (reckless ? 7.5 : 3.5) * (c.late || 1) * Math.max(0, c.path.len - c.s))); }   // late: een bestuurder die het remmen verkeerd inschat (te laat, dus te hard de bocht in)
           const [, , hAhead] = posOn(c, c.s + Math.max(7, c.v * 1.4));
           let dh = hAhead - c.h; dh = Math.abs(Math.atan2(Math.sin(dh), Math.cos(dh)));
           const straightNow = c.outS === (c.inS + 3) % 6 && dh < 0.15;   // rechtdoor, en er komt nog geen bocht
