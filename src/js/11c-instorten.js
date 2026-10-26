@@ -102,7 +102,12 @@
     // een auto raakt het gebouw bij (x, z) met snelheid sp
     function probe(x, z, sp, vx, vz) {
       if (!ST.on) return false; CNT.call++;
-      const [q, r] = worldToCell(x, z), top = modTop.get(q + ',' + r); if (!top || !top.inst) return false; CNT.mod++;
+      const [q, r] = worldToCell(x, z); let top = modTop.get(q + ',' + r);
+      if ((!top || !top.inst) && sp >= 6 && !probe.busy) {   // een oud blok (woning, kantoor): eerst omzetten naar een module, dan kan het instorten
+        const kk = q + ',' + r, st = cells.get(kk);
+        if (st && st.length && st.some(tp => /^(woning|kantoor)/.test(tp)) && oudOmzetten(cells, kk).done) { probe.busy = true; try { rebuildAround(q, r); buildModNet(); changed(); top = modTop.get(kk); } finally { probe.busy = false; } }
+      }
+      if (!top || !top.inst) return false; CNT.mod++;
       const I = top.inst; if (!modGroups.get(I) || !modMeta(I.m).bouw) return false; CNT.bouw++;   // alleen gebouwen (geen parken en pleinen)
       let S = mods.get(I) && mods.get(I).e === modGroups.get(I) ? mods.get(I) : null;
       if (!S) {

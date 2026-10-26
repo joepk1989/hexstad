@@ -10,7 +10,7 @@
     blok: { 1: ['Blok · beton · 1L'], 2: ['Blok · beton · 2L'] },
     zuilen: { 1: ['Zuilen · galerij · 1L'] }, hof: { 1: ['Hof · muren · 1L'] }, tribune: { 1: ['Tribune · klein'] }, tunnel: { 1: ['Poort · tunnel · 1L'] },
   };
-  function oudOmzetten(map) {
+  function oudOmzetten(map, only) {
     const byName = new Map(libStandard().map(m => [m.name, m])); for (const m of modules) byName.set(m.name, m);
     const roads = (map.paths || []).filter(p => p.t !== 'rot' && PATH_DEF[p.t]).map(p => smoothPts(p.p));
     const isRoad = (q, r) => { const s = map.get(key(q, r)); return !!s && s.some(t => ['weg', 'laan'].includes(baseOf(t))); };
@@ -22,7 +22,8 @@
       return ((Math.round(-Math.atan2(best[1], best[0]) / (Math.PI / 3)) % 6) + 6) % 6;
     };
     let done = 0, kept = 0, mods = 0; if (!map.inst) map.inst = [];
-    for (const [k, st] of [...map.entries()]) {
+    for (const [k, st] of (only ? [[only, map.get(only)]] : [...map.entries()])) {
+      if (!st) continue;
       let s = st.map(baseOf); while (s.length && s[s.length - 1] === 'dak') s.pop();
       const kind = s[0]; if (!s.length || !OUD_MAP[kind] || s.some(t => t !== kind)) { if (s.some(t => OUD_MAP[t])) kept++; continue; }
       const [q, r] = k.split(',').map(Number), sizes = Object.keys(OUD_MAP[kind]).map(Number).sort((a, b) => b - a), h = (q * 7 + r * 13 + 99) % 17, rot = facing(q, r);
