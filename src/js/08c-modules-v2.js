@@ -272,8 +272,8 @@
         const rise = S.h || LH, off = S.off || 0, at = (al, lat) => [a[0] + ux * al + nx * (lat + off), a[1] + uz * al + nz * (lat + off)];   // off: zijwaarts verschoven (trap in een galerijband)
         const landing = (al, y) => { pushWalk(at(al, -w / 2), at(al + 1, w / 2), at(al, w / 2), y, y, y); pushWalk(at(al, -w / 2), at(al + 1, -w / 2), at(al + 1, w / 2), y, y, y); };   // onzichtbare overloop van 1 m: geen gat naar de vloer
         if (S.k === 'spiral') {   // zeshoekige wenteltrap: 12 trapezium-treden om een zeshoekige kern, één omwenteling per verdieping
-          const sd = S.side || 1, a0 = Math.atan2(uz, ux), NS = 12, Ap = 1.75, Ac = 0.32, hs = rise / NS, th = k => a0 + sd * k * Math.PI / 6, TH = 0.26;
-          const rad = (t, Aa) => { let d = (((t - a0) % (Math.PI / 3)) + Math.PI / 3) % (Math.PI / 3); if (d > Math.PI / 6) d -= Math.PI / 3; return Aa / Math.cos(d); };   // zeshoek: Aa is de apothema; zijmiddens op a0 + 60°·n
+          const sd = S.side || 1, a0 = Math.atan2(uz, ux), NS = 12, Ap = 1.9, Ac = 0.32, hs = rise / NS, th = k => a0 + sd * k * Math.PI / 6, TH = 0.26;
+          const rad = (t, Aa) => { let d = (((t - a0 - Math.PI / 6) % (Math.PI / 3)) + Math.PI / 3) % (Math.PI / 3); if (d > Math.PI / 6) d -= Math.PI / 3; return Aa / Math.cos(d); };   // zeshoek: Aa is de apothema; hoekpunten op de rasterlijnen (a0 + 60°·n), zijmiddens daartussen, net als de zes driehoeken om het rasterpunt
           const Pt = (t, Aa) => { const r = rad(t, Aa); return [a[0] + Math.cos(t) * r, a[1] + Math.sin(t) * r]; };
           const posTop = [], posSide = [];
           const prism = (P4, yb, yt) => {

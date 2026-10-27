@@ -283,7 +283,12 @@ Gemeten in het bestand: vak R = 9 m, verdieping 3 m, vloer 0,3 m dik; steek 6,75
   Gum: wat er onder de muis weggaat licht rood op vóór je klikt (`eraseTarget`, dezelfde volgorde als het weghalen: voorwerp → muur → trap/helling → dak → vloer), met een label "Weghalen: …"; in 3D de hele wand en het schuine trapvlak.
 
 - **Wenteltrap (J)** in de module maker: klik op een rasterpunt (het midden), sleep naar de kant waar je onderaan instapt (`d` = richting 0–5); keuze linksom/rechtsom omhoog (`side`).
-  Item `{a, d, n:1, w:1.5, k:'spiral', side}`; dezelfde zeshoekige wenteltrap als §2 (12 treden van 25 cm om een zeshoekige kern, straal ≈ 2,05 m).
+  Item `{a, d, n:1, w:1.5, k:'spiral', side}`; dezelfde zeshoekige wenteltrap als §2 (12 treden van 25 cm om een zeshoekige kern). De zeshoek staat met zijn hoekpunten
+  op de rasterlijnen (zijmiddens op `a0 + 30° + 60°·n`, apothema 1,9 m), dus hij valt precies over de zes driehoeken om het rasterpunt; het trapgat erboven is die zeshoek min het uitstapdriehoekje.
+- **Plaatsen per driehoekje** (`sectorDir`, `hoverStair`): al vóór het klikken staat de trap als voorbeeld onder de muis. Het driehoekje onder de muis bepaalt het rasterpunt (de dichtstbijzijnde hoek)
+  en de richting: een trap links van zijn lijn loopt langs de eerste rib van die 60°-sector, rechts langs de tweede, zodat de trap altijd over dat driehoekje begint (wenteltrap: daar stap je in).
+  Een klik zonder slepen zet een trap van 3 zijden neer; slepen kiest een andere lengte of richting. De bezette driehoeken (`coverTris`: driehoek ∩ trapvorm, bedekt deel 0–1) zijn oranje,
+  vol = helemaal bezet, lichter = deels; het gat erboven rood gestippeld.
 - **Trapgat precies afgeknipt** (`mv2StairHole(S, ts)` en `mv2ClipKeep` in `08c`): per vloerdriehoek boven een trap is het antwoord "laten staan", "weg" of "deels houden";
   bij deels wordt de driehoek met een halfvlak geknipt (rechte steek: alles vanaf het eind van de steek, `al ≥ lengte`; bordestrap: voorbij de schuine bordesrand) en als waaier
   getrianguleerd, met loopvlak. Zo loopt de vloer boven tot precies de bovenste trede en sluit de trap aan. Wenteltrap: binnen 2,15 m van het midden en fase < 330° weg, de uitstap blijft.
