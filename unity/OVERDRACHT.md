@@ -298,6 +298,15 @@ Gemeten in het bestand: vak R = 9 m, verdieping 3 m, vloer 0,3 m dik; steek 6,75
 - **Gum in 3D op muren** (`wallRay`): een straal vanuit de camera wordt gesneden met elk wandvlak (rechthoek van lijn × hoogte van de verdieping); de dichtstbijzijnde treffer gaat vóór de vloer.
   De muur kleurt rood en een klik haalt precies die muur weg.
 
+- **Wenteltrap beklimbaar** (27 okt): twee oorzaken. (1) De botsing keek bij module-loopvlakken (één bundel driehoeken per verdieping) naar de onderkant van de héle bundel;
+  een tree of vloer ver boven je hoofd blokkeerde dan toch. Nu per driehoek (`trisBlock` in `09`): blokkeren doet alleen een driehoek met bovenkant boven de stap (0,4 m)
+  en onderkant (bovenkant − 0,3 m) onder je hoofd (1,2 m). (2) Het vloerdriehoekje boven de laatste twee treden bleef heel liggen en hing zo boven tree 10; nu blijft alleen de helft
+  boven de uitstaptree (fase 330°–360°) liggen (`mv2StairHole`, halfvlak langs de straal op 330°). Gemeten: 0 → 3,02 m en 3 → 6,02 m, grootste stap 0,27 m, nergens geblokkeerd, ook gestapeld.
+- **Voorwerpen** (`08d`): plaatsingsvoorbeeld vóór het klikken: in 3D het echte voorwerp half doorzichtig (`objGhost`: een minimodule met alleen dat voorwerp, `mv2Build`, materialen
+  doorzichtig gekloond), in beide weergaven de omtrek (langwerpig: rechthoek langs de lengte, `OBJ_FOOT`; rond: cirkel, `OBJ_R`) en een pijltje naar de voorkant
+  (lokaal +z, in de wereld `(−sin rot, cos rot)`). Draaien per 30° (twaalf richtingen): Q/E, Shift+scroll, knoppen ↺/↻; ingedrukt houden en slepen richt de voorkant naar de muis
+  (`rot = atan2(−dx, dz)`, met Ctrl vrij); op een bestaand voorwerp draait een klik 30° (Shift-klik terug) en slepen richt het. De laatst gebruikte draaiing geldt voor het volgende voorwerp.
+
 ## 21. Open punten
 - Unity: noord- en zuidpool op de bol (vraag staat open); `unity/README.md` is niet bijgewerkt sinds het planeet-wegensysteem.
 - Web: eerste klap op een gebouw geeft een korte hapering (omzetten naar stukken); mensen ontwijken brokstukken niet en het loopnetwerk kent de gaten niet; instortingen worden niet bewaard; jagers maken soms nog sprongetjes van 3–7 m.

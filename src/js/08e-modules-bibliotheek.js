@@ -55,7 +55,7 @@
         if (S.k === 'spiral') {   // wenteltrap: de vloer erboven weg, behalve het stuk waar je op de verdieping uitstapt
           const L = lv(li), D = MV2.DIR6[S.d], a = mv2P(S.a[0], S.a[1], ts), dx = D[0] * ts * SQ3 / 2, dz = D[0] * ts / 2 + D[1] * ts, a0 = Math.atan2(dz, dx), sd = S.side || 1;
           for (const id in L.f) { const [i, j, t] = id.split(',').map(Number), v = mv2TriVerts(i, j, t, ts), cx = (v[0][0] + v[1][0] + v[2][0]) / 3 - a[0], cz = (v[0][1] + v[1][1] + v[2][1]) / 3 - a[1];
-            if (Math.hypot(cx, cz) > 2.15) continue; const ph = ((sd * (Math.atan2(cz, cx) - a0)) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2); if (ph >= Math.PI * 11 / 6) continue; delete L.f[id]; }
+            if (Math.hypot(cx, cz) > 2.15) continue; const ph = ((sd * (Math.atan2(cz, cx) - a0)) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2); if (ph > Math.PI * 5 / 3) continue; delete L.f[id]; }   // het driehoekje boven de laatste treden blijft; mv2Build knipt het op de uitstaptree af
           return B;
         }
         const L = lv(li), D = MV2.DIR6[S.d], a = mv2P(S.a[0], S.a[1], ts), dx = D[0] * ts * SQ3 / 2, dz = D[0] * ts / 2 + D[1] * ts, dl = Math.hypot(dx, dz) || 1, ux = dx / dl, uz = dz / dl, nx = -uz, nz = ux, len = S.n * ts, hw = (S.w || 1.2) / 2 + 0.3;

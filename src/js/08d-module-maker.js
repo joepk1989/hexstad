@@ -171,6 +171,12 @@
       }
       return out;
     }
+    // voorwerpen draaien: in stappen van 30° (twaalf richtingen, zoals de muren), of vrij met Ctrl tijdens het slepen
+    const ROT_STEP = Math.PI / 6, normRot = a => ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+    const snapRot = (a, free) => normRot(free ? a : Math.round(a / ROT_STEP) * ROT_STEP), degOf = a => Math.round(normRot(a) * 180 / Math.PI) % 360;
+    const aimRot = (ox, oz, x, z, free) => snapRot(Math.atan2(-(x - ox), z - oz), free);   // de voorkant (lokaal +z, in de wereld (−sin, cos)) wijst naar (x, z)
+    const snapObj = v => Math.round(v * 4) / 4;
+    const OBJ_FOOT = { bench: [1.8, 0.5], shelf: [2.4, 0.5], counter: [2.3, 0.8], bike: [2.4, 0.64], sign: [1.6, 0.12] }, OBJ_R = { tree: 1.7, bush: 0.9, lamp: 0.2, pillar: 0.45, table: 1.1, planter: 0.75, fountain: 1.9, bin: 0.25 };
     function objectAt(x, z, r = 0.9) { const L = lvl(); let best = -1, bd = r; L.o.forEach((o, i) => { const d = Math.hypot(o.x - x, o.z - z); if (d < bd) { bd = d; best = i; } }); return best; }
     const cellAt = (x, z) => mv2CellOf(x, z);
     const lvl = () => E.m.lv[E.lv];
@@ -205,7 +211,8 @@
       else if (E.tool === 'ramp') { title.textContent = 'Helling'; mk({ 1.2: 'Smal 1,2 m', 2: 'Breed 2 m', 3: 'Extra breed 3 m' }, String(E.sw || 1.2), k => { E.sw = +k; }); hint.textContent = 'Sleep van het laagste punt omhoog. De helling stijgt 3 m naar de volgende verdieping. Hoe langer, hoe flauwer.'; }
       else if (E.tool === 'hexramp') { title.textContent = 'Schans'; hint.textContent = 'Klik in een vak, vlak bij de zijde waar de helling onderaan begint. Het hele vak wordt een oprit die aan de overkant 3 m hoger uitkomt (de verdieping erboven). Rechtermuisknop haalt hem weg.'; }
       else if (E.tool === 'roof') { title.textContent = 'Dak'; hint.textContent = 'Klik op een vak: puntdak, nog eens: plat dak, nog eens: weg. Het dak ligt bovenop deze verdieping.'; }
-      else if (E.tool === 'object') { title.textContent = 'Voorwerp'; mk(MV2.objects, E.obj, k => { E.obj = k; }, OBJ_GLYPH); hint.textContent = 'Klik om neer te zetten. Klik op een voorwerp om het 60° te draaien; rechtermuisknop haalt het weg.'; }
+      else if (E.tool === 'object') { title.textContent = 'Voorwerp'; mk(MV2.objects, E.obj, k => { E.obj = k; }, OBJ_GLYPH); mk({ l: '↺ 30°', n: degOf(E.orot || 0) + '° · terug naar 0°', r: '↻ 30°' }, '', k => { if (k === 'n') { E.orot = 0; draw(); } else rotStep(k === 'l' ? -1 : 1); });
+        hint.textContent = 'Je ziet het voorwerp al staan voor je klikt. Klik om neer te zetten, of houd ingedrukt en sleep om het te richten (per 30°, met Ctrl vrij). Draaien: Q en E, Shift+scroll of de knoppen; op een voorwerp: klik draait 30° (Shift-klik terug), slepen richt het, rechtermuisknop haalt het weg. Het pijltje is de voorkant.'; }
       else if (E.tool === 'erase') { title.textContent = 'Gum'; hint.textContent = 'Klik of sleep: voorwerp, muur, trap, dak of vloer onder de muis wordt weggehaald.'; }
       else { title.textContent = E.tool === 'hand' ? 'Schuiven' : 'Kiezen'; hint.textContent = 'Sleep om te schuiven, scroll om te zoomen. Middelste muisknop of spatie schuift altijd.'; }
     }
@@ -304,7 +311,11 @@
       if (E.tool === 'spiral') { if (right) { const si = stairAt(x, z); if (si >= 0) { snap(); lvl().s.splice(si, 1); changed(); } return; } { const H0 = hoverStair(x, z); E.drag = { kind: 'spiral', a: H0.a, d: H0.d, n: 1 }; } draw(); return; }
       if (E.tool === 'hexramp') { const L = lvl(); if (right) { const si = stairAt(x, z); if (si >= 0) { snap(); L.s.splice(si, 1); changed(); } return; } if (!inArea(x, z)) return; const [q, r] = cellAt(x, z), c = mv2CellXZ(q, r); let side = 0, bd = -1e9; FRAMES.forEach((f, k) => { const d = (x - c[0]) * f.nx + (z - c[1]) * f.nz; if (d > bd) { bd = d; side = k; } }); snap(); const old = L.s.findIndex(S => S.k === 'hexramp' && S.q === q && S.r === r); if (old >= 0) L.s.splice(old, 1); L.s.push({ a: [0, 0], d: 0, n: 1, w: 9, k: 'hexramp', q, r, side }); changed(); say('Schans: instap aan zijde ' + (side + 1), 1000); return; }
       if (E.tool === 'roof') { if (!inArea(x, z)) return; const [q, r] = cellAt(x, z), k = q + ',' + r, L = lvl(); snap(); L.r[k] = right ? undefined : L.r[k] === 'hip' ? 'flat' : L.r[k] === 'flat' ? undefined : 'hip'; if (!L.r[k]) delete L.r[k]; changed(); return; }
-      if (E.tool === 'object') { const L = lvl(), oi = objectAt(x, z, 0.8); snap(); if (oi >= 0) { if (right) L.o.splice(oi, 1); else L.o[oi].rot = ((L.o[oi].rot || 0) + Math.PI / 3) % (Math.PI * 2); } else if (!right && inArea(x, z)) L.o.push({ t: E.obj, x: Math.round(x * 4) / 4, z: Math.round(z * 4) / 4, rot: 0 }); changed(); return; }
+      if (E.tool === 'object') { const L = lvl(), oi = objectAt(x, z, 0.8);
+        if (right) { if (oi >= 0) { snap(); L.o.splice(oi, 1); changed(); } return; }
+        if (oi >= 0) { snap(); E.drag = { kind: 'obj', oi, x: L.o[oi].x, z: L.o[oi].z, rot: L.o[oi].rot || 0, moved: false, back: e.shiftKey }; return; }   // bestaand voorwerp: klik draait 30°, slepen richt het
+        if (!inArea(x, z)) return;
+        E.drag = { kind: 'obj', oi: -1, x: snapObj(x), z: snapObj(z), rot: E.orot || 0, moved: false }; draw(); return; }
       if (E.tool === 'erase') { snap(); const what = eraseAt(x, z); E.drag = { kind: 'erase' }; changed(); if (what) say(what + ' weggehaald', 700); return; }
     });
     cv.addEventListener('pointermove', e => {
@@ -329,6 +340,7 @@
             say(`${n} ${n === 1 ? 'zijde' : 'zijden'} · ${f(len)} m · ${u ? '2 × 8' : '16'} treden van ${Math.round(run * 100)} cm · ${run < 0.25 ? 'te steil' : run > 0.5 ? 'erg flauw' : 'goede trap'}${up ? ' · rood: gat in de vloer erboven' : ' · nog geen vloer erboven'}`, 1500);
           } }
         else if (E.drag.kind === 'erase') { if (eraseAt(x, z, true)) dirty3(); }
+        else if (E.drag.kind === 'obj') { const D = E.drag; if (Math.hypot(x - D.x, z - D.z) > 0.6) { const free = e.ctrlKey || e.metaKey, r2 = aimRot(D.x, D.z, x, z, free); D.moved = true; if (r2 !== D.rot) { D.rot = r2; if (D.oi >= 0) { lvl().o[D.oi].rot = r2; rebuild3(); } } say('Draaiing ' + degOf(D.rot) + '°' + (free ? ' · vrij' : ' · per 30°, Ctrl: vrij'), 1200); } }
       }
       draw();
     });
@@ -340,11 +352,20 @@
       else if (D.kind === 'stair' && D.n > 0) { snap(); lvl().s.push(newStair(D)); changed(); }
       else if (D.kind === 'stair') { snap(); lvl().s.push(newStair({ a: D.a, d: D.d, n: 3 })); changed(); say(E.tool === 'ramp' ? 'Helling geplaatst' : 'Trap geplaatst · sleep voor een andere lengte of richting', 1200); }
       else if (D.kind === 'spiral') { snap(); lvl().s.push(newSpiral(D)); changed(); say('Wenteltrap geplaatst', 900); }
+      else if (D.kind === 'obj') { const L = lvl();
+        if (D.oi >= 0) { const o = L.o[D.oi]; if (!D.moved) o.rot = normRot((o.rot || 0) + (D.back ? -ROT_STEP : ROT_STEP)); E.orot = o.rot; }
+        else { snap(); if (D.moved) E.orot = D.rot; L.o.push({ t: E.obj, x: D.x, z: D.z, rot: D.moved ? D.rot : (E.orot || 0) }); }
+        say('Draaiing ' + degOf(E.orot || 0) + '°', 900); changed(); renderCtx(); }
       else draw();
     };
     cv.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse' && !E.drag) { E.hover = null; draw(); } });   // muis van het tekenvlak af: geen voorbeeld meer
     cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
-    cv.addEventListener('wheel', e => { e.preventDefault(); const rect = cv.getBoundingClientRect(), sx = e.clientX - rect.left, sy = e.clientY - rect.top; if (E.vm === '3d') { E.view.s = Math.max(3, Math.min(80, E.view.s * (e.deltaY < 0 ? 1.12 : 0.9))); dirty3(); return; } const [wx, wz] = toW(sx, sy); E.view.s = Math.max(3, Math.min(80, E.view.s * (e.deltaY < 0 ? 1.12 : 0.9))); const [nx, nz] = toW(sx, sy); E.view.x += wx - nx; E.view.z += wz - nz; draw(); }, { passive: false });
+    cv.addEventListener('wheel', e => { e.preventDefault(); if (E.tool === 'object' && (e.shiftKey || e.altKey)) { const dv = e.deltaY || e.deltaX; if (dv) rotStep(dv > 0 ? 1 : -1); return; } const rect = cv.getBoundingClientRect(), sx = e.clientX - rect.left, sy = e.clientY - rect.top; if (E.vm === '3d') { E.view.s = Math.max(3, Math.min(80, E.view.s * (e.deltaY < 0 ? 1.12 : 0.9))); dirty3(); return; } const [wx, wz] = toW(sx, sy); E.view.s = Math.max(3, Math.min(80, E.view.s * (e.deltaY < 0 ? 1.12 : 0.9))); const [nx, nz] = toW(sx, sy); E.view.x += wx - nx; E.view.z += wz - nz; draw(); }, { passive: false });
+    function rotStep(sg) {   // Q/E, Shift+scroll of de knoppen: het voorwerp onder de muis, anders het volgende dat je neerzet
+      const hv = E.hover, oi = hv && E.tool === 'object' ? objectAt(hv[0], hv[1], 0.8) : -1;
+      if (oi >= 0) { snap(); const o = lvl().o[oi]; o.rot = normRot((o.rot || 0) + sg * ROT_STEP); E.orot = o.rot; changed(); } else { E.orot = normRot((E.orot || 0) + sg * ROT_STEP); draw(); }
+      renderCtx(); say('Draaiing ' + degOf(E.orot) + '°', 800);
+    }
     function zoom(f) { E.view.s = Math.max(3, Math.min(80, E.view.s * f)); if (E.vm === '3d') dirty3(); draw(); }
     function fit() { const ext = R * (1 + 2 * (E.m.k || 0)) * 1.1; E.view.x = 0; E.view.z = 0; E.view.s = Math.min(W, H) / (2 * ext); if (E.vm === '3d') dirty3(); draw(); }
     document.addEventListener('keydown', e => {
@@ -356,6 +377,7 @@
       if (e.key === 'PageUp') { e.preventDefault(); $('lvUp').click(); return; } if (e.key === 'PageDown') { e.preventDefault(); $('lvDn').click(); return; }
       if (e.key === 'Escape') { E.drag = null; draw(); return; }
       if (e.key === '2') setView('2d'); if (e.key === '3') setView('3d'); if (e.key === 'n' || e.key === 'N') { bBrush.click(); return; }
+      if (E.tool === 'object' && (e.key === 'q' || e.key === 'Q' || e.key === 'e' || e.key === 'E')) { rotStep(e.key.toLowerCase() === 'q' ? -1 : 1); return; }
       const t = TOOLS.find(x => x[2].toLowerCase() === e.key.toLowerCase()); if (t) setTool(t[0]);
     });
     document.addEventListener('keyup', e => { if (e.code === 'Space') spaceDown = false; });
@@ -392,6 +414,15 @@
         else if (o === 'gate') { ctx.lineWidth = 2; ctx.strokeStyle = '#f2b233'; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(P0[0], P0[1]); ctx.lineTo(P1[0], P1[1]); ctx.stroke(); ctx.setLineDash([]); }
         else { ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(233,236,223,0.5)'; ctx.setLineDash([2, 5]); ctx.beginPath(); ctx.moveTo(P0[0], P0[1]); ctx.lineTo(P1[0], P1[1]); ctx.stroke(); ctx.setLineDash([]); }
       };
+      // voorwerp: omtrek (langwerpig: rechthoek langs de lengte; rond: cirkel) en een pijltje naar de voorkant
+      const objShape = (o, fill, stroke, y) => {
+        const Lf = OBJ_FOOT[o.t], rot = o.rot || 0, ux = Math.cos(rot), uz = Math.sin(rot), fx = -uz, fz = ux; ctx.beginPath();
+        if (Lf) [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(([a, b], n) => { const S5 = toS(o.x + ux * a * Lf[0] / 2 + fx * b * Lf[1] / 2, o.z + uz * a * Lf[0] / 2 + fz * b * Lf[1] / 2, y); n ? ctx.lineTo(S5[0], S5[1]) : ctx.moveTo(S5[0], S5[1]); });
+        else { const r = OBJ_R[o.t] || 0.5; for (let k2 = 0; k2 <= 24; k2++) { const a = k2 / 24 * Math.PI * 2, S5 = toS(o.x + Math.cos(a) * r, o.z + Math.sin(a) * r, y); k2 ? ctx.lineTo(S5[0], S5[1]) : ctx.moveTo(S5[0], S5[1]); } }
+        ctx.closePath(); if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.strokeStyle = stroke; ctx.stroke(); }
+        const reach = Math.max(1.1, (Lf ? Lf[1] / 2 : OBJ_R[o.t] || 0.5) + 0.6), A = toS(o.x, o.z, y), B = toS(o.x + fx * reach, o.z + fz * reach, y), an = Math.atan2(B[1] - A[1], B[0] - A[0]);
+        ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.moveTo(B[0], B[1]); ctx.lineTo(B[0] - 8 * Math.cos(an - 0.5), B[1] - 8 * Math.sin(an - 0.5)); ctx.moveTo(B[0], B[1]); ctx.lineTo(B[0] - 8 * Math.cos(an + 0.5), B[1] - 8 * Math.sin(an + 0.5)); ctx.stroke();
+      };
       const stairDraw = (S, ghost) => {
         const g = stairGeom(S), pts = g.poly.map(p => toS(p[0], p[1]));
         ctx.beginPath(); pts.forEach((p, n) => n ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath();
@@ -413,7 +444,7 @@
         const a0 = toS(...g.at(g.len * 0.15, 0)), a1 = toS(...g.at(g.len * 0.9, 0)); ctx.strokeStyle = '#f2b233'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(a0[0], a0[1]); ctx.lineTo(a1[0], a1[1]); ctx.stroke();
         const ang = Math.atan2(a1[1] - a0[1], a1[0] - a0[0]); ctx.beginPath(); ctx.moveTo(a1[0], a1[1]); ctx.lineTo(a1[0] - 8 * Math.cos(ang - 0.5), a1[1] - 8 * Math.sin(ang - 0.5)); ctx.moveTo(a1[0], a1[1]); ctx.lineTo(a1[0] - 8 * Math.cos(ang + 0.5), a1[1] - 8 * Math.sin(ang + 0.5)); ctx.stroke();
       };
-      if (in3) { paintHover(); heightMeter(); return; }   // in 3D toont het model zelf vloeren, muren en trappen
+      if (in3) { ghostWant = null; paintHover(); objGhost(ghostWant); heightMeter(); return; }   // in 3D toont het model zelf vloeren, muren en trappen
       // verdieping eronder: vaag
       if (E.lv > 0) { const U = m.lv[E.lv - 1]; ctx.globalAlpha = 0.35; for (const id in U.f) tri(id, COL[U.f[id]] || '#888'); ctx.globalAlpha = 1; for (const id in U.w) wallLine(id, U.w[id], true); }
       // huidige verdieping
@@ -421,10 +452,10 @@
       for (const id in L.r) { const [q, r] = id.split(',').map(Number), c = mv2CellXZ(q, r); hexPath(c[0], c[1], R - 0.3); ctx.fillStyle = L.r[id] === 'hip' ? 'rgba(168,71,58,0.35)' : 'rgba(141,143,138,0.35)'; ctx.fill(); ctx.strokeStyle = L.r[id] === 'hip' ? '#a8473a' : '#8d8f8a'; ctx.lineWidth = 2; ctx.stroke(); if (L.r[id] === 'hip') { ctx.beginPath(); const C = toS(c[0], c[1]); for (let i = 0; i < 6; i++) { const a = (30 + 60 * i) * Math.PI / 180, S2 = toS(c[0] + (R - 0.3) * Math.cos(a), c[1] + (R - 0.3) * Math.sin(a)); ctx.moveTo(C[0], C[1]); ctx.lineTo(S2[0], S2[1]); } ctx.lineWidth = 1; ctx.stroke(); } }
       for (const S of L.s) stairDraw(S, false);
       for (const id in L.w) wallLine(id, L.w[id], false);
-      for (const o of L.o) { const S2 = toS(o.x, o.z); ctx.fillStyle = 'rgba(23,27,20,0.7)'; ctx.beginPath(); ctx.arc(S2[0], S2[1], Math.max(8, 0.5 * s), 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#9aa38c'; ctx.lineWidth = 1; ctx.stroke(); ctx.font = `${Math.max(11, Math.min(26, 0.8 * s))}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff'; ctx.fillText(OBJ_GLYPH[o.t] || '•', S2[0], S2[1] + 1); if (o.rot) { ctx.strokeStyle = '#f2b233'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(S2[0], S2[1]); ctx.lineTo(S2[0] + Math.cos(o.rot) * 0.9 * s, S2[1] + Math.sin(o.rot) * 0.9 * s); ctx.stroke(); } }
+      for (const o of L.o) { ctx.lineWidth = 1.2; objShape(o, 'rgba(23,27,20,0.25)', '#9aa38c'); const S2 = toS(o.x, o.z); ctx.fillStyle = 'rgba(23,27,20,0.7)'; ctx.beginPath(); ctx.arc(S2[0], S2[1], Math.max(8, 0.5 * s), 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#9aa38c'; ctx.lineWidth = 1; ctx.stroke(); ctx.font = `${Math.max(11, Math.min(26, 0.8 * s))}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff'; ctx.fillText(OBJ_GLYPH[o.t] || '•', S2[0], S2[1] + 1); }
       // randcodes op de begane grond
       if (E.lv === 0) { const codes = modV2Codes(m); for (const kk in codes) { const [q, r, sd] = kk.split(',').map(Number), c = mv2CellXZ(q, r), f = FRAMES[sd], mx = c[0] + f.nx * (INNER - 0.4), mz = c[1] + f.nz * (INNER - 0.4), A = toS(mx - f.tx * 2.2, mz - f.tz * 2.2), B = toS(mx + f.tx * 2.2, mz + f.tz * 2.2); ctx.strokeStyle = CODE_COL[codes[kk]] || 'rgba(0,0,0,0)'; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke(); } }
-      paintHover(); heightMeter();
+      ghostWant = null; paintHover(); objGhost(null); heightMeter();
       // schaalbalk
       ctx.fillStyle = css('--muted'); ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillRect(W - 12 - 10 * s, H - 16, 10 * s, 2); ctx.fillText('10 m', W - 12 - 10 * s, H - 20);
       // tijdens het slepen van een trap: welke vloervlakken de trap bedekt (oranje) en welk gat er in de vloer erboven komt (rood gestippeld)
@@ -441,12 +472,19 @@
         ctx.restore();
         E.coverInfo = { bedekt: nCov, gat: nHole, boven: !!U };
       }
+      // plaatsingsvoorbeeld: in 3D het echte voorwerp half doorzichtig, in beide weergaven de omtrek en de voorkant
+      function objPreview(o) {
+        ghostWant = o; ctx.lineWidth = 2; objShape(o, 'rgba(242,178,51,0.22)', '#f2b233', in3 ? lvY() + 0.05 : undefined);
+        if (!in3) { const S2 = toS(o.x, o.z); ctx.fillStyle = '#fff'; ctx.globalAlpha = 0.85; ctx.font = `${Math.max(12, Math.min(28, 0.9 * s))}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(OBJ_GLYPH[o.t] || '•', S2[0], S2[1] + 1); ctx.globalAlpha = 1; }
+      }
       function paintHover() {
       // voorbeeld van wat je doet
       const hv = E.hover, D = E.drag;
       if (D && D.kind === 'wall' && D.n > 0) { for (const [i, j, d] of segsBetween(D.a, D.d, D.n)) wallLine(wallKey(i, j, d), { m: E.wmat, o: '' }, false); }
       else if (D && D.kind === 'stair') { stairPreviewCover(D.n > 0 ? newStair(D) : newStair({ a: D.a, d: D.d, n: 3 })); }
       else if (D && D.kind === 'spiral') stairPreviewCover(newSpiral(D));
+      else if (D && D.kind === 'obj' && D.oi < 0) objPreview({ t: E.obj, x: D.x, z: D.z, rot: D.rot });
+      else if (D && D.kind === 'obj') { const o = lvl().o[D.oi]; if (o) { ctx.lineWidth = 2.5; objShape(o, 'rgba(242,178,51,0.18)', '#f2b233', in3 ? lvY() + 0.05 : undefined); } }
       else if (hv && !E.pan) {
         const [x, z] = hv; ctx.strokeStyle = '#f2b233'; ctx.lineWidth = 2;
         if (E.tool === 'floor') { for (const id of brushTris(x, z).filter(okTri)) { const v = mv2TriVerts(id[0], id[1], id[2], t); ctx.beginPath(); v.forEach((p, n) => { const S3 = toS(p[0], p[1]); n ? ctx.lineTo(S3[0], S3[1]) : ctx.moveTo(S3[0], S3[1]); }); ctx.closePath(); ctx.stroke(); } }
@@ -479,7 +517,11 @@
         else if (['door', 'window', 'gate', 'open', 'close'].includes(E.tool)) { const w = nearestWall(x, z); if (w) { const [i, j, d] = w.id.split(',').map(Number), [a, b] = segOf(i, j, d), A = toS(a[0], a[1]), B = toS(b[0], b[1]); ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke(); } }
         else if (E.tool === 'hexramp') { if (inArea(x, z)) { const [q, r] = cellAt(x, z), c = mv2CellXZ(q, r); let side = 0, bd = -1e9; FRAMES.forEach((f, k) => { const d = (x - c[0]) * f.nx + (z - c[1]) * f.nz; if (d > bd) { bd = d; side = k; } }); stairDraw({ k: 'hexramp', q, r, side, a: [0, 0], d: 0, n: 1 }, true); } }
         else if (E.tool === 'roof' || E.tool === 'room') { if (inArea(x, z)) { const [q, r] = cellAt(x, z), c = mv2CellXZ(q, r); hexPath(c[0], c[1], R - 0.3); ctx.stroke(); } }
-        else if (E.tool === 'object') { const S4 = toS(Math.round(x * 4) / 4, Math.round(z * 4) / 4); ctx.beginPath(); ctx.arc(S4[0], S4[1], Math.max(8, 0.5 * s), 0, Math.PI * 2); ctx.stroke(); }
+        else if (E.tool === 'object') {
+          const oi = objectAt(x, z, 0.8);
+          if (oi >= 0) { const o = lvl().o[oi]; ctx.lineWidth = 2.5; objShape(o, 'rgba(242,178,51,0.18)', '#f2b233', in3 ? lvY() + 0.05 : undefined); const M = toS(x, z), lab = 'Klik: 30° draaien · slepen: richten · ' + degOf(o.rot || 0) + '°'; ctx.font = '600 12px system-ui, sans-serif'; const tw = ctx.measureText(lab).width; ctx.fillStyle = 'rgba(23,27,20,0.88)'; ctx.fillRect(M[0] + 14, M[1] - 30, tw + 14, 22); ctx.fillStyle = '#f2b233'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(lab, M[0] + 21, M[1] - 19); }
+          else if (inArea(x, z)) objPreview({ t: E.obj, x: snapObj(x), z: snapObj(z), rot: E.orot || 0 });
+        }
       }
       }
       // Hoogtemeter op het noorden: een paal met een streep per verdieping (3 m); waar je tekent is oranje
@@ -509,6 +551,19 @@
     }
     // ---------- 3D-weergave ----------
     let rnd = null, scn = null, grp = null, t3 = 0, cam = null, sun = null, base = null;
+    let ghost = null, ghostKey = '', ghostWant = null;
+    function objGhost(o) {   // het voorwerp dat je gaat neerzetten, half doorzichtig in de 3D-weergave
+      if (!scn) return; const key = o && E.vm === '3d' ? o.t + '|' + o.rot.toFixed(3) : ''; let ch = false;
+      if (key !== ghostKey) {
+        ch = true; ghostKey = key;
+        if (ghost) { scn.remove(ghost); ghost.traverse(c => { if (c.isMesh) { c.geometry.dispose(); (Array.isArray(c.material) ? c.material : [c.material]).forEach(mt => mt.dispose()); } }); ghost = null; }
+        if (key) { const gm = mv2Fix({ v: 2, name: 'voorbeeld', cat: 'Overig', k: 0, n: E.m.n || 4, lv: [{ f: {}, w: {}, s: [], r: {}, o: [{ t: o.t, x: 0, z: 0, rot: o.rot }] }] });
+          try { ghost = mv2Build(gm, (x2, z2) => [x2, z2]).group; } catch (err) { ghost = null; }
+          if (ghost) { ghost.traverse(c => { if (c.isMesh) { c.material = (Array.isArray(c.material) ? c.material : [c.material]).map(mt => { const q = mt.clone(); q.transparent = true; q.opacity = 0.6; q.depthWrite = false; return q; }); if (c.material.length === 1) c.material = c.material[0]; c.castShadow = false; } }); scn.add(ghost); } }
+      }
+      if (ghost && o) { const y = lvY(); if (ghost.position.x !== o.x || ghost.position.z !== o.z || ghost.position.y !== y) { ghost.position.set(o.x, y, o.z); ch = true; } }
+      if (ch && E.vm === '3d' && rnd) { camSync(); rnd.render(scn, cam); }
+    }
     function ensure3() {
       if (rnd) return;
       rnd = new THREE.WebGLRenderer({ canvas: cv3, antialias: true, alpha: true }); rnd.outputEncoding = renderer.outputEncoding; rnd.shadowMap.enabled = true; rnd.setPixelRatio(dpr); rnd.setSize(W, H, false);

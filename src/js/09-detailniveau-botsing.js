@@ -161,6 +161,16 @@
     if (u === null) return null;
     return s.base + FLOOR_T + 3 * (u - ST.u0) / (ST.u1 - ST.u0);
   }
+  // loopvlakken van modules (driehoeken): blokkeert hier een driehoek met bovenkant boven de stap en onderkant (≈ 0,3 m dik) onder je hoofd?
+  function trisBlock(s, x, z, lo, hi) {
+    const dx = x - s.cx, dz = z - s.cz, L = s.B.get(Math.floor(dx) * 1000 + Math.floor(dz)); if (!L) return false;
+    for (const T of L) {
+      const ex = dx - T[0], ez = dz - T[1], w1 = (ex * (T[7] - T[1]) - (T[6] - T[0]) * ez) * T[9], w2 = ((T[3] - T[0]) * ez - ex * (T[4] - T[1])) * T[9];
+      if (w1 < -1e-4 || w2 < -1e-4 || w1 + w2 > 1 + 1e-4) continue;
+      const y = s.base + T[2] + (T[5] - T[2]) * w1 + (T[8] - T[2]) * w2; if (y > lo && y - 0.3 < hi) return true;
+    }
+    return false;
+  }
   const surfBottom = s => s.kind === 'ramp' ? s.base + FLOOR_T : s.bottom;
   // nearby wordt per stap van iedereen vaak gevraagd; per vak onthouden tot het volgende beeld (of een verbouwing)
   const NBC = new Map();
@@ -192,6 +202,7 @@
     for (const c of nearby(x, z)) {
       for (const s of c.surfaces) {
         if (surfBottom(s) >= feet + TORSO) continue;
+        if (s.kind === 'tris') { for (const [ox, oz] of SAMPLES) if (trisBlock(s, x + ox, z + oz, feet + STEP, feet + TORSO)) return true; continue; }   // per driehoek: een vloer ver boven je hoofd (wenteltrap, verdieping hoger) blokkeert niet
         for (const [ox, oz] of SAMPLES) {
           const t = surfTop(s, x + ox, z + oz);
           if (t !== null && t > feet + STEP) return true;
@@ -207,7 +218,7 @@
   function whyBlocked(x, z, feet) {   // voor tests: wat blokkeert hier?
     const out = [];
     for (const c of nearby(x, z)) {
-      for (const s of c.surfaces) { if (surfBottom(s) >= feet + TORSO) continue; for (const [ox, oz] of SAMPLES) { const t = surfTop(s, x + ox, z + oz); if (t !== null && t > feet + STEP) { out.push({ surf: s.kind, top: +t.toFixed(2), bottom: surfBottom(s) }); break; } } }
+      for (const s of c.surfaces) { if (surfBottom(s) >= feet + TORSO) continue; if (s.kind === 'tris') { if (SAMPLES.some(([ox, oz]) => trisBlock(s, x + ox, z + oz, feet + STEP, feet + TORSO))) out.push({ surf: 'tris' }); continue; } for (const [ox, oz] of SAMPLES) { const t = surfTop(s, x + ox, z + oz); if (t !== null && t > feet + STEP) { out.push({ surf: s.kind, top: +t.toFixed(2), bottom: surfBottom(s) }); break; } } }
       const src = [...colMap.values()].includes(c) ? 'blok' : [...edgeColMap.values()].includes(c) ? 'rand' : [...modCols.values()].some(L => L.includes(c)) ? 'module' : 'weg';
       for (const w of c.walls) { if (w.y0 >= feet + TORSO || w.y1 <= feet + STEP) continue; const d = segDist(x, z, w); if (d < PR + w.half) out.push({ src, tag: c.tag || (c.inst && c.inst.m && c.inst.m.name) || '', wall: [+w.ax.toFixed(2), +w.az.toFixed(2), +w.bx.toFixed(2), +w.bz.toFixed(2)], y: [+w.y0.toFixed(2), +w.y1.toFixed(2)], half: w.half, d: +d.toFixed(2) }); }
     }
