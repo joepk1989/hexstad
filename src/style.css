@@ -857,3 +857,5 @@ body.fly #modeBtn, body.fly #layerPick, body.fly .city-arrow, body.fly #catBtn, 
 .flyflash { position: fixed; inset: 0; z-index: 9; background: #fff; pointer-events: none; animation: flyFlash .45s ease-out forwards; }
 @keyframes flyFlash { from { opacity: .85; } to { opacity: 0; } }
 .menu-head .ver { margin-left: auto; margin-right: 8px; font: 500 11px/1 ui-monospace, Menlo, monospace; opacity: .55; white-space: nowrap; }
+.welcome-word { margin: 0; padding: 2px 0 2px 14px; border-left: 2px solid var(--signal, #f2b233); font-style: italic; color: var(--ink-dim); font-size: 13.5px; line-height: 1.5; display: flex; flex-direction: column; gap: 6px; }
+.welcome-word p { margin: 0; }
