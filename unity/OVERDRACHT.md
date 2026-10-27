@@ -280,6 +280,7 @@ Gemeten in het bestand: vak R = 9 m, verdieping 3 m, vloer 0,3 m dik; steek 6,75
 - **Weer**: zolang de module maker open is, staat het weer op helder en de tijd op 13:00 (sneeuw bedekt anders de vloer); bij sluiten komt het oude weer en de oude tijd terug.
 - **Interface**: werkbalk met korte namen onder de iconen, in groepen (kiezen · vloer · muren en openingen · trappen · dak en voorwerpen · gum); weergave (2D/3D, tot deze verdieping,
   zoom, passend) als zwevend paneel rechtsboven in het tekenvlak; keuzes zonder kleur als gewone keuzeknoppen.
+  Gum: wat er onder de muis weggaat licht rood op vóór je klikt (`eraseTarget`, dezelfde volgorde als het weghalen: voorwerp → muur → trap/helling → dak → vloer), met een label "Weghalen: …"; in 3D de hele wand en het schuine trapvlak.
 
 ## 21. Open punten
 - Unity: noord- en zuidpool op de bol (vraag staat open); `unity/README.md` is niet bijgewerkt sinds het planeet-wegensysteem.

@@ -203,12 +203,19 @@
     }
     function addWalls(a, d6, n) { const L = lvl(); let c = 0; for (const [i, j, d] of segsBetween(a, d6, n)) { const [p, q] = segOf(i, j, d); if (!mv2NearArea(E.m, (p[0] + q[0]) / 2, (p[1] + q[1]) / 2)) continue; const k = wallKey(i, j, d); const had = L.w[k]; L.w[k] = { m: E.wmat, o: had ? had.o : '' }; c++; } return c; }
     function setOpening(x, z, o) { const w = nearestWall(x, z); if (!w) { say('Klik op een muur'); return false; } lvl().w[w.id].o = o; return true; }
+    // Wat de gum hier zou weghalen (zelfde volgorde als eraseAt): voor het oplichten vóór je klikt
+    function eraseTarget(x, z, firstOnly) {
+      const L = lvl(); const oi = objectAt(x, z, 0.8); if (oi >= 0) return { kind: 'voorwerp', oi };
+      const w = nearestWall(x, z, 0.45); if (w) return { kind: 'muur', id: w.id };
+      const si = stairAt(x, z); if (si >= 0) return { kind: L.s[si].k === 'ramp' || L.s[si].k === 'hexramp' ? 'helling' : 'trap', si };
+      const [q, r] = cellAt(x, z); if (L.r[q + ',' + r] && !firstOnly) return { kind: 'dak', rk: q + ',' + r, q, r };
+      const tris = brushTris(x, z).filter(okTri).filter(id => L.f[id.join(',')]); if (tris.length) return { kind: 'vloer', tris };
+      return null;
+    }
     function eraseAt(x, z, firstOnly) {
-      const L = lvl(); const oi = objectAt(x, z, 0.8); if (oi >= 0) { L.o.splice(oi, 1); return 'voorwerp'; }
-      const w = nearestWall(x, z, 0.45); if (w) { delete L.w[w.id]; return 'muur'; }
-      const si = stairAt(x, z); if (si >= 0) { L.s.splice(si, 1); return 'trap'; }
-      const [q, r] = cellAt(x, z); if (L.r[q + ',' + r] && !firstOnly) { delete L.r[q + ',' + r]; return 'dak'; }
-      return paintFloor(x, z, true) ? 'vloer' : null;
+      const L = lvl(), T = eraseTarget(x, z, firstOnly); if (!T) return null;
+      if (T.oi !== undefined) L.o.splice(T.oi, 1); else if (T.id) delete L.w[T.id]; else if (T.si !== undefined) L.s.splice(T.si, 1); else if (T.rk) delete L.r[T.rk]; else paintFloor(x, z, true);
+      return T.kind;
     }
     // ---------- muisinvoer ----------
     // Bovenaanzicht: schaal en verschuiving. In 3D: een straal vanuit de camera, gesneden met het vlak van de verdieping
@@ -361,7 +368,31 @@
         const [x, z] = hv; ctx.strokeStyle = '#f2b233'; ctx.lineWidth = 2;
         if (E.tool === 'floor') { for (const id of brushTris(x, z).filter(okTri)) { const v = mv2TriVerts(id[0], id[1], id[2], t); ctx.beginPath(); v.forEach((p, n) => { const S3 = toS(p[0], p[1]); n ? ctx.lineTo(S3[0], S3[1]) : ctx.moveTo(S3[0], S3[1]); }); ctx.closePath(); ctx.stroke(); } }
         else if (E.tool === 'wall' || E.tool === 'stair' || E.tool === 'ramp' || E.tool === 'ustair') { const v = vertexAt(x, z), p = toS(...P(v[0], v[1])); ctx.beginPath(); ctx.arc(p[0], p[1], 5, 0, Math.PI * 2); ctx.stroke(); }
-        else if (['door', 'window', 'gate', 'open', 'close', 'erase'].includes(E.tool)) { const w = nearestWall(x, z); if (w) { const [i, j, d] = w.id.split(',').map(Number), [a, b] = segOf(i, j, d), A = toS(a[0], a[1]), B = toS(b[0], b[1]); ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke(); } }
+        else if (E.tool === 'erase') {   // gum: wat er onder de muis weggaat, rood oplichten (zelfde keus als bij het klikken)
+          const T = eraseTarget(x, z, !!(D && D.kind === 'erase')), RED = '#ff5a4d', fillR = 'rgba(255,90,77,0.35)';
+          if (T) {
+            ctx.save(); ctx.strokeStyle = RED; ctx.fillStyle = fillR; ctx.lineWidth = 3;
+            const y0 = lvY(), poly3 = P3 => { ctx.beginPath(); P3.forEach((q, n) => { const S5 = toS(q[0], q[1], q[2]); n ? ctx.lineTo(S5[0], S5[1]) : ctx.moveTo(S5[0], S5[1]); }); ctx.closePath(); ctx.fill(); ctx.stroke(); };
+            if (T.kind === 'voorwerp') { const o = lvl().o[T.oi], S2 = toS(o.x, o.z, in3 ? y0 + 0.6 : undefined); ctx.beginPath(); ctx.arc(S2[0], S2[1], Math.max(11, 0.65 * s), 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
+            else if (T.kind === 'muur') {   // in 3D de hele wand, van onder tot boven
+              const [i, j, d] = T.id.split(',').map(Number), [a, b] = segOf(i, j, d);
+              if (in3) poly3([[a[0], a[1], y0], [b[0], b[1], y0], [b[0], b[1], y0 + MV2.LV_H], [a[0], a[1], y0 + MV2.LV_H]]);
+              else { const A = toS(a[0], a[1]), B = toS(b[0], b[1]); ctx.lineWidth = Math.max(6, 0.35 * s); ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke(); }
+            }
+            else if (T.si !== undefined) {   // in 3D het schuine trapvlak (en het bordes), anders de omtrek
+              const S0 = lvl().s[T.si], g = stairGeom(S0), w = g.w, rise = MV2.LV_H;
+              if (in3 && S0.k === 'u') { const c2 = g.sd * w; poly3([[...g.at(0, -w / 2), y0], [...g.at(0, w / 2), y0], [...g.at(g.len, w / 2), y0 + rise / 2], [...g.at(g.len, -w / 2), y0 + rise / 2]]); poly3([[...g.at(g.len, c2 - w / 2), y0 + rise / 2], [...g.at(g.len, c2 + w / 2), y0 + rise / 2], [...g.at(0, c2 + w / 2), y0 + rise], [...g.at(0, c2 - w / 2), y0 + rise]]); }
+              else if (in3 && S0.k !== 'hexramp') { poly3([[...g.at(0, -w / 2), y0], [...g.at(0, w / 2), y0], [...g.at(g.len, w / 2), y0 + rise], [...g.at(g.len, -w / 2), y0 + rise]]); if (S0.k === 'stair') poly3([[...g.at(g.len, -w / 2), y0 + rise], [...g.at(g.len, w / 2), y0 + rise], [...g.at(g.len + w * SQ3 / 2, 0), y0 + rise]]); }
+              else { const pts = g.poly.map(p => toS(p[0], p[1])); ctx.beginPath(); pts.forEach((p, n) => n ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+            }
+            else if (T.kind === 'dak') { const c = mv2CellXZ(T.q, T.r); hexPath(c[0], c[1], R - 0.3); ctx.fill(); ctx.stroke(); }
+            else if (T.tris) { for (const id of T.tris) { const v = mv2TriVerts(id[0], id[1], id[2], t); ctx.beginPath(); v.forEach((p, n) => { const S3 = toS(p[0], p[1]); n ? ctx.lineTo(S3[0], S3[1]) : ctx.moveTo(S3[0], S3[1]); }); ctx.closePath(); ctx.fill(); ctx.stroke(); } }
+            const M = toS(x, z), lab = 'Weghalen: ' + T.kind; ctx.font = '600 12px system-ui, sans-serif'; const tw = ctx.measureText(lab).width;
+            ctx.fillStyle = 'rgba(23,27,20,0.88)'; ctx.fillRect(M[0] + 14, M[1] - 30, tw + 14, 22); ctx.fillStyle = RED; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(lab, M[0] + 21, M[1] - 19);
+            ctx.restore();
+          }
+        }
+        else if (['door', 'window', 'gate', 'open', 'close'].includes(E.tool)) { const w = nearestWall(x, z); if (w) { const [i, j, d] = w.id.split(',').map(Number), [a, b] = segOf(i, j, d), A = toS(a[0], a[1]), B = toS(b[0], b[1]); ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke(); } }
         else if (E.tool === 'hexramp') { if (inArea(x, z)) { const [q, r] = cellAt(x, z), c = mv2CellXZ(q, r); let side = 0, bd = -1e9; FRAMES.forEach((f, k) => { const d = (x - c[0]) * f.nx + (z - c[1]) * f.nz; if (d > bd) { bd = d; side = k; } }); stairDraw({ k: 'hexramp', q, r, side, a: [0, 0], d: 0, n: 1 }, true); } }
         else if (E.tool === 'roof' || E.tool === 'room') { if (inArea(x, z)) { const [q, r] = cellAt(x, z), c = mv2CellXZ(q, r); hexPath(c[0], c[1], R - 0.3); ctx.stroke(); } }
         else if (E.tool === 'object') { const S4 = toS(Math.round(x * 4) / 4, Math.round(z * 4) / 4); ctx.beginPath(); ctx.arc(S4[0], S4[1], Math.max(8, 0.5 * s), 0, Math.PI * 2); ctx.stroke(); }
