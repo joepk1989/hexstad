@@ -151,7 +151,7 @@
   function throughCheck(a) {
     const c = a.chk || (a.chk = { x: a.x, z: a.z, n: 0, cool: 0 });
     if (INC.dbg) { (a.trail || (a.trail = [])).push([+a.x.toFixed(3), +a.z.toFixed(3), a.state, a.precise ? 1 : 0, a.lastWS || '']); if (a.trail.length > 8) a.trail.shift(); }
-    if (++c.n < 4) return; c.n = 0;
+    if (++c.n < (a.running ? 1 : 4)) return; c.n = 0;   // rennend elk beeld (anders lijkt een bocht om een paaltje een lijn erdoorheen)
     const jump = Math.hypot(a.x - c.x, a.z - c.z); if (performance.now() < c.cool || jump < 0.05 || jump > 3 || Math.abs(a.y - (c.y ?? a.y)) > 1.5) { c.x = a.x; c.z = a.z; c.y = a.y; return; }   // opnieuw neergezet (uit een winkel, nieuwe stad): geen lijn trekken
     const y = a.y;
     outer: for (const col of nearby(a.x, a.z)) for (const w of col.walls) {
@@ -160,7 +160,7 @@
       if (w.ax === w.bx && w.az === w.bz) { if (w.half > 0.25 && Math.hypot(a.x - w.ax, a.z - w.az) < w.half * 0.7 && Math.hypot(c.x - w.ax, c.z - w.az) >= w.half * 0.7) { incident('voorwerp', a.x, y, a.z, ''); c.cool = performance.now() + 3000; break outer; } continue; }
       const wl = Math.hypot(w.bx - w.ax, w.bz - w.az), e = wl > 1e-6 ? Math.min(0.2, wl * 0.3) / wl : 0, ex = (w.bx - w.ax) * e, ez = (w.bz - w.az) * e;   /* om het uiteinde heen lopen telt niet */
       const sd = (px, pz) => Math.abs((px - w.ax) * (w.bz - w.az) - (pz - w.az) * (w.bx - w.ax)) / (wl || 1);   /* afstand tot de muurlijn: langs een post schampen telt niet */
-      if (sd(c.x, c.z) > 0.04 && sd(a.x, a.z) > 0.04 && incSegX(c.x, c.z, a.x, a.z, w.ax + ex, w.az + ez, w.bx - ex, w.bz - ez)) { incident('muur', a.x, y, a.z, ((a.prev && a.prev.key) || '') + ' → ' + ((a.node && a.node.key) || '') + ' | pad ' + [c.x, c.z, a.x, a.z, c.y ?? a.y, a.y].map(v => +v.toFixed(2)).join(',') + (INC.dbg ? ' | trail ' + JSON.stringify(a.trail) : '') + ' | muur ' + [w.ax, w.az, w.bx, w.bz, w.y0, w.y1, w.half].map(v => +v.toFixed(2)).join(',')); c.cool = performance.now() + 3000; break outer; }
+      if (sd(c.x, c.z) > 0.04 && sd(a.x, a.z) > 0.04 && incSegX(c.x, c.z, a.x, a.z, w.ax + ex, w.az + ez, w.bx - ex, w.bz - ez)) { incident('muur', a.x, y, a.z, (a.running ? '[rent] ' : '') + (a.avoid && Math.abs(a.avoid) > 0.2 ? '[wijkt] ' : '') + ((a.prev && a.prev.key) || '') + ' → ' + ((a.node && a.node.key) || '') + ' | pad ' + [c.x, c.z, a.x, a.z, c.y ?? a.y, a.y].map(v => +v.toFixed(2)).join(',') + (INC.dbg ? ' | trail ' + JSON.stringify(a.trail) : '') + ' | muur ' + [w.ax, w.az, w.bx, w.bz, w.y0, w.y1, w.half].map(v => +v.toFixed(2)).join(',')); c.cool = performance.now() + 3000; break outer; }
     }
     c.x = a.x; c.z = a.z; c.y = a.y;
   }
@@ -187,6 +187,7 @@
   if (incBtn) incBtn.addEventListener('click', () => { incPanel.hidden = !incPanel.hidden; if (!incPanel.hidden) incList(); });
   function incTick() { if (incMarker.visible) { const k = (incMarkT - performance.now()) / 8000; if (k <= 0) incMarker.visible = false; else { incMarker.material.opacity = 0.5 + 0.5 * Math.abs(Math.sin(performance.now() / 200)); incMarker.scale.setScalar(1 + 0.15 * Math.sin(performance.now() / 300)); } } }
   incUI();
+  window.__INC = INC;   // voor tests
   INC.reset = () => { for (const k in INC.counts) INC.counts[k] = 0; INC.list = []; incUI(); };
   window.__INC = INC;
   const people = (() => {
@@ -421,6 +422,54 @@
         return { x, y, z, cx: x, cy: y, cz: z, h: a.heading, swing: false, t: 0, fx: x, fy: y, fz: z, tx: x, ty: y, tz: z, dur: 0.4, arc: 0.07 };
       });
     }
+    // ---------- Rennen ----------
+    // Anders dan lopen: de voet landt vlak vóór de heup (niet een halve pas ervoor), blijft staan terwijl het lichaam eroverheen
+    // gaat en zet af als hij een stuk achter de heup is. De pas is lang omdat je daarna even zweeft (beide voeten los).
+    // Ritme ~3 passen per seconde (kinderen sneller), steuntijd = afzetweg / snelheid, zwaaitijd = twee passen min de steuntijd.
+    function runFeet(a, dt, spd, fx, fz, rx, rz) {
+      const sc = a.scale, v = Math.max(1.5, spd);
+      const cad = Math.min(3.5, Math.max(2.7, 2.35 + 0.22 * v)) / Math.sqrt(sc);       // passen per seconde
+      const Tstep = 1 / cad, Tst = Math.min(Tstep * 0.9, 0.56 * sc / v), Tsw = Math.max(0.14, 2 * Tstep - Tst);
+      const LIFT = -0.34 * sc, LEAD = 0.15 * sc;                                        // afzetten achter, landen vóór de heup
+      for (let i = 0; i < 2; i++) {
+        const f = a.feet[i], o = a.feet[1 - i], side = i ? 1 : -1;
+        if (!f.swing) {
+          const lon = (f.x - a.x) * fx + (f.z - a.z) * fz;
+          const otherReady = !o.swing || o.t > 0.42;                                    // om en om: de andere voet is al halverwege
+          if ((lon < LIFT && otherReady) || lon < -0.7 * sc || Math.hypot(f.x - a.x, f.z - a.z) > 0.95 * sc) {
+            Object.assign(f, { swing: true, run: true, t: 0, fx: f.x, fy: f.y, fz: f.z, dur: Tsw, arc: 0.2 * sc, h: a.heading });
+          } else {
+            f.cx = f.x; f.cy = f.y; f.cz = f.z;
+            let dh = a.heading - f.h; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); if (Math.abs(dh) > 0.3) f.h += Math.sign(dh) * Math.min(Math.abs(dh) - 0.3, dt * 3);
+            continue;
+          }
+        }
+        f.t = Math.min(1, f.t + dt / f.dur);
+        const rem = (1 - f.t) * f.dur;
+        // landen waar de heup is als de voet neerkomt (volgt ook een bocht), een stukje vooruit, op zijn eigen kant
+        let tx = a.x + a.vx * rem + fx * LEAD + rx * side * 0.085 * sc, tz = a.z + a.vz * rem + fz * LEAD + rz * side * 0.085 * sc;
+        if (f.t > 0.55 && f.tyAt !== Math.round(tx * 4) + ',' + Math.round(tz * 4)) { f.ty = floorFor(tx, tz, Math.max(a.y, f.fy - ANKLE * sc)) + ANKLE * sc; f.tyAt = Math.round(tx * 4) + ',' + Math.round(tz * 4); }
+        else if (f.ty === undefined || f.t <= 0.55 && f.t - dt / f.dur <= 0) f.ty = f.fy;
+        f.tx = tx; f.tz = tz;
+        const p = f.t * f.t * (3 - 2 * f.t);
+        f.cx = f.fx + (tx - f.fx) * p; f.cz = f.fz + (tz - f.fz) * p;
+        // hiel omhoog achter je (eerste helft), knie naar voren, dan neerzetten
+        f.cy = f.fy + (f.ty - f.fy) * p + f.arc * Math.pow(Math.sin(Math.PI * f.t), 0.75) + 0.1 * sc * Math.sin(Math.PI * Math.min(1, f.t / 0.5)) * (1 - f.t);
+        if (f.t >= 1) { f.swing = false; f.run = false; f.x = tx; f.y = f.ty; f.z = tz; f.cx = f.x; f.cy = f.y; f.cz = f.z; f.h = a.heading; a.lastFoot = i; }
+      }
+      // heup: zo hoog als de staande voet toelaat (met de hiel van de grond bij het afzetten), in de lucht iets hoger;
+      // nooit door de knieën zakken zoals bij een uitval
+      const L = 0.88 * sc * 0.985 + 0.07 * sc;
+      let hy = a.y + 0.9 * sc, stance = false;
+      for (let i = 0; i < 2; i++) { const f = a.feet[i]; if (f.swing) continue; stance = true;
+        const side = i ? 1 : -1, hx = a.x + rx * side * 0.088 * sc, hz = a.z + rz * side * 0.088 * sc, dh = Math.hypot(f.cx - hx, f.cz - hz);
+        hy = Math.min(hy, f.cy + Math.sqrt(Math.max(0, L * L - dh * dh)) - 0.03 * sc); }
+      if (!stance) hy = a.y + 0.91 * sc;
+      hy = Math.max(a.y + 0.78 * sc, Math.min(a.y + 0.92 * sc, hy));
+      a.hipY += (hy - a.hipY) * Math.min(1, dt * 16);
+      const sw = a.feet[0].swing === a.feet[1].swing ? 0 : (a.feet[1].swing ? 1 : -1) * 0.014 * sc;
+      a.sway += (sw - a.sway) * Math.min(1, dt * 8);
+    }
     function stepFeet(a, dt) {
       if (!a.feet) initFeet(a);
       const sc = a.scale, [rx, rz] = rightOf(a.heading);
@@ -432,6 +481,10 @@
       a.lx = a.x; a.lz = a.z;
       const spd = Math.hypot(a.vx, a.vz), moving = spd > 0.15;
       const fx = moving ? a.vx / spd : Math.sin(a.heading), fz = moving ? a.vz / spd : Math.cos(a.heading);
+      // rennen of lopen (met wat speling, zodat niemand op de grens heen en weer wisselt)
+      a.running = a.running ? (a.spd > 1.95 || spd > 2.1) : (a.spd > 2.25 && spd > 1.7);
+      a.runK = (a.runK || 0) + ((a.running ? 1 : 0) - (a.runK || 0)) * Math.min(1, dt * 5);
+      if (a.running) { runFeet(a, dt, spd, fx, fz, rx, rz); return; }
       // blijft een voet ver achter (geduwd, gestruikeld)? dan de zwaaiende voet sneller neerzetten
       let behind = false;
       a.feet.forEach((f, i) => { if (!f.swing && Math.hypot(f.x - a.x, f.z - a.z) > Math.max(0.42 * sc, stepLen * 0.62)) behind = true; });
@@ -574,26 +627,31 @@
     function avoidance(a, dt, grid) {
       const [fx, fz] = fwdOf(a.heading), [rx, rz] = rightOf(a.heading);
       let side = 0, follow = 1;
+      // vooruitkijken naar tijd, niet naar een vaste afstand: wie rent, ziet de ander eerder aankomen (~1,3 s)
+      const sp = Math.max(a.spd || 0, 0.5), OLD = window.__oldAvoid || !a.running,   // wandelaars: het vertrouwde gedrag (al nul bijna-botsingen); rennen: verder kijken en inhalen
+            RA = OLD ? 2.4 : Math.max(2.4, sp * 1.3 + 0.6), RF = OLD ? 1.4 : 1.4 * Math.max(1, sp / 1.3), LW = OLD ? 0.8 : 0.8 + 0.08 * sp, nc = OLD ? 1 : Math.ceil(RA / 2);
       const gx = Math.floor(a.x / 2), gz = Math.floor(a.z / 2);
-      for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+      for (let i = -nc; i <= nc; i++) for (let j = -nc; j <= nc; j++) {
         const list = grid.get((gx + i) + ',' + (gz + j)); if (!list) continue;
         for (const o of list) {
           if (o === a || Math.abs(o.y - a.y) > 1) continue;
           const ox = o.x - a.x, oz = o.z - a.z, d = Math.hypot(ox, oz);
-          if (d > 2.4 || d < 1e-4) continue;
+          if (d > RA || d < 1e-4) continue;
           const ahead = ox * fx + oz * fz, lat = ox * rx + oz * rz;
           if (ahead <= 0.05) continue;
           const same = Math.sin(o.heading) * fx + Math.cos(o.heading) * fz;
-          if (same > 0.5 && o.moving && ahead < 1.4 && Math.abs(lat) < 0.55) {   // iemand loopt voor je: tempo aanpassen
-            follow = Math.min(follow, Math.max(0.15, (o.spd || 0) / Math.max(0.1, a.speed) - (1.4 - ahead) * 0.3));
-          } else if (ahead < 2.4 && Math.abs(lat) < 0.8) {
+          if (same > 0.5 && o.moving && ahead < RF && Math.abs(lat) < 0.55) {   // iemand loopt voor je: inhalen als die duidelijk trager is, anders tempo aanpassen
+            const mine = a.speed * (a.panicK || 1);
+            if (!OLD && (o.spd || 0) < mine * 0.8 && ahead > 0.6) { side += lat > 0 ? -1 : 1; follow = Math.min(follow, 0.9); }
+            else follow = Math.min(follow, Math.max(0.15, (o.spd || 0) / Math.max(0.1, mine) - (RF - ahead) * 0.3 / Math.max(1, sp / 1.3)));
+          } else if (ahead < RA && Math.abs(lat) < LW) {
             if (same < -0.3 && lat < 0.35) side += 1;          // tegenligger: rechts houden
             else side += lat > 0 ? -1 : 1;                     // stilstaand of schuin: uitwijken naar de vrije kant
           }
         }
       }
       const target = Math.max(-1, Math.min(1, side)) * 0.65;
-      a.avoid += (target - a.avoid) * Math.min(1, dt * (target ? 2.5 : 1.2));
+      a.avoid += (target - a.avoid) * Math.min(1, dt * (target ? (OLD ? 2.5 : 2.5 + sp * 0.6) : 1.2));   // rennend sneller uitwijken
       a.follow += (follow - a.follow) * Math.min(1, dt * 5);
     }
     let agentId = 0;
@@ -742,7 +800,7 @@
     function animPose(a) {
       if (!a.feet) initFeet(a);
       const sc = a.scale, w = Math.min(1, a.spd / 1.0), idle = 1 - w;   // niet krimpen bij een deur: je loopt gewoon naar binnen (fade telt alleen voor het ontwijken)
-      const [fx, fz] = fwdOf(a.heading), stepLen = a.stride * 0.4;
+      const [fx, fz] = fwdOf(a.heading), rk = a.runK || 0, stepLen = a.stride * 0.4 * (1 - rk) + 0.6 * sc * rk;
       VFw.set(fx, 0, fz);
       const fL = a.feet[0], fR = a.feet[1];
       const legDiff = ((fR.cx - fL.cx) * fx + (fR.cz - fL.cz) * fz) / Math.max(0.2, stepLen);   // >0: rechtervoet voor
@@ -752,10 +810,11 @@
       const PV = pose.pelvis;
       PV.copy(M).multiply(tr((a.sway + idleSway) / sc, 0, 0))
         .multiply(B.makeRotationY(-ld * 0.12))                       // heup draait mee met het voorste been
-        .multiply(B.makeRotationZ(-a.sway / sc * 2.2));             // heup zakt aan de kant van het zwaaibeen
+        .multiply(B.makeRotationZ(-a.sway / sc * 2.2))              // heup zakt aan de kant van het zwaaibeen
+        .multiply(B.makeRotationX(0.06 * rk));                       // rennen: bekken iets naar voren
       // borst draait tegengesteld aan de heup; ouderen lopen iets voorovergebogen
       pose.chest.copy(PV).multiply(B.makeRotationY(ld * 0.24)).multiply(B.makeRotationZ(a.sway / sc * 1.5))
-        .multiply(B.makeRotationX(a.lean + 0.035 * w)).multiply(B.makeScale(a.build, 1, 1));
+        .multiply(B.makeRotationX(a.lean + 0.035 * w + 0.17 * rk)).multiply(B.makeScale(a.build, 1, 1));   // rennen: voorover leunen
       const CH = pose.chest, L1 = 0.44 * sc, L2 = 0.44 * sc;
       for (let si = 0; si < 2; si++) {
         const side = si ? 1 : -1, f = a.feet[si];
@@ -773,13 +832,13 @@
         boneTo(pose.thigh[si], VH, VK, VKf, sc);
         boneTo(pose.shin[si], VK, VF, VKf, sc);
         // voet: plat neergezet; tijdens de zwaai eerst tenen omlaag (afzetten), dan tenen omhoog (hiel eerst landen)
-        const pitch = f.swing ? (f.t < 0.55 ? 0.5 * Math.sin(Math.PI * f.t / 0.55) : -0.22 * Math.sin(Math.PI * (f.t - 0.55) / 0.45)) : 0;
+        const pitch = f.swing ? (f.t < 0.55 ? (0.5 + 0.35 * rk) * Math.sin(Math.PI * f.t / 0.55) : -0.22 * (1 - rk * 0.6) * Math.sin(Math.PI * (f.t - 0.55) / 0.45)) : 0;
         pose.shoe[si].makeRotationY(f.h).multiply(B.makeRotationX(pitch)).multiply(T.makeScale(sc, sc, sc)).setPosition(VF);
         // armen: tegengesteld aan de benen, elleboog buigt meer als de arm naar voren gaat
-        const same = side > 0 ? ld : -ld, armRot = same * 0.38 * Math.min(1, w + 0.2);
+        const same = side > 0 ? ld : -ld, armRot = same * (0.38 + 0.42 * rk) * Math.min(1, w + 0.2);   // rennen: armen pompen
         pose.upperArm[si].copy(CH).multiply(tr(side * 0.2, 0.495, -0.005)).multiply(B.makeScale(1 / a.build, 1, 1))
-          .multiply(B.makeRotationZ(side * (0.09 + 0.02 * idle))).multiply(B.makeRotationX(armRot - 0.04));
-        pose.foreArm[si].copy(pose.upperArm[si]).multiply(tr(0, -0.29, 0)).multiply(B.makeRotationX(-0.16 - Math.max(0, -armRot) * 0.7));
+          .multiply(B.makeRotationZ(side * (0.09 + 0.02 * idle + 0.04 * rk))).multiply(B.makeRotationX(armRot - 0.04 - 0.1 * rk));
+        pose.foreArm[si].copy(pose.upperArm[si]).multiply(tr(0, -0.29, 0)).multiply(B.makeRotationX(-0.16 - 1.15 * rk - Math.max(0, -armRot) * 0.7 * (1 - rk * 0.6)));   // rennen: ellebogen ~90°
         pose.hand[si].copy(pose.foreArm[si]).multiply(tr(0, -0.265, 0)).multiply(B.makeRotationY(side * 0.4));
       }
       // zwaaien (groet): rechterarm omhoog met een wuivende hand; schrik: beide handen omhoog, iets achterover
@@ -795,7 +854,7 @@
       // hoofd blijft rustig: compenseert de borstdraai en kijkt af en toe om zich heen; bij een groet of een praatje kijk je de ander aan
       let look = Math.sin(a.lookPhase * 0.31) * Math.sin(a.lookPhase * 0.17) * (0.25 + 0.45 * idle);
       if (a.lookAt && (a.waveT > 0 || a.chatT > 0 || a.startleT > 0)) { let d = Math.atan2(a.lookAt[0] - a.x, a.lookAt[1] - a.z) - a.heading; d = Math.atan2(Math.sin(d), Math.cos(d)); look = Math.max(-1.1, Math.min(1.1, d)); }
-      pose.neck.copy(CH).multiply(B.makeScale(1 / a.build, 1, 1)).multiply(tr(0, 0.545, 0.005)).multiply(B.makeRotationX(-a.lean * 0.7));
+      pose.neck.copy(CH).multiply(B.makeScale(1 / a.build, 1, 1)).multiply(tr(0, 0.545, 0.005)).multiply(B.makeRotationX(-a.lean * 0.7 - 0.13 * rk));   // blik vooruit, ook voorovergebogen
       pose.head.copy(pose.neck).multiply(tr(0, 0.165, 0.012)).multiply(B.makeRotationY(-ld * 0.2 + look)).multiply(B.makeRotationX(0.04 * w + (a.chatT > 0 ? Math.sin(a.t * 5) * 0.06 : 0) - (a.startleT > 0 ? 0.25 : 0)));
       if (a.kid) pose.head.multiply(B.makeScale(1.16, 1.16, 1.16));   // kinderen hebben naar verhouding een groter hoofd
     }

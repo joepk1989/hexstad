@@ -1,4 +1,4 @@
-# Overdracht webversie → Unity (stand 26 oktober 2026)
+# Overdracht webversie → Unity (stand 27 oktober 2026)
 
 Dit document beschrijft alles wat er in de webversie van Raatstad (`src/js/`) is bijgekomen sinds de laatste Unity-versie
 (planeet-wegensysteem, zie `unity/README.md`), met de maten, regels en formules die je nodig hebt om het in Unity na te bouwen.
@@ -214,7 +214,50 @@ zonder knoppen op. Minimaal 2 m boven terrein of blok. Bij stoppen komt het draa
   Gemeten (Grote stad, 160 mensen, 40 auto's, rekentijd per beeld): mensen 13,8 → ~6 ms, auto's 4,7 → ~2 ms; Startstadje mensen 3,4 → 1,3, auto's 1,2 → 0,7 ms. Geen extra "door iets heen", botsingen of vastlopers (`test/visueel/{deel,muren,overlap}.js`).
 - Module maker: de camera vliegt in 380 ms naar de helft van de afstand en de maker vervaagt in; op de telefoon één werkbalkrij en een uitklapbaar paneel.
 
-## 20. Open punten
+## 20. Lopen en rennen van mensen (`10-mensen.js`: `stepFeet`, `runFeet`, `animPose`, `avoidance`)
+Geen animatieclips: elke voet wordt echt neergezet (procedureel), de benen volgen met inverse kinematica. Dat werkt op elke helling, trap en
+stoeprand en is in Unity direct na te bouwen (per persoon in C# of met de Jobs-systeem; een `Animator` is niet nodig, wel handig voor het bovenlijf).
+
+**Lichaam** (`scale = lengte / 1,78`; kind 1,15–1,40 m, vrouw 1,60–1,74, man 1,72–1,89): heupgewricht 0,965·sc boven de enkel, been `L = 0,88·sc·0,985`
+(dij en scheen elk 0,44), enkel 0,082 m boven de vloer, heupen 0,088·sc opzij, voeten 0,1·sc opzij. Loopsnelheid kind 1,25–1,6, oudere 0,8–1,0, anders 1,1–1,5 m/s;
+paslengte `stride = (kind 1,0 / oudere 1,15 / anders 1,45)·(0,95–1,05)·sc·1,2`, `stepLen = 0,4·stride`. Ouderen leunen 0,12–0,2 rad voorover.
+
+**Lopen** (stappen op fout, niet op ritme):
+- Echte lichaamssnelheid `v` = gefilterde positieverandering (`k = min(1, dt·10)`), ook als iemand geduwd wordt.
+- Zolang er geen voet zwaait: per voet de *ideale plek* = heup + `lead`·looprichting + 0,1·sc opzij, met `lead = min(stepLen/2, 0,33·sc, |v|·swingT/2 + 0,03·sc)`.
+  Fout = `√(lon² + (1,6·lat)²) + 0,55·sc·|hoekverschil|`. De voet met de grootste fout stapt als die boven `max(0,12·sc, 1,5·lead)` komt (om en om; stilstaand 0,13·sc).
+- Zwaaitijd `swingT = clamp(0,42·√(1,3/max(0,6, v))·√sc, 0,22, 0,5)` s (sneller lopen = langere passen, niet tragere benen). Landingspunt = ideale plek + `v·swingT`,
+  nooit gekruist (minstens 0,15·sc aan de eigen kant van de andere voet); hoogte = vloer onder dat punt (trap, stoep).
+- Zwaaibaan: `p = 0,45t + 0,55·smoothstep(t)` (meteen naar voren, rustig neerzetten), hoogte + `sin(πt)·arc`, `arc = 0,075·sc` (+0,7·hoogteverschil).
+  Voet kantelt: eerst tenen omlaag (afzetten, tot 0,5 rad), dan tenen omhoog (hiel eerst, −0,22). Een staande voet draait pas mee als het hoekverschil > 0,3 rad.
+- Staat een voet > 0,9·sc van de heup (geduwd, gestruikeld), dan wordt hij direct onder je gezet; blijft hij ver achter, dan zwaait de andere 2,5× sneller.
+- Heuphoogte: de laagste van `voet.y + √(L² − horizontale afstand²)` over beide voeten (de zwaaivoet telt mee bij afzetten en neerzetten),
+  minimaal 0,62·sc boven de grond; zakken met `dt·18`, omhoog met `dt·8`. Daar komt het natuurlijke op-en-neer vandaan. Gewicht 0,024·sc boven het standbeen.
+- Bovenlijf: bekken draait mee met het voorste been (−0,12·beenverschil), borst tegengesteld (+0,24), armen tegen de benen in (0,38 rad), elleboog buigt meer als de arm naar voren gaat,
+  hoofd compenseert en kijkt af en toe rond.
+
+**Rennen** (sinds 27 okt; vanaf `snelheid > 2,25` en echte snelheid > 1,7 m/s, terug naar lopen onder 1,95/2,1), stappen op afzet, niet op fout:
+- Ritme `cad = clamp(2,35 + 0,22·v, 2,7, 3,5)/√sc` passen/s. Steuntijd `Tst = min(0,9/cad, 0,56·sc/v)`, zwaaitijd `Tsw = max(0,14, 2/cad − Tst)`: bij hardlopen
+  zweef je dus (beide voeten los; gemeten ~35–40 % van de tijd bij ~2,7–2,9 m/s).
+- Een staande voet zet af als hij 0,34·sc achter de heup is én de andere voet al halverwege zijn zwaai is (`t > 0,42`); noodgeval: > 0,7·sc achter of > 0,95·sc weg.
+- Landingspunt wordt elk beeld bijgewerkt (volgt bochten): heup + `v·resterende zwaaitijd` + 0,15·sc vooruit + 0,085·sc opzij. Hoogte pas na 55 % van de zwaai opgezocht.
+- Zwaaibaan: smoothstep, hoogte `0,2·sc·sin(πt)^0,75` plus hiel omhoog achter je `0,1·sc·sin(π·min(1, t/0,5))·(1 − t)`; tenen tot 0,85 rad omlaag bij afzetten.
+- Heup: zo hoog als de staande voet toelaat met de hiel los (been + 0,07·sc), in de lucht 0,91·sc, altijd tussen 0,78·sc en 0,92·sc (geen uitval of spreidstand); volgt met `dt·16`.
+- Bovenlijf volgt `runK` (0→1 met `dt·5`): borst 0,17 rad voorover, bekken 0,06, armen zwaaien 0,8 rad, ellebogen ~1,3 rad gebogen, hoofd 0,13 rad terug (blik vooruit).
+- Gemeten (61 mensen in chaos): voet verspringt 12,6 → 0,6 keer per minuut per persoon, ritme 3,7 → 2,9–3,1 passen/s, gestrekt been 17 → 5 % van de tijd.
+
+**Ontwijken**: raster van 2 m. Wandelaars kijken 2,4 m vooruit (tegenligger rechts houden, stilstaand of schuin naar de vrije kant, achter iemand tempo aanpassen,
+1,4 m). Rennende mensen kijken `max(2,4, 1,3·v + 0,6)` m vooruit (dus ~1,3 s), zoeken het raster zo ver af als nodig, zijdelings `0,8 + 0,08·v`, wijken sneller uit
+(`dt·(2,5 + 0,6·v)`) en halen iemand in die minder dan 80 % van hun eigen snelheid loopt. Gemeten (chaos, 3× 1 min): bijna-botsingen < 0,45 m 341 → 124 per minuut,
+kleinste afstand 0,16 → 0,24–0,36 m. Nooit door elkaar: binnen 0,5 m duwen ze elkaar uit elkaar (max 5 cm per beeld, langs muren).
+Muren: een stap die een muur op lichaamshoogte (0,6–1,2 m boven de voeten) zou kruisen, glijdt langs die muur; lukt dat ook niet, dan blijf je staan.
+De controle "door iets heen" kijkt bij wandelaars om de 4 beelden en bij rennen elk beeld (anders lijkt een bocht om een paaltje een lijn erdoorheen).
+
+**In Unity**: dezelfde opbouw past op een Humanoid met Animation Rigging (Two Bone IK per been, doel = de voetpositie hierboven, hint = knie vooruit) of
+volledig procedureel zoals hier. Wie liever clips gebruikt: de gemeten passen per seconde en paslengtes hierboven zijn dan de doelwaarden voor het afspeeltempo,
+en de voeten moeten met IK op de vloer blijven (anders glijden ze over trappen en stoepranden).
+
+## 21. Open punten
 - Unity: noord- en zuidpool op de bol (vraag staat open); `unity/README.md` is niet bijgewerkt sinds het planeet-wegensysteem.
 - Web: eerste klap op een gebouw geeft een korte hapering (omzetten naar stukken); mensen ontwijken brokstukken niet en het loopnetwerk kent de gaten niet; instortingen worden niet bewaard; jagers maken soms nog sprongetjes van 3–7 m.
 - Web (ouder): modulehuizen hebben platte daken, blokhuizen rode kappen (keuze nog open); doorsluipjes kruisen elkaar soms; oude parkblokken en laanbomen houden nog geen rekening met wegen; water- en verkeerslichtgeluiden nog niet.
