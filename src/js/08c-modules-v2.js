@@ -21,8 +21,9 @@
     floors: { paver: 'Klinkers', tile: 'Stoeptegels', wood: 'Houten vloer', parquet: 'Visgraat parket', carpet: 'Kantoorvloer', concrete: 'Beton', polished: 'Gepolijst beton', stonetile: 'Natuursteen tegels', grass: 'Gras', water: 'Water', asphalt: 'Asfalt', roof: 'Dakbedekking', glass: 'Glazen dak' },
     walls: { brick: 'Baksteen', darkbrick: 'Donkere steen', plaster: 'Wit stucwerk', concrete: 'Schoon beton', panel: 'Gevelpanelen', slats: 'Houten lamellen', corten: 'Cortenstaal', curtain: 'Glasgevel', glass: 'Glaswand', wood: 'Hout', stone: 'Natuursteen', hedge: 'Haag', fence: 'Hek' },
     openings: { '': 'Dicht', door: 'Deur', window: 'Raam', gate: 'Poort', open: 'Open' },
-    objects: { tree: 'Boom', bush: 'Struik', bench: 'Bankje', lamp: 'Lantaarn', pillar: 'Zuil', table: 'Tafel', planter: 'Plantenbak', fountain: 'Fontein', bin: 'Prullenbak', bike: 'Fietsenrek', shelf: 'Winkelstelling', counter: 'Toonbank', sign: 'Lichtreclame' },
-    cats: ['Wonen', 'Werken', 'Winkels', 'Winkelcentrum', 'Openbaar', 'Groen', 'Pleinen', 'Verbindingen', 'Bouwdelen', 'Overig'],
+    objects: { tree: 'Boom', bush: 'Struik', bench: 'Bankje', lamp: 'Lantaarn', pillar: 'Zuil', table: 'Tafel', planter: 'Plantenbak', fountain: 'Fontein', bin: 'Prullenbak', bike: 'Fietsenrek', shelf: 'Winkelstelling', counter: 'Toonbank', sign: 'Lichtreclame',
+      bed: 'Bed', sofa: 'Bank (binnen)', desk: 'Bureau', kitchen: 'Keukenblok', screen: 'Filmdoek', car: 'Auto', pump: 'Tankpomp', charger: 'Laadpaal', solar: 'Zonnepanelen', turbine: 'Windmolen', chimney: 'Schoorsteen', container: 'Container', goal: 'Doel', grave: 'Grafsteen', boat: 'Boot', shelter: 'Abri', slide: 'Glijbaan', swing: 'Schommel', sheep: 'Schaap' },
+    cats: ['Wonen', 'Werken', 'Winkels', 'Winkelcentrum', 'Openbaar', 'Voorzieningen', 'Groen', 'Pleinen', 'Verbindingen', 'Bouwdelen', 'Overig'],
   };
   const mv2Ts = m => R / ([1, 2, 4, 8].includes(m.n) ? m.n : 4);
   const mv2P = (i, j, ts) => [i * ts * SQ3 / 2, i * ts / 2 + j * ts];
@@ -102,7 +103,8 @@
   // opts.stacked: de module staat op een andere module (begane grond krijgt een plafond eronder en geen maaiveld-
   // details); opts.roofMask(x, z): daar staat een module op, dus daar geen dakvloer (een glazen lichtkap verdwijnt
   // zodra er iets op het vak staat, de dakbedekking alleen onder de vloer van de module erboven)
-  const OFF_ROAD = new Set(['tree', 'bush', 'bench', 'bin', 'table', 'bike', 'planter']);   // zie offSpot
+  const OFF_ROAD = new Set(['tree', 'bush', 'bench', 'bin', 'table', 'bike', 'planter']);
+  const OBJ_MAT = new Map(), om = (c, r = 0.75) => { const k = c + '|' + r; let m = OBJ_MAT.get(k); if (!m) OBJ_MAT.set(k, m = new THREE.MeshStandardMaterial({ color: c, roughness: r })); return m; };   // één materiaal per kleur (minder tekenbeurten)   // zie offSpot
   const onRoadNow = (x, z) => typeof roadTop === 'function' && roadTop(x, z, 0) !== null;
   // Staat op dit punt (met kruin erbij) een weg, stoep of een gebouw van een ander vak? Dan komt er geen boom of bankje.
   const GREENISH = /^(Park|Bos|Tuin|Grasveld|Plein|Water|Vlak|Parkeer|Rij|Afscheiding|Kade)/;
@@ -146,13 +148,24 @@
     }
     // rechte steek of helling: een driehoek hoort bij het gat als zijn zwaartepunt in de baan van de trap ligt, of (bij een trap die niet precies
     // op een rij driehoeken valt, zoals 2 m breed midden op een rasterlijn) als er een hoekpunt echt binnen de baan ligt; anders kreeg je een zigzag van gaatjes
-    if (S.k === 'stair' || S.k === 'ramp' || !S.k) return v => { const [al, lat] = cen(v); if (!(al > 0.3 * len && al < len + 0.7)) return null; const inBand = Math.abs(lat) < w / 2 + 0.05 || v.some(p => Math.abs(loc(p[0], p[1])[1]) < w / 2 - 0.05); return inBand ? { keep: keepAl(len, 1) } : null; };
+    if (S.k === 'stair' || S.k === 'ramp' || S.k === 'esc' || !S.k) return v => { const [al, lat] = cen(v); if (!(al > 0.3 * len && al < len + 0.7)) return null; const inBand = Math.abs(lat) < w / 2 + 0.05 || v.some(p => Math.abs(loc(p[0], p[1])[1]) < w / 2 - 0.05); return inBand ? { keep: keepAl(len, 1) } : null; };
     return () => null;
   }
   // een driehoek afknippen op een halfvlak (x·nx + z·nz >= c): geeft de overgebleven veelhoek (0, 3 of 4 punten)
   function mv2ClipKeep(v, k) {
     const [nx, nz, c] = k, out = [], f = p => p[0] * nx + p[1] * nz - c;
     for (let i = 0; i < v.length; i++) { const A = v[i], B = v[(i + 1) % v.length], fa = f(A), fb = f(B); if (fa >= 0) out.push(A); if ((fa >= 0) !== (fb >= 0)) { const s = fa / (fa - fb); out.push([A[0] + (B[0] - A[0]) * s, A[1] + (B[1] - A[1]) * s]); } }
+    return out;
+  }
+  // de vloerdriehoeken van een verdieping zoals ze echt liggen: zonder de trapgaten, afgeknipte stukken als losse driehoeken
+  // (voor het loopnetwerk en de balustrades; mv2Build doet hetzelfde voor de vloer zelf)
+  function mv2FloorPolys(m, li, ts) {
+    const L = m.lv[li], holes = li > 0 ? ((m.lv[li - 1] || {}).s || []).map(S => mv2StairHole(S, ts)) : [], out = [];
+    for (const id in L.f) {
+      const [i, j, t] = id.split(',').map(Number), v = mv2TriVerts(i, j, t, ts); let hk = null; for (const h of holes) { hk = h(v); if (hk) break; }
+      if (!hk) { out.push({ id, v, mat: L.f[id] }); continue; } if (!hk.keep) continue;
+      const pl = mv2ClipKeep(v, hk.keep); for (let k = 1; k + 1 < pl.length; k++) out.push({ id, v: [pl[0], pl[k], pl[k + 1]], mat: L.f[id], part: true });
+    }
     return out;
   }
   function mv2Build(m, tf, origin = [0, 0], opts = {}) {
@@ -373,6 +386,18 @@
           pushWalk(at(0, -w / 2), at(len, w / 2), at(0, w / 2), yb, yt, yb); pushWalk(at(0, -w / 2), at(len, -w / 2), at(len, w / 2), yb, yt, yt);
           landing(len, yt); landing(-1, y0 + 0.02);
           addWall(at(0, -w / 2), at(len, -w / 2), y0, yt, 0.05); addWall(at(0, w / 2), at(len, w / 2), y0, yt, 0.05);
+        } else if (S.k === 'esc') {   // roltrap: metalen treden in een schuine bak, glazen zijkanten met een zwarte leuning erop
+          const N = Math.max(2, Math.round(rise / 0.2)), run = len / N, rs = rise / N, yt = y0 + rise, hw = w / 2 - 0.15;
+          for (let s = 0; s < N; s++) { const top = y0 + (s + 1) * rs; wallBox(Mt.metal, at(s * run, 0), at((s + 1) * run, 0), top - 0.1, top, w - 0.3); pushWalk(at(s * run, -hw), at((s + 1) * run, hw), at(s * run, hw), top, top, top); pushWalk(at(s * run, -hw), at((s + 1) * run, -hw), at((s + 1) * run, hw), top, top, top); }
+          { const pa = tfp(at(0, 0)), pb = tfp(at(len, 0)), va = new THREE.Vector3(pa[0], y0 - 0.35, pa[1]), vb = new THREE.Vector3(pb[0], yt - 0.35, pb[1]), L2 = va.distanceTo(vb), g = new THREE.BoxGeometry(w, 0.55, L2); g.applyMatrix4(new THREE.Matrix4().lookAt(va, vb, new THREE.Vector3(0, 1, 0))); g.translate((va.x + vb.x) / 2, (va.y + vb.y) / 2, (va.z + vb.z) / 2); put(Mt.trim, g); }   // de bak
+          for (const sg of [-1, 1]) {
+            const A = tfp(at(-0.4, sg * (w / 2 - 0.05))), B = tfp(at(len + 0.4, sg * (w / 2 - 0.05))), pos = [A[0], y0 + 0.05, A[1], B[0], yt + 0.05, B[1], B[0], yt + 1.0, B[1], A[0], y0 + 0.05, A[1], B[0], yt + 1.0, B[1], A[0], y0 + 1.0, A[1]];
+            for (let i = 0; i < 18; i += 9) pos.push(pos[i], pos[i + 1], pos[i + 2], pos[i + 6], pos[i + 7], pos[i + 8], pos[i + 3], pos[i + 4], pos[i + 5]);   // van beide kanten zichtbaar
+            const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(new Array(pos.length / 3 * 2).fill(0), 2)); g.computeVertexNormals(); put(Mt.wl.glass, g);
+            railBar(Mt.trim, at(-0.4, sg * (w / 2 - 0.05)), y0 + 1.0, at(len + 0.4, sg * (w / 2 - 0.05)), yt + 1.0);
+            addWall(at(0.3, sg * (w / 2 - 0.05)), at(len, sg * (w / 2 - 0.05)), y0 + 0.2, yt + 1.0, 0.05);
+          }
+          landing(len, yt); landing(-1, y0 + 0.02);
         } else if (S.k === 'trib') {   // tribune: volle zitrijen van ± 0,85 m diep (geen zwevende treden), leuning langs de bovenrand
           const N = Math.max(2, Math.round(len / 0.85)), run = len / N, rs = rise / N, yt = y0 + rise;
           for (let s = 0; s < N; s++) { const top = y0 + (s + 1) * rs; wallBox(Mt.step, at(s * run, 0), at((s + 1) * run, 0), y0, top, w); wallBox(Mt.wl.wood || Mt.step, at(s * run + run * 0.55, 0), at((s + 1) * run - 0.05, 0), top, top + 0.04, w - 0.2);   // zitplank achterop elke rij
@@ -426,6 +451,26 @@
           case 'counter': box(Mt.wl.slats, 2.2, 1.0, 0.7, 0, 0.5, 0); box(Mt.slab, 2.3, 0.05, 0.8, 0, 1.02, 0); box(Mt.metal, 0.35, 0.3, 0.3, 0.6, 1.2, 0); solidLen(2.2, 0.37, 1.05); break;
           case 'sign': { col(Mt.metal, 0.05, 0.06, 2.6, 0, 0, 0, 6); box(Mt.metal, 1.6, 0.6, 0.08, 0, 2.6, 0); box(new THREE.MeshBasicMaterial({ color: ['#ff4f6d', '#39b6ff', '#ffd23f', '#5de07a'][hj % 4] }), 1.5, 0.5, 0.1, 0, 2.6, 0); solid(0.1, 2.9); break; }
           case 'bike': for (let i = -2; i <= 2; i++) { box(Mt.metal, 0.04, 0.6, 0.6, i * 0.5, 0.3, 0); } box(Mt.metal, 2.3, 0.04, 0.04, 0, 0.6, 0.28); box(Mt.metal, 2.3, 0.04, 0.04, 0, 0.6, -0.28); solidLen(2.4, 0.32, 0.7); break;
+          // ---- uitbreiding (lib10): voorzieningen, sport, buiten en inrichting ----
+          case 'pump': box(om('#e9ece8'), 0.9, 1.5, 0.55, 0, 0.75, 0); box(om('#d9412e'), 0.95, 0.35, 0.6, 0, 1.55, 0); box(om('#2b3138'), 0.5, 0.35, 0.05, 0, 1.0, 0.3); box(om('#2b3138'), 0.06, 0.6, 0.06, 0.52, 0.8, 0.1); solid(0.5, 1.8); break;
+          case 'charger': box(om('#2f3a44'), 0.32, 1.35, 0.25, 0, 0.68, 0); box(new THREE.MeshBasicMaterial({ color: '#4fe08a' }), 0.2, 0.05, 0.27, 0, 1.15, 0); box(om('#1c2228'), 0.05, 0.4, 0.05, 0.2, 0.7, 0.1); solid(0.25, 1.4); break;
+          case 'solar': { const pv = om('#203a63', 0.35), g = new THREE.BoxGeometry(3.4, 0.05, 1.6); g.rotateX(-0.42); g.translate(0, 0.95, 0); place(pv, g); const gl = new THREE.BoxGeometry(3.42, 0.02, 0.04); gl.rotateX(-0.42); gl.translate(0, 0.98, 0); place(om('#c9ced3'), gl); for (const x of [-1.4, 1.4]) { box(Mt.metal, 0.06, 1.3, 0.06, x, 0.65, -0.55); box(Mt.metal, 0.06, 0.6, 0.06, x, 0.3, 0.55); } solidLen(3.4, 0.7, 1.2); break; }
+          case 'turbine': { const wt = om('#eef0ee'); col(wt, 0.35, 0.65, 22, 0, 0, 0, 10); box(wt, 1.0, 1.0, 2.6, 0, 22, 0.2); col(wt, 0.3, 0.45, 0.6, 0, 21.7, 1.75, 8); for (let k = 0; k < 3; k++) { const g = new THREE.BoxGeometry(0.45, 9.5, 0.12); g.translate(0, 4.9, 0); g.rotateZ(k * Math.PI * 2 / 3 + hj * 0.01); g.translate(0, 22, 1.65); place(wt, g); } solid(0.7, 22); break; }
+          case 'chimney': col(Mt.wl.brick || Mt.bench, 0.85, 1.25, 16, 0, 0, 0, 12); col(om('#3a3a38'), 0.9, 0.9, 0.5, 0, 16, 0, 12); solid(1.25, 16); break;
+          case 'container': { const cc = ['#3f7d4f', '#2f5f9a', '#7d7f80', '#a8552f'][hj % 4]; box(om(cc), 2.4, 1.3, 1.4, 0, 0.7, 0); box(om('#2a2e30'), 2.45, 0.08, 1.45, 0, 1.38, 0); solidLen(2.4, 0.75, 1.45); break; }
+          case 'goal': { const wg = om('#f3f4f1'); for (const x of [-1.8, 1.8]) box(wg, 0.1, 2.0, 0.1, x, 1.0, 0); box(wg, 3.7, 0.1, 0.1, 0, 2.0, 0); const net = om('#d8dcd6', 0.9); net.transparent = true; net.opacity = 0.45; const g = new THREE.BoxGeometry(3.6, 2.0, 0.02); g.rotateX(0.5); g.translate(0, 1.0, -0.5); place(net, g); solidLen(3.7, 0.1, 2.0); break; }
+          case 'grave': box(Mt.wl.stone || Mt.step, 0.65, 0.85, 0.14, 0, 0.42, -0.6); box(om('#8a8f86'), 0.75, 0.08, 1.7, 0, 0.04, 0.2); solid(0.4, 0.9); break;
+          case 'boat': { const hull = om(['#f1f1ec', '#2f5f9a', '#a8402f'][hj % 3]); box(hull, 4.0, 0.6, 1.6, 0, 0.05, 0); box(hull, 3.4, 0.25, 1.3, 0, -0.35, 0); box(om('#9b6a3c'), 3.6, 0.04, 1.4, 0, 0.36, 0); box(om('#eef0ee'), 1.4, 0.8, 1.1, -0.6, 0.78, 0); box(Mt.wl.glass, 1.42, 0.3, 1.12, -0.6, 0.95, 0); solidLen(4.2, 0.85, 1.2); break; }
+          case 'shelter': { box(Mt.wl.glass, 3.0, 2.2, 0.04, 0, 1.15, 0); for (const x of [-1.5, 1.5]) box(Mt.metal, 0.08, 2.4, 0.08, x, 1.2, 0); box(om('#2b3138'), 3.3, 0.1, 1.5, 0, 2.45, 0.55); box(Mt.bench, 2.2, 0.06, 0.4, 0, 0.5, 0.3); box(new THREE.MeshBasicMaterial({ color: '#ffd23f' }), 0.5, 0.5, 0.05, 1.35, 2.15, 0.05); solidLen(3.0, 0.1, 2.4); break; }
+          case 'slide': { const sl = om('#e8453c'); box(Mt.metal, 0.06, 1.6, 0.06, -0.5, 0.8, -0.4); box(Mt.metal, 0.06, 1.6, 0.06, 0.5, 0.8, -0.4); box(om('#f2b233'), 1.1, 0.08, 0.9, 0, 1.6, -0.4); const g = new THREE.BoxGeometry(0.7, 0.06, 2.8); g.rotateX(0.62); g.translate(0, 0.85, 0.75); place(sl, g); solid(0.8, 2.0); break; }
+          case 'swing': { for (const x of [-1.3, 1.3]) for (const z of [-0.6, 0.6]) { const g = new THREE.BoxGeometry(0.08, 2.4, 0.08); g.rotateX(z > 0 ? -0.25 : 0.25); g.translate(x, 1.15, z * 0.6); place(Mt.metal, g); } box(Mt.metal, 2.7, 0.08, 0.08, 0, 2.3, 0); for (const x of [-0.6, 0.6]) { box(om('#2b3138'), 0.03, 1.8, 0.03, x - 0.2, 1.4, 0); box(om('#2b3138'), 0.03, 1.8, 0.03, x + 0.2, 1.4, 0); box(om('#e8453c'), 0.5, 0.05, 0.25, x, 0.5, 0); } walls.push({ ax: W[0], az: W[1], bx: W[0], bz: W[1], y0, y1: y0 + 2.4, half: 0.2 }); break; }
+          case 'sheep': { const wl = om('#ecebe2', 0.95); place(wl, new THREE.SphereGeometry(0.42, 8, 6).scale(1.5, 1, 1).translate(0, 0.65, 0)); place(om('#2b2b28'), new THREE.SphereGeometry(0.18, 6, 5).scale(1.2, 1, 1).translate(0.68, 0.78, 0)); for (const [x, z] of [[-0.35, -0.2], [-0.35, 0.2], [0.35, -0.2], [0.35, 0.2]]) box(om('#2b2b28'), 0.08, 0.4, 0.08, x, 0.2, z); solid(0.45, 1.0); break; }
+          case 'car': { const cc = om(['#c8372d', '#2f5f9a', '#e9ece8', '#2b3138', '#3f7d4f', '#d9a12e'][hj % 6], 0.45); box(cc, 4.2, 0.7, 1.8, 0, 0.55, 0); box(cc, 2.2, 0.6, 1.6, -0.2, 1.15, 0); box(Mt.wl.glass, 2.22, 0.45, 1.62, -0.2, 1.17, 0); for (const x of [-1.35, 1.35]) for (const z of [-0.85, 0.85]) place(om('#151719'), new THREE.CylinderGeometry(0.34, 0.34, 0.24, 10).rotateX(Math.PI / 2).translate(x, 0.34, z)); solidLen(4.3, 0.95, 1.5); break; }
+          case 'bed': box(Mt.bench, 2.0, 0.35, 1.6, 0, 0.18, 0); box(om('#f2f1ec'), 1.9, 0.2, 1.5, 0.05, 0.45, 0); box(om(['#4a6fa5', '#b55a4a', '#5f8f62'][hj % 3]), 1.2, 0.08, 1.52, 0.35, 0.58, 0); box(Mt.bench, 0.1, 0.9, 1.6, -1.0, 0.45, 0); solidLen(2.0, 0.85, 0.6); break;
+          case 'sofa': { const sc = om(['#556b7a', '#8a5a44', '#3f5f4a'][hj % 3]); box(sc, 2.0, 0.45, 0.9, 0, 0.22, 0); box(sc, 2.0, 0.5, 0.22, 0, 0.7, -0.34); for (const x of [-0.95, 0.95]) box(sc, 0.18, 0.6, 0.9, x, 0.3, 0); solidLen(2.1, 0.5, 0.9); break; }
+          case 'desk': box(om('#c9b28a'), 1.6, 0.05, 0.8, 0, 0.74, 0); for (const x of [-0.75, 0.75]) for (const z of [-0.35, 0.35]) box(Mt.metal, 0.04, 0.72, 0.04, x, 0.36, z); box(om('#1c2228'), 0.6, 0.38, 0.04, 0, 1.0, -0.25); box(new THREE.MeshBasicMaterial({ color: '#8fc3e8' }), 0.55, 0.32, 0.01, 0, 1.0, -0.22); solidLen(1.6, 0.45, 0.8); break;
+          case 'kitchen': box(om('#f1f1ec'), 2.4, 0.88, 0.6, 0, 0.44, 0); box(om('#2b3138'), 2.45, 0.04, 0.64, 0, 0.9, 0); box(om('#c9ced3'), 0.5, 0.02, 0.4, -0.6, 0.93, 0); box(om('#f1f1ec'), 2.4, 0.6, 0.35, 0, 1.75, -0.12); solidLen(2.4, 0.35, 0.95); break;
+          case 'screen': box(om('#f4f4f0', 0.9), 6.0, 3.0, 0.06, 0, 2.0, 0); box(om('#1c1c1c'), 6.2, 3.2, 0.04, 0, 2.0, -0.04); solidLen(6.0, 0.1, 3.5); break;
         }
       }
       if (walkPos.length) {
@@ -547,6 +592,8 @@
   }
   function buildModNet() {
     nearbyClear();
+    // een vernieuwde standaardmodule (lib10 en later): geplaatste exemplaren in elke stad krijgen de nieuwe versie
+    if (typeof modules !== 'undefined' && (cells.inst || []).length) { let byId = null; for (const I of cells.inst) { if (!I.mid || !I.m || I.m.v !== 2) continue; byId = byId || new Map(modules.map(m => [m.id, m])); const M = byId.get(I.mid); if (M && M.v === 2 && M.lib && (I.m.lib || 0) < M.lib) { I.m = instData(M, I.mir); I.m.lib = M.lib; } } }
     const live = new Set((cells.inst || []).filter(I => I.m && I.m.v === 2));
     let touched = false;
     for (const [I, e] of modGroups) if (!live.has(I)) { e.group.traverse(o => { if (o.isMesh && o.userData.own) o.geometry.dispose(); }); scene.remove(e.group); modGroups.delete(I); doors.clear(I); touched = true; }
@@ -585,9 +632,9 @@
       const m = I.m, ts = mv2Ts(m), tf = mv2Tf(I.rot, I.q, I.r), e = modGroups.get(I) || {}, mask = e.mask, fl = modMeta(m).fl, G = gH(I.q, I.r) + instLv(I) * LH;
       m.lv.forEach((L, li) => {
         const y = G + li * LH + 0.02; if (li >= fl && !Object.keys(L.f).length) return;
-        for (const id in L.f) {
-          const [i, j, t] = id.split(',').map(Number), v = mv2TriVerts(i, j, t, ts), cx = (v[0][0] + v[1][0] + v[2][0]) / 3, cz = (v[0][1] + v[1][1] + v[2][1]) / 3;
-          if (!mv2InArea(m, cx, cz) || L.f[id] === 'water') continue;
+        for (const P of mv2FloorPolys(m, li, ts)) {   // zonder de trapgaten: rond een gat komt een hek
+          const v = P.v, cx = (v[0][0] + v[1][0] + v[2][0]) / 3, cz = (v[0][1] + v[1][1] + v[2][1]) / 3;
+          if (!mv2InArea(m, cx, cz) || P.mat === 'water') continue;
           if (li >= fl && mask) { const W = tf(cx, cz); if (mask(W[0], W[1]) === 2) continue; }
           const W = v.map(p => tf(p[0], p[1])), Wc = tf(cx, cz);
           for (const [A, B] of [[W[0], W[1]], [W[1], W[2]], [W[2], W[0]]]) {
@@ -686,7 +733,7 @@
   // fl: verdiepingen (een bovenste laag met alleen dakvloer telt niet mee), k/n: maat (1 of 7 vakken), h: hoogte in m,
   // top: 'kap' (schuin dak), 'plat' (beloopbaar plat dak: hier kan later een module op), 'open' (niets erboven),
   // bouw: is het een gebouw (muren of meer lagen), deur/weg: aantal randen met een deur of weg
-  const ROOF_GREEN = new Set(['tree', 'bush', 'planter']);   // groen op een dak: het blijft een (plat) dak
+  const ROOF_GREEN = new Set(['tree', 'bush', 'planter', 'solar']);   // zonnepanelen op een plat dak: het blijft een dak   // groen op een dak: het blijft een (plat) dak
   const modRoofOnly = m => { const L = m.lv, T = L[L.length - 1]; return L.length > 1 && !Object.keys(T.w).length && !T.s.length && T.o.every(o => ROOF_GREEN.has(o.t)) && !Object.keys(T.r || {}).length && Object.keys(T.f).length > 0; };
   function modMeta(m) {
     if (!m || m.v !== 2) return { fl: 0, k: 0, n: 1, h: 0, top: 'open', stack: false, bouw: false, deur: 0, weg: 0 };

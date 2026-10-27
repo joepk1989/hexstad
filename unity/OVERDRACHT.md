@@ -317,6 +317,28 @@ Gemeten in het bestand: vak R = 9 m, verdieping 3 m, vloer 0,3 m dik; steek 6,75
   `placeCore` met de nieuwe draaiing; past het niet, dan blijft het oude staan. Dezelfde fout zat in `swapInst` (een variant die niet paste haalde het exemplaar weg); ook opgelost.
 - Unity: een selectiestand met raycast op de module-exemplaren, een outline per vak en een klein contextmenu met dezelfde acties.
 
+## 24. Bibliotheek opnieuw gebouwd en uitgebreid (lib10, 28 okt; `08d9-bibliotheek-uitbreiding.js`, `08e-modules-bibliotheek.js`)
+- **Controle per module** (`test/visueel/bieb_audit.js`): module los in een lege stad, vloedvulling op een raster van 0,45 m vanaf de straat met de echte
+  botsing (stap ≤ 0,4 m, val ≤ 0,6 m); per verdieping moet ≥ 85 % van de vloer (zonder trapgaten) bereikbaar zijn. Verder: voorwerpen niet zwevend, niet in
+  een muur, niet buiten het gebied, niet op elkaar; geen hek/muur zonder vloer ernaast; elke trap komt boven bereikbaar uit. Alle 151 modules slagen.
+- **Gevonden en opgelost in de motor**: een opening in een haag of hek was dicht (nu een gat, met stevige palen bij een hek); trapgat voor trappen die niet
+  op een rij driehoeken liggen (ook driehoeken met een hoekpunt in de baan horen bij het gat); hellingen hadden het bovenvlak naar onderen; trapgaten
+  doet de bouwer nu altijd zelf (`mv2StairHole`) en het loopnetwerk en de balustrades gebruiken dezelfde vloer zonder gaten (`mv2FloorPolys`);
+  een sectorknoop boven een gat schuift naar het dichtstbijzijnde stuk vloer; wenteltrap in het netwerk: rondje over de treden (straal 1,1 m), de leuning als
+  muur, lopers worden tussen 0,6 en 1,5 m van de kern gehouden; botsing met module-vloeren per driehoek (`trisBlock`).
+- **Nieuwe trapsoorten**: `trib` (tribune: volle zitrijen ± 0,85 m diep met zitplank, leuning boven) en `esc` (roltrap: metalen treden in een schuine bak,
+  glazen zijkanten, zwarte leuning). Beide gebruiken `S.k`; `esc` krijgt een trapgat zoals een rechte trap, `trib` niet.
+- **Nieuwe voorwerpen** (`08c` `switch (O.t)`, materialen per kleur gedeeld via `om()`): bed, sofa, desk, kitchen, screen, car, pump, charger, solar (ook op een
+  dak: `ROOF_GREEN`), turbine (22 m), chimney (16 m), container, goal, grave, boat, shelter, slide, swing, sheep. Botsing: langwerpig als lijnstuk (`OLEN`),
+  rond als kruis (`ORAD`, `08f`).
+- **Inrichting** (`libOldDetails`, `libExtraDetails`): hulpjes `atWall` (tegen de muur van een zeshoek met de normaal op een hoek, voorkant naar binnen:
+  rot = hoek + 90°), `bedAt` (hoofdeinde tegen de muur), `home` (keuken, tafel, bank, bedden, bureau op hoeken die vrij zijn van deur en trap),
+  `officeFloor`, `shopFloor`, `solarRoof`. `pruneNearStairs` haalt elk voorwerp weg dat bij een trap staat (instap, baan, uitstap, gat erboven).
+- **Bijwerken** (`hexstad-lib10`): vervangen alleen als de speler de module nooit bewaarde (`_sig`); koppelen op precieze naam, dan `was`, dan de naam zonder
+  achtervoegsel als die uniek is. Exemplaren in een stad volgen via `m.lib` in `buildModNet`. Let op de laadvolgorde: `08d9` staat vóór `08e`, omdat 08e bij het
+  laden al installeert (de `const`-hulpjes moeten dan bestaan).
+- Unity: dezelfde controle is handig als editor-test (NavMesh-bereikbaarheid per verdieping en overlap van props met wanden).
+
 ## 21. Open punten
 - Unity: noord- en zuidpool op de bol (vraag staat open); `unity/README.md` is niet bijgewerkt sinds het planeet-wegensysteem.
 - Web: eerste klap op een gebouw geeft een korte hapering (omzetten naar stukken); mensen ontwijken brokstukken niet en het loopnetwerk kent de gaten niet; instortingen worden niet bewaard; jagers maken soms nog sprongetjes van 3–7 m.

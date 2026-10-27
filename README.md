@@ -51,7 +51,8 @@ Wat er in de bestanden zit:
 | `08b` bouwdelen-modules | de zes oude bouwdelen als schetsmodules (alleen uiterlijk), eenmalig aan de lijst toegevoegd |
 | `08c` modules-v2 | **modules v2**: het model (verdiepingen, vloeren, muren met openingen, trappen, daken, voorwerpen), de bouwer naar 3D met botsing, plaatsing in de stad, randcodes, 3D-miniaturen |
 | `08d` module-maker | **de Raatbouwer**: bovenaanzicht en 3D, verdiepingen, gereedschap met iconen, bibliotheek, delen |
-| `08e` modules-bibliotheek | de honderd standaardmodules, gemaakt met een kleine bouw-API op het v2-model |
+| `08d9` bibliotheek-uitbreiding | 35 basisgebouwen (voorzieningen, sport, wonen, werken), inrichting voor alle standaardmodules, niets bij de trappen |
+| `08e` modules-bibliotheek | de 151 standaardmodules, gemaakt met een kleine bouw-API op het v2-model |
 | `09` detailniveau-botsing | detailniveau voor grote steden, botsing |
 | `10` mensen | voetgangers op stoepen en paden, deuren aan getekende wegen |
 | `11` autos | auto's en hun rijgedrag op de wegengraaf |
@@ -236,6 +237,14 @@ In het palet (tab Modules) staat boven de kaartjes een balk:
 
 Bij Alles staan de kaartjes per categorie gegroepeerd en op naam gesorteerd. Elk kaartje toont de soort, daaronder de variant, en een badge met lagen en maat; een geel blokje betekent plat dak. `,` en `.` springen naar de vorige of volgende module.
 
+## Bibliotheek: 151 modules, nagekeken (lib10)
+
+De hele bibliotheek is opnieuw opgebouwd en per module automatisch nagekeken (`test/visueel/bieb_audit.js`): elke module wordt los in een lege stad gezet en met de echte botsing (`floorAt`/`blockedAt`) vanaf de straat afgelopen. Gemeld wordt een verdieping die niet bereikbaar is, een trap die boven nergens uitkomt, een voorwerp dat zweeft, in een muur staat, buiten het gebied valt of op een ander voorwerp, en een hek of muur die nergens op staat. `bieb_platen.js` maakt per categorie een overzichtsplaat met 3D-miniaturen.
+
+Nieuw: **Voorzieningen** (tankstation, laadplein met zonnedak, trafohuisje, zonnepark, windmolen, watertoren, waterzuivering, milieustraat), **Openbaar** (huisarts, apotheek, kinderopvang, school van 1 vak, zwembad, theater, bioscoop, bus- en tramhalte, sportveld), **Groen** (begraafplaats, kinderboerderij), **Pleinen** (haven), **Wonen** (woonboot, galerijflat, portiekflat, studentenhuis, boerderij, zorgcomplex), **Werken/Winkels** (garage, datacenter, laboratorium, bouwmarkt, tuincentrum, snackbar) en **Verbindingen** (glazen trappenhuis, roltrap). Nieuwe voorwerpen: bed, bank (binnen), bureau, keukenblok, filmdoek, auto, tankpomp, laadpaal, zonnepanelen, windmolen, schoorsteen, container, doel, grafsteen, boot, abri, glijbaan, schommel, schaap. Woningen, kantoren, winkels, hotel, ziekenhuis, school en kerk zijn ingericht; platte daken van grote gebouwen hebben zonnepanelen (een dak met alleen zonnepanelen blijft een dak).
+
+Bij het bijwerken (`hexstad-lib10`) worden standaardmodules die je nooit zelf hebt bewaard vervangen (zelfde id) en komen de nieuwe erbij; geplaatste exemplaren in elke stad krijgen de nieuwe versie (`buildModNet`). Het koppelen gaat op de precieze naam, dan op de naam uit de bouwcode, en alleen op de naam zonder lagen/maat als die uniek is (Rijhuis · baksteen bestaat in 2L én 3L).
+
 ## Low poly terrein
 
 Standaard (Instellingen → Terrein → Low poly) wordt het terrein op het driehoeksrooster van de vakken getekend in plaats van op een vierkant rooster (`lpMesh` in `07b`). Elk vak bestaat uit zes driehoeken. Het midden ligt op de hoogte van het vak en elk hoekpunt op de laagste van de drie vakken die daar samenkomen. Eén verhoogd vak wordt zo een puntje, een groep een plateau met schuine flanken, en een strook van drie vakken breed een dijk. Elk vak dat een weg (met stoep) raakt is een wegvak: zijn midden en hoekpunten liggen op de hoogte van de weg. Een weg langs een dijk loopt daardoor strak langs de voet, en een weg over een dijk snijdt er met een bult doorheen. Lopen gebruikt precies dezelfde driehoeken (`lpHeight`).
@@ -277,7 +286,7 @@ De **Raatbouwer** (vroeger module maker of schets; in het menu **Raatbouwer**, o
 
 ## Opslag
 
-Steden en modules staan in `localStorage` van de browser. Modules kunnen als JSON-bestand worden geëxporteerd en geïmporteerd (Raatbouwer → Delen). De honderd standaardmodules worden één keer toegevoegd en zijn met "Standaard terugzetten" te herstellen.
+Steden en modules staan in `localStorage` van de browser. Modules kunnen als JSON-bestand worden geëxporteerd en geïmporteerd (Raatbouwer → Delen). De 151 standaardmodules worden één keer toegevoegd en zijn met "Standaard terugzetten" te herstellen.
 
 ## Plan
 

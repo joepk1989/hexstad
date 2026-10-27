@@ -34,7 +34,8 @@
   }
   rebuildAll(); updateStats();
   if (modsReset) changed();
-  if (libRefreshed) { let n = 0; for (const m of modules) if (m.v === 2) n += syncModule(m); if (n) changed(); }   // vernieuwde standaardmodules ook in de stad
+  if (libRefreshed) { let n = 0; for (const m of modules) if (m.v === 2) n += syncModule(m); if (n) changed(); }
+  if (libNews) setTimeout(() => toast('Bibliotheek vernieuwd: ' + libNews + ' nieuwe modules (voorzieningen, sport, wonen, werken) en alles opnieuw nagekeken', 4200), 1800);   // vernieuwde standaardmodules ook in de stad
   selectTool('woning');
   applyOrbit();
   if (showWelcome && !/[?&]start/.test(location.search)) openWelcome();   // ?start: meteen beginnen (tests)

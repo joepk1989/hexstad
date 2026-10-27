@@ -710,6 +710,7 @@
     function go(a, e) {
       const from = a.node, to = e.to;
       a.prev = from; a.node = to; a.wps = []; a.edgeT = e.mod ? 0 : -1e9;   // alleen binnen modules: korte stukken
+      a.spir = e.spir || null;
       if (e.vec) { a.precise = false; a.vedges = vecEdgesAround(from, to); a.wps = cars.vecWalk(e.vec, e.dir, vecOff(e.vec, a)); if (from.kind.b === 'vec') a.wps = junctionRoute(from, a, a.wps[0]).concat(a.wps); return; }
       if (e.vecDoor) {   // van een voordeur de getekende stoep op, of andersom
         const L = e.vecDoor, def = PATH_DEF[L.e.t], off = (e.dir ? -L.sg : L.sg) * (def.hw + def.walk / 2 + a.lane * 0.5);
@@ -1351,6 +1352,7 @@
           // niet tegen een auto aan lopen: staat er een vlak voor je (ook op de kruising), dan wacht je even
           if (typeof cars !== 'undefined' && cars.list.length && cars.blocks(a.x + fx * 1.3, a.z + fz * 1.3, a.y)) { a.spd = Math.max(0, a.spd - dt * 8); a.prog = null; stepFeet(a, dt); continue; }
           { const [mx, mz] = safeStep(a, a.x + fx * step, a.z + fz * step), moved = Math.hypot(mx - a.x, mz - a.z); a.x = mx; a.z = mz;
+            if (a.spir && a.wps.length > 1) { const ox = a.x - a.spir[0], oz = a.z - a.spir[1], r = Math.hypot(ox, oz) || 1, rc = Math.max(0.6, Math.min(1.5, r)); if (rc !== r) { a.x = a.spir[0] + ox / r * rc; a.z = a.spir[1] + oz / r * rc; } }   // op de wenteltrap: tussen kern en leuning blijven
             // klem gelopen (tegen een muur of een rand, het pad kwijt): na een paar seconden opnieuw beginnen bij de knoop waar hij heen ging
             a.edgeT = (a.edgeT || 0) + dt; if (a.edgeT > 25) { a.edgeT = 0; place(a, a.node, true); continue; }   // al heel lang onderweg naar dezelfde knoop: heen en weer geslingerd
             if (step > 0.004 && moved < step * 0.2) { a.blockT = (a.blockT || 0) + dt; if (a.blockT > 6) { a.blockT = 0; place(a, a.node, true); continue; } } else a.blockT = 0; }

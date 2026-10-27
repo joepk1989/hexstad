@@ -45,12 +45,12 @@
       for (let li = 0; li < m.lv.length; li++) {
         const roofLayer = li >= fl;   // een plat dak is beloopbaar waar niets op staat (dakterras, passage over de daken)
         const L = m.lv[li], lvW = (I.lv || 0) + li, y = base + li * LH + 0.02, tris = [], stairs = [];
-        for (const id in L.f) { const [i, j, t] = id.split(',').map(Number), v = mv2TriVerts(i, j, t, ts), cx = (v[0][0] + v[1][0] + v[2][0]) / 3, cz = (v[0][1] + v[1][1] + v[2][1]) / 3; if (!mv2InArea(m, cx, cz)) continue; if (roofLayer && mask) { const Wc = tf(cx, cz), c = mask(Wc[0], Wc[1]); if (c === 2) continue; } const W = v.map(p => tf(p[0], p[1])); tris.push(W); }
+        for (const P of mv2FloorPolys(m, li, ts)) { const v = P.v, cx = (v[0][0] + v[1][0] + v[2][0]) / 3, cz = (v[0][1] + v[1][1] + v[2][1]) / 3; if (!mv2InArea(m, cx, cz)) continue;   /* zonder trapgaten: geen pad over een gat */ if (roofLayer && mask) { const Wc = tf(cx, cz), c = mask(Wc[0], Wc[1]); if (c === 2) continue; } const W = v.map(p => tf(p[0], p[1])); tris.push(W); }
         if (roofLayer && !tris.length) continue;
         const skip = (modGroups.get(I) || {}).skip;
         for (const id in L.w) { const Wd = L.w[id]; if (!Wd) continue; const [i, j, d] = id.split(',').map(Number), D = MV2.DIRW[d]; if (!D) continue; const a = mv2P(i, j, ts), b = mv2P(i + D[0], j + D[1], ts); if (!mv2NearArea(m, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2)) continue; const A = tf(a[0], a[1]), B = tf(b[0], b[1]); if (skip && skip.has(wallKeyW(lvW, (A[0] + B[0]) / 2, (A[1] + B[1]) / 2))) continue; addWallIdx(lvW, { a: A, b: B, pass: PASS.has(Wd.o || ''), mid: [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2], o: Wd.o || '', outer: true, from: (m.name || '') + ' @' + I.q + ',' + I.r }); }
         // inrichting als hindernis: langwerpig (stelling, toonbank, bank, fietsenrek) als lijnstuk, rond als kruis
-        { const OLEN = { shelf: 2.4, counter: 2.2, bench: 1.8, bike: 2.4 }, ORAD = { fountain: 1.9, table: 0.9, planter: 0.75, pillar: 0.35, tree: 0.3, bin: 0.25 }, eg = modGroups.get(I) || {};
+        { const OLEN = { shelf: 2.4, counter: 2.2, bench: 1.8, bike: 2.4, solar: 3.4, container: 2.4, goal: 3.7, boat: 4.2, shelter: 3.0, car: 4.3, bed: 2.0, sofa: 2.1, desk: 1.6, kitchen: 2.4, screen: 6.0, sign: 1.6 }, ORAD = { fountain: 1.9, table: 0.9, planter: 0.75, pillar: 0.35, tree: 0.3, bin: 0.25, pump: 0.5, charger: 0.25, turbine: 0.7, chimney: 1.25, grave: 0.4, slide: 0.8, sheep: 0.45, swing: 1.3 }, eg = modGroups.get(I) || {};
           for (const O0 of L.o || []) {
             let t = O0.t; const roofL = li >= fl;
             if (roofL && eg.mask) { const Wm = tf(O0.x, O0.z); if (eg.mask(Wm[0], Wm[1])) continue; }
@@ -69,7 +69,7 @@
             // de leuning rondom (vijf zijden van de zeshoek) als muur in het netwerk: alleen langs de instapzijde kom je erin, niet dwars door de leuning
             for (let e = 1; e < 6; e++) { const A = tf(...pt(e * 60, 2.19)), B = tf(...pt(e * 60 + 60, 2.19)); addWallIdx(lvW, { a: A, b: B, pass: false, mid: [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2], o: 'trap' }); }
             const [lq, lr] = mv2CellOf(lo[0], lo[1]), [hq, hr] = mv2CellOf(hi[0], hi[1]);
-            stairs.push({ lo: tf(lo[0], lo[1]), hi: tf(hi[0], hi[1]), lq, lr, hq, hr, via }); continue;
+            stairs.push({ lo: tf(lo[0], lo[1]), hi: tf(hi[0], hi[1]), lq, lr, hq, hr, via, spir: tf(a[0], a[1]) }); continue;
           }
           const lo = at(-0.6, 0), hi = S.k === 'u' ? at(-0.6, (S.side || 1) * w) : at(len + 0.6, 0);
           const [lq, lr] = mv2CellOf(lo[0], lo[1]), [hq, hr] = mv2CellOf(hi[0], hi[1]);
@@ -88,13 +88,15 @@
       const sect = new Map();   // 'q,r' → [6 × { sx, sz, area }]
       for (const W of Ly.tris) {
         const cx = (W[0][0] + W[1][0] + W[2][0]) / 3, cz = (W[0][1] + W[1][1] + W[2][1]) / 3, [q, r] = worldToCell(cx, cz), c = cellToWorld(q, r), k = sectorOf(c, cx, cz), ar = Math.abs((W[1][0] - W[0][0]) * (W[2][1] - W[0][1]) - (W[2][0] - W[0][0]) * (W[1][1] - W[0][1])) / 2;
-        const kk = q + ',' + r; let S = sect.get(kk); if (!S) sect.set(kk, S = [0, 1, 2, 3, 4, 5].map(() => ({ sx: 0, sz: 0, area: 0 })));
-        S[k].sx += cx * ar; S[k].sz += cz * ar; S[k].area += ar;
+        const kk = q + ',' + r; let S = sect.get(kk); if (!S) sect.set(kk, S = [0, 1, 2, 3, 4, 5].map(() => ({ sx: 0, sz: 0, area: 0, pts: [] })));
+        S[k].sx += cx * ar; S[k].sz += cz * ar; S[k].area += ar; if (ar > 0.4) S[k].pts.push([cx, cz]);
       }
       const open = Ly.li === rec.layers.length - 1 && (Ly.li >= modMeta(rec.I.m).fl || !(modGroups.get(rec.I) || {}).roofed);   // buiten: galerij, terras of dak
       for (const [kk, S] of sect) {
         const [q, r] = kk.split(',').map(Number), ck = Ly.lvW + '|' + kk; let C = byCell.get(ck); if (!C) byCell.set(ck, C = {});
-        for (let k = 0; k < 6; k++) { const s = S[k]; if (s.area < 1.5) continue; C[k] = mk(key(rec.ii, Ly.li, q, r, k), s.sx / s.area, s.sz / s.area, Ly.y, { b: 'mod', open }, { ii: rec.ii, li: Ly.li, lvW: Ly.lvW, sector: k }); }
+        for (let k = 0; k < 6; k++) { const s = S[k]; if (s.area < 1.5) continue; let nx = s.sx / s.area, nz = s.sz / s.area;
+          if (!onFloor(Ly.lvW, nx, nz) && s.pts.length) { let bd = 1e9, bp = null; for (const p2 of s.pts) { const d = Math.hypot(p2[0] - nx, p2[1] - nz); if (d < bd) { bd = d; bp = p2; } } [nx, nz] = bp; }   // zwaartepunt boven een trapgat of vide: het dichtstbijzijnde stuk vloer
+          C[k] = mk(key(rec.ii, Ly.li, q, r, k), nx, nz, Ly.y, { b: 'mod', open }, { ii: rec.ii, li: Ly.li, lvW: Ly.lvW, sector: k }); }
         // binnen het vak: naast elkaar en tegenover elkaar
         const cc = cellToWorld(q, r);
         for (let k = 0; k < 6; k++) for (const dk of [1, 3]) {
@@ -128,6 +130,7 @@
       const up = Ly.lvW + 1, yHi = Ly.y + LH, [lq, lr] = worldToCell(S.lo[0], S.lo[1]), [hq, hr] = worldToCell(S.hi[0], S.hi[1]);
       const lo = mk('ms' + (si++), S.lo[0], S.lo[1], Ly.y, { b: 'mod', stair: 'low' }, { lvW: Ly.lvW }), hi = mk('ms' + (si++), S.hi[0], S.hi[1], yHi, { b: 'mod', stair: 'high' }, { lvW: up });
       conn(lo, hi, S.via || null, true);
+      if (S.spir) { const e1 = lo.edges.get(hi.key), e2 = hi.edges.get(lo.key); if (e1) e1.spir = S.spir; if (e2) e2.spir = S.spir; }   // wenteltrap: de lopers blijven tussen kern en leuning (10-mensen)
       if (S.ramp) {   // schans: onderaan hoort bij de buur over de instapzijde (op het vak zelf is geen vloer), bovenaan bij de buur over de uitstapzijde
         const c = cellToWorld(lq, lr), f = FRAMES[S.side], NB0 = byCell.get(Ly.lvW + '|' + (lq + NEIGH[S.side][0]) + ',' + (lr + NEIGH[S.side][1])), NB1 = byCell.get(up + '|' + (lq + NEIGH[(S.side + 3) % 6][0]) + ',' + (lr + NEIGH[(S.side + 3) % 6][1])); void c; void f;
         const A = NB0 && NB0[(S.side + 3) % 6], B = NB1 && NB1[S.side]; if (A) { const v = passage(Ly.lvW, [lo.x, lo.z], [A.x, A.z]); if (v) conn(lo, A, v, false); } if (B) { const v = passage(up, [hi.x, hi.z], [B.x, B.z]); if (v) conn(hi, B, v, false); }   // de helling zelf is geen vloer: alleen muren controleren

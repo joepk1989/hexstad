@@ -176,7 +176,7 @@
     const snapRot = (a, free) => normRot(free ? a : Math.round(a / ROT_STEP) * ROT_STEP), degOf = a => Math.round(normRot(a) * 180 / Math.PI) % 360;
     const aimRot = (ox, oz, x, z, free) => snapRot(Math.atan2(-(x - ox), z - oz), free);   // de voorkant (lokaal +z, in de wereld (−sin, cos)) wijst naar (x, z)
     const snapObj = v => Math.round(v * 4) / 4;
-    const OBJ_FOOT = { bench: [1.8, 0.5], shelf: [2.4, 0.5], counter: [2.3, 0.8], bike: [2.4, 0.64], sign: [1.6, 0.12] }, OBJ_R = { tree: 1.7, bush: 0.9, lamp: 0.2, pillar: 0.45, table: 1.1, planter: 0.75, fountain: 1.9, bin: 0.25 };
+    const OBJ_FOOT = { bench: [1.8, 0.5], shelf: [2.4, 0.5], counter: [2.3, 0.8], bike: [2.4, 0.64], sign: [1.6, 0.12], solar: [3.4, 1.6], container: [2.4, 1.4], goal: [3.7, 1.0], boat: [4.2, 1.7], shelter: [3.0, 1.4], car: [4.3, 1.9], bed: [2.0, 1.6], sofa: [2.1, 0.9], desk: [1.6, 0.8], kitchen: [2.4, 0.65], screen: [6.0, 0.2], swing: [2.7, 1.2] }, OBJ_R = { tree: 1.7, bush: 0.9, lamp: 0.2, pillar: 0.45, table: 1.1, planter: 0.75, fountain: 1.9, bin: 0.25, pump: 0.6, charger: 0.3, turbine: 1.0, chimney: 1.3, grave: 0.5, slide: 1.0, sheep: 0.6 };
     function objectAt(x, z, r = 0.9) { const L = lvl(); let best = -1, bd = r; L.o.forEach((o, i) => { const d = Math.hypot(o.x - x, o.z - z); if (d < bd) { bd = d; best = i; } }); return best; }
     const cellAt = (x, z) => mv2CellOf(x, z);
     const lvl = () => E.m.lv[E.lv];
@@ -195,7 +195,7 @@
     const COL = { paver: '#8a5141', tile: '#cbc8bd', wood: '#a97c52', carpet: '#8b9397', concrete: '#c4c6c2', grass: '#6fa356', water: '#2d5a66', asphalt: '#3c4045', roof: '#5a5d59',
       brick: '#9a5b45', plaster: '#ece8e0', glass: '#a8cbd8', stone: '#bdb5a5', hedge: '#5a9440', fence: '#3b4248',
       glass: '#bfe0f0', darkbrick: '#3d3a36', panel: '#4b5157', slats: '#a8743f', corten: '#97512e', curtain: '#6d8ea6', parquet: '#9a6a3e', polished: '#c9c8c3', stonetile: '#d9d0bf' };
-    const OBJ_GLYPH = { tree: '🌳', bush: '🌿', bench: '🪑', lamp: '💡', pillar: '🏛', table: '☕', planter: '🌷', fountain: '⛲', bin: '🗑', bike: '🚲', shelf: '🗄', counter: '🛒', sign: '🪧' };
+    const OBJ_GLYPH = { tree: '🌳', bush: '🌿', bench: '🪑', lamp: '💡', pillar: '🏛', table: '☕', planter: '🌷', fountain: '⛲', bin: '🗑', bike: '🚲', shelf: '🗄', counter: '🛒', sign: '🪧', bed: '🛏', sofa: '🛋', desk: '🖥', kitchen: '🍳', screen: '🎬', car: '🚗', pump: '⛽', charger: '🔌', solar: '🔆', turbine: '🌬', chimney: '🏭', container: '♻', goal: '🥅', grave: '🪦', boat: '🛥', shelter: '🚏', slide: '🛝', swing: '🎡', sheep: '🐑' };
     function renderCtx() {
       const sw = $('sw'), title = $('ctxTitle'), hint = $('ctxHint'); sw.innerHTML = '';
       const mk = (items, cur, set, glyph) => { const opt = !glyph && !Object.keys(items).some(k => COL[k]); let host = sw; if (opt) { host = document.createElement('div'); host.className = 'mm-opts'; host.setAttribute('role', 'group'); sw.appendChild(host); }   // keuzes zonder kleur: een rij keuzeknoppen

@@ -94,8 +94,9 @@
   const LIB_NAMES = { "Rijtjeshuis baksteen": "Rijhuis · baksteen", "Rijtjeshuis wit": "Rijhuis · wit", "Rijtjeshuis natuursteen": "Rijhuis · natuursteen", "Rijtjeshuis hout": "Rijhuis · hout", "Rijtjeshuis 3 lagen": "Rijhuis · baksteen", "Stadswoning plat dak": "Stadswoning · wit", "Bungalow": "Bungalow · baksteen", "Studio plat dak": "Studio · hout", "Herenhuis 4 lagen": "Herenhuis · natuursteen", "Appartementen 5 lagen": "Appartementen · beton", "Appartementen glas 6 lagen": "Appartementen · glas", "Woontoren 7 lagen": "Woontoren · glas", "Villa met tuin": "Villa · wit · tuin", "Villa baksteen met tuin": "Villa · baksteen · tuin", "Bungalow met tuin": "Bungalow · hout · tuin", "Stadsvilla plat": "Villa · natuursteen · plein", "Tuinhuis": "Tuinhuis · hout", "Patiowoning": "Patiowoning · baksteen", "Woonerf 7 huizen": "Woonerf · 6 huizen", "Hofje met 6 woningen": "Hofje · 6 woningen", "Kantoor glas 3 lagen": "Kantoor · glas", "Kantoor glas 5 lagen": "Kantoor · glas", "Kantoor beton 4 lagen": "Kantoor · beton", "Kantoor baksteen 3 lagen": "Kantoor · baksteen", "Kantoortoren 7 lagen": "Kantoortoren · glas", "Werkplaats": "Werkplaats · beton", "Bedrijfshal": "Bedrijfshal · beton", "Fabriek met schoorsteen": "Fabriek · baksteen", "Parkeergarage 2 lagen": "Parkeergarage · beton", "Loods open": "Loods · open", "Winkel met etalage": "Winkel · etalage", "Winkel met bovenwoning": "Winkel · bovenwoning", "Boetiek": "Winkel · boetiek", "Café met terras": "Horeca · café met terras", "Restaurant": "Horeca · restaurant", "Bakkerij": "Winkel · bakkerij", "Hotel 4 lagen": "Horeca · hotel", "Supermarkt": "Winkel · supermarkt", "Markthal": "Markthal · overdekt", "Kiosk": "Kiosk · hout", "Winkelpassage": "Winkelpassage · glas", "Basisschool": "School · baksteen", "Bibliotheek": "Bibliotheek · glas", "Gemeentehuis": "Gemeentehuis · natuursteen", "Kerk met toren": "Kerk · toren", "Ziekenhuis": "Ziekenhuis · wit", "Museum": "Museum · beton", "Sporthal": "Sporthal · beton", "Brandweerkazerne": "Hulpdienst · brandweer", "Politiebureau": "Hulpdienst · politie", "Busstation": "Vervoer · busstation", "Station": "Vervoer · treinstation", "Park met bankjes": "Park · bankjes", "Plantsoen": "Park · plantsoen", "Bos": "Bos · bomen", "Bos 7 vakken": "Bos · bomen", "Vijver": "Park · vijver", "Stadspark": "Park · stadspark", "Speeltuin": "Park · speeltuin", "Moestuin": "Tuin · moestuin", "Boomgaard": "Tuin · boomgaard", "Hondenpark": "Park · hondenveld", "Rozentuin": "Tuin · rozentuin", "Grasveld": "Grasveld · leeg", "Grasveld 7 vakken": "Grasveld · bomen", "Plein": "Plein · lantaarns", "Plein met fontein": "Plein · fontein", "Terras": "Plein · terras", "Markt": "Plein · markt", "Parkeerplaats": "Parkeerplaats · haag", "Parkeerterrein": "Parkeerplaats · lantaarns", "Fietsenstalling": "Fietsenstalling · overdekt", "Kade": "Kade · klinkers", "Stadsplein": "Plein · stadsplein", "Pleintje met kiosk": "Plein · kiosk", "Zitkuil": "Plein · zitkuil", "Leeg plein": "Plein · leeg", "Trap naar terras": "Trap · naar terras", "Helling naar terras": "Helling · naar terras", "Trappenhuis 3 lagen": "Trappenhuis · beton", "Tribune": "Tribune · groot", "Terras op hoogte": "Terras op palen · trap", "Uitkijktoren": "Toren · uitkijk", "Amfitheater": "Amfitheater · rond", "Brug (verhoogd pad)": "Brug · voetgangers", "Blok": "Blok · beton", "Blok 2 hoog": "Blok · beton", "Muur recht": "Muur · recht", "Muur halve zeshoek": "Muur · halve zeshoek", "Zuilengalerij": "Zuilen · galerij", "Poort": "Poort · natuursteen", "Tunnel": "Poort · tunnel", "Hek rondom": "Afscheiding · hek", "Haag rondom": "Afscheiding · haag", "Overkapping": "Overkapping · zuilen", "Toren rond 6 lagen": "Toren · natuursteen", "Hof met muren": "Hof · muren", "Tribune klein": "Tribune · klein", "Pergola": "Overkapping · pergola", "Waterbekken": "Water · bekken", "Vlak beton": "Vlak · beton", "Asfaltvlak": "Vlak · asfalt", "Lantaarnrij": "Rij · lantaarns", "Bomenrij": "Rij · bomen" };
   function libStandard() {
     const out = [], add = b => {   // een bovenste laag met alleen betonvloer is een plat dak: dakbedekking
+      libOldDetails(b); pruneNearStairs(b);   // inrichting en bijzonderheden (08d9), niets bij de trappen
       const m = b.m, T = m.lv[m.lv.length - 1];
-      if (m.lv.length > 1 && !Object.keys(T.w).length && !T.s.length && !T.o.length && Object.values(T.f).every(v => v === 'concrete')) for (const k in T.f) T.f[k] = 'roof';
+      if (m.lv.length > 1 && !Object.keys(T.w).length && !T.s.length && T.o.every(o => o.t === 'solar') && Object.values(T.f).every(v => v === 'concrete')) for (const k in T.f) T.f[k] = 'roof';   // met zonnepanelen blijft het een dak
       const d = b.done(); d.was = d.name; d.name = (LIB_NAMES[d.name] || d.name) + modSuffix(modMeta(d)); out.push(d);
     };
     const sideTo = (cx, cz) => (Math.round(Math.atan2(-cz, -cx) / (Math.PI / 3)) + 5 + 12) % 6;   // zijde van een vak die naar het midden kijkt
@@ -288,6 +289,7 @@
       const LAND = [[[6.819, -5.062], [7.794, 4.5], [7.794, -4.5]], [[7.794, 4.5], [6.819, -5.062], [5.845, 3.375]], [[5.845, 3.375], [6.819, -5.062], [5.845, -3.375]]];
       const inT = (x, z, T) => { const s1 = (T[1][0] - T[0][0]) * (z - T[0][1]) - (T[1][1] - T[0][1]) * (x - T[0][0]), s2 = (T[2][0] - T[1][0]) * (z - T[1][1]) - (T[2][1] - T[1][1]) * (x - T[1][0]), s3 = (T[0][0] - T[2][0]) * (z - T[2][1]) - (T[0][1] - T[2][1]) * (x - T[2][0]); return (s1 >= -0.3 && s2 >= -0.3 && s3 >= -0.3) || (s1 <= 0.3 && s2 <= 0.3 && s3 <= 0.3); };
       b.where(1, (x, z) => LAND.some(T => inT(x, z, T)), 'polished'); add(b); }
+    libExtra(add);   // de 35 nieuwe basisgebouwen (08d9)
     return out;
   }
   // ---------- Voorbeeld: het winkelcentrum uit de SketchUp-schets (hex_mall), precies zoals getekend ----------
@@ -333,6 +335,25 @@
       for (const old of ['Winkelcentrum · galerij · trap · gespiegeld', 'Winkelcentrum · trap · breed']) { const i = modules.findIndex(x => base(x.name) === old); if (i >= 0) modules.splice(i, 1); }   // vervangen door spiegelen
       for (const m of libStandard()) { if (m.cat !== 'Winkelcentrum') continue; const i = modules.findIndex(x => base(x.name) === base(m.name)); if (i >= 0) { m.id = modules[i].id; modules[i] = m; } else modules.push(m); }
       saveMods(); localStorage.setItem('hexstad-lib9', '1');
+    }
+  } catch (e) { /* geen opslag */ }
+  // lib10: de hele bibliotheek opnieuw gebouwd en gecontroleerd (bereikbaarheid, trappen, inrichting) plus 35 nieuwe basisgebouwen.
+  // Standaardmodules die je nooit in de Raatbouwer hebt bewaard (geen _sig) worden vervangen (zelfde id, dus geplaatste exemplaren
+  // gaan mee, zie buildModNet), nieuwe komen erbij; wat je zelf hebt aangepast of gemaakt blijft staan.
+  let libNews = 0;
+  try {
+    if (!localStorage.getItem('hexstad-lib10')) {
+      const base = n => (n || '').replace(/( · \d+[Lv])+$/, '');
+      const std = libStandard(), baseCount = new Map(); for (const m of std) baseCount.set(base(m.name), (baseCount.get(base(m.name)) || 0) + 1);
+      const used = new Set();
+      // bij welke bewaarde module hoort deze standaardmodule? eerst de precieze naam, dan de naam uit de bouwcode, dan de naam zonder
+      // lagen/maat, maar alleen als die in de bibliotheek uniek is (Rijhuis · baksteen bestaat in 2L én 3L: die mogen elkaar niet vervangen)
+      const match = m => { const ok = i => i >= 0 && !used.has(i) && modules[i].v === 2; let i = modules.findIndex(x => x.name === m.name); if (ok(i)) return i;
+        if (m.was) { i = modules.findIndex(x => x.was === m.was); if (ok(i)) return i; }
+        if (baseCount.get(base(m.name)) === 1) { i = modules.findIndex((x, j) => !used.has(j) && x.v === 2 && base(x.name) === base(m.name)); if (ok(i)) return i; }
+        return -1; };
+      for (const m of std) { m.lib = 10; const i = match(m); if (i >= 0) { used.add(i); if (modules[i]._sig) continue; m.id = modules[i].id; modules[i] = m; } else { modules.push(m); used.add(modules.length - 1); libNews++; } }
+      saveMods(); localStorage.setItem('hexstad-lib10', '1'); libRefreshed = true;
     }
   } catch (e) { /* geen opslag */ }
   // voor de tests (bibliotheekcontrole): de rekenhulpen van modules v2
