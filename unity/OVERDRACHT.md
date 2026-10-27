@@ -307,6 +307,16 @@ Gemeten in het bestand: vak R = 9 m, verdieping 3 m, vloer 0,3 m dik; steek 6,75
   (lokaal +z, in de wereld `(−sin rot, cos rot)`). Draaien per 30° (twaalf richtingen): Q/E, Shift+scroll, knoppen ↺/↻; ingedrukt houden en slepen richt de voorkant naar de muis
   (`rot = atan2(−dx, dz)`, met Ctrl vrij); op een bestaand voorwerp draait een klik 30° (Shift-klik terug) en slepen richt het. De laatst gebruikte draaiing geldt voor het volgende voorwerp.
 
+## 23. Aanwijzen in de stad (`15g-aanwijzen.js`, toets V, knop met de muispijl linksonder)
+- Een eigen gereedschap `kies` naast de gum: geen bouwvoorbeeld; wat je aanwijst (een module-exemplaar of het bovenste blok van een vak) licht op als draadmodel van zeshoekige
+  prisma's (per vak van het exemplaar, van de laag waarop het staat tot de bovenkant, plus 2,5 m bij een schuin dak), met de naam bij de muis.
+- Klik: een optiekaart bij de muis. Module: **Draai links / rechts** (60°, `rot ± 1`), **Spiegelen** (`mir`), **Andere variant** (`swapInst`: de volgende module die op de buren aansluit),
+  **Bewerken** (opent de module in de Raatbouwer; bewaren past alle exemplaren aan), **Meer hiervan** (pipet: module, draaiing en spiegeling in je hand), **Verplaatsen** (oppakken: weghalen
+  en meteen in je hand), **Weghalen**. Blok: **Meer hiervan** en **Bovenste weg**. De kaart blijft open na draaien/spiegelen/variant, zodat je door kunt klikken.
+- Opnieuw neerzetten (`kiesReplace`): exemplaar uit de lijst, `modTopRefresh()` (de bovenste module per vak opnieuw bepalen, anders ziet de plaatsingscontrole het oude exemplaar nog),
+  `placeCore` met de nieuwe draaiing; past het niet, dan blijft het oude staan. Dezelfde fout zat in `swapInst` (een variant die niet paste haalde het exemplaar weg); ook opgelost.
+- Unity: een selectiestand met raycast op de module-exemplaren, een outline per vak en een klein contextmenu met dezelfde acties.
+
 ## 21. Open punten
 - Unity: noord- en zuidpool op de bol (vraag staat open); `unity/README.md` is niet bijgewerkt sinds het planeet-wegensysteem.
 - Web: eerste klap op een gebouw geeft een korte hapering (omzetten naar stukken); mensen ontwijken brokstukken niet en het loopnetwerk kent de gaten niet; instortingen worden niet bewaard; jagers maken soms nog sprongetjes van 3–7 m.

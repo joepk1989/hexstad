@@ -244,6 +244,10 @@ Standaard (Instellingen → Terrein → Low poly) wordt het terrein op het drieh
 
 Woningen en kantoren hebben een **bordestrap langs één muur** (`UT` in `03`), zoals in de bovenaanzicht-schets: de eerste steek loopt langs de binnenkant van de muur omhoog naar een bordes in de hoek (1,5 m), de tweede steek komt aan de muurkant terug en je komt boven uit naast waar je begon. Per verdieping wisselt de trap van muur (zijde 4 en 1), zodat hij niet steeds in hetzelfde trapgat staat. In de vloer erboven zit een trapgat met balustrade; de muur achter de trap krijgt geen ramen. Lopen gaat over schuine loopvlakken (`slopeU`) en een bordesvlak; de vloer heeft een gat (`holePoly`).
 
+## Aanwijzen in de stad (V)
+
+Met de muispijl linksonder (of toets **V**) wijs je in de stad een module of blok aan: hij licht op als een draadmodel van zeshoeken, met de naam bij de muis. Een klik geeft een optiekaart: **draai links/rechts** (60°), **spiegelen**, **andere variant** (die op de buren aansluit), **bewerken** in de Raatbouwer (past alle exemplaren aan), **meer hiervan** (pipet), **verplaatsen** (oppakken en ergens anders neerzetten) en **weghalen**. Bij een gewoon blok: meer hiervan of de bovenste laag weg. Esc of een klik ernaast sluit de kaart (`15g-aanwijzen.js`).
+
 ## Modules en de Raatbouwer
 
 Een module v2 is een gebied van 1, 7, 19 of 37 vakken met verdiepingen van 3 m, getekend op het fijne driehoekraster (zijde 4,5 of 2,25 m):

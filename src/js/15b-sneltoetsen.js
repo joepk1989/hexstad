@@ -7,7 +7,7 @@
   const KEYS_BUILD = [
     ['Kaart', null], [K('W', 'A', 'S', 'D'), 'schuiven (of pijltjes)'], [K('Q', 'E'), 'draaien'], [K('+', '−'), 'in- en uitzoomen'],
     ['Bouwen', null], [K('1') + '…' + K('9'), 'blok uit de snelbalk'], [K('Tab'), 'alle blokken (kies er één: hij komt in de snelbalk)'], [K('R'), 'draaien (Shift+R: terug)'],
-    [K('Del'), 'gum aan/uit'], [K('Ctrl', 'Z'), 'ongedaan maken'], [K('PgUp', 'PgDn'), 'laag kiezen (wat erboven ligt wordt doorzichtig)'], [K('[', ']'), 'penseel: 1, 7, 19 of 37 vakken'], [K('Shift') + '+wiel', 'volgende in de snelbalk'],
+    [K('V'), 'aanwijzen: klik op een module voor opties (draaien, spiegelen, variant, bewerken, verplaatsen)'], [K('Del'), 'gum aan/uit'], [K('Ctrl', 'Z'), 'ongedaan maken'], [K('PgUp', 'PgDn'), 'laag kiezen (wat erboven ligt wordt doorzichtig)'], [K('[', ']'), 'penseel: 1, 7, 19 of 37 vakken'], [K('Shift') + '+wiel', 'volgende in de snelbalk'],
     ['Modules', null], [K(',', '.'), 'vorige / volgende module'], [K('F'), 'module spiegelen'], [K('/'), 'zoek een module (Enter kiest de eerste)'],
     ['Terrein', null], ['slepen', 'boetseren (ingedrukt houden)'], [K('Shift') + '+slepen', 'andersom (ophogen ↔ afgraven)'],
     ['Weg slepen', null], [K('E', 'Q'), 'hoger / lager (ook Page Up/Down, wiel)'], ['stilhouden', 'hoekpunt: bocht in één sleep'],
@@ -48,6 +48,7 @@
     if (mode === 'walk') return;   // de rest is voor bouwen
     if (roadDrag.on) return;       // tijdens slepen: hoogte (zie invoer)
     if (e.code === 'Delete' || e.code === 'Backspace') { e.preventDefault(); if (tool === 'gum' && prevTool) selectTool(prevTool); else { prevTool = tool; selectTool('gum'); } toast(tool === 'gum' ? 'Gum' : 'Gum uit', 700); return; }
+    if (e.code === 'KeyV') { const kb = document.getElementById('kiesBtn'); if (kb) kb.click(); return; }   // aanwijzen (15g)
     if (e.code === 'Comma') { modStep(-1); return; }    // vorige / volgende module
     if (e.code === 'Period') { modStep(1); return; }
     if (e.code === 'Slash' && !e.shiftKey) { e.preventDefault(); toggleCatalog(true); setCat(CATS.findIndex(c => c.name === 'Modules')); const i = document.getElementById('modSearch'); if (i) { i.focus(); i.select(); } return; }

@@ -880,3 +880,20 @@ body.fly #modeBtn, body.fly #layerPick, body.fly .city-arrow, body.fly #catBtn, 
 #mmApp .mm-brand { display: flex; align-items: center; gap: 8px; font: 800 17px var(--ui); color: var(--signal); letter-spacing: .01em; padding: 2px 0 10px; white-space: nowrap; }
 #mmApp .mm-brand svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
 @media (max-width: 760px) { #mmApp .mm-brand { display: none; } }
+/* Aanwijzen (V, 15g): naam bij de muis en een optiekaart bij een klik op een module of blok */
+body.tool-kies #scene { cursor: default; }
+.kies-tip { position: fixed; z-index: 30; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; font-size: 12px; color: var(--ink-dim); white-space: nowrap; backdrop-filter: blur(6px); }
+.kies-tip b { color: var(--ink); font-weight: 700; }
+.kies-menu { position: fixed; z-index: 40; width: 248px; background: var(--panel-solid); border: 1px solid var(--line); border-top: 3px solid var(--signal); border-radius: 12px; padding: 10px 10px 10px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45); color: var(--ink); }
+.kies-head { display: flex; align-items: flex-start; gap: 8px; }
+.kies-head b { flex: 1; font-size: 14px; line-height: 1.25; }
+.kies-x { flex: none; width: 28px; height: 28px; margin: -4px -4px 0 0; border: 0; border-radius: 8px; background: transparent; color: var(--ink-dim); font-size: 20px; line-height: 1; }
+.kies-x:hover { background: rgba(255, 255, 255, 0.08); color: var(--ink); }
+.kies-menu small { display: block; margin: 2px 0 9px; color: var(--ink-dim); font-size: 12px; }
+.kies-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.kies-grid button { display: flex; align-items: center; gap: 7px; min-height: 38px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 9px; background: rgba(255, 255, 255, 0.04); font-size: 13px; text-align: left; }
+.kies-grid button svg { width: 18px; height: 18px; flex: none; color: var(--signal); }
+.kies-grid button:hover { background: rgba(242, 178, 51, 0.12); border-color: rgba(242, 178, 51, 0.5); }
+.kies-grid button.wide { grid-column: 1 / -1; }
+.kies-grid button.danger svg { color: var(--danger); }
+.kies-grid button.danger:hover { background: rgba(224, 87, 62, 0.14); border-color: rgba(224, 87, 62, 0.55); }

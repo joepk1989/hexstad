@@ -229,7 +229,7 @@
     return false;
   }
   function place(q, r) {
-    if (flyCam.on) return;   // cameramodus: niets bouwen of slopen
+    if (flyCam.on || tool === 'kies') return;   // cameramodus: niets bouwen of slopen
     if (TERR_TOOLS.has(tool)) return terrImpulse(q, r);
     if ((tool === 'heuvel' || tool === 'kuil') && terrBrush > 0) {
       const list = []; for (let dq = -terrBrush; dq <= terrBrush; dq++) for (let dr = -terrBrush; dr <= terrBrush; dr++) if (hexDist(dq, dr) <= terrBrush && terrainEdit(q + dq, r + dr, tool)) list.push([q + dq, r + dr]);
@@ -339,7 +339,7 @@
   function pick(cx, cy, withMods) {
     ndc.set(cx / window.innerWidth * 2 - 1, -(cy / window.innerHeight) * 2 + 1);
     raycaster.setFromCamera(ndc, camera);
-    const hits = hudPickFilter(curvedHits(raycaster, [ground, terrGroup, blocks, ...(withMods || tool === 'module' || tool === 'gum' ? [...modGroups.values()].map(e => e.group) : [])]));   // laagkiezer: wat erboven ligt is doorzichtig en niet aan te klikken
+    const hits = hudPickFilter(curvedHits(raycaster, [ground, terrGroup, blocks, ...(withMods || tool === 'module' || tool === 'gum' || tool === 'kies' ? [...modGroups.values()].map(e => e.group) : [])]));   // laagkiezer: wat erboven ligt is doorzichtig en niet aan te klikken
     if (!hits.length) return null;
     const h = hits[0];
     if (mode === 'walk' && h.distance > REACH) return null;
@@ -373,6 +373,7 @@
   let pendingKey = null, lastPickRes = null;
   function handleTap(cx, cy) {
     if (flyCam.on) return;   // cameramodus: niets bouwen of slopen
+    if (tool === 'kies') { if (mode === 'build') kiesTap(cx, cy); return; }   // aanwijzen: opties voor een module of blok (15g)
     const res = pick(cx, cy); lastPickRes = res;
     if (!res) return;
     if (coarse && DIRECTIONAL.has(tool) && mode === 'build') {
@@ -505,6 +506,10 @@
     lastHover = [cx, cy];
     ghostArrow.visible = false; vecCells.visible = false;
     if (!(VEC_TOOLS.has(tool) && !vecChain.on)) vecPreClear();
+    if (tool === 'kies') {   // aanwijzen: geen bouwvoorbeeld, wel oplichten wat je aanwijst (15g)
+      ghost.visible = false; ghostEdges.visible = false; edgeGhost.visible = false; moduleGhost.visible = false; vecGhost.visible = false; previewGroup.visible = false; previewActive = false; terrHover(null);
+      if (mode === 'build') kiesHover(cx, cy); else kiesHide(); return;
+    }
     const res = pick(cx, cy); lastPickRes = res; aimLabel(res);
     edgeGhost.visible = false; moduleGhost.visible = false;
     if (terrHover(res, cx, cy)) { previewActive = false; ghost.visible = false; ghostEdges.visible = false; return; }

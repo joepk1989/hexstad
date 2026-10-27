@@ -61,7 +61,7 @@
     function step(d) { select((idx + d + 9) % 9); }
     // wat er elders gekozen wordt (catalogus, , en ., Delete): in de snelbalk zetten
     function onTool(t) {
-      if (t !== 'gum') {
+      if (t !== 'gum' && t !== 'kies') {
         if (!same(slots[idx], t)) {
           const j = slots.findIndex(s => same(s, t));
           if (j >= 0) idx = j; else { slots[idx] = t === 'module' ? { t, mid: curMid() } : { t }; }
@@ -75,14 +75,16 @@
     rotBtn.classList.add('rt'); mirBtn.classList.add('rt'); rTools.append(rotBtn, mirBtn);
     const gumBtn = rbtn('gumBtn', 'Gum: haalt weg wat je aanklikt (Delete)', '<path d="M7 20h11M5 15l9-9 5 5-8 8H8z"/>');
     const undoStepBtn = rbtn('undoStepBtn', 'Ongedaan maken (Ctrl+Z)', '<path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"/>');
-    rTools.append(gumBtn, undoStepBtn);
+    const kiesBtn = rbtn('kiesBtn', 'Aanwijzen: klik op een module of blok voor opties (V)', '<path d="M5 3.5l13 6.2-5.6 1.9L10.3 17z"/><path d="M12.6 11.8l4.6 4.6"/>');
+    rTools.append(kiesBtn, gumBtn, undoStepBtn);
+    kiesBtn.addEventListener('click', () => { if (tool === 'kies') select(idx); else selectTool('kies'); });
     if (toolBtns.gum) toolBtns.gum.remove();   // de gum staat nu hier, niet meer in de catalogus
     gumBtn.addEventListener('click', () => { if (tool === 'gum') select(idx); else selectTool('gum'); });
     undoStepBtn.addEventListener('click', () => undo());
     function tools() {
       rotBtn.hidden = false; rotBtn.disabled = !(DIRECTIONAL.has(tool) || tool === 'module');
       mirBtn.hidden = false; mirBtn.disabled = tool !== 'module';
-      gumBtn.setAttribute('aria-pressed', String(tool === 'gum'));
+      gumBtn.setAttribute('aria-pressed', String(tool === 'gum')); kiesBtn.setAttribute('aria-pressed', String(tool === 'kies'));
       undoStepBtn.disabled = !undoList.length;
     }
     // ---------- catalogus (Alle blokken) ----------

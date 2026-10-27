@@ -481,6 +481,11 @@
   const instLv = I => I.lv || 0, instTopLv = I => instLv(I) + modMeta(I.m).fl;
   const modTop = new Map();   // 'q,r' → { top (laag), inst (bovenste exemplaar), kap }
   const cellModTop = (q, r) => modTop.get(q + ',' + r) || null;
+  // bovenste module per vak opnieuw bepalen (ook vóór het opnieuw neerzetten van een exemplaar dat net uit de lijst is gehaald)
+  function modTopRefresh(live) {
+    modTop.clear(); if (!live) live = (cells.inst || []).filter(I => I.m && I.m.v === 2);
+    for (const I of live) for (const [q, r] of mv2Area(I)) { const k = q + ',' + r, t = instTopLv(I), e = modTop.get(k); if (!e || t > e.top || (t === e.top && instLv(I) > instLv(e.inst))) modTop.set(k, { top: t, inst: I, kap: modMeta(I.m).top === 'kap' }); }
+  }
   // Wat staat er op dit exemplaar? Geeft een masker (x, z) → 0 niets, 1 op een bebouwd vak, 2 onder een vloer van de
   // module erboven; plus een handtekening om te zien of het veranderd is
   function instCover(I) {
@@ -529,8 +534,7 @@
     let touched = false;
     for (const [I, e] of modGroups) if (!live.has(I)) { e.group.traverse(o => { if (o.isMesh && o.userData.own) o.geometry.dispose(); }); scene.remove(e.group); modGroups.delete(I); doors.clear(I); touched = true; }
     const before = new Set(modCellSet);
-    modCols.clear(); modCellSet.clear(); modTop.clear();
-    for (const I of live) for (const [q, r] of mv2Area(I)) { const k = q + ',' + r, t = instTopLv(I), e = modTop.get(k); if (!e || t > e.top || (t === e.top && instLv(I) > instLv(e.inst))) modTop.set(k, { top: t, inst: I, kap: modMeta(I.m).top === 'kap' }); }
+    modCols.clear(); modCellSet.clear(); modTopRefresh(live);
     const skips = wallSkips(live);
     for (const I of live) {
       const cov = instCover(I), skip = skips.get(I) || new Set(), sig = cov.sig + '#' + [...skip].sort().join(';');

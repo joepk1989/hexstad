@@ -164,8 +164,9 @@
     const list = matchingModules(I); if (!list.length) return false;
     const cur = list.findIndex(c => modules[c.mi].id === I.mid && c.rot === I.rot % 6);
     const next = list[(cur + 1) % list.length], m = modules[next.mi];
-    cells.inst.splice(i, 1); removeInst(I);
+    cells.inst.splice(i, 1); removeInst(I); modTopRefresh();
     const { n } = placeCore(m, next.rot, I.q, I.r, I.lv || 0);
+    if (!n) { cells.inst.splice(i, 0, I); modTopRefresh(); return false; }   // past niet: het oude exemplaar blijft staan
     if (n) cells.inst.push(Object.assign({ mid: m.id, m: instData(m, I.mir), q: I.q, r: I.r, rot: next.rot }, I.lv ? { lv: I.lv } : {}, I.mir ? { mir: true } : {}));
     buildTriNet(); buildPathNet(); buildEdgeNet(); buildModNet(); changed();
     toast('"' + m.name + '"' + (next.rot ? ' · gedraaid' : '') + (next.bad ? ' · ' + next.bad + ' rand(en) sluiten niet aan' : ' · sluit aan') + ' (' + ((cur + 1) % list.length + 1) + '/' + list.length + ')', 2000);

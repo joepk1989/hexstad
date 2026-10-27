@@ -169,13 +169,14 @@
     tool = t;
     if (TERR_TOOLS.has(t) && !terrHintShown) { terrHintShown = true; setTimeout(() => toast((coarse ? 'Vasthouden en slepen' : 'Ingedrukt houden en slepen') + ' om te boetseren · Shift: andersom · [ ] penseel', 3200), 50); }
     { let cw = true; try { cw = setState.contour; } catch (e) { /* instellingen nog niet geladen */ } terrU.uContour.value = TERR_TOOLS.has(t) && cw ? 1 : 0; } if (!TERR_TOOLS.has(t)) { brushRing.hide(); terrLbl.hidden = true; }
-    if (t !== 'gum' && catOf(t) !== catIdx) setCat(catOf(t));
+    if (t !== 'gum' && t !== 'kies' && catOf(t) !== catIdx) setCat(catOf(t));
     for (const k in toolBtns) toolBtns[k].setAttribute('aria-pressed', String(k === t));
     placeBtn.textContent = t === 'gum' ? 'Weg' : 'Bouw';
     rotBtn.hidden = !DIRECTIONAL.has(t) && t !== 'module'; mirBtn.hidden = t !== 'module'; mirBtn.setAttribute('aria-pressed', String(moduleMir));
     if (t === 'module' && moduleSel === null) { if (modules.length) moduleSel = 0; else openSchets(); }
     if (t === 'module' && CATS[catIdx].name === 'Modules') renderModCards();
     try { refreshOpt(); } catch (e) { /* optiebalk bestaat nog niet tijdens het opstarten */ }
+    if (typeof kiesOnTool === 'function') kiesOnTool(t);
     if (typeof hudOnTool === 'function') hudOnTool(t);   // snelbalk en gereedschap bijwerken (15d)
     pendingKey = null; if (coarse && mode === 'build') { ghost.visible = false; ghostArrow.visible = false; }
     if (mode === 'build') updateGhost();
