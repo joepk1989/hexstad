@@ -397,7 +397,7 @@
         if (!free) continue;
         const all = [[c.x - hx * WB, c.z - hz * WB]].concat(join, pts.slice(m + 1));   // begint bij de achteras: het midden van de auto blijft precies waar het was
         useLeg(c, { vec: true, eid: e.id, dir, lane, nodeEnd: nB, q: 100000 + nB, r: 1, inS: 0, outS: 3, kind: 'lane', path: mkPath(all), cx: 0, cz: 0, exitPt: all[all.length - 1], exitD: dirAt(all, all.length - 1) });
-        c.prev = null; c.s = WB; c.ghost = 3; c.ease = 0; c.stuck = 0; c.wait = 0; c.v = 0;
+        c.prev = null; c.s = WB; c.ghost = 1.5; c.ease = 0; c.stuck = 0; c.wait = 0; c.v = 0;
         return true;
       }
       return false;
@@ -494,10 +494,15 @@
     // Twee auto's die elkaar raken: botsen (rechthoeken, impuls, wegglijden en tollen)
     const HL = 2.3, HW = 0.95, INERT = (4 * HL * HL + 4 * HW * HW) / 12;
     const velOf = c => c.crash ? [c.cvx, c.cvz] : [Math.cos(c.h) * c.v, Math.sin(c.h) * c.v];
-    function collide() {
+    function collide() { collidePass(true); collidePass(false); }   // twee keer: drie auto's op een kluitje komen ook los
+    function collidePass(first) {
       for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
         const A = list[i], B = list[j], dx = B.x - A.x, dz = B.z - A.z;
-        if (A.ghost > 0 || B.ghost > 0) continue;
+        // spookstand: een auto die net opnieuw begint of vastzat. Rijdt hij op de lijn (netjes), dan mag hij door een stilstaande
+        // auto heen schuiven; stuurt hij zelf (roekeloos) of glijdt hij, dan duwt de ander hem gewoon opzij (geen klap, geen schade).
+        const gA = A.ghost > 0 && A.rx === undefined && !A.crash, gB = B.ghost > 0 && B.rx === undefined && !B.crash;
+        if (gA || gB) continue;
+        const soft = A.ghost > 0 || B.ghost > 0;
         if (dx * dx + dz * dz > 27 || Math.abs((A.sy ?? 0) - (B.sy ?? 0)) > 2) continue;   // een viaduct erboven: geen botsing
         const axes = [[Math.cos(A.h), Math.sin(A.h)], [-Math.sin(A.h), Math.cos(A.h)], [Math.cos(B.h), Math.sin(B.h)], [-Math.sin(B.h), Math.cos(B.h)]];
         const ext = (c, ax) => HL * Math.abs(Math.cos(c.h) * ax[0] + Math.sin(c.h) * ax[1]) + HW * Math.abs(-Math.sin(c.h) * ax[0] + Math.cos(c.h) * ax[1]);
@@ -512,9 +517,14 @@
         A.x -= n[0] * best / 2; A.z -= n[1] * best / 2; B.x += n[0] * best / 2; B.z += n[1] * best / 2;
         if (A.rx !== undefined) { A.rx -= n[0] * best / 2; A.rz -= n[1] * best / 2; }
         if (B.rx !== undefined) { B.rx += n[0] * best / 2; B.rz += n[1] * best / 2; }
+        if (!first) continue;   // tweede ronde: alleen uit elkaar duwen
         const [ax, az] = velOf(A), [bx, bz] = velOf(B), vrel = (bx - ax) * n[0] + (bz - az) * n[1];
         if (vrel >= 0) continue;
         const impact = -vrel;
+        if (soft) {   // spook: alleen uit elkaar en afremmen, geen klap
+          for (const c of [A, B]) { if (c.crash) { const k = c === A ? -1 : 1, vn = c.cvx * n[0] + c.cvz * n[1]; if (vn * k < 0) { c.cvx -= n[0] * vn; c.cvz -= n[1] * vn; } } else c.v *= 0.5; }
+          continue;
+        }
         // zacht tikje (netjes rijdend verkeer schampt hooguit): afremmen, niet tollen
         if (impact < (reckless ? 1.2 : 5.0)) { A.v *= 0.6; B.v *= 0.6; continue; }   // netjes verkeer: een tikje onder 18 km/u is geen klap
         const jimp = (1 + 0.25) * impact / 2;

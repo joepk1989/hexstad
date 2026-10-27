@@ -175,6 +175,9 @@ gevonden met een straal op de echte romp) en bloedige bandensporen; een plas als
   + de rest van die rijstrook. Een bézierpunt in een gebouwvak of blok: volgende kandidaat. Na het terugvinden 3 s "spook" (geen botsingen, max 2,5 m/s).
 - Rijdt een roekeloze auto meer dan `3 + |latCur|` m naast zijn lijn: niet terugzetten maar zijdelings terugschuiven met max 3,5 m/s en bijdraaien; meer dan 14 m: `rejoin`.
 - Gemeten (16 auto's, chaos, 4 min): 91× zelf terug, 0× opnieuw beginnen, 0 sprongen.
+- **Botsing tussen auto's** (`collide`): gerichte dozen (halve maten 2,3 × 0,95), scheidende-assentest over de vier assen, kleinste overlap = normaal. Twee rondes per beeld: de eerste duwt uit elkaar en geeft de klap (impuls `(1 + 0,25)·impact/2`, draaiing via het hefboompunt, `INERT = (4·HL² + 4·HW²)/12`), de tweede duwt alleen nog uit elkaar.
+  Spookstand (na opnieuw beginnen 1,5 s, vastzitten 4 s): alleen een auto die netjes op zijn lijn rijdt mag door een stilstaande heen; een auto die zelf stuurt of glijdt wordt zacht opzij geduwd (geen klap, geen schade, snelheid ×0,5 of de normaalcomponent eraf).
+  Gemeten met `test/visueel/overlap.js` (overlap > 0,2 m): chaos 16 auto's 854 → 0 beelden/min, 30 auto's ~1 beeld/min van max 0,3 m; netjes verkeer 0.
 
 ## 15. Instorten (`11c-instorten.js`, instelling "Instorten")
 - Pas bij een klap wordt het gebouw in losse stukken opgebouwd (`mv2Build(..., { pieces: true })`): elke muur, vloertegel, dakdeel en elk voorwerp een eigen mesh met een doos.
