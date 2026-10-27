@@ -63,6 +63,14 @@
           if (S.k === 'hexramp') { const c = mv2CellXZ(S.q || 0, S.r || 0), f = FRAMES[(S.side || 0) % 6], ex = -f.nx, ez = -f.nz; const lo = tf(c[0] - ex * (INNER - 1.2), c[1] - ez * (INNER - 1.2)), hi = tf(c[0] + ex * (INNER - 1.2), c[1] + ez * (INNER - 1.2)); stairs.push({ lo, hi, q: S.q || 0, r: S.r || 0, ramp: true, side: ((S.side || 0) + (I.rot || 0)) % 6 }); continue; }   // zijde in de wereld: plus de draaiing
           const D = MV2.DIR6[S.d] || MV2.DIR6[0], a = mv2P(S.a[0], S.a[1], ts), len = (S.n || 2) * ts, w = S.w || 1.2, dx = D[0] * ts * SQ3 / 2, dz = D[0] * ts / 2 + D[1] * ts, dl = Math.hypot(dx, dz) || 1, ux = dx / dl, uz = dz / dl, nx = -uz, nz = ux, off = S.off || 0;
           const at = (al, lat) => [a[0] + ux * al + nx * (lat + off), a[1] + uz * al + nz * (lat + off)];
+          if (S.k === 'spiral') {   // wenteltrap: instappen bij de eerste tree (fase 15°), een rondje over de treden (straal 1,15 m), uitstappen bij de laatste (345°)
+            const a0 = Math.atan2(uz, ux), sd = S.side || 1, pt = (deg, r) => [a[0] + Math.cos(a0 + sd * deg * Math.PI / 180) * r, a[1] + Math.sin(a0 + sd * deg * Math.PI / 180) * r];
+            const lo = pt(6, 1.7), hi = pt(354, 1.7), via = []; for (let dg = 20; dg <= 340; dg += 20) via.push(tf(...pt(dg, 1.1)));
+            // de leuning rondom (vijf zijden van de zeshoek) als muur in het netwerk: alleen langs de instapzijde kom je erin, niet dwars door de leuning
+            for (let e = 1; e < 6; e++) { const A = tf(...pt(e * 60, 2.19)), B = tf(...pt(e * 60 + 60, 2.19)); addWallIdx(lvW, { a: A, b: B, pass: false, mid: [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2], o: 'trap' }); }
+            const [lq, lr] = mv2CellOf(lo[0], lo[1]), [hq, hr] = mv2CellOf(hi[0], hi[1]);
+            stairs.push({ lo: tf(lo[0], lo[1]), hi: tf(hi[0], hi[1]), lq, lr, hq, hr, via }); continue;
+          }
           const lo = at(-0.6, 0), hi = S.k === 'u' ? at(-0.6, (S.side || 1) * w) : at(len + 0.6, 0);
           const [lq, lr] = mv2CellOf(lo[0], lo[1]), [hq, hr] = mv2CellOf(hi[0], hi[1]);
           stairs.push({ lo: tf(lo[0], lo[1]), hi: tf(hi[0], hi[1]), lq, lr, hq, hr });
@@ -119,7 +127,7 @@
     for (const rec of data) for (const Ly of rec.layers) for (const S of Ly.stairs) {
       const up = Ly.lvW + 1, yHi = Ly.y + LH, [lq, lr] = worldToCell(S.lo[0], S.lo[1]), [hq, hr] = worldToCell(S.hi[0], S.hi[1]);
       const lo = mk('ms' + (si++), S.lo[0], S.lo[1], Ly.y, { b: 'mod', stair: 'low' }, { lvW: Ly.lvW }), hi = mk('ms' + (si++), S.hi[0], S.hi[1], yHi, { b: 'mod', stair: 'high' }, { lvW: up });
-      conn(lo, hi, null, true);
+      conn(lo, hi, S.via || null, true);
       if (S.ramp) {   // schans: onderaan hoort bij de buur over de instapzijde (op het vak zelf is geen vloer), bovenaan bij de buur over de uitstapzijde
         const c = cellToWorld(lq, lr), f = FRAMES[S.side], NB0 = byCell.get(Ly.lvW + '|' + (lq + NEIGH[S.side][0]) + ',' + (lr + NEIGH[S.side][1])), NB1 = byCell.get(up + '|' + (lq + NEIGH[(S.side + 3) % 6][0]) + ',' + (lr + NEIGH[(S.side + 3) % 6][1])); void c; void f;
         const A = NB0 && NB0[(S.side + 3) % 6], B = NB1 && NB1[S.side]; if (A) { const v = passage(Ly.lvW, [lo.x, lo.z], [A.x, A.z]); if (v) conn(lo, A, v, false); } if (B) { const v = passage(up, [hi.x, hi.z], [B.x, B.z]); if (v) conn(hi, B, v, false); }   // de helling zelf is geen vloer: alleen muren controleren

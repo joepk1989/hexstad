@@ -64,7 +64,7 @@
         return B;
       },
       // trap van verdieping li naar li + 1, met het gat erboven
-      stairUp(li, x, z, d6, n, w = 1.2, kind = 'stair') { const S = { a: vAt(x, z), d: d6, n, w, k: kind }; lv(li).s.push(S); if (m.lv[li + 1]) B.hole(li + 1, S); else { lv(li + 1); B.hole(li + 1, S); } return B; },
+      stairUp(li, x, z, d6, n, w = 1.2, kind = 'stair') { const S = { a: vAt(x, z), d: d6, n, w, k: kind }; lv(li).s.push(S); lv(li + 1); return B; },   // het trapgat erboven maakt mv2Build zelf (mv2StairHole: precies afgeknipt)
       // trappenhuis door alle verdiepingen: elke verdieping keert de trap om, zodat de trappen boven elkaar liggen
       stairwell(floors, x, z, d6, n, w = 1.2, ctr = [0, 0]) {   // wenteltrap, één omwenteling per verdieping; de volgende begint waar de vorige eindigt
         const dxc = ctr[0] - x, dzc = ctr[1] - z, dist = Math.hypot(dxc, dzc) || 1, pull = dist > 2.5 ? 1.4 : 0, cx = x + dxc / dist * pull, cz = z + dzc / dist * pull;
@@ -74,10 +74,18 @@
       },
       roof(li, q, r, kind = 'hip') { lv(li).r[q + ',' + r] = kind; return B; },
       roofAll(li, kind = 'hip') { for (let q = -k; q <= k; q++) for (let r = -k; r <= k; r++) if (mv2HexDist(q, r) <= k) B.roof(li, q, r, kind); return B; },
-      obj(li, t, x, z, rot = 0) { lv(li).o.push({ t, x: Math.round(x * 4) / 4, z: Math.round(z * 4) / 4, rot }); return B; },
+      obj(li, t, x, z, rot = 0) {   // altijd binnen het gebied: wat erbuiten valt schuift naar het midden (anders staat het op de straat of bij de buren)
+        const ok = (x2, z2) => { const d = Math.hypot(x2, z2) || 1; return mv2InArea(m, x2, z2) && mv2InArea(m, x2 + x2 / d * 0.9, z2 + z2 / d * 0.9); };
+        for (let g = 0; g < 60 && !ok(x, z); g++) { x *= 0.97; z *= 0.97; }
+        lv(li).o.push({ t, x: Math.round(x * 4) / 4, z: Math.round(z * 4) / 4, rot }); return B; },
       // voorwerpen in een kring
       circle(li, t, cx, cz, rad, cnt, a0 = 0) { for (let i = 0; i < cnt; i++) { const a = a0 + i * Math.PI * 2 / cnt; B.obj(li, t, cx + Math.cos(a) * rad, cz + Math.sin(a) * rad, a + Math.PI / 2); } return B; },
-      done() { mv2Fix(m); m.codes = modV2Codes(m); return m; },
+      done() {
+        mv2Fix(m);
+        const flo = (li, x, z) => { const fi = x / (ts * SQ3 / 2), fj = z / ts - fi / 2, i = Math.floor(fi), j = Math.floor(fj), t = (fi - i) + (fj - j) < 1 ? 0 : 1; return !!(m.lv[li] && m.lv[li].f[i + ',' + j + ',' + t]); };
+        for (let li = 1; li < m.lv.length; li++) for (const id in m.lv[li].w) { const W = m.lv[li].w[id]; if (!W || (W.m !== 'fence' && W.m !== 'hedge')) continue; const [i, j, d] = id.split(',').map(Number), D = MV2.DIRW[d], a = mv2P(i, j, ts), bb = mv2P(i + D[0], j + D[1], ts), mx = (a[0] + bb[0]) / 2, mz = (a[1] + bb[1]) / 2, nx = -(bb[1] - a[1]), nz = bb[0] - a[0], l = Math.hypot(nx, nz) || 1;
+          if (!flo(li, mx + nx / l * 0.4, mz + nz / l * 0.4) && !flo(li, mx - nx / l * 0.4, mz - nz / l * 0.4)) delete m.lv[li].w[id]; }   // een hek boven een gat of vide zonder vloer ernaast
+        m.codes = modV2Codes(m); return m; },
     };
     return B;
   }
@@ -118,7 +126,7 @@
       for (let f = 0; f < floors; f++) { b.hex(f, 0, 0, 6.75, f ? 'wood' : 'tile'); b.ring(f, 0, 0, 6.75, mat, { open: f ? {} : { 0: 'door' }, win: 2 }); }
       if (roof === 'hip') b.roof(floors - 1, 0, 0, 'hip'); else b.hex(floors, 0, 0, 6.75, 'concrete');
       if (floors > 1) b.stairwell(floors, 0, 4.5, 3, 2, 1.2);
-      if (green) { b.obj(0, 'tree', -7.2, 3.2); b.obj(0, 'bush', 7.2, -3.4); b.cellRing(0, 0, 0, 'hedge', { sides: [1, 2, 3, 4, 5] }); } else { b.obj(0, 'lamp', 7.4, 3.6); b.obj(0, 'planter', -7.4, -3.4); }
+      if (green) { b.obj(0, 'tree', -7.2, 3.2); b.obj(0, 'bush', 5.4, 4.75); b.cellRing(0, 0, 0, 'hedge', { sides: [1, 2, 3, 4, 5] }); } else { b.obj(0, 'lamp', 7.4, 3.6); b.obj(0, 'planter', -7.4, -3.4); }
       add(b);
     };
     villa('Villa met tuin', 'plaster', 2, 'hip', true);
@@ -128,9 +136,9 @@
     villa('Tuinhuis', 'wood', 1, 'flat', true);
     { const b = libBuilder('Patiowoning', 'Wonen'); b.cell(0, 0, 0, 'tile').hex(0, 0, 0, 2.25, 'grass').cellRing(0, 0, 0, 'brick', { open: { 0: 'door' }, win: 2 }).ring(0, 0, 0, 2.25, 'glass', { open: { 3: 'door' } }); b.cell(1, 0, 0, 'concrete').hex(1, 0, 0, 2.25, null); b.obj(0, 'bush', 0, 0); add(b); }
     { const b = libBuilder('Woonerf 7 huizen', 'Wonen', 1); b.all(0, 'paver'); for (let q = -1; q <= 1; q++) for (let r = -1; r <= 1; r++) if (mv2HexDist(q, r) === 1) { const c = mv2CellXZ(q, r); for (let f = 0; f < 2; f++) { b.hex(f, c[0], c[1], 6.75, f ? 'wood' : 'tile'); b.ring(f, c[0], c[1], 6.75, f % 2 ? 'plaster' : 'brick', { open: f ? {} : { [sideTo(c[0], c[1])]: 'door' }, win: 2 }); } b.hex(2, c[0], c[1], 6.75, 'concrete'); b.stairwell(2, c[0], c[1] + 4.5, 3, 2, 1.2, c); } b.circle(0, 'tree', 0, 0, 5, 3).obj(0, 'bench', 0, 0); add(b); }
-    { const b = libBuilder('Hofje met 6 woningen', 'Wonen', 1); b.all(0, 'grass').cell(0, 0, 0, 'paver'); for (let q = -1; q <= 1; q++) for (let r = -1; r <= 1; r++) if (mv2HexDist(q, r) === 1) { b.cell(0, q, r, 'tile'); b.cellRing(0, q, r, 'brick', { open: { [sideTo(...mv2CellXZ(q, r))]: 'door' }, win: 2 }); b.cell(1, q, r, 'wood'); b.cellRing(1, q, r, 'brick', { win: 2 }); b.roof(1, q, r, 'hip'); const cc = mv2CellXZ(q, r); b.stairwell(2, cc[0], cc[1] + 6.75, 3, 3, 1.2, cc); } b.obj(0, 'fountain', 0, 0).circle(0, 'bench', 0, 0, 4.5, 3); add(b); }
+    { const b = libBuilder('Hofje met 6 woningen', 'Wonen', 1); b.all(0, 'grass').cell(0, 0, 0, 'paver'); for (let q = -1; q <= 1; q++) for (let r = -1; r <= 1; r++) if (mv2HexDist(q, r) === 1) { b.cell(0, q, r, 'tile'); b.cellRing(0, q, r, 'brick', { open: { [sideTo(...mv2CellXZ(q, r))]: 'door', [(sideTo(...mv2CellXZ(q, r)) + 3) % 6]: 'door' }, win: 2 }); b.cell(1, q, r, 'wood'); b.cellRing(1, q, r, 'brick', { win: 2 }); b.roof(1, q, r, 'hip'); const cc = mv2CellXZ(q, r); b.stairwell(2, cc[0], cc[1] + 6.75, 3, 3, 1.2, cc); } b.obj(0, 'fountain', 0, 0).circle(0, 'bench', 0, 0, 4.5, 3); add(b); }
     // ---------- Werken ----------
-    const office = (name, mat, floors) => { const b = libBuilder(name, 'Werken'); for (let f = 0; f < floors; f++) { b.cell(f, 0, 0, f ? 'carpet' : 'tile'); b.cellRing(f, 0, 0, mat, { open: f ? {} : { 0: 'door' }, win: WIN[mat] || 1 }); } b.cell(floors, 0, 0, 'concrete'); if (floors > 1) b.stairwell(floors, 0, 6.75, 3, 3, 1.5); b.obj(0, 'lamp', 7.3, -3.6).obj(0, 'bike', 6.5, 4.2, Math.PI / 6); add(b); };
+    const office = (name, mat, floors) => { const b = libBuilder(name, 'Werken'); for (let f = 0; f < floors; f++) { b.cell(f, 0, 0, f ? 'carpet' : 'tile'); b.cellRing(f, 0, 0, mat, { open: f ? {} : { 0: 'door' }, win: WIN[mat] || 1 }); } b.cell(floors, 0, 0, 'concrete'); if (floors > 1) b.stairwell(floors, 0, 6.75, 3, 3, 1.5); add(b); };
     office('Kantoor glas 3 lagen', 'glass', 3);
     office('Kantoor glas 5 lagen', 'glass', 5);
     office('Kantoor beton 4 lagen', 'concrete', 4);
@@ -138,32 +146,40 @@
     office('Kantoortoren 7 lagen', 'glass', 7);
     { const b = libBuilder('Werkplaats', 'Werken'); b.cell(0, 0, 0, 'concrete').cellRing(0, 0, 0, 'concrete', { open: { 0: 'gate', 3: 'door' }, win: 4 }).cell(1, 0, 0, 'concrete'); add(b); }
     { const b = libBuilder('Bedrijfshal', 'Werken', 1); b.all(0, 'concrete'); b.ring(0, 0, 0, 15.75, 'concrete', { open: { 0: 'gate', 3: 'gate' }, win: 5 }); b.hex(1, 0, 0, 15.75, 'concrete'); add(b); }
-    { const b = libBuilder('Fabriek met schoorsteen', 'Werken', 1); b.all(0, 'asphalt'); b.ring(0, 0, 0, 15.75, 'brick', { open: { 0: 'gate' }, win: 3 }); b.hex(1, 0, 0, 15.75, 'concrete'); b.ring(1, 0, 0, 15.75, 'brick', { win: 2 }); b.hex(2, 0, 0, 15.75, 'concrete'); b.stairwell(2, 0, 11.25, 3, 3, 1.5); b.obj(2, 'pillar', 12, 0); b.obj(0, 'bike', -18, 0); add(b); }
+    { const b = libBuilder('Fabriek met schoorsteen', 'Werken', 1); b.all(0, 'asphalt'); b.ring(0, 0, 0, 15.75, 'brick', { open: { 0: 'gate' }, win: 3 }); b.hex(1, 0, 0, 15.75, 'concrete'); b.ring(1, 0, 0, 15.75, 'brick', { win: 2 }); b.hex(2, 0, 0, 15.75, 'concrete'); b.stairwell(2, 0, 11.25, 3, 3, 1.5); b.obj(0, 'bike', -18, 0); add(b); }
     { const b = libBuilder('Parkeergarage 2 lagen', 'Werken'); b.cell(0, 0, 0, 'asphalt').cell(1, 0, 0, 'asphalt').hex(1, 0, 0, 2.25, null); b.cellRing(0, 0, 0, 'concrete', { open: { 0: 'open', 3: 'open' }, sides: [1, 2, 4, 5] }).line(0, -3.9, -2.25, 1, 2, 'concrete').line(0, 3.9, -2.25, 1, 2, 'concrete'); b.stair(0, -1.95, -3.375, 1, 3, 2, 'ramp'); b.ring(1, 0, 0, 9, 'fence'); b.circle(0, 'pillar', 0, 0, 5.5, 6, Math.PI / 6); add(b); }
     { const b = libBuilder('Loods open', 'Werken'); b.cell(0, 0, 0, 'concrete').circle(0, 'pillar', 0, 0, 7.5, 6, Math.PI / 6).cell(1, 0, 0, 'concrete'); add(b); }
     // ---------- Winkels: glazen pui aan zijde 0 ----------
-    const shop = (name, floors, mat, opts = {}) => { const b = libBuilder(name, 'Winkels'); b.cell(0, 0, 0, 'tile'); b.cellRing(0, 0, 0, mat, { sides: [1, 2, 3, 4, 5], win: 3 }).cellRing(0, 0, 0, 'glass', { sides: [0], open: { 0: 'door' } }); for (let f = 1; f < floors; f++) { b.cell(f, 0, 0, 'wood'); b.cellRing(f, 0, 0, mat, { win: 2 }); } if (opts.hip) b.roof(floors - 1, 0, 0, 'hip'); else b.cell(floors, 0, 0, 'concrete'); if (floors > 1) b.stairwell(floors, 0, 6.75, 3, 3, 1.2); for (const o of opts.obj || []) b.obj(...o); add(b); };
+    const shop = (name, floors, mat, opts = {}) => {
+      const b = libBuilder(name, 'Winkels'), rad = opts.core ? 6.75 : 9, rg = (li, mt, o) => opts.core ? b.ring(li, 0, 0, rad, mt, o) : b.cellRing(li, 0, 0, mt, o), fl = (li, mt) => opts.core ? b.hex(li, 0, 0, rad, mt) : b.cell(li, 0, 0, mt);
+      if (opts.core) b.cell(0, 0, 0, 'paver');   // terras / stoep rondom
+      fl(0, 'tile'); rg(0, mat, { sides: [1, 2, 3, 4, 5], win: 3 }); rg(0, 'glass', { sides: [0], open: { 0: 'door' } });
+      for (let f = 1; f < floors; f++) { fl(f, 'wood'); rg(f, mat, { win: 2 }); }
+      if (opts.hip) b.roof(floors - 1, 0, 0, 'hip'); else fl(floors, 'concrete');
+      if (floors > 1) b.stairwell(floors, 0, rad * 0.75, 3, 3, 1.2);
+      for (const o of opts.obj || []) b.obj(...o); add(b); };
     shop('Winkel met etalage', 2, 'brick', { hip: true });
     shop('Winkel met bovenwoning', 3, 'plaster', { hip: true });
-    shop('Boetiek', 1, 'stone', { obj: [[0, 'planter', 7.6, 3.2], [0, 'planter', 7.6, -3.2]] });
-    shop('Café met terras', 2, 'brick', { hip: true, obj: [[0, 'table', 9.5, 3.5], [0, 'table', 9.5, -3.5], [0, 'lamp', 10.5, 0]] });
-    shop('Restaurant', 2, 'plaster', { obj: [[0, 'table', 9.5, 2.5], [0, 'table', 9.5, -2.5], [0, 'planter', 10.5, 5.2], [0, 'planter', 10.5, -5.2]] });
-    shop('Bakkerij', 2, 'wood', { hip: true, obj: [[0, 'bench', 9.5, 3, Math.PI / 2]] });
-    shop('Hotel 4 lagen', 4, 'stone', { obj: [[0, 'lamp', 9, 4], [0, 'lamp', 9, -4]] });
+    shop('Boetiek', 1, 'stone', { obj: [[0, 'planter', 2.6, 5.4], [0, 'planter', 5.6, 1.2]] });
+    shop('Café met terras', 2, 'brick', { core: true, obj: [[0, 'table', 1.4, 7.6], [0, 'table', 5.6, 5.2], [0, 'lamp', 7.2, 3.2], [0, 'planter', -1.6, 7.6]] });
+    shop('Restaurant', 2, 'plaster', { core: true, obj: [[0, 'table', 1.4, 7.6], [0, 'table', 5.6, 5.2], [0, 'planter', 7.6, 1.6], [0, 'planter', -1.6, 7.6]] });
+    shop('Bakkerij', 2, 'wood', { hip: true });
+    shop('Hotel 4 lagen', 4, 'stone');
     { const b = libBuilder('Supermarkt', 'Winkels', 1); b.all(0, 'asphalt'); b.ring(0, 0, 0, 15.75, 'concrete', { sides: [1, 2, 3, 4, 5], win: 6 }).ring(0, 0, 0, 15.75, 'glass', { sides: [0], open: { 0: 'gate' } }); b.hex(1, 0, 0, 15.75, 'concrete'); b.obj(0, 'bike', 18, 6, Math.PI / 6).obj(0, 'bike', 18, -6, Math.PI / 6).obj(0, 'bin', 18.5, 0); add(b); }
     { const b = libBuilder('Markthal', 'Winkels', 1); b.all(0, 'paver'); b.circle(0, 'pillar', 0, 0, 12, 12); b.hex(1, 0, 0, 15.75, 'concrete'); for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; b.obj(0, 'table', Math.cos(a) * 7, Math.sin(a) * 7, a); } add(b); }
     { const b = libBuilder('Kiosk', 'Winkels'); b.cell(0, 0, 0, 'paver').hex(0, 0, 0, 2.25, 'tile').ring(0, 0, 0, 2.25, 'wood', { open: { 0: 'window', 3: 'door' } }).hex(1, 0, 0, 2.25, 'concrete').obj(0, 'bench', -5.5, 0, Math.PI / 2).obj(0, 'bin', 4.5, 3); add(b); }
-    { const b = libBuilder('Winkelpassage', 'Winkels'); b.cell(0, 0, 0, 'tile').cellRing(0, 0, 0, 'glass', { sides: [1, 2, 4, 5], win: 0 }).cellRing(0, 0, 0, 'glass', { sides: [0, 3], open: { 0: 'gate', 3: 'gate' } }).cell(1, 0, 0, 'wood').cellRing(1, 0, 0, 'plaster', { win: 2 }).cell(2, 0, 0, 'concrete'); add(b); }
+    { const b = libBuilder('Winkelpassage', 'Winkels'); b.cell(0, 0, 0, 'tile').cellRing(0, 0, 0, 'glass', { sides: [1, 2, 4, 5], win: 0 }).cellRing(0, 0, 0, 'glass', { sides: [0, 3], open: { 0: 'gate', 3: 'gate' } }).cell(1, 0, 0, 'wood').cellRing(1, 0, 0, 'plaster', { win: 2 }).cell(2, 0, 0, 'concrete').stairwell(2, 0, 6.75, 3, 3, 1.2); add(b); }
     // ---------- Openbaar ----------
     { const b = libBuilder('Basisschool', 'Openbaar', 1); b.all(0, 'paver'); b.hex(0, 0, 0, 15.75, 'tile'); b.ring(0, 0, 0, 15.75, 'brick', { open: { 0: 'door' }, win: 2 }); b.hex(1, 0, 0, 15.75, 'carpet'); b.ring(1, 0, 0, 15.75, 'brick', { win: 2 }); b.hex(2, 0, 0, 15.75, 'concrete'); b.stairwell(2, 0, 11.25, 3, 3, 2); b.obj(0, 'bike', 19, 4, Math.PI / 6).obj(0, 'tree', -19, 4).obj(0, 'bench', -18, -6); add(b); }
-    { const b = libBuilder('Bibliotheek', 'Openbaar'); b.cell(0, 0, 0, 'wood').cellRing(0, 0, 0, 'glass', { open: { 0: 'door' } }).cell(1, 0, 0, 'wood').cellRing(1, 0, 0, 'stone', { win: 2 }).cell(2, 0, 0, 'concrete').stairwell(2, 0, 6.75, 3, 3, 1.2).obj(0, 'bench', 9.5, 3, Math.PI / 2); add(b); }
-    { const b = libBuilder('Gemeentehuis', 'Openbaar', 1); b.all(0, 'paver'); for (let f = 0; f < 3; f++) { b.hex(f, 0, 0, 15.75, f ? 'carpet' : 'tile'); b.ring(f, 0, 0, 15.75, 'stone', { open: f ? {} : { 0: 'gate' }, win: 2 }); } b.hex(3, 0, 0, 15.75, 'concrete'); b.stairwell(3, 0, 11.25, 3, 3, 2); b.circle(0, 'lamp', 0, 0, 19, 6, Math.PI / 6); b.obj(0, 'fountain', 19.5, 0); add(b); }
-    { const b = libBuilder('Kerk met toren', 'Openbaar'); b.cell(0, 0, 0, 'tile').cellRing(0, 0, 0, 'stone', { open: { 0: 'gate' }, win: 2 }).cell(1, 0, 0, null).cellRing(1, 0, 0, 'stone', { win: 2 }).roof(1, 0, 0, 'hip'); for (let f = 0; f < 6; f++) { b.hex(f, 7.8, 0, 2.25, f ? 'wood' : 'tile'); b.ring(f, 7.8, 0, 2.25, 'stone', { win: f > 1 ? 1 : 0 }); } b.hex(6, 7.8, 0, 2.25, 'concrete'); add(b); }
+    { const b = libBuilder('Bibliotheek', 'Openbaar'); b.cell(0, 0, 0, 'wood').cellRing(0, 0, 0, 'glass', { open: { 0: 'door' } }).cell(1, 0, 0, 'wood').cellRing(1, 0, 0, 'stone', { win: 2 }).cell(2, 0, 0, 'concrete').stairwell(2, 0, 6.75, 3, 3, 1.2).obj(0, 'bench', 3.4, -4.6, Math.PI / 3).obj(0, 'shelf', -4.4, -2.2, Math.PI / 2).obj(0, 'shelf', -4.4, 2.2, Math.PI / 2); add(b); }
+    { const b = libBuilder('Gemeentehuis', 'Openbaar', 1); b.all(0, 'paver'); for (let f = 0; f < 3; f++) { b.hex(f, 0, 0, 15.75, f ? 'carpet' : 'tile'); b.ring(f, 0, 0, 15.75, 'stone', { open: f ? {} : { 0: 'gate' }, win: 2 }); } b.hex(3, 0, 0, 15.75, 'concrete'); b.stairwell(3, 0, 11.25, 3, 3, 2); for (let i = 1; i < 6; i++) b.obj(0, 'lamp', Math.cos(i * Math.PI / 3) * 19, Math.sin(i * Math.PI / 3) * 19); b.obj(0, 'fountain', 19.5, 0).obj(0, 'lamp', 18.5, 3.6).obj(0, 'lamp', 18.5, -3.6); add(b); }
+    { const b = libBuilder('Kerk met toren', 'Openbaar'); b.cell(0, 0, 0, 'tile').cellRing(0, 0, 0, 'stone', { open: { 0: 'gate' }, win: 2 }).cell(1, 0, 0, null).cellRing(1, 0, 0, 'stone', { win: 2 }).roof(1, 0, 0, 'hip'); const TX = -3.897; for (let f = 0; f < 6; f++) { b.hex(f, TX, 0, 2.25, f ? 'wood' : 'tile'); b.ring(f, TX, 0, 2.25, 'stone', { win: f > 1 ? 1 : 0, open: f ? {} : { 5: 'door' } }); } b.hex(6, TX, 0, 2.25, 'concrete'); b.ring(6, TX, 0, 2.25, 'fence');   // toren binnen het vak, achterin het schip
+      for (let f = 0; f < 6; f++) b.stairUp(f, TX, 0, 0, 1, 1.5, 'spiral'); add(b); }
     { const b = libBuilder('Ziekenhuis', 'Openbaar', 1); b.all(0, 'asphalt'); for (let f = 0; f < 4; f++) { b.hex(f, 0, 0, 15.75, f ? 'carpet' : 'tile'); b.ring(f, 0, 0, 15.75, 'plaster', { open: f ? {} : { 0: 'gate', 3: 'door' }, win: 1 }); } b.hex(4, 0, 0, 15.75, 'concrete'); b.stairwell(4, 0, 11.25, 3, 3, 2); b.obj(0, 'lamp', 19, 3).obj(0, 'lamp', 19, -3); add(b); }
     { const b = libBuilder('Museum', 'Openbaar', 1); b.all(0, 'paver'); b.hex(0, 0, 0, 15.75, 'tile'); b.ring(0, 0, 0, 15.75, 'concrete', { open: { 0: 'gate' }, win: 0 }); b.hex(1, 0, 0, 15.75, 'tile'); b.ring(1, 0, 0, 15.75, 'glass'); b.hex(2, 0, 0, 15.75, 'concrete'); b.stairwell(2, 0, 11.25, 3, 3, 2); b.circle(0, 'pillar', 0, 0, 18, 6); add(b); }
     { const b = libBuilder('Sporthal', 'Openbaar', 1); b.all(0, 'asphalt'); b.ring(0, 0, 0, 15.75, 'concrete', { open: { 0: 'gate' }, win: 0 }); b.ring(1, 0, 0, 15.75, 'concrete', { win: 1 }); b.hex(2, 0, 0, 15.75, 'concrete'); b.hex(0, 0, 0, 15.75, 'wood'); b.obj(0, 'bike', 19, 0, Math.PI / 2); add(b); }
-    { const b = libBuilder('Brandweerkazerne', 'Openbaar'); b.cell(0, 0, 0, 'concrete').cellRing(0, 0, 0, 'brick', { open: { 0: [['gate', 0], ['gate', 3]] }, win: 3 }).cell(1, 0, 0, 'carpet').cellRing(1, 0, 0, 'brick', { win: 2 }).cell(2, 0, 0, 'concrete'); add(b); }
-    { const b = libBuilder('Politiebureau', 'Openbaar'); b.cell(0, 0, 0, 'tile').cellRing(0, 0, 0, 'concrete', { open: { 0: 'door' }, win: 2 }).cell(1, 0, 0, 'carpet').cellRing(1, 0, 0, 'glass').cell(2, 0, 0, 'concrete').stairwell(2, 0, 6.75, 3, 3, 1.2).obj(0, 'lamp', 9.5, 2.5).obj(0, 'lamp', 9.5, -2.5); add(b); }
+    { const b = libBuilder('Brandweerkazerne', 'Openbaar'); b.cell(0, 0, 0, 'concrete').cellRing(0, 0, 0, 'brick', { open: { 0: [['gate', 0], ['gate', 3]] }, win: 3 }).cell(1, 0, 0, 'carpet').cellRing(1, 0, 0, 'brick', { win: 2 }).cell(2, 0, 0, 'concrete').stairwell(2, 0, -6.75, 0, 3, 1.2); add(b); }
+    { const b = libBuilder('Politiebureau', 'Openbaar'); b.cell(0, 0, 0, 'tile').cellRing(0, 0, 0, 'concrete', { open: { 0: 'door' }, win: 2 }).cell(1, 0, 0, 'carpet').cellRing(1, 0, 0, 'glass').cell(2, 0, 0, 'concrete').stairwell(2, 0, 6.75, 3, 3, 1.2); add(b); }
     { const b = libBuilder('Busstation', 'Openbaar'); b.cell(0, 0, 0, 'asphalt').hex(0, 0, 0, 4.5, 'tile').circle(0, 'pillar', 0, 0, 3.9, 6).hex(1, 0, 0, 4.5, 'concrete').obj(0, 'bench', 0, 0).obj(0, 'bin', 2, 2.5).obj(0, 'lamp', -2, -2.5); add(b); }
     { const b = libBuilder('Station', 'Openbaar', 1); b.all(0, 'tile'); b.hex(0, 0, 0, 15.75, 'tile'); b.ring(0, 0, 0, 15.75, 'glass', { open: { 0: 'gate', 3: 'gate' } }); b.hex(1, 0, 0, 15.75, 'concrete'); b.circle(0, 'pillar', 0, 0, 13, 12); b.circle(0, 'bench', 0, 0, 8, 6); b.obj(0, 'bike', 18, 6, Math.PI / 6).obj(0, 'bike', 18, -6, Math.PI / 6); add(b); }
     // ---------- Groen ----------
@@ -184,38 +200,38 @@
     { const b = libBuilder('Plein', 'Pleinen'); b.cell(0, 0, 0, 'paver').circle(0, 'lamp', 0, 0, 7, 3, Math.PI / 6).circle(0, 'bench', 0, 0, 4, 3).obj(0, 'bin', 5, 3); add(b); }
     { const b = libBuilder('Plein met fontein', 'Pleinen'); b.cell(0, 0, 0, 'paver').obj(0, 'fountain', 0, 0).circle(0, 'bench', 0, 0, 4.5, 6).circle(0, 'tree', 0, 0, 7.2, 3, Math.PI / 2); add(b); }
     { const b = libBuilder('Terras', 'Pleinen'); b.cell(0, 0, 0, 'tile'); for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; b.obj(0, 'table', Math.cos(a) * 4.5, Math.sin(a) * 4.5, a); } b.obj(0, 'table', 0, 0).circle(0, 'planter', 0, 0, 7.5, 6, Math.PI / 6); add(b); }
-    { const b = libBuilder('Markt', 'Pleinen', 1); b.all(0, 'paver'); for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6, rr = i % 2 ? 9 : 16; b.obj(0, 'table', Math.cos(a) * rr, Math.sin(a) * rr, a); } b.obj(0, 'fountain', 0, 0).circle(0, 'lamp', 0, 0, 21, 6, Math.PI / 6); add(b); }
+    { const b = libBuilder('Markt', 'Pleinen', 1); b.all(0, 'paver'); for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6, rr = i % 2 ? 9 : 16; b.obj(0, 'table', Math.cos(a) * rr, Math.sin(a) * rr, a); } b.obj(0, 'fountain', 0, 0).circle(0, 'lamp', 0, 0, 20.5, 6, 0); add(b); }
     { const b = libBuilder('Parkeerplaats', 'Pleinen'); b.cell(0, 0, 0, 'asphalt').obj(0, 'lamp', 0, 0).obj(0, 'bin', 6, 3).line(0, -3.897, -6.75, 1, 6, 'hedge'); add(b); }
     { const b = libBuilder('Parkeerterrein', 'Pleinen', 1); b.all(0, 'asphalt').cell(0, 0, 0, 'grass').obj(0, 'tree', 0, 0).circle(0, 'lamp', 0, 0, 15.6, 6); add(b); }
     { const b = libBuilder('Fietsenstalling', 'Pleinen'); b.cell(0, 0, 0, 'tile'); for (let i = -2; i <= 2; i++) b.obj(0, 'bike', i * 2.6, 2.5).obj(0, 'bike', i * 2.6, -2.5); b.circle(0, 'pillar', 0, 0, 6, 6).cell(1, 0, 0, 'concrete'); add(b); }
     { const b = libBuilder('Kade', 'Pleinen'); b.cell(0, 0, 0, 'paver'); b.m.lv[0].f = Object.fromEntries(Object.entries(b.m.lv[0].f).filter(([id]) => { const [i, j, t] = id.split(',').map(Number), v = mv2TriVerts(i, j, t, R / 4); return (v[0][1] + v[1][1] + v[2][1]) / 3 > 0; })); b.hex(0, 0, -20, 23.5, 'water'); b.obj(0, 'bench', -4, 3, 0).obj(0, 'lamp', 4, 3).obj(0, 'bin', 0, 4.5); add(b); }
-    { const b = libBuilder('Stadsplein', 'Pleinen', 1); b.all(0, 'paver'); b.hex(0, 0, 0, 6.75, 'tile'); b.obj(0, 'fountain', 0, 0); b.circle(0, 'tree', 0, 0, 13, 6); b.circle(0, 'bench', 0, 0, 9, 6, Math.PI / 6); b.circle(0, 'lamp', 0, 0, 19, 6, Math.PI / 6); add(b); }
+    { const b = libBuilder('Stadsplein', 'Pleinen', 1); b.all(0, 'paver'); b.hex(0, 0, 0, 6.75, 'tile'); b.obj(0, 'fountain', 0, 0); b.circle(0, 'tree', 0, 0, 13, 6); b.circle(0, 'bench', 0, 0, 9, 6, Math.PI / 6); b.circle(0, 'lamp', 0, 0, 19, 6, 0); add(b); }
     { const b = libBuilder('Pleintje met kiosk', 'Pleinen'); b.cell(0, 0, 0, 'paver').hex(0, 4.5, 0, 2.25, 'tile').ring(0, 4.5, 0, 2.25, 'wood', { open: { 3: 'window', 0: 'door' } }).hex(1, 4.5, 0, 2.25, 'concrete').obj(0, 'bench', -4, 2, 0).obj(0, 'bench', -4, -2, 0).obj(0, 'lamp', -1, 5); add(b); }
     { const b = libBuilder('Zitkuil', 'Pleinen'); b.cell(0, 0, 0, 'paver').hex(0, 0, 0, 4.5, 'grass').circle(0, 'bench', 0, 0, 3, 6).obj(0, 'tree', 0, 0); add(b); }
     { const b = libBuilder('Leeg plein', 'Pleinen'); b.cell(0, 0, 0, 'paver'); add(b); }
     // ---------- Trappen en hoogte ----------
     { const b = libBuilder('Trap naar terras', 'Verbindingen'); b.cell(0, 0, 0, 'tile').cell(1, 0, 0, 'tile'); b.stairUp(0, -7.794, 0, 0, 4, 2); b.ring(1, 0, 0, 9, 'fence'); add(b); }
-    { const b = libBuilder('Helling naar terras', 'Verbindingen'); b.cell(0, 0, 0, 'tile').cell(1, 0, 0, 'tile').hex(1, -4.5, 0, 2.25, null); b.stair(0, -7.794, 0, 0, 4, 2, 'ramp'); b.ring(1, 0, 0, 9, 'fence'); add(b); }
+    { const b = libBuilder('Helling naar terras', 'Verbindingen'); b.cell(0, 0, 0, 'tile').cell(1, 0, 0, 'tile'); b.stairUp(0, -7.794, 0, 0, 4, 2, 'ramp'); b.ring(1, 0, 0, 9, 'fence'); add(b); }
     { const b = libBuilder('Trappenhuis 3 lagen', 'Verbindingen'); for (let f = 0; f < 3; f++) { b.cell(f, 0, 0, 'concrete'); if (f) b.hex(f, 0, 0, 2.25, null); b.cellRing(f, 0, 0, 'concrete', { open: f ? {} : { 0: 'door' }, win: 2 }); if (f < 2) b.stair(f, -3.897, 2.25, 5, 3, 1.5); } b.cell(3, 0, 0, 'concrete'); add(b); }
-    { const b = libBuilder('Tribune', 'Verbindingen'); b.cell(0, 0, 0, 'concrete'); for (const lat of [-3, 0, 3]) b.stair(0, -7.794, lat, 0, 5, 3); b.cell(1, 0, 0, null); add(b); }
+    { const b = libBuilder('Tribune', 'Verbindingen'); b.cell(0, 0, 0, 'concrete'); for (const lat of [-3, 0, 3]) b.stair(0, -7.794, lat, 0, 5, 3, 'trib'); b.cell(1, 0, 0, null); add(b); }
     { const b = libBuilder('Terras op hoogte', 'Verbindingen'); b.cell(0, 0, 0, 'paver').cell(1, 0, 0, 'wood').ring(1, 0, 0, 9, 'fence').circle(0, 'pillar', 0, 0, 7, 6, Math.PI / 6).circle(1, 'table', 0, 0, 4, 3, Math.PI / 2); b.stairUp(0, -0.25, 3.375, 5, 3, 1.5); add(b); }   // de trap komt onder het terras vandaan en eindigt in het gat
     { const b = libBuilder('Uitkijktoren', 'Verbindingen'); for (let f = 0; f < 4; f++) { b.hex(f, 0, 0, 4.5, 'wood'); if (f) b.hex(f, 0, 0, 2.25, null); b.ring(f, 0, 0, 4.5, f < 3 ? 'wood' : 'fence', { open: f ? {} : { 0: 'door' }, win: f ? 1 : 0 }); if (f < 3) b.stair(f, -1.95, 1.125, 5, 2, 1.2); } b.cell(0, 0, 0, 'grass'); b.hex(0, 0, 0, 4.5, 'wood'); add(b); }
-    { const b = libBuilder('Amfitheater', 'Verbindingen', 1); b.all(0, 'paver'); b.hex(0, 0, 0, 6.75, 'tile'); for (let d = 0; d < 6; d++) { const a = (30 + 60 * d) * Math.PI / 180; b.stair(0, Math.cos(a) * 6.75, Math.sin(a) * 6.75, d, 4, 4); } b.hex(1, 0, 0, 20, 'concrete'); b.hex(1, 0, 0, 15.75, null); b.obj(0, 'fountain', 0, 0); add(b); }
-    { const b = libBuilder('Brug (verhoogd pad)', 'Verbindingen'); b.cell(0, 0, 0, 'grass').cell(1, 0, 0, 'wood').ring(1, 0, 0, 9, 'fence'); b.stairUp(0, -7.794, 0, 0, 3, 3, 'ramp'); b.stairUp(0, 7.794, 0, 3, 3, 3, 'ramp'); add(b); }   // verhoogd dek met twee hellingen
+    { const b = libBuilder('Amfitheater', 'Verbindingen', 1); b.all(0, 'paver'); b.hex(0, 0, 0, 6.75, 'tile'); for (let d = 0; d < 6; d++) { const a = (30 + 60 * d) * Math.PI / 180; b.stair(0, Math.cos(a) * 6.75, Math.sin(a) * 6.75, d, 4, 4, 'trib'); } b.hex(1, 0, 0, 20, 'concrete'); b.hex(1, 0, 0, 15.75, null); b.obj(0, 'fountain', 0, 0); add(b); }
+    { const b = libBuilder('Brug (verhoogd pad)', 'Verbindingen'); b.cell(0, 0, 0, 'grass').cell(1, 0, 0, 'wood').ring(1, 0, 0, 9, 'fence'); for (const [x, z, d] of [[7.794, -4.5, 1], [-7.794, 4.5, 4]]) { const S = { a: [0, 0], d, n: 3, w: 1.95, k: 'ramp', off: 0.975 }; S.a = (() => { const ts = 2.25, fi = x / (ts * SQ3 / 2), fj = z / ts - fi / 2; return [Math.round(fi), Math.round(fj)]; })(); b.m.lv[0].s.push(S); } add(b); }   // verhoogd dek met twee hellingen langs de rand (evenwijdig aan de zijden van het vak)
     // ---------- Bouwdelen ----------
     { const b = libBuilder('Blok', 'Bouwdelen'); b.cell(0, 0, 0, 'concrete').cellRing(0, 0, 0, 'concrete').cell(1, 0, 0, 'concrete'); add(b); }
     { const b = libBuilder('Blok 2 hoog', 'Bouwdelen'); for (let f = 0; f < 2; f++) { b.cell(f, 0, 0, 'concrete').cellRing(f, 0, 0, 'concrete'); } b.cell(2, 0, 0, 'concrete'); add(b); }
     { const b = libBuilder('Muur recht', 'Bouwdelen'); b.cell(0, 0, 0, 'grass').line(0, 0, -9, 1, 8, 'brick'); add(b); }
     { const b = libBuilder('Muur halve zeshoek', 'Bouwdelen'); b.cell(0, 0, 0, 'grass').cellRing(0, 0, 0, 'brick', { sides: [1, 2, 3] }); add(b); }
     { const b = libBuilder('Zuilengalerij', 'Bouwdelen'); b.cell(0, 0, 0, 'tile').circle(0, 'pillar', 0, 0, 7.4, 6, Math.PI / 6).cell(1, 0, 0, 'concrete'); add(b); }
-    { const b = libBuilder('Poort', 'Bouwdelen'); b.cell(0, 0, 0, 'paver').cellRing(0, 0, 0, 'stone', { sides: [1, 2, 4, 5], win: 0 }).cell(1, 0, 0, 'concrete').cellRing(1, 0, 0, 'stone', { sides: [1, 2, 4, 5] }).cell(2, 0, 0, 'concrete'); add(b); }
+    { const b = libBuilder('Poort', 'Bouwdelen'); b.cell(0, 0, 0, 'paver').cellRing(0, 0, 0, 'stone', { sides: [1, 2, 4, 5], win: 0 }).cell(1, 0, 0, 'wood').cellRing(1, 0, 0, 'stone', { win: 2 }).cell(2, 0, 0, 'concrete').stairUp(0, 0, 4.5, 0, 1, 1.5, 'spiral'); add(b); }
     { const b = libBuilder('Tunnel', 'Bouwdelen'); b.cell(0, 0, 0, 'paver').cellRing(0, 0, 0, 'concrete', { sides: [1, 2, 4, 5], win: 0 }).cell(1, 0, 0, 'concrete'); add(b); }
     { const b = libBuilder('Hek rondom', 'Bouwdelen'); b.cell(0, 0, 0, 'grass').cellRing(0, 0, 0, 'fence', { open: { 0: 'door' } }); add(b); }
     { const b = libBuilder('Haag rondom', 'Bouwdelen'); b.cell(0, 0, 0, 'grass').cellRing(0, 0, 0, 'hedge', { open: { 0: 'open' } }); add(b); }
     { const b = libBuilder('Overkapping', 'Bouwdelen'); b.cell(0, 0, 0, 'paver').circle(0, 'pillar', 0, 0, 5, 3, Math.PI / 2).hex(1, 0, 0, 6.75, 'concrete'); add(b); }
     { const b = libBuilder('Toren rond 6 lagen', 'Bouwdelen'); for (let f = 0; f < 6; f++) { b.hex(f, 0, 0, 4.5, f ? 'wood' : 'tile'); b.ring(f, 0, 0, 4.5, 'stone', { open: f ? {} : { 0: 'door' }, win: 2 }); } b.hex(6, 0, 0, 4.5, 'concrete'); b.ring(6, 0, 0, 4.5, 'stone'); b.cell(0, 0, 0, 'grass'); b.hex(0, 0, 0, 4.5, 'tile'); b.stairwell(7, 0, 2.0, 3, 1, 1.0); add(b); }
     { const b = libBuilder('Hof met muren', 'Bouwdelen'); b.cell(0, 0, 0, 'paver').cellRing(0, 0, 0, 'brick', { open: { 0: 'gate', 3: 'gate' } }).obj(0, 'tree', 0, 0).circle(0, 'bench', 0, 0, 3.5, 3); add(b); }
-    { const b = libBuilder('Tribune klein', 'Bouwdelen'); b.cell(0, 0, 0, 'concrete').stair(0, -3.897, -2.25, 0, 3, 3).stair(0, -3.897, 2.25, 0, 3, 3); add(b); }
+    { const b = libBuilder('Tribune klein', 'Bouwdelen'); b.cell(0, 0, 0, 'concrete').stair(0, -3.897, -2.25, 0, 3, 3, 'trib').stair(0, -3.897, 2.25, 0, 3, 3, 'trib'); add(b); }
     { const b = libBuilder('Pergola', 'Bouwdelen'); b.cell(0, 0, 0, 'grass').hex(0, 0, 0, 4.5, 'paver').circle(0, 'pillar', 0, 0, 4, 6).hex(1, 0, 0, 4.5, 'concrete').obj(0, 'bench', 0, 0); add(b); }
     { const b = libBuilder('Waterbekken', 'Bouwdelen'); b.cell(0, 0, 0, 'tile').hex(0, 0, 0, 6.75, 'water').ring(0, 0, 0, 6.75, 'fence'); add(b); }
     { const b = libBuilder('Vlak beton', 'Bouwdelen'); b.cell(0, 0, 0, 'concrete'); add(b); }
@@ -240,30 +256,30 @@
     { // halfblok: de helft van het vak langs de lange diagonaal; de diagonaal is een glazen pui naar de passage
       const b = libBuilder('Winkelcentrum · café · half', WC), u = [Math.cos(Math.PI / 6), Math.sin(Math.PI / 6)], side = (x, z) => u[0] * z - u[1] * x > 0.01;   // de helft aan de +z-kant van de diagonaal (hoek 210° → 30°)
       b.where(0, side, 'stonetile'); b.cellRing(0, 0, 0, 'panel', { sides: [3, 4, 5].map(rs), open: { [rs(4)]: [['door', 1], ['door', 2]] } }); b.line(0, -INNER, -4.5, 0, 8, 'curtain', i => (i === 3 || i === 4 ? 'open' : ''));
-      b.obj(0, 'counter', -4.6, 5.2, Math.PI / 6 + Math.PI / 2).obj(0, 'table', 0.8, 5.2).obj(0, 'table', -3.2, 2.6).obj(0, 'table', 3.6, 3.4).obj(0, 'planter', -6.2, 2.5).obj(0, 'sign', 1, 2);
+      b.obj(0, 'counter', -4.1, 4.5, Math.PI / 6 + Math.PI / 2).obj(0, 'table', 0.8, 5.2).obj(0, 'table', -3.2, 2.6).obj(0, 'table', 3.6, 3.4).obj(0, 'planter', -6.2, 2.5).obj(0, 'sign', 1, 2);
       b.where(1, side, 'roof'); add(b); }
     { // afgesneden: zijde 1 is tot halverwege teruggezet; de schuine pui is de ingang (bijvoorbeeld aan een passage of plein)
       const b = libBuilder('Winkelcentrum · winkel · afgesneden', WC), n1 = nrm(1), keep = (x, z) => x * n1[0] + z * n1[1] <= INNER / 2 + 0.01;
       b.where(0, keep, 'polished'); b.cellRing(0, 0, 0, 'panel', { sides: [3, 4, 5].map(rs) }); b.line(0, INNER, 0, 1, 2, 'panel'); b.line(0, -INNER, -4.5, 5, 2, 'panel');
       b.line(0, -INNER / 2, -6.75, 0, 6, 'curtain', i => (i === 2 || i === 3 ? 'open' : ''));
-      b.obj(0, 'shelf', -4, 2.4, Math.PI / 2).obj(0, 'shelf', -4, 5.4, Math.PI / 2).obj(0, 'shelf', -1, 5.8, 0).obj(0, 'counter', 4.2, 3.4, Math.PI / 2).obj(0, 'sign', 2.2, -3.2).obj(0, 'planter', -6.2, -1.5);
+      b.obj(0, 'shelf', -4, 2.2, Math.PI / 2).obj(0, 'shelf', -3.4, 4.9, Math.PI / 2).obj(0, 'shelf', -1, 5.8, 0).obj(0, 'counter', 4.2, 3.4, Math.PI / 2).obj(0, 'sign', 2.2, -3.2).obj(0, 'planter', -6.2, -1.5);
       b.where(1, keep, 'roof'); b.hex(1, 0, 0, CORE * 0.7, 'grass'); b.obj(1, 'tree', -1, 0).obj(1, 'bush', 2.2, 1.5); add(b); }
     { // doorgang: een 9 m brede passage dwars door het blok (zijde 3 → 0), met een kiosk in elke punt (open naar de buren)
       const b = libBuilder('Winkelcentrum · doorgang', WC); b.where(0, (x, z) => Math.abs(z) < 4.5, 'paver'); b.where(0, (x, z) => Math.abs(z) >= 4.5, 'tile');
       b.wline(0, -INNER, -4.5, 3, 4, 'concrete', i => (i === 2 ? 'door' : '')); b.wline(0, -INNER, 4.5, 3, 4, 'concrete', i => (i === 1 ? 'door' : ''));   // de punten blijven open naar de buren
-      b.obj(0, 'bench', -3, 3.8, 0).obj(0, 'bench', 3, -3.8, 0).obj(0, 'bin', 5.5, 3.7).obj(0, 'planter', -5.5, -3.7).obj(0, 'shelf', 0, 6.8, 0).obj(0, 'shelf', 0, -6.8, 0); wcRoof(b, 1, false); add(b); }
+      b.obj(0, 'bench', -3, 3.8, 0).obj(0, 'bench', 3, -3.8, 0).obj(0, 'bin', 5.5, 3.7).obj(0, 'planter', -5.5, -3.3).obj(0, 'shelf', 0, 6.8, 0).obj(0, 'shelf', 0, -6.8, 0); wcRoof(b, 1, false); add(b); }
     { const b = libBuilder('Winkelcentrum · oprit', WC); b.hexramp(0, 0, 0, 3); add(b); }   // schans: onderaan in bij zijde 3, boven uit bij zijde 0 (de verdieping erboven)
     { // dakpaviljoen: teruggezette opbouw van ¾ met een terras van 1,95 m rondom
       const b = libBuilder('Winkelcentrum · dakpaviljoen', WC); b.cell(0, 0, 0, 'tile'); b.hex(0, 0, 0, CORE, 'wood'); b.ring(0, 0, 0, CORE, 'curtain', { open: { [FRONT]: 'gate' } }); b.cellRing(0, 0, 0, 'fence', { sides: NOT_FRONT });   // het terras is open aan de voorkant
-      b.obj(0, 'counter', -4, 0, 0).obj(0, 'table', 1.5, 2.2).obj(0, 'table', 1.5, -2.2).obj(0, 'table', 7.4, 2.9, Math.PI / 6).obj(0, 'table', 7.4, -2.9, -Math.PI / 6).obj(0, 'table', -7.4, 0, Math.PI / 2).circle(0, 'planter', 0, 0, 7.4, 3, Math.PI / 2).obj(0, 'lamp', 7.4, 0);
+      b.obj(0, 'counter', -4, 0, 0).obj(0, 'table', 1.5, 2.2).obj(0, 'table', 1.5, -2.2).obj(0, 'lamp', 7.4, 0);
       b.hex(1, 0, 0, CORE, 'roof'); add(b); }
     { // galerij: vloerring van 1,95 m rond een vide, met balustrade aan de binnenkant
-      const b = libBuilder('Winkelcentrum · galerij', WC); b.where(0, (x, z) => !inCore(x, z), 'polished'); b.ring(0, 0, 0, CORE, 'fence'); b.obj(0, 'planter', 6.8, 0).obj(0, 'planter', -6.8, 0).obj(0, 'bench', 0, 6.9, 0).obj(0, 'bin', 0, -6.9); add(b); }
+      const b = libBuilder('Winkelcentrum · galerij', WC); b.where(0, (x, z) => !inCore(x, z), 'polished'); b.ring(0, 0, 0, CORE, 'fence'); b.obj(0, 'bench', 3.41, 5.91, Math.PI * 5 / 6).obj(0, 'bin', -3.41, -5.91); add(b); }
     // galerij met trap (trapring uit de schets): onderaan alleen de trap (de vloer is het dak eronder), erboven de
     // galerijring; de trap van 1,95 m ligt in de band langs één zijde. Gespiegeld plaatsen (F) geeft de trap aan de andere kant.
     for (const [nm, S] of [['Winkelcentrum · galerij · trap', { a: [-3, 3], d: 4, n: 3, w: 1.95, k: 'stair', off: -0.975 }]]) {   // gespiegeld: plaatsen met F
       const b = libBuilder(nm, WC); b.m.lv[0].s.push(S);
-      b.where(1, (x, z) => !inCore(x, z), 'polished'); b.hole(1, S); b.ring(1, 0, 0, CORE, 'fence'); b.obj(1, 'planter', S.off > 0 ? -6.8 : 6.8, 0).obj(1, 'bench', 0, 6.9, 0); add(b);
+      b.where(1, (x, z) => !inCore(x, z), 'polished'); b.ring(1, 0, 0, CORE, 'fence'); b.obj(1, 'bench', 3.41, 5.91, Math.PI * 5 / 6).obj(1, 'bin', -3.41, -5.91); add(b);
     }
     { // trap (trapzijde uit de schets): 1,95 m breed langs de rand van het vak, van de hal naar de straat erboven,
       // met het bordes uit de schets: een strook langs de rand naar de galerij van het buurvak. Twee stuks gespiegeld
@@ -319,3 +335,6 @@
       saveMods(); localStorage.setItem('hexstad-lib9', '1');
     }
   } catch (e) { /* geen opslag */ }
+  // voor de tests (bibliotheekcontrole): de rekenhulpen van modules v2
+  window.__mv2thumb = (m, rot, px) => mv2Thumb(m, rot, px);
+  window.__mv2 = { mv2TriVerts, mv2P, mv2Ts, mv2InArea, mv2NearArea, mv2CellXZ, modMeta, mv2StairHole, MV2, libStandard, libBuilder };

@@ -144,7 +144,9 @@
         if (Math.abs(lat - c2) < w / 2 + 0.05 && al > -0.7 && al < end) return { keep: al < len / 2 ? keepAl(0, -1) : beyond };
         return null; };
     }
-    if (S.k === 'stair' || S.k === 'ramp' || !S.k) return v => { const [al, lat] = cen(v); return Math.abs(lat) < w / 2 + 0.05 && al > 0.3 * len && al < len + 0.7 ? { keep: keepAl(len, 1) } : null; };
+    // rechte steek of helling: een driehoek hoort bij het gat als zijn zwaartepunt in de baan van de trap ligt, of (bij een trap die niet precies
+    // op een rij driehoeken valt, zoals 2 m breed midden op een rasterlijn) als er een hoekpunt echt binnen de baan ligt; anders kreeg je een zigzag van gaatjes
+    if (S.k === 'stair' || S.k === 'ramp' || !S.k) return v => { const [al, lat] = cen(v); if (!(al > 0.3 * len && al < len + 0.7)) return null; const inBand = Math.abs(lat) < w / 2 + 0.05 || v.some(p => Math.abs(loc(p[0], p[1])[1]) < w / 2 - 0.05); return inBand ? { keep: keepAl(len, 1) } : null; };
     return () => null;
   }
   // een driehoek afknippen op een halfvlak (x·nx + z·nz >= c): geeft de overgebleven veelhoek (0, 3 of 4 punten)
@@ -246,10 +248,18 @@
         if (!mv2NearArea(m, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2)) continue;
         if (opts.skip) { const Wm = tf((a[0] + b[0]) / 2, (a[1] + b[1]) / 2); if (opts.skip.has(wallKeyW((opts.baseLv || 0) + li, Wm[0], Wm[1]))) continue; }   // dezelfde muur van de buurmodule staat er al
         const mat = Mt.wl[W.m] || Mt.wl.brick, T = MV2.WALL_T;
-        if (W.m === 'hedge') { wallBox(mat, a, b, y0, y0 + 1.4, 0.6); addWall(a, b, y0, y0 + 1.4, 0.3); continue; }
-        if (W.m === 'fence') {
-          for (const f of [0, 0.5, 1]) { const p = lerp(a, b, f), q = lerp(a, b, Math.min(1, f + 0.02)); wallBox(Mt.metal, p, q, y0, y0 + 1.1, 0.08); }
-          wallBox(Mt.metal, a, b, y0 + 0.5, y0 + 0.55, 0.05); wallBox(Mt.metal, a, b, y0 + 1.05, y0 + 1.1, 0.05); addWall(a, b, y0, y0 + 1.1, 0.06); continue;
+        // haag en hek: een deur, poort of open doorgang is een gat (vroeger bleef die dicht en kon je een omheind park niet in)
+        if (W.m === 'hedge' || W.m === 'fence') {
+          const og = W.o && W.o !== 'window' ? W.o : '', gw = og === 'door' ? Math.min(1.4, len - 0.6) : og === 'gate' ? Math.max(1.5, len - 0.5) : og ? len - 0.3 : 0, g0 = (len - gw) / 2 / len;
+          const parts = gw > 0.1 ? [[a, lerp(a, b, g0)], [lerp(a, b, 1 - g0), b]] : [[a, b]];
+          for (const [pa, pb] of parts) {
+            if (Math.hypot(pb[0] - pa[0], pb[1] - pa[1]) < 0.05) continue;
+            if (W.m === 'hedge') { wallBox(mat, pa, pb, y0, y0 + 1.4, 0.6); addWall(pa, pb, y0, y0 + 1.4, 0.3); continue; }
+            for (const f of [0, 0.5, 1]) { const p = lerp(pa, pb, f), q = lerp(pa, pb, Math.min(1, f + 0.02)); wallBox(Mt.metal, p, q, y0, y0 + 1.1, 0.08); }
+            wallBox(Mt.metal, pa, pb, y0 + 0.5, y0 + 0.55, 0.05); wallBox(Mt.metal, pa, pb, y0 + 1.05, y0 + 1.1, 0.05); addWall(pa, pb, y0, y0 + 1.1, 0.06);
+          }
+          if (gw > 0.1 && W.m === 'fence') for (const pp of [lerp(a, b, g0), lerp(a, b, 1 - g0)]) wallBox(Mt.metal, pp, lerp(pp, b, 0.01), y0, y0 + 1.25, 0.12);   // stevige palen naast de doorgang
+          continue;
         }
         const o = W.o || '', isGlass = W.m === 'glass';
         if (!o) { wallBox(mat, a, b, y0, y0 + LH, isGlass ? 0.06 : T); if (isGlass) { wallBox(Mt.frame, a, b, y0, y0 + 0.12, T); wallBox(Mt.frame, a, b, y0 + LH - 0.12, y0 + LH, T); } addWall(a, b, y0, y0 + LH); continue; }
@@ -358,10 +368,17 @@
           // zijkanten en onderkant: dichte wig
           const side = (i0, i1, y0a, y1a) => pos.push(P[i0][0], y0, P[i0][1], P[i1][0], y0, P[i1][1], P[i1][0], y1a, P[i1][1], P[i0][0], y0, P[i0][1], P[i1][0], y1a, P[i1][1], P[i0][0], y0a, P[i0][1]);
           side(0, 3, yb, yt); side(2, 1, yt, yb); side(3, 2, yt, yt);
+          { const ny = (pos[4] - pos[1]) * 0 + ((pos[5] - pos[2]) * (pos[6] - pos[0]) - (pos[3] - pos[0]) * (pos[8] - pos[2])); if (ny < 0) for (let t = 0; t < pos.length; t += 9) for (let c = 0; c < 3; c++) { const q = pos[t + 3 + c]; pos[t + 3 + c] = pos[t + 6 + c]; pos[t + 6 + c] = q; } }   // bovenvlak naar boven (anders zag je de helling van onderen: donker)
           g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(new Array(pos.length / 3 * 2).fill(0), 2)); g.computeVertexNormals(); put(Mt.rampTop, g);
           pushWalk(at(0, -w / 2), at(len, w / 2), at(0, w / 2), yb, yt, yb); pushWalk(at(0, -w / 2), at(len, -w / 2), at(len, w / 2), yb, yt, yt);
           landing(len, yt); landing(-1, y0 + 0.02);
           addWall(at(0, -w / 2), at(len, -w / 2), y0, yt, 0.05); addWall(at(0, w / 2), at(len, w / 2), y0, yt, 0.05);
+        } else if (S.k === 'trib') {   // tribune: volle zitrijen van ± 0,85 m diep (geen zwevende treden), leuning langs de bovenrand
+          const N = Math.max(2, Math.round(len / 0.85)), run = len / N, rs = rise / N, yt = y0 + rise;
+          for (let s = 0; s < N; s++) { const top = y0 + (s + 1) * rs; wallBox(Mt.step, at(s * run, 0), at((s + 1) * run, 0), y0, top, w); wallBox(Mt.wl.wood || Mt.step, at(s * run + run * 0.55, 0), at((s + 1) * run - 0.05, 0), top, top + 0.04, w - 0.2);   // zitplank achterop elke rij
+            pushWalk(at(s * run, -w / 2), at((s + 1) * run, w / 2), at(s * run, w / 2), top, top, top); pushWalk(at(s * run, -w / 2), at((s + 1) * run, -w / 2), at((s + 1) * run, w / 2), top, top, top); }
+          landing(-1, y0 + 0.02);
+          railBar(Mt.metal, at(len - 0.05, -w / 2), yt + 1.0, at(len - 0.05, w / 2), yt + 1.0); for (const f of [0, 0.5, 1]) railPost(Mt.metal, at(len - 0.05, -w / 2 + f * w), yt, yt + 1.0); addWall(at(len - 0.05, -w / 2), at(len - 0.05, w / 2), yt, yt + 1.0, 0.05);
         } else {   // rechte steek (naar trappen.dae): 16 treden per 3 m (0,1875 m), zwevend (0,3 m dik), met een driehoekig bordes boven
           const N = Math.max(2, Math.round(rise / 0.1875)), run = len / N, rs = rise / N, TH = 0.3, yt = y0 + rise;
           for (let s = 0; s < N; s++) { const top = y0 + (s + 1) * rs; wallBox(Mt.step, at(s * run, 0), at((s + 1) * run, 0), Math.max(y0, top - rs - TH), top, w); pushWalk(at(s * run, -w / 2), at((s + 1) * run, w / 2), at(s * run, w / 2), top, top, top); pushWalk(at(s * run, -w / 2), at((s + 1) * run, -w / 2), at((s + 1) * run, w / 2), top, top, top); }
