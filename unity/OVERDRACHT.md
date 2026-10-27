@@ -276,11 +276,22 @@ Gemeten in het bestand: vak R = 9 m, verdieping 3 m, vloer 0,3 m dik; steek 6,75
   en is aan het eind onder 60° afgesneden (de lange kant is `2·breedte/√3` langer, bij 1,95 m precies één rasterzijde), net als de rand van een zeshoek. Leuningen buitenom, tussen de steken en rond het bordes.
 - **Trapgat vanzelf**: op de verdieping boven een trap (rechte steek, bordestrap, helling) verdwijnen de vloerdriehoeken waarvan het zwaartepunt boven de trap ligt
   (rechte steek: van 30 % van de lengte tot het eind; bordestrap: rij 1 vanaf 30 %, rij 2 helemaal, tot voorbij het bordes). Een trap van één rij breed haalt precies die rij weg.
-- Gemeten: rechte steek 0 → 3,02 m en bordestrap 3 → 6,02 m met de loopbotsing, grootste stap 0,21 m, nergens geblokkeerd.
+- Gemeten: rechte steek 0 → 3,02 m en bordestrap 3 → 6,02 m met de loopbotsing, grootste stap 0,19 m, nergens geblokkeerd; de vloer erboven sluit aan op de bovenste trede.
 - **Weer**: zolang de module maker open is, staat het weer op helder en de tijd op 13:00 (sneeuw bedekt anders de vloer); bij sluiten komt het oude weer en de oude tijd terug.
 - **Interface**: werkbalk met korte namen onder de iconen, in groepen (kiezen · vloer · muren en openingen · trappen · dak en voorwerpen · gum); weergave (2D/3D, tot deze verdieping,
   zoom, passend) als zwevend paneel rechtsboven in het tekenvlak; keuzes zonder kleur als gewone keuzeknoppen.
   Gum: wat er onder de muis weggaat licht rood op vóór je klikt (`eraseTarget`, dezelfde volgorde als het weghalen: voorwerp → muur → trap/helling → dak → vloer), met een label "Weghalen: …"; in 3D de hele wand en het schuine trapvlak.
+
+- **Wenteltrap (J)** in de module maker: klik op een rasterpunt (het midden), sleep naar de kant waar je onderaan instapt (`d` = richting 0–5); keuze linksom/rechtsom omhoog (`side`).
+  Item `{a, d, n:1, w:1.5, k:'spiral', side}`; dezelfde zeshoekige wenteltrap als §2 (12 treden van 25 cm om een zeshoekige kern, straal ≈ 2,05 m).
+- **Trapgat precies afgeknipt** (`mv2StairHole(S, ts)` en `mv2ClipKeep` in `08c`): per vloerdriehoek boven een trap is het antwoord "laten staan", "weg" of "deels houden";
+  bij deels wordt de driehoek met een halfvlak geknipt (rechte steek: alles vanaf het eind van de steek, `al ≥ lengte`; bordestrap: voorbij de schuine bordesrand) en als waaier
+  getrianguleerd, met loopvlak. Zo loopt de vloer boven tot precies de bovenste trede en sluit de trap aan. Wenteltrap: binnen 2,15 m van het midden en fase < 330° weg, de uitstap blijft.
+  Unity: knip de vloerpolygoon met hetzelfde halfvlak (Sutherland–Hodgman met één vlak volstaat).
+- **Voorbeeld van het trapgat tijdens slepen** (`stairPreviewCover`): de vloerdriehoeken van de verdieping erboven die blijven liggen (bedekt) en die weggaan (gat) worden
+  met twee kleuren getoond, met dezelfde regels als de bouwer.
+- **Gum in 3D op muren** (`wallRay`): een straal vanuit de camera wordt gesneden met elk wandvlak (rechthoek van lijn × hoogte van de verdieping); de dichtstbijzijnde treffer gaat vóór de vloer.
+  De muur kleurt rood en een klik haalt precies die muur weg.
 
 ## 21. Open punten
 - Unity: noord- en zuidpool op de bol (vraag staat open); `unity/README.md` is niet bijgewerkt sinds het planeet-wegensysteem.
