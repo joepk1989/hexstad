@@ -14,7 +14,7 @@
     document.body.classList.add('fly'); gridLines.visible = false; ghost.visible = false; ghostArrow.visible = false; ghostEdges.visible = false;
     try { const pr = canvas.requestPointerLock && canvas.requestPointerLock(); if (pr && pr.catch) pr.catch(() => {}); } catch (_) {}
     if (!flyCam.badge) { flyCam.badge = document.createElement('div'); flyCam.badge.className = 'flybadge'; document.body.appendChild(flyCam.badge); }
-    flyCam.badge.innerHTML = '<b>Cameramodus</b> · muis kijkt · W A S D · E/Q hoger/lager · Shift snel · wiel zoomt · F foto · Spatie stopt';
+    flyCam.badge.innerHTML = '<b>Cameramodus</b> · muis kijkt · W A S D · E/Q hoger/lager · Shift snel · klik schiet (rechts: sloopkogel) · wiel zoomt · F foto · Spatie stopt';
     flyCam.badge.hidden = false; flyCam.badge.classList.remove('dim'); clearTimeout(flyCam.dimT); flyCam.dimT = setTimeout(() => { if (flyCam.badge) flyCam.badge.classList.add('dim'); }, 3500);
     return true;
   }

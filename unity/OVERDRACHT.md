@@ -205,7 +205,13 @@ Verkeer en bewoners tellen modules mee per verdieping (`cityCounts`): Wonen = hu
 ## 18. Cameramodus (`13-camera-modus-geluid.js`, `flyCam`)
 Spatie in de bouwmodus aan/uit (Esc ook). Geen interface, geen bouwvoorbeeld (ook niet op lege vakken), geen rasterlijnen; bouwen, slopen, wegen trekken, ongedaan maken en de bouwtoetsen zijn geblokkeerd (alleen P pauze en O weer werken). Muis kijkt (aanwijzer vast), W/A/S/D vliegt met
 vaart (snelheid volgt het doel met `dt·3,5`), E/Q omhoog/omlaag, snelheid `max(12, hoogte·0,9)` m/s, Shift ×3, Ctrl ×0,25, wiel zoomt (beeldhoek 12–95°, start 65°), F slaat een png
-zonder knoppen op. Minimaal 2 m boven terrein of blok. Bij stoppen komt het draaipunt op wat je aankijkt.
+zonder knoppen op. Minimaal 2 m boven terrein of blok.
+**Kanonskogel** (`11d-kogel.js`, `collapse.shoot`, `cars.ballHit`): links schiet een kogel (straal 0,45 m, 48 m/s, om de 0,22 s), rechts een zware sloopkogel (1,2 m, 30 m/s, om de 0,6 s),
+vanuit de camera in de kijkrichting (+1,5 m/s omhoog), laag-poly bol (icosaëder, 80 driehoeken), max 16 tegelijk. Zwaartekracht 9,81, stuiteren op grond/weg/blok (`vy·−0,42`,
+rollen remt af), weg na 8 s of 1,5 s stil. Langs de baan in stapjes van 0,8·straal: raakt hij een staand stuk van een gebouw (doos + straal + 0,25 m, op elke hoogte), dan breekt alles
+binnen `R = min(10, 1,2 + 0,12·v + 2,2·straal)` m (hoogte telt ×1,15) los met `0,2·v·(1 − d/(R+0,5))` in de vliegrichting; de kogel stuitert terug met ×−0,22.
+Een auto: vliegt (als `v·m > 9`, 60 %) of tolt weg (`m` = 0,3, sloopkogel 0,55), schade `v·1,4` (sloopkogel ×2,4). Een voetganger valt om (ragdoll, 9 m/s in de vliegrichting, sloopkogel ×1,4) met bloed.
+Gemeten: vier schoten op een stadswoning van 3 lagen: 468 → 157 staande stukken. Bij stoppen komt het draaipunt op wat je aankijkt.
 
 ## 19. Prestaties (`08c-modules-v2.js` `batchMods`, `15c-instellingen.js`)
 - Modules worden per 6×6 vakken en per gelijk materiaal (`matKey`, niet per materiaalobject) samengevoegd; de losse modules blijven onzichtbaar maar raakbaar voor klikken.

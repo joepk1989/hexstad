@@ -134,6 +134,32 @@
       return true;
     }
 
+    // Een kogel (cameramodus): raakt hij een stuk van een gebouw, op welke hoogte ook, dan breekt alles binnen R rond de inslag los.
+    // Geeft true terug als er iets geraakt is (dan stuitert de kogel terug).
+    function shoot(x, y, z, vx, vy, vz, rad) {
+      if (!ST.on) return false;
+      const [q, r] = worldToCell(x, z), kk = q + ',' + r; let top = modTop.get(kk);
+      if (!top || !top.inst) {   // oud blok: eerst omzetten
+        const st = cells.get(kk); if (st && st.length && st.some(tp => /^(woning|kantoor)/.test(tp)) && y < colTopW(q, r) + rad && !probe.busy && oudOmzetten(cells, kk).done) { probe.busy = true; try { rebuildAround(q, r); buildModNet(); changed(); top = modTop.get(kk); } finally { probe.busy = false; } }
+      }
+      if (!top || !top.inst) return false;
+      const I = top.inst; if (!modGroups.get(I) || !modMeta(I.m).bouw) return false;
+      if (y - rad > gH(I.q, I.r) + instTopLv(I) * 3 + 2.5) return false;   // er hoog overheen (dak inbegrepen)
+      let S = mods.get(I) && mods.get(I).e === modGroups.get(I) ? mods.get(I) : null;
+      if (!S) { S = ensure(I); if (!S) return false; }
+      const reach = rad + 0.25;
+      if (!S.P.some(p => p.st === 'stand' && Math.abs(x - p.c.x) <= p.hx + reach && Math.abs(y - p.c.y) <= p.hy + reach && Math.abs(z - p.c.z) <= p.hz + reach)) return false;
+      const sp = Math.hypot(vx, vy, vz), R = Math.min(10, 1.2 + sp * 0.12 + rad * 2.2), hl = Math.hypot(vx, vz) || 1;
+      let n = 0;
+      for (const p of S.P) {
+        if (p.st !== 'stand') continue;
+        const d = Math.hypot(p.c.x - x, (p.c.y - y) * 1.15, p.c.z - z); if (d > R) continue;
+        const k = 1 - d / (R + 0.5);
+        release(S, p, vx / hl * sp * 0.2 * k + (Math.random() - 0.5) * 2, vz / hl * sp * 0.2 * k + (Math.random() - 0.5) * 2, Math.random() * 0.06); n++;
+      }
+      if (n) { puff(x, y, z, 12 + Math.min(18, n)); S.clock = 0.25; unbake(S); try { sound.fx('crunch', x, y, z, 1); sound.impact(1, x, y, z, false); } catch (e) { } }
+      return true;
+    }
     // een gebouw vlak voor een auto: richting (eenheidsvector) van de dichtstbijzijnde gevel binnen 45 m en 55 graden, of null
     let tgtCache = null, tgtSig = -1;
     function ahead(x, z, h) {
@@ -185,7 +211,7 @@
     }
     function reset() { for (const I of [...mods.keys()]) drop(I); dust.length = 0; dustMesh.count = 0; }
     return {
-      probe, update, reset, ahead,
+      probe, update, reset, ahead, shoot,
       get on() { return ST.on; }, setOn(v) { ST.on = !!v; if (!v) reset(); },
       // voor tests: raak het gebouw op deze plek
       hit(x, z, sp, vx, vz) { return probe(x, z, sp, vx, vz); },

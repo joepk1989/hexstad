@@ -185,10 +185,10 @@
   window.addEventListener('keyup', e => { keys[e.code] = false; });
   window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
   document.getElementById('jumpBtn').addEventListener('pointerdown', e => { e.preventDefault(); jump(); });
-  // Cameramodus: een klik vangt alleen de muis (weer); bouwen doe je buiten de cameramodus
+  // Cameramodus: links schiet een kogel, rechts een zware sloopkogel (bouwen doe je buiten de cameramodus); zonder vastgezette muis vangt de klik eerst de muis
   function flyPointer(e) {
-    if (e.pointerType !== 'mouse') return;
-    if (document.pointerLockElement !== canvas) { try { const pr = canvas.requestPointerLock(); if (pr && pr.catch) pr.catch(() => {}); } catch (_) {} }
+    if (e.pointerType === 'mouse' && document.pointerLockElement !== canvas) { try { const pr = canvas.requestPointerLock(); if (pr && pr.catch) pr.catch(() => {}); } catch (_) {} return; }
+    kogels.fire(e.button === 2);
   }
   // Bouwen tijdens het lopen: wat in het midden van het beeld ligt
   let handHintT = 0;

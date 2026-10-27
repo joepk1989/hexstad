@@ -643,6 +643,29 @@
           c.ghost = 0; c.stuck = 0; c.wait = 0;
         }
       },
+      // kanonskogel (cameramodus): raakt hij een auto of iemand, dan vliegt die weg; geeft het geraakte terug
+      ballHit(x, y, z, vx, vy, vz, rad) {
+        const sp = Math.hypot(vx, vy, vz);
+        for (const c of list) {
+          if (c.fly || !c.path) continue;
+          const by = baseOf_(c); if (y - rad > by + 1.8 || y + rad < by) continue;
+          if (!inside(c, x, z, rad, rad)) continue;
+          const [cvx, cvz] = velOf(c), m = rad > 0.9 ? 0.55 : 0.3;   // zware sloopkogel duwt harder
+          if (sp * m > 9 && Math.random() < 0.6) { c.fly = { vx: cvx + vx * m * 0.5, vz: cvz + vz * m * 0.5, vy: 3 + sp * m * 0.25, y: 0, t: 0, wr: (Math.random() - 0.5) * 8, wp: (Math.random() - 0.5) * 4 }; c.fly.g0 = c.sy ?? ASPH_H; c.crash = null; c.v = 0; }
+          else { c.crash = { t: 0, still: 0 }; c.cvx = cvx + vx * m; c.cvz = cvz + vz * m; c.w = (c.w || 0) + (Math.random() - 0.5) * 5; }
+          c.rx = undefined; c.held = false; c.dmgT = 0; hurt(c, sp * (rad > 0.9 ? 2.4 : 1.4));
+          sound.fx('crunch', c.x, 0.7, c.z, 1); sound.carHit(1, c.x, 0.7, c.z, true);
+          return c;
+        }
+        for (const a of people.agents) {
+          if (a.state !== 'walk' && a.state !== 'pause') continue;
+          if (Math.hypot(a.x - x, a.z - z) > rad + 0.35 || y - rad > a.y + 1.9 * (a.scale || 1) || y + rad < a.y) continue;
+          const hl = Math.hypot(vx, vz) || 1, k = Math.min(1, sp / 30) * (rad > 0.9 ? 1.4 : 1);
+          people.hit(a, vx / hl * 9 * k, vz / hl * 9 * k); gore({}, a, vx, vz, 10); sound.grunt(a.x, 0.9, a.z, 1, a.kid ? 'k' : a.female ? 'v' : a.old ? 'o' : 'm');
+          return a;
+        }
+        return null;
+      },
       setOn(v) { on = v; label(); try { localStorage.setItem('hexstad-autos', on ? '1' : '0'); } catch (e) {} carsDirty = true; },
       blocks(x, z, y) { for (const c of list) { const dy = y - baseOf_(c); if (dy > 1.5 || dy < -1.5) continue; if (inside(c, x, z, 0.3, 0.3)) return true; } return false; },
       // Komt er een auto aan die binnen een paar seconden langs dit punt rijdt?

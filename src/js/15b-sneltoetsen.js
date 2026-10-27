@@ -11,7 +11,7 @@
     ['Modules', null], [K(',', '.'), 'vorige / volgende module'], [K('F'), 'module spiegelen'], [K('/'), 'zoek een module (Enter kiest de eerste)'],
     ['Terrein', null], ['slepen', 'boetseren (ingedrukt houden)'], [K('Shift') + '+slepen', 'andersom (ophogen ↔ afgraven)'],
     ['Weg slepen', null], [K('E', 'Q'), 'hoger / lager (ook Page Up/Down, wiel)'], ['stilhouden', 'hoekpunt: bocht in één sleep'],
-    ['Cameramodus', null], [K('Spatie'), 'aan / uit (of Esc)'], ['muis', 'rondkijken'], [K('W', 'A', 'S', 'D'), 'vliegen'], [K('E', 'Q'), 'omhoog / omlaag'], [K('Shift') + ' / ' + K('Ctrl'), 'sneller / langzamer'], ['wiel', 'zoomen'], [K('F'), 'foto (png, zonder knoppen)'], [K('P'), 'tijd stilzetten'], [K('O'), 'ander weer'],
+    ['Cameramodus', null], [K('Spatie'), 'aan / uit (of Esc)'], ['muis', 'rondkijken'], [K('W', 'A', 'S', 'D'), 'vliegen'], [K('E', 'Q'), 'omhoog / omlaag'], [K('Shift') + ' / ' + K('Ctrl'), 'sneller / langzamer'], ['wiel', 'zoomen'], ['klik', 'kogel schieten (rechts: zware sloopkogel)'], [K('F'), 'foto (png, zonder knoppen)'], [K('P'), 'tijd stilzetten'], [K('O'), 'ander weer'],
     ['Overig', null], [K('G'), 'raster aan/uit'], [K('P'), 'tijd pauze / verder'], [K('O'), 'weer: volgende (Shift: vorige)'], [K('L'), 'lopen'], [K('M'), 'menu'], [K('?'), 'dit overzicht'],
   ];
   const KEYS_WALK = [
