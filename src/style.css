@@ -876,3 +876,7 @@ body.fly #modeBtn, body.fly #layerPick, body.fly .city-arrow, body.fly #catBtn, 
 #mmApp #mm_stage .mm-viewtools { position: absolute; right: 12px; top: 12px; flex-direction: column; flex-wrap: nowrap; padding: 4px; gap: 2px; background: rgba(23,27,20,.85); border: 1px solid var(--line); border-radius: 10px; border-left: 1px solid var(--line); z-index: 2; }
 #mmApp #mm_stage .mm-viewtools button { width: 40px; height: 40px; }
 @media (max-width: 760px), (max-height: 520px) { #mmApp #mm_stage .mm-viewtools { right: 8px; top: 8px; } #mmApp #mm_stage .mm-viewtools button { width: 40px; height: 40px; } }
+/* Raatbouwer: naam bovenaan het zijpaneel */
+#mmApp .mm-brand { display: flex; align-items: center; gap: 8px; font: 800 17px var(--ui); color: var(--signal); letter-spacing: .01em; padding: 2px 0 10px; white-space: nowrap; }
+#mmApp .mm-brand svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+@media (max-width: 760px) { #mmApp .mm-brand { display: none; } }

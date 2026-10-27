@@ -123,7 +123,7 @@
 </div>
 <aside>
   <button id="s_bClose" type="button" class="s-close">← Terug naar de stad</button>
-  <h1>Schets en modules<small id="s_sub"></small></h1>
+  <h1>Oude schets<small id="s_sub"></small></h1>
 
   <section>
     <h2>Kleur</h2>
@@ -222,6 +222,7 @@
   <symbol id="i-ring" viewBox="0 0 24 24"><path d="M12 2.5l8.2 4.75v9.5L12 21.5l-8.2-4.75v-9.5z"/><circle cx="12" cy="12" r="2.2"/><path d="M12 2.5v7.3M20.2 7.25l-6.3 3.65M20.2 16.75l-6.3-3.65M12 21.5v-7.3M3.8 16.75l6.3-3.65M3.8 7.25l6.3 3.65"/></symbol>
   <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></symbol>
   <symbol id="i-paste" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2.5h6V4M8 10h8M8 14h8M8 18h5"/></symbol>
+  <symbol id="i-raat" viewBox="0 0 24 24"><path d="M12 2.5l8.2 4.75v9.5L12 21.5l-8.2-4.75v-9.5z"/><path d="M12 2.5v19M3.8 7.25l16.4 9.5M20.2 7.25l-16.4 9.5" opacity=".45"/></symbol>
   <symbol id="i-sketch" viewBox="0 0 24 24"><path d="M3 21l3.5-1 11-11-2.5-2.5-11 11z"/><path d="M14 7.5l2.5 2.5M17 4.5l2.5 2.5"/></symbol>
   <symbol id="i-empty" viewBox="0 0 24 24"><path d="M12 2.5l8.2 4.75v9.5L12 21.5l-8.2-4.75v-9.5z" stroke-dasharray="3 2.5"/></symbol>
   <symbol id="i-home" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><path d="M12 3.5v4M12 16.5v4M3.5 12h4M16.5 12h4"/></symbol>
@@ -267,7 +268,7 @@
     <div class="mgrid">
       <button class="btn mbtn" type="button" data-act="copycity"><svg><use href="#i-copy"/></svg><span class="lbl"><b>Stad kopiëren</b><small>Als code naar het klembord</small></span></button>
       <button class="btn mbtn" type="button" data-act="pastecity"><svg><use href="#i-paste"/></svg><span class="lbl"><b>Stad plakken</b><small>Code uit het klembord</small></span></button>
-      <button class="btn mbtn" type="button" data-act="sketch"><svg><use href="#i-sketch"/></svg><span class="lbl"><b>Schets en modules</b><small>Eigen gebouwen tekenen</small></span></button>
+      <button class="btn mbtn" type="button" data-act="sketch"><svg><use href="#i-raat"/></svg><span class="lbl"><b>Raatbouwer</b><small>Ontwerp je eigen modules</small></span></button>
       <button class="btn mbtn" type="button" data-act="oud"><svg><use href="#i-sketch"/></svg><span class="lbl"><b>Oude blokken omzetten</b><small>Woningen en kantoren worden modules</small></span></button>
       <button class="btn mbtn" type="button" data-act="home"><svg><use href="#i-home"/></svg><span class="lbl"><b>Naar het midden</b><small>Camera terug naar het centrum</small></span></button>
     </div>
@@ -340,12 +341,13 @@
   </header>
   <div id="mm_stage">
     <canvas id="mm_cv3" aria-hidden="true"></canvas>
-    <canvas id="mm_cv" aria-label="Tekenvlak van de module maker"></canvas>
+    <canvas id="mm_cv" aria-label="Tekenvlak van de Raatbouwer"></canvas>
     <div id="mm_levels"><button id="mm_lvUp" type="button" title="Verdieping omhoog (Page Up)">▲</button><div id="mm_lvName">Begane grond</div><button id="mm_lvDn" type="button" title="Verdieping omlaag (Page Down)">▼</button></div>
     <div id="mm_readout"></div>
     <div id="mm_msg" role="status"></div>
   </div>
   <aside id="mm_side">
+    <div class="mm-brand"><svg aria-hidden="true"><use href="#i-raat"/></svg>Raatbouwer</div>
     <button id="mm_sheet" type="button" class="mm-sheet" aria-expanded="false"><span class="mm-grip" aria-hidden="true"></span><b>Module, bibliotheek en delen</b><i aria-hidden="true">▴</i></button>
     <section id="mm_ctx"><h2 id="mm_ctxTitle">Materiaal</h2><div class="mm-swatches" id="mm_sw"></div><p class="hint" id="mm_ctxHint"></p></section>
     <section>
