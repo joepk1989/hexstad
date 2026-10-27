@@ -859,3 +859,20 @@ body.fly #modeBtn, body.fly #layerPick, body.fly .city-arrow, body.fly #catBtn, 
 .menu-head .ver { margin-left: auto; margin-right: 8px; font: 500 11px/1 ui-monospace, Menlo, monospace; opacity: .55; white-space: nowrap; }
 .welcome-word { margin: 0; padding: 2px 0 2px 14px; border-left: 2px solid var(--signal, #f2b233); font-style: italic; color: var(--ink-dim); font-size: 13.5px; line-height: 1.5; display: flex; flex-direction: column; gap: 6px; }
 .welcome-word p { margin: 0; }
+/* module maker: namen onder de iconen, groepen, keuzeknoppen, weergave als zwevend paneel */
+#mmApp .mm-tools button .lab { display: none; }
+#mmApp .mm-sep { display: none; }
+@media (min-width: 761px) and (min-height: 521px) {
+  #mmApp .mm-tools { gap: 2px; align-items: center; }
+  #mmApp #mm_tools button { width: auto; min-width: 46px; height: 52px; padding: 2px 4px 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
+  #mmApp #mm_tools button svg { width: 22px; height: 22px; }
+  #mmApp .mm-tools button .lab { display: block; font: 600 10px/1 var(--ui); letter-spacing: .01em; opacity: .85; }
+  #mmApp .mm-tools button kbd { top: 2px; right: 3px; bottom: auto; }
+  #mmApp .mm-sep { display: block; width: 1px; height: 34px; background: var(--line); margin: 0 4px; flex: none; }
+}
+#mmApp .mm-opts { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+#mmApp .mm-opts button { flex: 1 1 auto; justify-content: center; text-align: center; min-height: 38px; padding: 6px 10px; font-weight: 600; }
+#mmApp .mm-opts + .mm-opts { margin-top: 2px; }
+#mmApp #mm_stage .mm-viewtools { position: absolute; right: 12px; top: 12px; flex-direction: column; flex-wrap: nowrap; padding: 4px; gap: 2px; background: rgba(23,27,20,.85); border: 1px solid var(--line); border-radius: 10px; border-left: 1px solid var(--line); z-index: 2; }
+#mmApp #mm_stage .mm-viewtools button { width: 40px; height: 40px; }
+@media (max-width: 760px), (max-height: 520px) { #mmApp #mm_stage .mm-viewtools { right: 8px; top: 8px; } #mmApp #mm_stage .mm-viewtools button { width: 40px; height: 40px; } }

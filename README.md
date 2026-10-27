@@ -328,3 +328,6 @@ de dragers. Puin valt met zwaartekracht en zakt na ~10 s weg; wat blijft staan w
 
 ## Lopen en rennen
 Mensen zetten hun voeten echt neer (`stepFeet`), met benen via inverse kinematica (`animPose`). Vanaf ~2,2 m/s rennen ze (`runFeet`): afzetten achter de heup, landen vlak ervoor, een zweefmoment, hiel omhoog, gebogen pompende armen, voorover leunen. Rennende mensen kijken verder vooruit en halen tragere lopers in. Metingen: `test/visueel/loopmeting.js` (voetwerk), `ontwijk.js` (bijna-botsingen), `loopbeeld.js` (beeldreeks van opzij). Alle maten en formules voor Unity staan in `unity/OVERDRACHT.md` §20.
+
+## Trappen in de module maker
+Trap (T) en Bordestrap (U) volgen het voorbeeld `trappen.dae`: 16 treden per verdieping (18,75 cm op, 42 cm aantrede bij 3 rasterzijden), één driehoekrij breed (1,95 m), zwevende treden, een driehoekig bordes (rechte trap) of een bordes over twee rijen met een schuine kant van 60° (bordestrap). Het gat in de vloer erboven komt vanzelf (`stairHoles` in `08c`). Zolang de maker open is, is het weer helder en 13:00. Maten en formules: `unity/OVERDRACHT.md` §22.

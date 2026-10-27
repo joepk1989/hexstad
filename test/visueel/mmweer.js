@@ -1,0 +1,11 @@
+const { open, OUT } = require('./helper');
+(async () => { const { b, p } = await open({ width: 900, height: 560 });
+ p.on('pageerror', e => console.log('FOUT', e.message));
+ await p.evaluate(() => { window.__WX.snap('sneeuw', 0, 1); window.__DN.set(19, false); });
+ await p.waitForTimeout(500);
+ await p.evaluate(() => window.__SC().openSchets()); await p.waitForTimeout(1500);
+ console.log('open', JSON.stringify(await p.evaluate(() => ({ wx: window.__WX.mode, tod: window.__DN.st.tod }))));
+ await p.screenshot({ path: OUT + '/mmweer.png', timeout: 120000 });
+ await p.evaluate(() => document.getElementById('mm_bClose').click()); await p.waitForTimeout(1200);
+ console.log('dicht', JSON.stringify(await p.evaluate(() => ({ wx: window.__WX.mode, tod: window.__DN.st.tod }))));
+ await b.close(); })();

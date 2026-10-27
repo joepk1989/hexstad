@@ -263,6 +263,24 @@ De controle "door iets heen" kijkt bij wandelaars om de 4 beelden en bij rennen 
 volledig procedureel zoals hier. Wie liever clips gebruikt: de gemeten passen per seconde en paslengtes hierboven zijn dan de doelwaarden voor het afspeeltempo,
 en de voeten moeten met IK op de vloer blijven (anders glijden ze over trappen en stoepranden).
 
+## 22. Trappen in de module maker (naar `trappen.dae`, 27 okt; `08c-modules-v2.js` trappen, `08d-module-maker.js` Trap/Bordestrap)
+Voorbeeld van Joep (SketchUp, `trappen.dae`): een trappenhuis met per verdieping één rechte steek langs de rand van het vak en een bordes op elke verdieping, heen en terug
+(steek 1 in de buitenste driehoekrij, steek 2 in de rij ernaast), en een verhoogd vak met een trap waarvan elke trede één driehoekje van het raster is (0,2 m per trede).
+Gemeten in het bestand: vak R = 9 m, verdieping 3 m, vloer 0,3 m dik; steek 6,75 m lang (3 zijden van het fijne raster, 2,25 m), 1,95 m breed (één driehoekrij:
+2,25·√3/2), 16 optreden van 0,1875 m en aantreden van 0,42 m; trapgat in de vloer = een band van twee rijen (3,9 m) langs één zijde van het vak.
+- **Trap (T)**: sleep langs een rasterlijn van onder naar boven. Breedte 1 rij (1,95 m) of 2 rijen (3,9 m); de steek ligt links of rechts naast de lijn (of erop).
+  Altijd 16 treden per 3 m (`N = round(hoogte / 0,1875)`), aantrede = lengte/16 (bij 3 zijden 42 cm). Treden zweven: elk blok van `top − optrede − 0,3` tot `top`.
+  Bovenaan een gelijkzijdig driehoekig bordes met zijde = de breedte. Leuning aan beide kanten (schuine stang op 0,95 m, palen op 0, ½ en 1).
+  Tijdens het slepen: "3 zijden · 6,75 m · 16 treden van 42 cm · goede trap" (onder 25 cm aantrede: te steil, boven 50 cm: erg flauw).
+- **Bordestrap (U)**: twee steken naast elkaar, elk één rij breed, samen een band van 2 rijen naast de getekende lijn; 2 × 8 treden; het bordes op 1,5 m ligt over beide rijen
+  en is aan het eind onder 60° afgesneden (de lange kant is `2·breedte/√3` langer, bij 1,95 m precies één rasterzijde), net als de rand van een zeshoek. Leuningen buitenom, tussen de steken en rond het bordes.
+- **Trapgat vanzelf**: op de verdieping boven een trap (rechte steek, bordestrap, helling) verdwijnen de vloerdriehoeken waarvan het zwaartepunt boven de trap ligt
+  (rechte steek: van 30 % van de lengte tot het eind; bordestrap: rij 1 vanaf 30 %, rij 2 helemaal, tot voorbij het bordes). Een trap van één rij breed haalt precies die rij weg.
+- Gemeten: rechte steek 0 → 3,02 m en bordestrap 3 → 6,02 m met de loopbotsing, grootste stap 0,21 m, nergens geblokkeerd.
+- **Weer**: zolang de module maker open is, staat het weer op helder en de tijd op 13:00 (sneeuw bedekt anders de vloer); bij sluiten komt het oude weer en de oude tijd terug.
+- **Interface**: werkbalk met korte namen onder de iconen, in groepen (kiezen · vloer · muren en openingen · trappen · dak en voorwerpen · gum); weergave (2D/3D, tot deze verdieping,
+  zoom, passend) als zwevend paneel rechtsboven in het tekenvlak; keuzes zonder kleur als gewone keuzeknoppen.
+
 ## 21. Open punten
 - Unity: noord- en zuidpool op de bol (vraag staat open); `unity/README.md` is niet bijgewerkt sinds het planeet-wegensysteem.
 - Web: eerste klap op een gebouw geeft een korte hapering (omzetten naar stukken); mensen ontwijken brokstukken niet en het loopnetwerk kent de gaten niet; instortingen worden niet bewaard; jagers maken soms nog sprongetjes van 3–7 m.
