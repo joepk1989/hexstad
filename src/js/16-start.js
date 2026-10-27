@@ -55,6 +55,7 @@
     sound.update(dt);
     updateLights(now / 1000);
     DN.update(dt); clouds.update(dt, camera.position); sculptUpdate(dt);
+    nearbyClear();   // botsingsbuurten opnieuw per beeld
     people.update(dt);
     cars.update(dt); hulk.update(dt); doors.update(dt); collapse.update(dt);
     if (mode === 'walk') {

@@ -128,12 +128,14 @@
   function incSegX(ax, az, bx, bz, cx, cz, dx, dz) { const d = (bx - ax) * (dz - cz) - (bz - az) * (dx - cx); if (Math.abs(d) < 1e-9) return false; const t = ((cx - ax) * (dz - cz) - (cz - az) * (dx - cx)) / d, u = ((cx - ax) * (bz - az) - (cz - az) * (bx - ax)) / d; return t > 0 && t < 1 && u > 0.02 && u < 0.98; }
   // niet door muren of inrichting heen sturen (uitwijken, bocht afsnijden en duwen kunnen een pad net over een rand trekken):
   // een stap die een muur op lichaamshoogte zou kruisen glijdt langs die muur, en anders blijf je staan
+  const wallBB = w => w.bb || (w.bb = [Math.min(w.ax, w.bx) - w.half - 0.3, Math.max(w.ax, w.bx) + w.half + 0.3, Math.min(w.az, w.bz) - w.half - 0.3, Math.max(w.az, w.bz) + w.half + 0.3]);   // omhullende doos (0,3 m marge)
   function wallStep(a, nx, nz) {
     let bx = nx, bz = nz;
     for (let pass = 0; pass < 2; pass++) {
       let hit = null;
       for (const col of nearby(a.x, a.z)) { for (const w of col.walls) {
         if (w.y0 > a.y + 1.2 || w.y1 < a.y + 0.6) continue;
+        { const bb = wallBB(w); if ((a.x < bb[0] && bx < bb[0]) || (a.x > bb[1] && bx > bb[1]) || (a.z < bb[2] && bz < bb[2]) || (a.z > bb[3] && bz > bb[3])) continue; }
         if (w.ax === w.bx && w.az === w.bz) { if (w.half > 0.25) { const r = w.half * 0.7, d1 = Math.hypot(bx - w.ax, bz - w.az); if (d1 < r && d1 < Math.hypot(a.x - w.ax, a.z - w.az)) { hit = w; break; } } continue; }
         if (incSegX(a.x, a.z, bx, bz, w.ax, w.az, w.bx, w.bz)) { hit = w; break; }
       } if (hit) break; }
@@ -154,6 +156,7 @@
     const y = a.y;
     outer: for (const col of nearby(a.x, a.z)) for (const w of col.walls) {
       if (w.y0 > y + 1.2 || w.y1 < y + 0.6) continue;   // niet op lichaamshoogte (drempel, latei, leuning onder de knie)
+      { const bb = wallBB(w); if ((a.x < bb[0] && c.x < bb[0]) || (a.x > bb[1] && c.x > bb[1]) || (a.z < bb[2] && c.z < bb[2]) || (a.z > bb[3] && c.z > bb[3])) continue; }
       if (w.ax === w.bx && w.az === w.bz) { if (w.half > 0.25 && Math.hypot(a.x - w.ax, a.z - w.az) < w.half * 0.7 && Math.hypot(c.x - w.ax, c.z - w.az) >= w.half * 0.7) { incident('voorwerp', a.x, y, a.z, ''); c.cool = performance.now() + 3000; break outer; } continue; }
       const wl = Math.hypot(w.bx - w.ax, w.bz - w.az), e = wl > 1e-6 ? Math.min(0.2, wl * 0.3) / wl : 0, ex = (w.bx - w.ax) * e, ez = (w.bz - w.az) * e;   /* om het uiteinde heen lopen telt niet */
       const sd = (px, pz) => Math.abs((px - w.ax) * (w.bz - w.az) - (pz - w.az) * (w.bx - w.ax)) / (wl || 1);   /* afstand tot de muurlijn: langs een post schampen telt niet */
@@ -328,6 +331,7 @@
     const PACKS = ['#2f4858', '#8d3b2c', '#3f6844', '#d39b32', '#222831'];
     const col = new THREE.Color();
     let graph = new Map(), nodeList = [], doorList = [];
+    let lodTick = 0;   // voor het verspreid bijwerken van mensen ver weg
     const agents = [];
     let on = true;
     try { on = localStorage.getItem('hexstad-mensen') !== '0'; } catch (e) {}
@@ -1208,8 +1212,18 @@
         const addG = o => { const k = Math.floor(o.x / 2) + ',' + Math.floor(o.z / 2); if (!grid.has(k)) grid.set(k, []); grid.get(k).push(o); };
         for (const a of agents) if (a.state === 'walk' || a.state === 'pause') { a.moving = a.spd > 0.2; addG(a); }
         if (mode === 'walk') addG({ x: player.x, z: player.z, y: player.y, heading: player.yaw + Math.PI, spd: pSpeed, moving: pSpeed > 0.3 });
+        // ver van de camera (> 140 m): om de drie beelden bijwerken, met de opgespaarde tijd (verspreid over de beelden);
+        // wie valt of opstaat blijft elk beeld bijgewerkt. Op die afstand zie je het verschil niet.
+        const dt0 = dt, cpx = camera.position.x, cpy = camera.position.y, cpz = camera.position.z; lodTick = (lodTick + 1) % 3;
         for (const a of agents) {
+          let dt = dt0;
+          if (a.state !== 'rag' && a.state !== 'getup') {
+            const lx = a.x - cpx, ly = a.y - cpy, lz = a.z - cpz;
+            if (!window.__noLod && lx * lx + ly * ly + lz * lz > 19600) { a.lodAcc = (a.lodAcc || 0) + dt0; if (((a.lodK ?? (a.lodK = Math.floor(Math.random() * 3))) + lodTick) % 3) continue; dt = Math.min(0.06, a.lodAcc); }   // nooit grotere stappen dan bij 60 fps (anders snijden ze hoeken door muren)
+            a.lodAcc = 0;
+          }
           curA = a;
+          if (!isFinite(a.x) || !isFinite(a.z) || !isFinite(a.y)) { if (nodeList.length) place(a, pick(nodeList), false); continue; }   // vangnet: een ongeldige positie (zeldzaam) wordt een nieuwe plek
           a.t += dt; a.lookPhase += dt;
           if (a.fade < 1) a.fade = Math.min(1, a.fade + dt * 1.5);
           if (a.state === 'inside') { a.timer -= dt; if (a.timer <= 0 && nodeList.length) { const n = doorList.length ? pick(doorList) : pick(nodeList); place(a, n, true); } continue; }
@@ -1254,7 +1268,7 @@
           let [tx, tz] = a.wps[0];
           const d0 = Math.hypot(tx - a.x, tz - a.z);
           // geen vooruitgang (staat er iemand op dat punt?) → punt overslaan en doorlopen
-          if (d0 < (a.prog ? a.prog.d - 0.05 : 1e9)) a.prog = { d: d0, t: 0 }; else a.prog.t += dt;
+          if (!a.prog || d0 < a.prog.d - 0.05) a.prog = { d: d0, t: 0 }; else a.prog.t += dt;
           if (d0 < (a.precise ? 0.22 : 0.5) || (a.prog.t > 1.5 && d0 < 3) || a.prog.t > 5) { a.wps.shift(); a.prog = null; continue; }
           if (!a.precise && a.wps.length > 1 && d0 < 1.6) { const [nx, nz] = a.wps[1], k = (1 - d0 / 1.6) * 0.65; tx += (nx - tx) * k; tz += (nz - tz) * k; }
           if (!a.precise) { avoidance(a, dt, grid); const [rx, rz] = rightOf(a.heading); tx += rx * a.avoid; tz += rz * a.avoid; }
@@ -1289,7 +1303,7 @@
           stepFeet(a, dt);
           if (a.goingIn && a.wps.length === 1) a.fade = Math.max(0, Math.min(a.fade, d0 / 2.5));   // vlak bij de deur: anderen hoeven niet meer uit te wijken
         }
-        render();
+        { const PTm = window.__PT; const pt0 = PTm ? performance.now() : 0; render(); if (PTm) PTm.mensTekenen = (PTm.mensTekenen || 0) + performance.now() - pt0; }
       },
     };
   })();

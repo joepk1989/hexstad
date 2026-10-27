@@ -210,6 +210,8 @@ zonder knoppen op. Minimaal 2 m boven terrein of blok. Bij stoppen komt het draa
 ## 19. Prestaties (`08c-modules-v2.js` `batchMods`, `15c-instellingen.js`)
 - Modules worden per 6×6 vakken en per gelijk materiaal (`matKey`, niet per materiaalobject) samengevoegd; de losse modules blijven onzichtbaar maar raakbaar voor klikken.
   Tekenopdrachten −60 tot −77 %. Schaduwkaart om het andere beeld. Beeldscherpte "Automatisch" past de resolutie aan op de beeldtijd.
+- Mensen en auto's (27 okt): `nearby(x, z)` wordt per vak onthouden tot het volgende beeld (`nearbyClear` bij elk beeld en elke verbouwing); muren hebben een omhullende doos (`wallBB`, 0,3 m marge) en vloerveelhoeken een omhullende cirkel, zodat de meeste meteen afvallen; mensen verder dan 140 m van de camera worden om de drie beelden bijgewerkt (verspreid, met de opgespaarde tijd, maar nooit een stap groter dan 0,06 s, anders snijden ze hoeken door muren); wie valt of opstaat blijft elk beeld bijgewerkt. Auto's kijken via een raster van 8 m alleen naar voetgangers binnen hun rem- en kijkafstand, en naar andere auto's binnen `max(23, kijkafstand + 4)` m.
+  Gemeten (Grote stad, 160 mensen, 40 auto's, rekentijd per beeld): mensen 13,8 → ~6 ms, auto's 4,7 → ~2 ms; Startstadje mensen 3,4 → 1,3, auto's 1,2 → 0,7 ms. Geen extra "door iets heen", botsingen of vastlopers (`test/visueel/{deel,muren,overlap}.js`).
 - Module maker: de camera vliegt in 380 ms naar de helft van de afstand en de maker vervaagt in; op de telefoon één werkbalkrij en een uitklapbaar paneel.
 
 ## 20. Open punten

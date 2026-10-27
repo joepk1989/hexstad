@@ -658,12 +658,16 @@
         if (carsDirty) { carsDirty = false; rebuild(); }
         if (!list.length) { render(); return; }   // alleen geparkeerde auto's
         dt = Math.min(dt, 0.1);
-        const peds = people.agents.filter(a => (a.state === 'walk' || a.state === 'pause'));
+        const allPeds = people.agents.filter(a => (a.state === 'walk' || a.state === 'pause'));
+        // raster van voetgangers (vakjes van 8 m): elke auto bekijkt alleen wie binnen zijn rem- en kijkafstand loopt
+        const PG = new Map(); for (const a of allPeds) { const k = Math.floor(a.x / 8) * 100003 + Math.floor(a.z / 8); let L = PG.get(k); if (!L) PG.set(k, L = []); L.push(a); }
+        const pedsNear = (x, z, R) => { if (allPeds.length < 24) return allPeds; const out = [], i0 = Math.floor((x - R) / 8), i1 = Math.floor((x + R) / 8), j0 = Math.floor((z - R) / 8), j1 = Math.floor((z + R) / 8); for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) { const L = PG.get(i * 100003 + j); if (L) for (const a of L) out.push(a); } return out; };
         const lying = people.lying();
         const tNow = performance.now() / 1000;
         const camP = camera.position;
         for (const c of list) {
           carFx(c, dt, Math.hypot(c.x - camP.x, c.z - camP.z) > 260);
+          const peds = pedsNear(c.x, c.z, Math.min(170, Math.max(18, c.v * 2.4, c.v * c.v / 9 + 8, Math.hypot(c.cvx || 0, c.cvz || 0) * 2.4) + 8));
           if (!c.path) continue;
           if (c.towed) continue;
           if (!c.path) continue;   // kon nergens beginnen: wacht op de volgende herbouw
@@ -742,7 +746,8 @@
           // doorkruipen of 'doorzichtig': nooit zomaar door een andere auto heen; wel dichter op elkaar dan normaal
           // (kruipen: tot 1,5 m; doorzichtig: alleen stilstaande auto's mogen gepasseerd worden, rijdende niet)
           if (c.creepT > 0 || c.ghost > 0) for (const o of list) { if (o === c || Math.abs((o.sy ?? 0) - (c.sy ?? 0)) >= 2) continue; if (c.ghost > 0 && o.v < 0.5 && !(o.ghost > 0)) continue; ahead(o.x, o.z, 1.6, 1.5, o); }
-          if (!(c.creepT > 0) && !(c.ghost > 0)) { for (const o of list) if (o !== c && Math.abs((o.sy ?? 0) - (c.sy ?? 0)) < 2) {
+          const RL = Math.max(23, Math.max(16, c.v * 2.4, c.v * c.v / 9 + 8) + 4);   // verder weg doet geen auto ertoe (vooruitkijken en kruisen binnen 20 m)
+          if (!(c.creepT > 0) && !(c.ghost > 0)) { for (const o of list) if (o !== c && Math.abs(o.x - c.x) < RL && Math.abs(o.z - c.z) < RL && Math.abs((o.sy ?? 0) - (c.sy ?? 0)) < 2) {
             // wie op mijn keerlus wacht, staat niet in de weg (anders wachten we op elkaar)
             if (keerT && o.next && o.next.q === c.q && o.next.r === c.r && o.next.outS === o.next.inS) continue;
             const before = want; ahead(o.x, o.z, reckless ? (c.passT > 0 || c.dodgeT > 0 ? 1.1 : 1.7) : 2.0, reckless ? 4.5 : 7, o);
@@ -961,8 +966,11 @@
           c.spin += Math.min(c.v / WR, SPIN_MAX) * dt;
           hitPeople(c, dt, peds, lying, Math.cos(c.h) * c.v, Math.sin(c.h) * c.v);
         }
+        const PTc = window.__PT; let pt0 = PTc ? performance.now() : 0;
         collide();
+        if (PTc) { PTc.autoBotsing = (PTc.autoBotsing || 0) + performance.now() - pt0; pt0 = performance.now(); }
         render();
+        if (PTc) PTc.autoTekenen = (PTc.autoTekenen || 0) + performance.now() - pt0;
       },
     };
   })();

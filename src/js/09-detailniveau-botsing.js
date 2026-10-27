@@ -69,6 +69,7 @@
   }
   let peopleDirty = true, peopleLocalEdit = false, carsDirty = true, vecDirty = true;
   function rebuildAround(q, r) {
+    nearbyClear();
     terrVer++;
     const todo = new Set();
     for (const k of refreshPathLinks()) todo.add(k);
@@ -100,6 +101,7 @@
     peopleDirty = true; peopleLocalEdit = true; carsDirty = true;
   }
   function rebuildAll() {
+    nearbyClear();
     try { oudOmzetten(cells); } catch (e) { console.warn('oude blokken omzetten mislukt', e); }   // woningen en kantoren zijn altijd modules (zie 08k)
     convertCellRoads();   // oude vakwegen worden getekende wegen
     terrMigrate(); terrHold = true; terrRebuildAll();   // oude verhogingen worden terreinhoogte
@@ -124,7 +126,7 @@
   }
   function surfTop(s, x, z) {
     const dx = x - s.cx, dz = z - s.cz;
-    if (s.kind === 'poly') return inPoly(dx, dz, s.pts) ? s.top : null;
+    if (s.kind === 'poly') { const rr = s.rad2 ?? (s.rad2 = s.pts.reduce((m, p) => Math.max(m, p[0] * p[0] + p[1] * p[1]), 0) + 1e-6); return dx * dx + dz * dz <= rr && inPoly(dx, dz, s.pts) ? s.top : null; }   // eerst de omhullende cirkel
     if (s.kind === 'tris') {
       const L = s.B.get(Math.floor(dx) * 1000 + Math.floor(dz));
       if (!L) return null;
@@ -160,13 +162,17 @@
     return s.base + FLOOR_T + 3 * (u - ST.u0) / (ST.u1 - ST.u0);
   }
   const surfBottom = s => s.kind === 'ramp' ? s.base + FLOOR_T : s.bottom;
+  // nearby wordt per stap van iedereen vaak gevraagd; per vak onthouden tot het volgende beeld (of een verbouwing)
+  const NBC = new Map();
+  function nearbyClear() { NBC.clear(); }
   function nearby(x, z) {
-    const [q, r] = worldToCell(x, z), out = [];
+    const [q, r] = worldToCell(x, z), nk = key(q, r); let out = NBC.get(nk); if (out) return out; out = [];
     const c = colMap.get(key(q, r)); if (c) out.push(c);
     const e0 = edgeColMap.get(key(q, r)); if (e0) out.push(e0);
     const m0 = modCols.get(key(q, r)); if (m0) out.push(...m0);
     const r0 = roadCols.get(key(q, r)); if (r0) for (const x of r0) if (!out.includes(x)) out.push(x);
     for (const [dq, dr] of NEIGH) { const kk = key(q + dq, r + dr), c2 = colMap.get(kk); if (c2) out.push(c2); const e2 = edgeColMap.get(kk); if (e2) out.push(e2); const m2 = modCols.get(kk); if (m2) for (const x of m2) if (!out.includes(x)) out.push(x); const r2 = roadCols.get(kk); if (r2) for (const x of r2) if (!out.includes(x)) out.push(x); }
+    NBC.set(nk, out);
     return out;
   }
   function segDist(x, z, w) {

@@ -471,6 +471,7 @@
     return out;
   }
   function buildModNet() {
+    nearbyClear();
     const live = new Set((cells.inst || []).filter(I => I.m && I.m.v === 2));
     let touched = false;
     for (const [I, e] of modGroups) if (!live.has(I)) { e.group.traverse(o => { if (o.isMesh && o.userData.own) o.geometry.dispose(); }); scene.remove(e.group); modGroups.delete(I); doors.clear(I); touched = true; }
