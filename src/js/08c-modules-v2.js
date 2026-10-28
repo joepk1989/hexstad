@@ -164,9 +164,16 @@
     for (const id in L.f) {
       const [i, j, t] = id.split(',').map(Number), v = mv2TriVerts(i, j, t, ts); let hk = null; for (const h of holes) { hk = h(v); if (hk) break; }
       if (!hk) { out.push({ id, v, mat: L.f[id] }); continue; } if (!hk.keep) continue;
-      const pl = mv2ClipKeep(v, hk.keep); for (let k = 1; k + 1 < pl.length; k++) out.push({ id, v: [pl[0], pl[k], pl[k + 1]], mat: L.f[id], part: true });
+      const pl = mv2ClipKeep(v, hk.keep); for (let k = 1; k + 1 < pl.length; k++) { const T = [pl[0], pl[k], pl[k + 1]], ar = Math.abs((T[1][0] - T[0][0]) * (T[2][1] - T[0][1]) - (T[2][0] - T[0][0]) * (T[1][1] - T[0][1])) / 2; if (ar > 0.02) out.push({ id, v: T, mat: L.f[id], part: true }); }   // geen platgedrukte driehoekjes (die lijken overal 'binnen')
     }
     return out;
+  }
+  // straal van het dak op vak (q, r) van verdieping li: de kleinste zeshoek (in stappen van een rasterzijde) om de muren van dat vak heen
+  function mv2RoofFit(m, li, q, r) {
+    const L = m.lv[li], ts = mv2Ts(m), c = mv2CellXZ(q, r); let ap = 0;
+    const hn = (x, z) => { let mx = -1e9; for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; mx = Math.max(mx, (x - c[0]) * Math.cos(a) + (z - c[1]) * Math.sin(a)); } return mx; };
+    for (const id in (L && L.w) || {}) { const W = L.w[id]; if (!W || W.m === 'fence' || W.m === 'hedge') continue; const [i, j, d] = id.split(',').map(Number), D = MV2.DIRW[d]; if (!D) continue; const a = mv2P(i, j, ts), b = mv2P(i + D[0], j + D[1], ts); if (Math.hypot((a[0] + b[0]) / 2 - c[0], (a[1] + b[1]) / 2 - c[1]) > R) continue; ap = Math.max(ap, hn(a[0], a[1]), hn(b[0], b[1])); }
+    if (!ap) return R; return Math.min(R, Math.max(ts, Math.ceil(ap / (SQ3 / 2) / ts - 0.05) * ts));
   }
   function mv2Build(m, tf, origin = [0, 0], opts = {}) {
     mv2Fix(m);
@@ -417,8 +424,21 @@
       // --- daken per vak ---
       for (const id in L.r) {
         const [q, r] = id.split(',').map(Number), c = mv2CellXZ(q, r), kind = L.r[id];
-        if (kind === 'hip') { const g = new THREE.ConeGeometry(R, 5, 6); const W = tf(c[0], c[1]), W2 = tf(c[0] + 1, c[1]); g.rotateY(Math.atan2(-(W2[1] - W[1]), W2[0] - W[0])); g.translate(W[0], y0 + LH + 2.5, W[1]); put(Mt.roof, g); }
-        else if (kind === 'flat') { const g = new THREE.CylinderGeometry(R - 0.1, R - 0.1, 0.3, 6); const W = tf(c[0], c[1]), W2 = tf(c[0] + 1, c[1]); g.rotateY(Math.atan2(-(W2[1] - W[1]), W2[0] - W[0])); g.translate(W[0], y0 + LH + 0.15, W[1]); put(Mt.slab, g); }
+        // het dak volgt de muren van dat vak op deze verdieping (een gebouw van ¾ krijgt een dak van ¾), met 35 cm overstek
+        const rr = mv2RoofFit(m, li, q, r), ro = rr + (rr < R ? 0.35 : 0), yb = y0 + LH, h = 5 * rr / R;
+        if (kind === 'flat') { const g = new THREE.CylinderGeometry(rr + (rr < R ? 0.15 : -0.1), rr + (rr < R ? 0.15 : -0.1), 0.3, 6); const W = tf(c[0], c[1]), W2 = tf(c[0] + 1, c[1]); g.rotateY(Math.atan2(-(W2[1] - W[1]), W2[0] - W[0])); g.translate(W[0], yb + 0.15, W[1]); put(Mt.slab, g); continue; }
+        const V = k => { const a = (30 + 60 * k) * Math.PI / 180, p = tf(c[0] + Math.cos(a) * ro, c[1] + Math.sin(a) * ro); return [p[0], yb, p[1]]; }, up = (P3, y) => [P3[0], y, P3[2]], top = [...(() => { const p = tf(c[0], c[1]); return [p[0], yb + h, p[1]]; })()];
+        const pos = [], under = [], tri3 = (A, B, C) => { const ny = (B[2] - A[2]) * (C[0] - A[0]) - (B[0] - A[0]) * (C[2] - A[2]); if (ny >= 0) { pos.push(...A, ...B, ...C); under.push(...A, ...C, ...B); } else { pos.push(...A, ...C, ...B); under.push(...A, ...B, ...C); } };   // onderkant: alleen naar beneden gekeerd
+        const g6 = /^gable(\d)$/.exec(kind || '');
+        if (g6) {   // zadeldak: de nok loopt van hoek a naar de overstaande hoek; twee dakvlakken, en boven de muur bij die hoeken een driehoek muur
+          const a = +g6[1] % 3, Va = up(V(a), yb + h), Vb = up(V(a + 3), yb + h);
+          tri3(Va, V(a + 1), V(a + 2)); tri3(Va, V(a + 2), Vb); tri3(Vb, V(a + 4), V(a + 5)); tri3(Vb, V(a + 5), Va);
+          let wm = null; { const cnt = {}; for (const wid in L.w) { const Wd = L.w[wid]; if (!Wd || Wd.m === 'fence' || Wd.m === 'hedge') continue; cnt[Wd.m] = (cnt[Wd.m] || 0) + 1; } let best = 0; for (const k2 in cnt) if (cnt[k2] > best) { best = cnt[k2]; wm = k2; } }
+          const Wl = k => { const an = (30 + 60 * k) * Math.PI / 180, p = tf(c[0] + Math.cos(an) * rr, c[1] + Math.sin(an) * rr); return [p[0], yb, p[1]]; }, gp = [];
+          for (const k of [a, a + 3]) { const T = up(Wl(k), yb + h * rr / ro); for (const [P1, P2] of [[Wl(k - 1 + 6), Wl(k)], [Wl(k), Wl(k + 1)]]) gp.push(...P1, ...T, ...P2, ...P1, ...P2, ...T); }
+          const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute(gp, 3)); gg.setAttribute('uv', new THREE.Float32BufferAttribute(gp.map((v, i) => i % 3 === 1 ? v / 3 : 0).filter((_, i) => i % 3 !== 2), 2)); gg.computeVertexNormals(); put(Mt.wl[wm] || Mt.wl.brick, gg);
+        } else for (let k = 0; k < 6; k++) tri3(top, V(k), V(k + 1));   // schilddak (piramide)
+        for (const arr of [pos, under]) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(arr.map((v, i) => (i % 3 === 0 ? v : i % 3 === 2 ? v : null)).filter(v => v !== null).map(v => v / 3), 2)); g.computeVertexNormals(); put(arr === pos ? Mt.roof : Mt.ceiling || Mt.roof, g); }
       }
       // --- voorwerpen ---
       for (const O0 of L.o || []) {
@@ -721,7 +741,7 @@
         if (S.k === 'hexramp') { const q = S.q || 0, r = S.r || 0; S.q = q + r; S.r = -r; S.side = (6 - (S.side || 0)) % 6; continue; }
         S.a = mp(S.a[0], S.a[1]); S.d = D6[S.d || 0]; if (S.off) S.off = -S.off; if (S.side) S.side = -S.side;
       }
-      const r = {}; for (const id in L.r) { const [q, rr] = id.split(',').map(Number); r[(q + rr) + ',' + (-rr)] = L.r[id]; } L.r = r;
+      const r = {}; for (const id in L.r) { const [q, rr] = id.split(',').map(Number), g = /^gable(\d)$/.exec(L.r[id] || ''); r[(q + rr) + ',' + (-rr)] = g ? 'gable' + [2, 1, 0][+g[1] % 3] : L.r[id]; } L.r = r;   // zadeldak: de nok spiegelt mee
       for (const o of L.o) { o.z = -o.z; o.rot = -(o.rot || 0); }
     }
     m.codes = modV2Codes(m); m._sig = (m._sig || 0) + 0.5; m.mir = true;

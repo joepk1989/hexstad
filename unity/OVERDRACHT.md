@@ -339,6 +339,23 @@ Gemeten in het bestand: vak R = 9 m, verdieping 3 m, vloer 0,3 m dik; steek 6,75
   laden al installeert (de `const`-hulpjes moeten dan bestaan).
 - Unity: dezelfde controle is handig als editor-test (NavMesh-bereikbaarheid per verdieping en overlap van props met wanden).
 
+## 25. Raatbouwer: kiezen, controleren, daken die de muren volgen (28 okt; `08d-module-maker.js`, `08c-modules-v2.js`)
+- **Kiezen**: een selectie is per verdieping een verzameling sleutels (`f` driehoeken, `w` muren, `s` trapindexen, `o` voorwerpindexen, `r` vakken).
+  Bewerkingen werken op een "clip" (de gegevens zelf): eruit halen, omzetten, terugzetten. Verplaatsen = (di, dj) rasterstappen optellen; voorwerpen
+  schuiven met `P(di, dj)`. Een verschuiving is een hele-vakken-verschuiving als (di − dj) en (di + 2dj) deelbaar zijn door 3n (n = R/ts); alleen dan
+  gaan daken en schansen mee. Draaien 60° om rasterpunt (i0, j0): (a, b) → (−b, a + b) op de verschillen; trapsrichting d + 1; zadeldaknok as + 1;
+  driehoeken via hun gedraaide zwaartepunt; muren via hun gedraaide eindpunten (`keyFromSeg`). Een "ruimte" kiezen = vloedvulling over driehoeken
+  met dezelfde vloer, niet over een muur zonder opening.
+- **Controleren** (`checkModule`): graaf van vloerdriehoeken (zonder trapgaten), randen tussen buren tenzij er een dichte muur op ligt, "buiten" =
+  het maaiveld naast de begane grond, trappen als verbinding (wenteltrappen boven elkaar sluiten op elkaar aan). Onbereikbare driehoeken op de
+  verdiepingen (niet het dak) worden rood; voorwerpen en muren zoals in de bibliotheekcontrole. Wordt gewist bij de volgende wijziging.
+- **Daken** (`mv2RoofFit`): straal = kleinste zeshoek (stappen van ts) om de muren van dat vak op die verdieping, met 35 cm overstek als hij kleiner
+  is dan het vak. Schilddak = piramide (hoogte 5 m × r/R); zadeldak `gable0..2` = nok van hoek a naar a + 3 (twee vlakke dakvlakken) plus vier
+  driehoeken muur boven de nokhoeken; plat dak volgt dezelfde straal. Spiegelen zet de nok om: as a → [2, 1, 0][a].
+- **Gevonden onderweg**: het loopnetwerk kreeg platgedrukte driehoekjes uit het afknippen van trapgaten (die lijken overal "binnen"), daardoor
+  kwamen knopen boven een gat en vielen mensen in het winkelcentrum; nu weggelaten (oppervlak > 0,02 m²). Op een wenteltrap houden we lopers
+  alleen tussen kern en leuning als ze al op de trap staan (anders sprongen ze er soms heen), en de leuning van de tweede tree telt mee als muur.
+
 ## 21. Open punten
 - Unity: noord- en zuidpool op de bol (vraag staat open); `unity/README.md` is niet bijgewerkt sinds het planeet-wegensysteem.
 - Web: eerste klap op een gebouw geeft een korte hapering (omzetten naar stukken); mensen ontwijken brokstukken niet en het loopnetwerk kent de gaten niet; instortingen worden niet bewaard; jagers maken soms nog sprongetjes van 3–7 m.

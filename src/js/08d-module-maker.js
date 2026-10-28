@@ -41,6 +41,7 @@
       v3d: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5"/>',
       upto: '<path d="M4 18h16M4 13h10M4 8h6M18 8l-3 3M18 8l3 3M18 8v6"/>',
       copyUp: '<path d="M5 20h14M5 15h14M12 11V3M8 7l4-4 4 4"/>',
+      check: '<path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z"/><path d="M8.4 12.2l2.6 2.6 4.8-5.2"/>',
       zoomIn: '<circle cx="11" cy="11" r="7"/><path d="M16 16l5 5M11 8v6M8 11h6"/>',
       zoomOut: '<circle cx="11" cy="11" r="7"/><path d="M16 16l5 5M8 11h6"/>',
       fit: '<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/>',
@@ -50,7 +51,7 @@
     };
     const svg = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[k]}</svg>`;
     const TOOLS = [
-      ['select', 'Kiezen en verschuiven (V): sleep om te schuiven', 'V'], ['hand', 'Schuiven (H)', 'H'],
+      ['select', 'Kiezen (V): klik of sleep een rechthoek; sleep om te verplaatsen, Q/E draait, Ctrl+C/V kopieert', 'V'], ['hand', 'Schuiven (H)', 'H'],
       ['floor', 'Vloer (F): schilder driehoeken; rechtermuisknop wist', 'F'], ['fill', 'Vullen (G): vult een ruimte tot aan de muren met vloer; rechtermuisknop maakt leeg', 'G'], ['wall', 'Muur (W): sleep van punt naar punt langs het raster', 'W'], ['room', 'Kamer (M): muren rondom een heel vak', 'M'],
       ['door', 'Deur (D): klik op een muur', 'D'], ['window', 'Raam (R): klik op een muur', 'R'], ['gate', 'Poort (P): klik op een muur', 'P'], ['open', 'Open doorgang (O): klik op een muur', 'O'], ['close', 'Dicht (C): klik op een muur om de opening weg te halen', 'C'],
       ['stair', 'Trap (T): sleep van onderaan omhoog, in een van zes richtingen', 'T'], ['ustair', 'Bordestrap (U): sleep de eerste steek; op het bordes keer je en loopt de tweede steek ernaast terug omhoog', 'U'], ['spiral', 'Wenteltrap (J): klik op een rasterpunt (het midden van de trap); sleep naar de kant waar je onderaan instapt', 'J'], ['ramp', 'Helling (L): sleep van onderaan omhoog', 'L'], ['hexramp', 'Schans (S): het hele vak wordt een helling naar de verdieping erboven; klik bij de zijde waar je onderaan instapt', 'S'],
@@ -79,10 +80,11 @@
       return out;
     }
     mkBtn('edit', 'copyUp', 'Verdieping kopiëren naar de verdieping erboven', () => copyUp());
+    mkBtn('edit', 'check', 'Controleren: kun je overal komen, komen trappen uit, staan voorwerpen goed? (Shift+C)', () => runCheck());
     const b2d = mkBtn('view', 'v2d', 'Bovenaanzicht (2)', () => setView('2d')), b3d = mkBtn('view', 'v3d', '3D (3): teken op de verdieping waar je bent; draaien met de middelste muisknop, Alt of het handje, schuiven met Shift', () => setView('3d'));
     const bUpto = mkBtn('view', 'upto', 'In 3D alleen tot en met de huidige verdieping tonen', () => { E.upto = !E.upto; bUpto.setAttribute('aria-pressed', String(E.upto)); dirty3(); });
     mkBtn('view', 'zoomIn', 'Inzoomen', () => zoom(1.25)); mkBtn('view', 'zoomOut', 'Uitzoomen', () => zoom(0.8)); mkBtn('view', 'fit', 'Passend maken', () => fit());
-    function setTool(k) { E.tool = k; for (const t in toolBtns) toolBtns[t].setAttribute('aria-pressed', String(t === k)); E.drag = null; renderCtx(); cv.style.cursor = k === 'hand' || k === 'select' ? 'grab' : 'crosshair'; draw(); }
+    function setTool(k) { if (k !== 'select') { E.sel = null; E.paste = false; } E.tool = k; for (const t in toolBtns) toolBtns[t].setAttribute('aria-pressed', String(t === k)); E.drag = null; renderCtx(); cv.style.cursor = k === 'hand' ? 'grab' : k === 'select' ? 'default' : 'crosshair'; draw(); }
     function setView(v) { E.vm = v; b2d.setAttribute('aria-pressed', String(v === '2d')); b3d.setAttribute('aria-pressed', String(v === '3d')); cv3.style.display = v === '3d' ? 'block' : 'none'; if (v === '3d') { ensure3(); camSync(); rebuild3(); } draw(); }
     // ---------- raster ----------
     const ts = () => mv2Ts(E.m);
@@ -181,9 +183,9 @@
     const cellAt = (x, z) => mv2CellOf(x, z);
     const lvl = () => E.m.lv[E.lv];
     // ---------- geschiedenis ----------
-    const snap = () => { E.undo.push(JSON.stringify(E.m)); if (E.undo.length > 80) E.undo.shift(); E.redo = []; E.dirty = true; };
-    const undo = () => { if (!E.undo.length) return; E.redo.push(JSON.stringify(E.m)); E.m = mv2Fix(JSON.parse(E.undo.pop())); E.lv = Math.min(E.lv, E.m.lv.length - 1); changed(); say('Ongedaan gemaakt', 900); };
-    const redo = () => { if (!E.redo.length) return; E.undo.push(JSON.stringify(E.m)); E.m = mv2Fix(JSON.parse(E.redo.pop())); E.lv = Math.min(E.lv, E.m.lv.length - 1); changed(); };
+    const snap = () => { E.check = null; E.undo.push(JSON.stringify(E.m)); if (E.undo.length > 80) E.undo.shift(); E.redo = []; E.dirty = true; };
+    const undo = () => { if (!E.undo.length) return; E.sel = null; E.redo.push(JSON.stringify(E.m)); E.m = mv2Fix(JSON.parse(E.undo.pop())); E.lv = Math.min(E.lv, E.m.lv.length - 1); changed(); say('Ongedaan gemaakt', 900); };
+    const redo = () => { if (!E.redo.length) return; E.sel = null; E.undo.push(JSON.stringify(E.m)); E.m = mv2Fix(JSON.parse(E.redo.pop())); E.lv = Math.min(E.lv, E.m.lv.length - 1); changed(); };
     function changed() { bUndo.disabled = !E.undo.length; bRedo.disabled = !E.redo.length; renderLevels(); rebuild3(); draw(); }
     // ---------- verdiepingen ----------
     function renderLevels() { $('lvName').textContent = E.lv === 0 ? 'Begane grond' : E.lv + 'e verdieping'; $('lvUp').disabled = E.lv >= MV2.MAX_LV - 1; $('lvDn').disabled = E.lv === 0; }
@@ -210,10 +212,13 @@
       else if (E.tool === 'spiral') { title.textContent = 'Wenteltrap'; mk({ 1: 'Linksom omhoog', '-1': 'Rechtsom omhoog' }, String(E.wsd || 1), k => { E.wsd = +k; }); hint.textContent = 'Wijs een driehoekje aan: het rasterpunt ernaast wordt het midden, in dat driehoekje stap je onderaan in (slepen draait hem per 60°). De zeshoek valt precies over de zes driehoeken om het punt. Zeshoekige wenteltrap, 12 treden van 25 cm per verdieping, één rondje (3 m); het gat in de vloer erboven komt vanzelf, op het stuk waar je uitstapt na.'; }
       else if (E.tool === 'ramp') { title.textContent = 'Helling'; mk({ 1.2: 'Smal 1,2 m', 2: 'Breed 2 m', 3: 'Extra breed 3 m' }, String(E.sw || 1.2), k => { E.sw = +k; }); hint.textContent = 'Sleep van het laagste punt omhoog. De helling stijgt 3 m naar de volgende verdieping. Hoe langer, hoe flauwer.'; }
       else if (E.tool === 'hexramp') { title.textContent = 'Schans'; hint.textContent = 'Klik in een vak, vlak bij de zijde waar de helling onderaan begint. Het hele vak wordt een oprit die aan de overkant 3 m hoger uitkomt (de verdieping erboven). Rechtermuisknop haalt hem weg.'; }
-      else if (E.tool === 'roof') { title.textContent = 'Dak'; hint.textContent = 'Klik op een vak: puntdak, nog eens: plat dak, nog eens: weg. Het dak ligt bovenop deze verdieping.'; }
+      else if (E.tool === 'roof') { title.textContent = 'Dak'; mk(ROOF_NAME, E.rkind || 'hip', k => { E.rkind = k; }); hint.textContent = 'Klik op een vak: het dak ligt bovenop deze verdieping en volgt de muren van dat vak (een gebouw van ¾ krijgt een dak van ¾, met overstek). Zadeldak: de nok wijst naar de hoek bij de muis. Nog eens klikken met hetzelfde dak, of rechtermuisknop: weg.'; }
       else if (E.tool === 'object') { title.textContent = 'Voorwerp'; mk(MV2.objects, E.obj, k => { E.obj = k; }, OBJ_GLYPH); mk({ l: '↺ 30°', n: degOf(E.orot || 0) + '° · terug naar 0°', r: '↻ 30°' }, '', k => { if (k === 'n') { E.orot = 0; draw(); } else rotStep(k === 'l' ? -1 : 1); });
         hint.textContent = 'Je ziet het voorwerp al staan voor je klikt. Klik om neer te zetten, of houd ingedrukt en sleep om het te richten (per 30°, met Ctrl vrij). Draaien: Q en E, Shift+scroll of de knoppen; op een voorwerp: klik draait 30° (Shift-klik terug), slepen richt het, rechtermuisknop haalt het weg. Het pijltje is de voorkant.'; }
       else if (E.tool === 'erase') { title.textContent = 'Gum'; hint.textContent = 'Klik of sleep: voorwerp, muur, trap, dak of vloer onder de muis wordt weggehaald.'; }
+      else if (E.tool === 'select') { title.textContent = 'Kiezen'; const S = sel(), n = selCount(S);
+        mk({ l: '↺ 60°', r: '↻ 60°', c: 'Kopiëren', v: 'Plakken', x: 'Weghalen', u: '↑ Verdieping', d: '↓ Verdieping', a: 'Alles' }, '', k => ({ l: () => selRotate(-1), r: () => selRotate(1), c: () => selCopy(false), v: () => selPaste(false), x: () => selDelete(), u: () => selToLevel(1), d: () => selToLevel(-1), a: () => selAll() })[k]());
+        hint.textContent = (n ? selSay('Gekozen') + '. ' : '') + 'Klik op iets om het te kiezen (een vloer: de hele ruimte tot aan de muren), sleep een rechthoek voor meer; Ctrl+klik voegt toe of haalt eraf. Sleep wat gekozen is om het te verplaatsen (langs het raster). Q/E draait 60°, Delete haalt weg, Ctrl+C / X / V kopieert, knipt en plakt (Ctrl+Shift+V: op dezelfde plek, ook op een andere verdieping), Ctrl+D dupliceert, Ctrl+A kiest alles, Esc kiest niets. Schuiven met het beeld: Shift+slepen of de middelste knop.'; }
       else { title.textContent = E.tool === 'hand' ? 'Schuiven' : 'Kiezen'; hint.textContent = 'Sleep om te schuiven, scroll om te zoomen. Middelste muisknop of spatie schuift altijd.'; }
     }
     // ---------- bewerkingen ----------
@@ -278,6 +283,158 @@
       if (T.oi !== undefined) L.o.splice(T.oi, 1); else if (T.id) delete L.w[T.id]; else if (T.si !== undefined) L.s.splice(T.si, 1); else if (T.rk) delete L.r[T.rk]; else paintFloor(x, z, true);
       return T.kind;
     }
+    // ---------- Kiezen (V): aanklikken of een rechthoek slepen, dan verplaatsen, draaien per 60°, kopiëren, plakken, weghalen ----------
+    // Een selectie hoort bij één verdieping: vloerdriehoeken, muren, trappen, voorwerpen en daken. Verplaatsen en draaien gaan langs het
+    // raster (stappen van een driehoekzijde, draaien om een rasterpunt), zodat alles op de driehoeken blijft liggen. Daken en schansen
+    // horen bij een heel vak: die gaan alleen mee als de verplaatsing (of het draaipunt) precies op een vak valt.
+    const selEmpty = (lv = E.lv) => ({ lv, f: new Set(), w: new Set(), s: new Set(), o: new Set(), r: new Set() });
+    const sel = () => (E.sel && E.sel.lv === E.lv ? E.sel : (E.sel = selEmpty()));
+    const selCount = S => S.f.size + S.w.size + S.s.size + S.o.size + S.r.size;
+    const triVertsIdx = (i, j, t) => t ? [[i + 1, j], [i + 1, j + 1], [i, j + 1]] : [[i, j], [i + 1, j], [i, j + 1]];
+    function keyFromSeg(a, b) { const dx = b[0] - a[0], dz = b[1] - a[1]; for (let d = 0; d < 6; d++) { const D = MV2.DIRW[d]; if (D[0] === dx && D[1] === dz) return wallKey(a[0], a[1], d); if (D[0] === -dx && D[1] === -dz) return wallKey(b[0], b[1], d); } return null; }
+    const cellStep = (di, dj) => { const n = Math.round(R / ts()); return (di - dj) % (3 * n) === 0 && (di + 2 * dj) % (3 * n) === 0 ? [(di - dj) / (3 * n), (di + 2 * dj) / (3 * n)] : null; };   // verplaatsing in hele vakken, of null
+    function selClip(S = sel()) {
+      const L = E.m.lv[S.lv];
+      return { f: [...S.f].filter(id => L.f[id]).map(id => [...id.split(',').map(Number), L.f[id]]), w: [...S.w].filter(id => L.w[id]).map(id => [...id.split(',').map(Number), JSON.parse(JSON.stringify(L.w[id]))]),
+        s: [...S.s].filter(i => L.s[i]).map(i => JSON.parse(JSON.stringify(L.s[i]))), o: [...S.o].filter(i => L.o[i]).map(i => Object.assign({}, L.o[i])), r: [...S.r].filter(k => L.r[k]).map(k => [...k.split(',').map(Number), L.r[k]]) };
+    }
+    function selRemove(S = sel()) { const L = E.m.lv[S.lv]; for (const id of S.f) delete L.f[id]; for (const id of S.w) delete L.w[id]; for (const k of S.r) delete L.r[k]; L.s = L.s.filter((_, i) => !S.s.has(i)); L.o = L.o.filter((_, i) => !S.o.has(i)); }
+    function clipInsert(c, li = E.lv) {
+      while (E.m.lv.length <= li) E.m.lv.push(mv2Level()); const L = E.m.lv[li], S = selEmpty(li);
+      for (const [i, j, t, mat] of c.f) { const id = i + ',' + j + ',' + t; if (!okTri([i, j, t])) continue; L.f[id] = mat; S.f.add(id); }
+      for (const [i, j, d, Wd] of c.w) { const id = wallKey(i, j, d), [a, b] = segOf(i, j, d); if (!mv2NearArea(E.m, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2)) continue; L.w[id] = Wd; S.w.add(id); }
+      for (const [q, r, kind] of c.r) { if (mv2HexDist(q, r) > (E.m.k || 0)) continue; const k = q + ',' + r; L.r[k] = kind; S.r.add(k); }
+      for (const St of c.s) { L.s.push(St); S.s.add(L.s.length - 1); }
+      for (const o of c.o) { if (!inArea(o.x, o.z)) continue; L.o.push(o); S.o.add(L.o.length - 1); }
+      return S;
+    }
+    // verschuiven over (di, dj) rasterstappen: wat bij een heel vak hoort (dak, schans) blijft staan als het geen hele vakken zijn
+    function clipShift(c, di, dj) {
+      const cs = cellStep(di, dj), off = P(di, dj), off0 = P(0, 0), ox = off[0] - off0[0], oz = off[1] - off0[1], stay = { f: [], w: [], s: [], o: [], r: [] };
+      const out = { f: c.f.map(([i, j, t, m]) => [i + di, j + dj, t, m]), w: c.w.map(([i, j, d, W2]) => [i + di, j + dj, d, W2]), o: c.o.map(o => Object.assign({}, o, { x: Math.round((o.x + ox) * 4) / 4, z: Math.round((o.z + oz) * 4) / 4 })), s: [], r: [] };
+      for (const St of c.s) { if (St.k === 'hexramp') { if (cs) out.s.push(Object.assign({}, St, { q: (St.q || 0) + cs[0], r: (St.r || 0) + cs[1] })); else stay.s.push(St); } else out.s.push(Object.assign({}, St, { a: [St.a[0] + di, St.a[1] + dj] })); }
+      for (const R0 of c.r) { if (cs) out.r.push([R0[0] + cs[0], R0[1] + cs[1], R0[2]]); else stay.r.push(R0); }
+      return { out, stay };
+    }
+    // draaien om rasterpunt pv, k keer 60° (met de klok mee in het bovenaanzicht als k > 0)
+    function clipRot(c, k, pv) {
+      k = ((k % 6) + 6) % 6; const rotI = ([i, j]) => { let a = i - pv[0], b = j - pv[1]; for (let n = 0; n < k; n++) [a, b] = [-b, a + b]; return [a + pv[0], b + pv[1]]; };
+      const pw = P(pv[0], pv[1]), ang = k * Math.PI / 3, cs = Math.cos(ang), sn = Math.sin(ang), rotW = (x, z) => [pw[0] + (x - pw[0]) * cs - (z - pw[1]) * sn, pw[1] + (x - pw[0]) * sn + (z - pw[1]) * cs];
+      const n0 = Math.round(R / ts()), pc = cellStep(pv[0], pv[1]), stay = { f: [], w: [], s: [], o: [], r: [] }, out = { f: [], w: [], s: [], o: [], r: [] };
+      for (const [i, j, t, m] of c.f) { const V = triVertsIdx(i, j, t).map(rotI).map(([a, b]) => P(a, b)), cx = (V[0][0] + V[1][0] + V[2][0]) / 3, cz = (V[0][1] + V[1][1] + V[2][1]) / 3; out.f.push([...triAt(cx, cz), m]); }
+      for (const [i, j, d, W2] of c.w) { const D = MV2.DIRW[d], key = keyFromSeg(rotI([i, j]), rotI([i + D[0], j + D[1]])); if (key) out.w.push([...key.split(',').map(Number), W2]); }
+      for (const o of c.o) { const [x, z] = rotW(o.x, o.z); out.o.push(Object.assign({}, o, { x: Math.round(x * 4) / 4, z: Math.round(z * 4) / 4, rot: ((o.rot || 0) + ang) % (Math.PI * 2) })); }
+      for (const St of c.s) { if (St.k === 'hexramp') { stay.s.push(St); continue; } out.s.push(Object.assign({}, St, { a: rotI(St.a), d: ((St.d || 0) + k) % 6 })); }
+      for (const R0 of c.r) { if (!pc) { stay.r.push(R0); continue; } let a = R0[0] - pc[0], b = R0[1] - pc[1]; for (let n = 0; n < k; n++) [a, b] = [-b, a + b]; const g = /^gable(\d)$/.exec(R0[2] || ''); out.r.push([a + pc[0], b + pc[1], g ? 'gable' + ((+g[1] + k) % 3) : R0[2]]); }
+      void n0; return { out, stay };
+    }
+    const clipJoin = (A, B) => ({ f: [...A.f, ...B.f], w: [...A.w, ...B.w], s: [...A.s, ...B.s], o: [...A.o, ...B.o], r: [...A.r, ...B.r] });
+    const clipSize = c => c.f.length + c.w.length + c.s.length + c.o.length + c.r.length;
+    // middelpunt (rasterpunt) van een stuk: het draaipunt en het aangrijppunt bij plakken
+    function clipPivot(c) {
+      const pts = []; for (const [i, j, t] of c.f) for (const v of triVertsIdx(i, j, t)) pts.push(P(...v)); for (const [i, j, d] of c.w) { const [a, b] = segOf(i, j, d); pts.push(a, b); }
+      for (const St of c.s) pts.push(St.k === 'hexramp' ? mv2CellXZ(St.q || 0, St.r || 0) : P(St.a[0], St.a[1])); for (const o of c.o) pts.push([o.x, o.z]); for (const [q, r] of c.r) pts.push(mv2CellXZ(q, r));
+      if (!pts.length) return [0, 0]; let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9; for (const [x, z] of pts) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
+      return vertexAt((x0 + x1) / 2, (z0 + z1) / 2);
+    }
+    // een ruimte op de vloer: aaneengesloten driehoeken met dezelfde vloer, niet over een muur heen
+    function floorRegion(id0) {
+      const L = lvl(), mat = L.f[id0]; if (!mat) return [];
+      const seen = new Set([id0]), q = [id0];
+      while (q.length && seen.size < 6000) { const [i, j, t] = q.shift().split(',').map(Number);
+        const nb = t ? [[[i + 1, j], [i + 1, j + 1], [i + 1, j, 0]], [[i, j + 1], [i + 1, j + 1], [i, j + 1, 0]], [[i + 1, j], [i, j + 1], [i, j, 0]]] : [[[i, j], [i + 1, j], [i, j - 1, 1]], [[i, j], [i, j + 1], [i - 1, j, 1]], [[i + 1, j], [i, j + 1], [i, j, 1]]];
+        for (const [a, b, n] of nb) { const id = n.join(','); if (seen.has(id) || L.f[id] !== mat) continue; const wk = keyFromSeg(a, b); if (wk && L.w[wk] && !(L.w[wk].o && L.w[wk].o !== 'window')) continue; seen.add(id); q.push(id); } }
+      return [...seen];
+    }
+    // wat ligt er onder de muis (zelfde volgorde als de gum), als losse selectie
+    function selHit(x, z) {
+      const T = eraseTarget(x, z, false), S = selEmpty(); if (!T) return null;
+      if (T.oi !== undefined) S.o.add(T.oi); else if (T.id) S.w.add(T.id); else if (T.si !== undefined) S.s.add(T.si); else if (T.rk) S.r.add(T.rk);
+      else { const id = triAt(x, z).join(','); for (const f of (lvl().f[id] ? floorRegion(id) : (T.tris || []).map(t => t.join(',')))) S.f.add(f); }
+      return S;
+    }
+    const selHas = (S, H) => [...H.f].some(k => S.f.has(k)) || [...H.w].some(k => S.w.has(k)) || [...H.s].some(k => S.s.has(k)) || [...H.o].some(k => S.o.has(k)) || [...H.r].some(k => S.r.has(k));
+    const selToggle = (S, H) => { for (const kk of ['f', 'w', 's', 'o', 'r']) for (const v of H[kk]) S[kk].has(v) ? S[kk].delete(v) : S[kk].add(v); };
+    // alles binnen een rechthoek op het scherm
+    function selRect(s0, s1) {
+      const L = lvl(), S = selEmpty(), x0 = Math.min(s0[0], s1[0]), x1 = Math.max(s0[0], s1[0]), y0 = Math.min(s0[1], s1[1]), y1 = Math.max(s0[1], s1[1]), inR = (x, z) => { const p = toS(x, z); return p[0] >= x0 && p[0] <= x1 && p[1] >= y0 && p[1] <= y1; };
+      for (const id in L.f) { const v = mv2TriVerts(...id.split(',').map(Number), ts()); if (inR((v[0][0] + v[1][0] + v[2][0]) / 3, (v[0][1] + v[1][1] + v[2][1]) / 3)) S.f.add(id); }
+      for (const id in L.w) { const [a, b] = segOf(...id.split(',').map(Number)); if (inR((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)) S.w.add(id); }
+      L.s.forEach((St, i) => { const p = St.k === 'hexramp' ? mv2CellXZ(St.q || 0, St.r || 0) : P(St.a[0], St.a[1]); if (inR(p[0], p[1])) S.s.add(i); });
+      L.o.forEach((o, i) => { if (inR(o.x, o.z)) S.o.add(i); });
+      for (const k in L.r) { const [q, r] = k.split(',').map(Number), c = mv2CellXZ(q, r); if (inR(c[0], c[1])) S.r.add(k); }
+      return S;
+    }
+    function selSay(pre) { const S = sel(), parts = []; if (S.f.size) parts.push(S.f.size + ' vloerdriehoek' + (S.f.size === 1 ? '' : 'en')); if (S.w.size) parts.push(S.w.size + (S.w.size === 1 ? ' muur' : ' muren')); if (S.s.size) parts.push(S.s.size + (S.s.size === 1 ? ' trap' : ' trappen')); if (S.o.size) parts.push(S.o.size + (S.o.size === 1 ? ' voorwerp' : ' voorwerpen')); if (S.r.size) parts.push(S.r.size + (S.r.size === 1 ? ' dak' : ' daken')); return (pre ? pre + ': ' : '') + (parts.join(', ') || 'niets gekozen'); }
+    // bewerkingen
+    function selApply(fn, msg) { const S = sel(); if (!selCount(S)) { say('Niets gekozen', 900); return; } snap(); const c = selClip(S); selRemove(S); const { out, stay } = fn(c); clipInsert(stay, S.lv); E.sel = clipInsert(out, S.lv); changed(); renderCtx(); const left = clipSize(stay); say(msg + (left ? ' · ' + left + ' dak/schans bleef staan (die horen bij een heel vak)' : ''), 1400); }
+    const selMove = (di, dj) => selApply(c => clipShift(c, di, dj), 'Verplaatst');
+    const selRotate = k => selApply(c => clipRot(c, k, clipPivot(c)), k > 0 ? 'Gedraaid 60° rechtsom' : 'Gedraaid 60° linksom');
+    function selDelete() { const S = sel(); if (!selCount(S)) return; snap(); selRemove(S); E.sel = selEmpty(); changed(); renderCtx(); say('Weggehaald', 900); }
+    function selCopy(cut) { const S = sel(); if (!selCount(S)) { say('Niets gekozen om te kopiëren', 1000); return; } const c = selClip(S); E.clip = { c, pv: clipPivot(c) }; if (cut) selDelete(); say(selSay(cut ? 'Geknipt' : 'Gekopieerd') + ' · Ctrl+V: plakken waar je klikt, Ctrl+Shift+V: op dezelfde plek', 2600); }
+    function selPaste(inPlace) { if (!E.clip) { say('Eerst iets kopiëren (Ctrl+C)', 1200); return; } if (inPlace) { snap(); E.sel = clipInsert(clipShift(E.clip.c, 0, 0).out); changed(); renderCtx(); say('Geplakt op dezelfde plek', 1000); return; } setTool('select'); E.paste = true; say('Klik waar het moet komen (Esc stopt)', 2000); draw(); }
+    function selToLevel(dl) { const S = sel(), to = S.lv + dl; if (!selCount(S)) { say('Niets gekozen', 900); return; } if (to < 0 || to >= MV2.MAX_LV) return; snap(); const c = selClip(S); selRemove(S); E.sel = clipInsert(c, to); E.lv = to; changed(); renderCtx(); say(selSay(to > S.lv ? 'Naar boven' : 'Naar beneden'), 1400); }
+    function selAll() { const L = lvl(), S = selEmpty(); for (const id in L.f) S.f.add(id); for (const id in L.w) S.w.add(id); L.s.forEach((_, i) => S.s.add(i)); L.o.forEach((_, i) => S.o.add(i)); for (const k in L.r) S.r.add(k); E.sel = S; renderCtx(); draw(); say(selSay('Alles'), 1200); }
+    // ---------- Controleren: kun je overal komen, komen trappen ergens uit, staan voorwerpen goed? ----------
+    // Alleen op de gegevens (geen stad nodig): een graaf van vloerdriehoeken per verdieping (buren over een gedeelde rib, niet door een muur
+    // zonder opening), trappen als verbinding naar de verdieping erboven, en 'buiten' (het maaiveld rond de begane grond). Wat je vanaf buiten
+    // niet kunt bereiken wordt rood; voorwerpen die zweven, in een muur of buiten het gebied staan, en zwevende muren krijgen een rode stip.
+    const CK_RAD = { tree: 0.35, bush: 0.7, bench: 0.3, lamp: 0.15, pillar: 0.35, table: 0.9, planter: 0.75, fountain: 1.9, bin: 0.25, bike: 0.35, shelf: 0.3, counter: 0.4, sign: 0.1, bed: 0.1, sofa: 0.45, desk: 0.4, kitchen: 0.3, screen: 0.1, car: 0.9, pump: 0.5, charger: 0.2, solar: 0.7, turbine: 0.7, chimney: 1.25, container: 0.7, goal: 0.1, grave: 0.35, boat: 0.8, shelter: 0.1, slide: 0.8, swing: 0.6, sheep: 0.45 };
+    const CK_LEN = { bench: 1.8, shelf: 2.4, counter: 2.2, bike: 2.4, sign: 1.6, bed: 1.8, sofa: 2.0, desk: 1.6, kitchen: 2.4, screen: 6.0, car: 4.3, solar: 3.4, container: 2.4, goal: 3.7, boat: 4.2, shelter: 3.0, swing: 2.7 };
+    const ROOF_NAME = { hip: 'Schilddak', gable: 'Zadeldak', flat: 'Plat dak' };
+    function roofKindAt(x, z) { const k = E.rkind || 'hip'; if (k !== 'gable') return k; const [q, r] = cellAt(x, z), c = mv2CellXZ(q, r), deg = Math.atan2(z - c[1], x - c[0]) * 180 / Math.PI; return 'gable' + ((((Math.round((deg - 30) / 60) % 6) + 6) % 6) % 3); }
+    function checkModule() {
+      const m = E.m, t = ts(), res = { bad: new Map(), marks: [] }, D2 = Math.PI / 180, flo = [];
+      for (let li = 0; li < m.lv.length; li++) {
+        const L = m.lv[li], holes = li > 0 ? (m.lv[li - 1].s || []).map(S => mv2StairHole(S, t)) : [], set = new Set();
+        for (const id in L.f) { if (L.f[id] === 'water') continue; const ijt = id.split(',').map(Number); if (!okTri(ijt)) continue; const v = mv2TriVerts(...ijt, t); if (holes.some(h => { const r = h(v); return r && !r.keep; })) continue; set.add(id); }
+        flo.push(set);
+      }
+      const fl = modMeta(m).fl, adj = new Map(), link = (a, b) => { if (!adj.has(a)) adj.set(a, []); if (!adj.has(b)) adj.set(b, []); adj.get(a).push(b); adj.get(b).push(a); };
+      const blocks = (L, a, b) => { const wk = keyFromSeg(a, b), W2 = wk && L.w[wk]; return !!W2 && !(W2.o && W2.o !== 'window'); };
+      for (let li = 0; li < m.lv.length; li++) { const L = m.lv[li];
+        for (const id of flo[li]) { const [i, j, tt] = id.split(',').map(Number);
+          const nb = tt ? [[[i + 1, j], [i + 1, j + 1], [i + 1, j, 0]], [[i, j + 1], [i + 1, j + 1], [i, j + 1, 0]], [[i + 1, j], [i, j + 1], [i, j, 0]]] : [[[i, j], [i + 1, j], [i, j - 1, 1]], [[i, j], [i, j + 1], [i - 1, j, 1]], [[i + 1, j], [i, j + 1], [i, j, 1]]];
+          for (const [a, b, n] of nb) { if (blocks(L, a, b)) continue; const nid = n.join(','); if (flo[li].has(nid)) link(li + '|' + id, li + '|' + nid); else if (li === 0) link('0|' + id, 'OUT'); } } }
+      const node = (li, x, z) => { const id = triAt(x, z).join(','); if (flo[li] && flo[li].has(id)) return li + '|' + id; return li === 0 ? 'OUT' : null; };
+      for (let li = 0; li < m.lv.length; li++) for (const St of m.lv[li].s) {
+        if (St.k === 'hexramp') continue; const g = stairGeom(St); let lo, hi;
+        if (St.k === 'spiral') { const a0 = Math.atan2(g.uz, g.ux), sd = St.side || 1, pt = (deg, r) => [g.a[0] + Math.cos(a0 + sd * deg * D2) * r, g.a[1] + Math.sin(a0 + sd * deg * D2) * r]; lo = pt(10, 1.7); hi = pt(350, 1.7); }
+        else if (St.k === 'u') { lo = g.at(-0.6, 0); hi = g.at(-0.6, (St.side || 1) * g.w); }
+        else { lo = g.at(-0.6, 0); hi = g.at(g.len + 0.6, 0); }
+        let A = node(li, lo[0], lo[1]); const B = li + 1 < m.lv.length ? node(li + 1, hi[0], hi[1]) : null;
+        if (!A && St.k === 'spiral' && li > 0 && (m.lv[li - 1].s || []).some(S0 => S0.k === 'spiral' && S0.a[0] === St.a[0] && S0.a[1] === St.a[1])) { const a0 = Math.atan2(g.uz, g.ux), sd = St.side || 1; A = node(li, g.a[0] + Math.cos(a0 - sd * 10 * D2) * 1.7, g.a[1] + Math.sin(a0 - sd * 10 * D2) * 1.7); }   // wenteltrappen boven elkaar: je loopt van de ene zo de volgende op
+        if (!A) res.marks.push({ li, x: lo[0], z: lo[1], msg: 'trap begint niet op een vloer' });
+        if (!B && St.k !== 'trib') res.marks.push({ li: li + 1, x: hi[0], z: hi[1], msg: 'trap komt hier niet op een vloer uit' });
+        if (A && B) link(A, B);
+      }
+      const seen = new Set(['OUT']), q = ['OUT']; while (q.length) { const a = q.shift(); for (const b of adj.get(a) || []) if (!seen.has(b)) { seen.add(b); q.push(b); } }
+      for (let li = 0; li < Math.min(fl, m.lv.length); li++) { const bad = new Set(); for (const id of flo[li]) if (!seen.has(li + '|' + id)) bad.add(id); if (bad.size) res.bad.set(li, bad); }
+      // voorwerpen en muren
+      const segsOf = L => { const o2 = []; for (const id in L.w) { if (!L.w[id]) continue; o2.push([...segOf(...id.split(',').map(Number)), L.w[id]]); } return o2; };
+      const dSeg = (x, z, a, b) => { const dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz || 1e-9, u = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / l2)); return Math.hypot(a[0] + u * dx - x, a[1] + u * dz - z); };
+      const hasF = (li, x, z) => !!(m.lv[li] && m.lv[li].f[triAt(x, z).join(',')]);
+      m.lv.forEach((L, li) => { const W = segsOf(L);
+        L.o.forEach((o, oi) => {
+          const nm = MV2.objects[o.t] || o.t;
+          if (!inArea(o.x, o.z)) { res.marks.push({ li, x: o.x, z: o.z, msg: nm + ' buiten het gebied' }); return; }
+          if (li > 0 && !hasF(li, o.x, o.z)) res.marks.push({ li, x: o.x, z: o.z, msg: nm + ' zweeft' });
+          const ln = CK_LEN[o.t] || 0, ux = Math.cos(o.rot || 0), uz = Math.sin(o.rot || 0), pr = ln ? [-0.5, -0.25, 0, 0.25, 0.5].map(f => [o.x + ux * ln * f, o.z + uz * ln * f]) : [[o.x, o.z]];
+          if (W.some(([a, b, Wd]) => Wd.o !== 'open' && Wd.o !== 'gate' && pr.some(([x, z]) => dSeg(x, z, a, b) < (CK_RAD[o.t] || 0.3) + 0.1))) res.marks.push({ li, x: o.x, z: o.z, msg: nm + ' staat in een muur' });
+          L.o.forEach((o2, oj) => { if (oj <= oi || CK_LEN[o.t] || CK_LEN[o2.t]) return; if (Math.hypot(o.x - o2.x, o.z - o2.z) < Math.max(0.5, ((CK_RAD[o.t] || 0.3) + (CK_RAD[o2.t] || 0.3)) * 0.7)) res.marks.push({ li, x: o.x, z: o.z, msg: nm + ' en ' + (MV2.objects[o2.t] || o2.t) + ' op elkaar' }); });
+        });
+        if (li > 0) for (const [a, b] of W) { const mx = (a[0] + b[0]) / 2, mz = (a[1] + b[1]) / 2, nx = -(b[1] - a[1]), nz = b[0] - a[0], l = Math.hypot(nx, nz) || 1; if (!hasF(li, mx + nx / l * 0.5, mz + nz / l * 0.5) && !hasF(li, mx - nx / l * 0.5, mz - nz / l * 0.5) && !hasF(li - 1, mx, mz) && !segsOf(m.lv[li - 1]).some(([A, B2]) => dSeg(mx, mz, A, B2) < 0.2)) res.marks.push({ li, x: mx, z: mz, msg: 'muur zweeft' }); }
+      });
+      return res;
+    }
+    E.checkModule = () => checkModule();   // voor de tests
+    function runCheck() {
+      const r = checkModule(), lvName = li => li === 0 ? 'begane grond' : li + 'e verdieping'; E.check = r;
+      const nBad = [...r.bad.values()].reduce((s2, S2) => s2 + S2.size, 0), where = [...new Set([...r.bad.keys(), ...r.marks.map(k => k.li)])].sort((a, b) => a - b);
+      if (!nBad && !r.marks.length) say('Controle: alles in orde · overal te bereiken, trappen komen uit, voorwerpen staan goed', 3500);
+      else say('Controle: ' + [nBad ? nBad + ' vloerdriehoek' + (nBad === 1 ? '' : 'en') + ' niet te bereiken' : '', r.marks.length ? r.marks.length + ' opmerking' + (r.marks.length === 1 ? '' : 'en') + ' (' + [...new Set(r.marks.map(k => k.msg))].slice(0, 3).join('; ') + ')' : ''].filter(Boolean).join(' · ') + ' · op ' + where.map(lvName).join(', ') + ' · rood in de tekening', 6500);
+      draw(); if (E.vm === '3d') dirty3();
+    }
     // ---------- muisinvoer ----------
     // Bovenaanzicht: schaal en verschuiving. In 3D: een straal vanuit de camera, gesneden met het vlak van de verdieping
     // waar je bent; zo werkt al het gereedschap in beide weergaven hetzelfde.
@@ -292,6 +449,7 @@
       if (E.vm !== '3d' || !cam) return [W / 2 + (x - E.view.x) * E.view.s, H / 2 + (z - E.view.z) * E.view.s];
       v3a.set(x, y === undefined ? lvY() : y, z).project(cam); return [(v3a.x + 1) / 2 * W, (1 - v3a.y) / 2 * H];
     };
+    E.toS = (x, z, y) => { const r = cv.getBoundingClientRect(), q = toS(x, z, y); return [r.left + q[0], r.top + q[1]]; };   // voor de tests: wereld → scherm
     const ptr = new Map();
     let spaceDown = false;
     cv.addEventListener('contextmenu', e => e.preventDefault());
@@ -299,9 +457,16 @@
       cv.setPointerCapture(e.pointerId); ptr.set(e.pointerId, { x: e.clientX, y: e.clientY });
       const rect = cv.getBoundingClientRect(), sx = e.clientX - rect.left, sy = e.clientY - rect.top, [x, z] = toW(sx, sy); E.hoverS = [sx, sy];
       if (E.vm === '3d' && (e.button === 1 || e.altKey || spaceDown || E.tool === 'hand' || (ptr.size > 1))) { E.pan = { kind: 'orbit', sx: e.clientX, sy: e.clientY, th: E.th, ph: E.ph }; return; }   // draaien
-      if (E.vm === '3d' && (e.shiftKey || E.tool === 'select')) { E.pan = { kind: 'pan3', w: [x, z] }; cv.style.cursor = 'grabbing'; return; }   // schuiven over de verdieping
-      if (e.button === 1 || spaceDown || E.tool === 'hand' || E.tool === 'select' || ptr.size > 1) { E.pan = { kind: 'pan', sx: e.clientX, sy: e.clientY, vx: E.view.x, vz: E.view.z }; cv.style.cursor = 'grabbing'; return; }
+      if (E.vm === '3d' && e.shiftKey) { E.pan = { kind: 'pan3', w: [x, z] }; cv.style.cursor = 'grabbing'; return; }   // schuiven over de verdieping
+      if (e.button === 1 || spaceDown || E.tool === 'hand' || (E.tool === 'select' && e.shiftKey) || ptr.size > 1) { E.pan = { kind: 'pan', sx: e.clientX, sy: e.clientY, vx: E.view.x, vz: E.view.z }; cv.style.cursor = 'grabbing'; return; }
       const right = e.button === 2;
+      if (E.tool === 'select') {
+        if (right) { E.sel = selEmpty(); E.paste = false; renderCtx(); draw(); return; }
+        if (E.paste && E.clip) { const v = vertexAt(x, z), pv = E.clip.pv; snap(); E.sel = clipInsert(clipShift(E.clip.c, v[0] - pv[0], v[1] - pv[1]).out); E.paste = false; changed(); renderCtx(); say(selSay('Geplakt'), 1200); return; }
+        const add = e.ctrlKey || e.metaKey, Hh = selHit(x, z), S = sel();
+        if (Hh && selCount(Hh)) { if (add) { selToggle(S, Hh); renderCtx(); draw(); say(selSay(), 900); return; } if (!selHas(S, Hh)) { E.sel = Hh; renderCtx(); say(selSay(), 900); } E.drag = { kind: 'selmove', a: vertexAt(x, z), di: 0, dj: 0 }; draw(); return; }
+        E.drag = { kind: 'marq', s0: [sx, sy], s1: [sx, sy], add }; draw(); return;
+      }
       if (E.tool === 'floor') { snap(); paintFloor(x, z, right); E.drag = { kind: 'floor', erase: right }; changed(); return; }
       if (E.tool === 'fill') { snap(); const n = fillFrom(x, z, right); changed(); say(n ? n + ' driehoeken' : 'Niets gevuld', 900); return; }
       if (E.tool === 'room') { snap(); const n = roomAt(x, z); changed(); say(n ? n + ' muurdelen' : 'Klik binnen het gebied', 900); return; }
@@ -310,7 +475,7 @@
       if (E.tool === 'stair' || E.tool === 'ramp' || E.tool === 'ustair') { if (right) { const si = stairAt(x, z); if (si >= 0) { snap(); lvl().s.splice(si, 1); changed(); } return; } { const H0 = hoverStair(x, z); E.drag = { kind: 'stair', a: H0.a, d: H0.d, n: 0 }; } draw(); return; }
       if (E.tool === 'spiral') { if (right) { const si = stairAt(x, z); if (si >= 0) { snap(); lvl().s.splice(si, 1); changed(); } return; } { const H0 = hoverStair(x, z); E.drag = { kind: 'spiral', a: H0.a, d: H0.d, n: 1 }; } draw(); return; }
       if (E.tool === 'hexramp') { const L = lvl(); if (right) { const si = stairAt(x, z); if (si >= 0) { snap(); L.s.splice(si, 1); changed(); } return; } if (!inArea(x, z)) return; const [q, r] = cellAt(x, z), c = mv2CellXZ(q, r); let side = 0, bd = -1e9; FRAMES.forEach((f, k) => { const d = (x - c[0]) * f.nx + (z - c[1]) * f.nz; if (d > bd) { bd = d; side = k; } }); snap(); const old = L.s.findIndex(S => S.k === 'hexramp' && S.q === q && S.r === r); if (old >= 0) L.s.splice(old, 1); L.s.push({ a: [0, 0], d: 0, n: 1, w: 9, k: 'hexramp', q, r, side }); changed(); say('Schans: instap aan zijde ' + (side + 1), 1000); return; }
-      if (E.tool === 'roof') { if (!inArea(x, z)) return; const [q, r] = cellAt(x, z), k = q + ',' + r, L = lvl(); snap(); L.r[k] = right ? undefined : L.r[k] === 'hip' ? 'flat' : L.r[k] === 'flat' ? undefined : 'hip'; if (!L.r[k]) delete L.r[k]; changed(); return; }
+      if (E.tool === 'roof') { if (!inArea(x, z)) return; const [q, r] = cellAt(x, z), k = q + ',' + r, L = lvl(), kind = roofKindAt(x, z); snap(); if (right || L.r[k] === kind) delete L.r[k]; else L.r[k] = kind; changed(); say(L.r[k] ? ROOF_NAME[E.rkind || 'hip'] + (mv2RoofFit(E.m, E.lv, q, r) < R ? ' · volgt de muren' : '') : 'Dak weg', 900); return; }
       if (E.tool === 'object') { const L = lvl(), oi = objectAt(x, z, 0.8);
         if (right) { if (oi >= 0) { snap(); L.o.splice(oi, 1); changed(); } return; }
         if (oi >= 0) { snap(); E.drag = { kind: 'obj', oi, x: L.o[oi].x, z: L.o[oi].z, rot: L.o[oi].rot || 0, moved: false, back: e.shiftKey }; return; }   // bestaand voorwerp: klik draait 30°, slepen richt het
@@ -340,6 +505,8 @@
             say(`${n} ${n === 1 ? 'zijde' : 'zijden'} · ${f(len)} m · ${u ? '2 × 8' : '16'} treden van ${Math.round(run * 100)} cm · ${run < 0.25 ? 'te steil' : run > 0.5 ? 'erg flauw' : 'goede trap'}${up ? ' · rood: gat in de vloer erboven' : ' · nog geen vloer erboven'}`, 1500);
           } }
         else if (E.drag.kind === 'erase') { if (eraseAt(x, z, true)) dirty3(); }
+        else if (E.drag.kind === 'selmove') { const v = vertexAt(x, z); E.drag.di = v[0] - E.drag.a[0]; E.drag.dj = v[1] - E.drag.a[1]; }
+        else if (E.drag.kind === 'marq') E.drag.s1 = [sx, sy];
         else if (E.drag.kind === 'obj') { const D = E.drag; if (Math.hypot(x - D.x, z - D.z) > 0.6) { const free = e.ctrlKey || e.metaKey, r2 = aimRot(D.x, D.z, x, z, free); D.moved = true; if (r2 !== D.rot) { D.rot = r2; if (D.oi >= 0) { lvl().o[D.oi].rot = r2; rebuild3(); } } say('Draaiing ' + degOf(D.rot) + '°' + (free ? ' · vrij' : ' · per 30°, Ctrl: vrij'), 1200); } }
       }
       draw();
@@ -352,6 +519,8 @@
       else if (D.kind === 'stair' && D.n > 0) { snap(); lvl().s.push(newStair(D)); changed(); }
       else if (D.kind === 'stair') { snap(); lvl().s.push(newStair({ a: D.a, d: D.d, n: 3 })); changed(); say(E.tool === 'ramp' ? 'Helling geplaatst' : 'Trap geplaatst · sleep voor een andere lengte of richting', 1200); }
       else if (D.kind === 'spiral') { snap(); lvl().s.push(newSpiral(D)); changed(); say('Wenteltrap geplaatst', 900); }
+      else if (D.kind === 'selmove') { if (D.di || D.dj) selMove(D.di, D.dj); else draw(); }
+      else if (D.kind === 'marq') { if (Math.hypot(D.s1[0] - D.s0[0], D.s1[1] - D.s0[1]) < 5) { if (!D.add) E.sel = selEmpty(); } else { const R2 = selRect(D.s0, D.s1); if (D.add) { const S = sel(); for (const kk of ['f', 'w', 's', 'o', 'r']) for (const v of R2[kk]) S[kk].add(v); } else E.sel = R2; } renderCtx(); draw(); if (selCount(sel())) say(selSay(), 1200); }
       else if (D.kind === 'obj') { const L = lvl();
         if (D.oi >= 0) { const o = L.o[D.oi]; if (!D.moved) o.rot = normRot((o.rot || 0) + (D.back ? -ROT_STEP : ROT_STEP)); E.orot = o.rot; }
         else { snap(); if (D.moved) E.orot = D.rot; L.o.push({ t: E.obj, x: D.x, z: D.z, rot: D.moved ? D.rot : (E.orot || 0) }); }
@@ -367,7 +536,7 @@
       renderCtx(); say('Draaiing ' + degOf(E.orot) + '°', 800);
     }
     function zoom(f) { E.view.s = Math.max(3, Math.min(80, E.view.s * f)); if (E.vm === '3d') dirty3(); draw(); }
-    function fit() { const ext = R * (1 + 2 * (E.m.k || 0)) * 1.1; E.view.x = 0; E.view.z = 0; E.view.s = Math.min(W, H) / (2 * ext); if (E.vm === '3d') dirty3(); draw(); }
+    function fit() { if (!E.m) return; const ext = R * (1 + 2 * (E.m.k || 0)) * 1.1; E.view.x = 0; E.view.z = 0; E.view.s = Math.min(W, H) / (2 * ext); if (E.vm === '3d') dirty3(); draw(); }
     document.addEventListener('keydown', e => {
       if (app.hidden) return; if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA')) return;
       if (e.code === 'Space') { spaceDown = true; e.preventDefault(); return; }
@@ -375,7 +544,16 @@
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); save(); return; }
       if (e.key === 'PageUp') { e.preventDefault(); $('lvUp').click(); return; } if (e.key === 'PageDown') { e.preventDefault(); $('lvDn').click(); return; }
-      if (e.key === 'Escape') { E.drag = null; draw(); return; }
+      { const ctl = e.ctrlKey || e.metaKey, kl = e.key.toLowerCase();
+        if (ctl && kl === 'c') { e.preventDefault(); selCopy(false); return; }
+        if (!ctl && e.shiftKey && kl === 'c') { e.preventDefault(); runCheck(); return; }
+        if (ctl && kl === 'x') { e.preventDefault(); selCopy(true); return; }
+        if (ctl && kl === 'v') { e.preventDefault(); selPaste(e.shiftKey); return; }
+        if (ctl && kl === 'a') { e.preventDefault(); setTool('select'); selAll(); return; }
+        if (ctl && kl === 'd') { e.preventDefault(); selCopy(false); selPaste(false); return; }
+        if (E.tool === 'select' && (e.key === 'Delete' || e.key === 'Backspace')) { e.preventDefault(); selDelete(); return; }
+        if (E.tool === 'select' && !ctl && (kl === 'q' || kl === 'e')) { selRotate(kl === 'q' ? -1 : 1); return; } }
+      if (e.key === 'Escape') { if (E.paste) E.paste = false; else if (E.tool === 'select') { E.sel = selEmpty(); renderCtx(); } E.drag = null; draw(); return; }
       if (e.key === '2') setView('2d'); if (e.key === '3') setView('3d'); if (e.key === 'n' || e.key === 'N') { bBrush.click(); return; }
       if (E.tool === 'object' && (e.key === 'q' || e.key === 'Q' || e.key === 'e' || e.key === 'E')) { rotStep(e.key.toLowerCase() === 'q' ? -1 : 1); return; }
       const t = TOOLS.find(x => x[2].toLowerCase() === e.key.toLowerCase()); if (t) setTool(t[0]);
@@ -449,7 +627,7 @@
       if (E.lv > 0) { const U = m.lv[E.lv - 1]; ctx.globalAlpha = 0.35; for (const id in U.f) tri(id, COL[U.f[id]] || '#888'); ctx.globalAlpha = 1; for (const id in U.w) wallLine(id, U.w[id], true); }
       // huidige verdieping
       for (const id in L.f) tri(id, COL[L.f[id]] || '#888');
-      for (const id in L.r) { const [q, r] = id.split(',').map(Number), c = mv2CellXZ(q, r); hexPath(c[0], c[1], R - 0.3); ctx.fillStyle = L.r[id] === 'hip' ? 'rgba(168,71,58,0.35)' : 'rgba(141,143,138,0.35)'; ctx.fill(); ctx.strokeStyle = L.r[id] === 'hip' ? '#a8473a' : '#8d8f8a'; ctx.lineWidth = 2; ctx.stroke(); if (L.r[id] === 'hip') { ctx.beginPath(); const C = toS(c[0], c[1]); for (let i = 0; i < 6; i++) { const a = (30 + 60 * i) * Math.PI / 180, S2 = toS(c[0] + (R - 0.3) * Math.cos(a), c[1] + (R - 0.3) * Math.sin(a)); ctx.moveTo(C[0], C[1]); ctx.lineTo(S2[0], S2[1]); } ctx.lineWidth = 1; ctx.stroke(); } }
+      for (const id in L.r) { const [q, r] = id.split(',').map(Number); roofDraw(q, r, L.r[id], false); }
       for (const S of L.s) stairDraw(S, false);
       for (const id in L.w) wallLine(id, L.w[id], false);
       for (const o of L.o) { ctx.lineWidth = 1.2; objShape(o, 'rgba(23,27,20,0.25)', '#9aa38c'); const S2 = toS(o.x, o.z); ctx.fillStyle = 'rgba(23,27,20,0.7)'; ctx.beginPath(); ctx.arc(S2[0], S2[1], Math.max(8, 0.5 * s), 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#9aa38c'; ctx.lineWidth = 1; ctx.stroke(); ctx.font = `${Math.max(11, Math.min(26, 0.8 * s))}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff'; ctx.fillText(OBJ_GLYPH[o.t] || '•', S2[0], S2[1] + 1); }
@@ -477,7 +655,42 @@
         ghostWant = o; ctx.lineWidth = 2; objShape(o, 'rgba(242,178,51,0.22)', '#f2b233', in3 ? lvY() + 0.05 : undefined);
         if (!in3) { const S2 = toS(o.x, o.z); ctx.fillStyle = '#fff'; ctx.globalAlpha = 0.85; ctx.font = `${Math.max(12, Math.min(28, 0.9 * s))}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(OBJ_GLYPH[o.t] || '•', S2[0], S2[1] + 1); ctx.globalAlpha = 1; }
       }
+      // selectie: blauw; tijdens verplaatsen of plakken het nieuwe stuk oranje; de rechthoek gestippeld
+      function clipPaint(c, col, fill, lw) {
+        ctx.save(); ctx.strokeStyle = col; ctx.fillStyle = fill; ctx.lineWidth = lw || 2; const yb = lvY();
+        for (const [i, j, t] of c.f) { const v = mv2TriVerts(i, j, t, ts()); ctx.beginPath(); v.forEach((p, n) => { const S5 = toS(p[0], p[1]); n ? ctx.lineTo(S5[0], S5[1]) : ctx.moveTo(S5[0], S5[1]); }); ctx.closePath(); ctx.fill(); }
+        for (const [i, j, d] of c.w) { const [a, b] = segOf(i, j, d); if (in3) { const P4 = [[a, yb], [b, yb], [b, yb + MV2.LV_H], [a, yb + MV2.LV_H]].map(([p, y]) => toS(p[0], p[1], y)); ctx.beginPath(); P4.forEach((p, n) => n ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath(); ctx.fill(); ctx.stroke(); } else { const A = toS(a[0], a[1]), B = toS(b[0], b[1]); ctx.save(); ctx.lineWidth = Math.max(5, 0.32 * s); ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke(); ctx.restore(); } }
+        for (const St of c.s) { const g = stairGeom(St), pts = g.poly.map(p => toS(p[0], p[1])); ctx.beginPath(); pts.forEach((p, n) => n ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+        for (const o of c.o) objShape(o, fill, col, in3 ? yb + 0.05 : undefined);
+        for (const [q, r] of c.r) { const cc = mv2CellXZ(q, r); hexPath(cc[0], cc[1], R - 0.3); ctx.stroke(); }
+        ctx.restore();
+      }
+      function selPaint() {
+        const S = sel(), D = E.drag;
+        if (selCount(S)) { const c = selClip(S); if (D && D.kind === 'selmove' && (D.di || D.dj)) { clipPaint(c, 'rgba(79,176,255,0.55)', 'rgba(79,176,255,0.10)', 1.5); clipPaint(clipShift(c, D.di, D.dj).out, '#f2b233', 'rgba(242,178,51,0.32)', 2.5); } else clipPaint(c, '#4fb0ff', 'rgba(79,176,255,0.28)', 2.5); }
+        if (E.paste && E.clip && E.hover) { const v = vertexAt(E.hover[0], E.hover[1]); clipPaint(clipShift(E.clip.c, v[0] - E.clip.pv[0], v[1] - E.clip.pv[1]).out, '#f2b233', 'rgba(242,178,51,0.32)', 2.5); }
+        if (D && D.kind === 'marq') { ctx.save(); ctx.setLineDash([5, 4]); ctx.strokeStyle = '#4fb0ff'; ctx.fillStyle = 'rgba(79,176,255,0.10)'; ctx.lineWidth = 1.5; const a = D.s0, b = D.s1, rx = Math.min(a[0], b[0]), ry = Math.min(a[1], b[1]), rw = Math.abs(b[0] - a[0]), rh = Math.abs(b[1] - a[1]); ctx.fillRect(rx, ry, rw, rh); ctx.strokeRect(rx, ry, rw, rh); ctx.restore(); }
+      }
+      // dak in het bovenaanzicht: zeshoek op de straal van het dak (volgt de muren), schilddak met graten, zadeldak met de nok
+      function roofDraw(q, r, kind, ghost) {
+        const c = mv2CellXZ(q, r), rr = mv2RoofFit(E.m, E.lv, q, r) + (mv2RoofFit(E.m, E.lv, q, r) < R ? 0.35 : -0.3), red = kind !== 'flat', V = k => toS(c[0] + rr * Math.cos((30 + 60 * k) * Math.PI / 180), c[1] + rr * Math.sin((30 + 60 * k) * Math.PI / 180));
+        hexPath(c[0], c[1], rr); ctx.fillStyle = ghost ? 'rgba(242,178,51,0.18)' : red ? 'rgba(168,71,58,0.35)' : 'rgba(141,143,138,0.35)'; ctx.fill(); ctx.strokeStyle = ghost ? '#f2b233' : red ? '#a8473a' : '#8d8f8a'; ctx.lineWidth = 2; ctx.stroke();
+        const g = /^gable(\d)$/.exec(kind || ''); ctx.beginPath(); ctx.lineWidth = g ? 2.5 : 1;
+        if (g) { const a = +g[1] % 3, A = V(a), B = V(a + 3); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); }
+        else if (kind === 'hip') { const C = toS(c[0], c[1]); for (let k = 0; k < 6; k++) { const S2 = V(k); ctx.moveTo(C[0], C[1]); ctx.lineTo(S2[0], S2[1]); } }
+        ctx.stroke();
+      }
+      function checkPaint() {
+        const r = E.check; if (!r) return; const bad = r.bad.get(E.lv); ctx.save();
+        if (bad) { ctx.fillStyle = 'rgba(255,72,56,0.42)'; ctx.strokeStyle = 'rgba(255,72,56,0.9)'; ctx.lineWidth = 1; for (const id of bad) { const v = mv2TriVerts(...id.split(',').map(Number), ts()); ctx.beginPath(); v.forEach((p, n) => { const S5 = toS(p[0], p[1]); n ? ctx.lineTo(S5[0], S5[1]) : ctx.moveTo(S5[0], S5[1]); }); ctx.closePath(); ctx.fill(); ctx.stroke(); } }
+        ctx.font = '600 12px system-ui, sans-serif'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+        for (const k of r.marks) { if (k.li !== E.lv) continue; const S5 = toS(k.x, k.z); ctx.fillStyle = '#ff4838'; ctx.beginPath(); ctx.arc(S5[0], S5[1], 7, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); const tw = ctx.measureText(k.msg).width; ctx.fillStyle = 'rgba(23,27,20,0.88)'; ctx.fillRect(S5[0] + 11, S5[1] - 10, tw + 12, 20); ctx.fillStyle = '#ff8a7d'; ctx.fillText(k.msg, S5[0] + 17, S5[1]); }
+        const other = [...new Set([...r.bad.keys(), ...r.marks.map(k => k.li)])].filter(li => li !== E.lv); if (other.length) { const txt = 'Ook rood op: ' + other.map(li => li === 0 ? 'BG' : li + 'e').join(', ') + ' (Page Up/Down)'; ctx.font = '600 12px system-ui, sans-serif'; const tw = ctx.measureText(txt).width; ctx.fillStyle = 'rgba(23,27,20,0.88)'; ctx.fillRect(W / 2 - tw / 2 - 8, 12, tw + 16, 24); ctx.fillStyle = '#ff8a7d'; ctx.textAlign = 'center'; ctx.fillText(txt, W / 2, 24); }
+        ctx.restore();
+      }
       function paintHover() {
+      checkPaint();
+      if (E.tool === 'select') selPaint();
       // voorbeeld van wat je doet
       const hv = E.hover, D = E.drag;
       if (D && D.kind === 'wall' && D.n > 0) { for (const [i, j, d] of segsBetween(D.a, D.d, D.n)) wallLine(wallKey(i, j, d), { m: E.wmat, o: '' }, false); }
@@ -516,7 +729,8 @@
         }
         else if (['door', 'window', 'gate', 'open', 'close'].includes(E.tool)) { const w = nearestWall(x, z); if (w) { const [i, j, d] = w.id.split(',').map(Number), [a, b] = segOf(i, j, d), A = toS(a[0], a[1]), B = toS(b[0], b[1]); ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke(); } }
         else if (E.tool === 'hexramp') { if (inArea(x, z)) { const [q, r] = cellAt(x, z), c = mv2CellXZ(q, r); let side = 0, bd = -1e9; FRAMES.forEach((f, k) => { const d = (x - c[0]) * f.nx + (z - c[1]) * f.nz; if (d > bd) { bd = d; side = k; } }); stairDraw({ k: 'hexramp', q, r, side, a: [0, 0], d: 0, n: 1 }, true); } }
-        else if (E.tool === 'roof' || E.tool === 'room') { if (inArea(x, z)) { const [q, r] = cellAt(x, z), c = mv2CellXZ(q, r); hexPath(c[0], c[1], R - 0.3); ctx.stroke(); } }
+        else if (E.tool === 'roof') { if (inArea(x, z)) { const [q, r] = cellAt(x, z); roofDraw(q, r, roofKindAt(x, z), true); } }
+        else if (E.tool === 'room') { if (inArea(x, z)) { const [q, r] = cellAt(x, z), c = mv2CellXZ(q, r); hexPath(c[0], c[1], R - 0.3); ctx.stroke(); } }
         else if (E.tool === 'object') {
           const oi = objectAt(x, z, 0.8);
           if (oi >= 0) { const o = lvl().o[oi]; ctx.lineWidth = 2.5; objShape(o, 'rgba(242,178,51,0.18)', '#f2b233', in3 ? lvY() + 0.05 : undefined); const M = toS(x, z), lab = 'Klik: 30° draaien · slepen: richten · ' + degOf(o.rot || 0) + '°'; ctx.font = '600 12px system-ui, sans-serif'; const tw = ctx.measureText(lab).width; ctx.fillStyle = 'rgba(23,27,20,0.88)'; ctx.fillRect(M[0] + 14, M[1] - 30, tw + 14, 22); ctx.fillStyle = '#f2b233'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(lab, M[0] + 21, M[1] - 19); }

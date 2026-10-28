@@ -67,7 +67,7 @@
             const a0 = Math.atan2(uz, ux), sd = S.side || 1, pt = (deg, r) => [a[0] + Math.cos(a0 + sd * deg * Math.PI / 180) * r, a[1] + Math.sin(a0 + sd * deg * Math.PI / 180) * r];
             const lo = pt(6, 1.7), hi = pt(354, 1.7), via = []; for (let dg = 20; dg <= 340; dg += 20) via.push(tf(...pt(dg, 1.1)));
             // de leuning rondom (vijf zijden van de zeshoek) als muur in het netwerk: alleen langs de instapzijde kom je erin, niet dwars door de leuning
-            for (let e = 1; e < 6; e++) { const A = tf(...pt(e * 60, 2.19)), B = tf(...pt(e * 60 + 60, 2.19)); addWallIdx(lvW, { a: A, b: B, pass: false, mid: [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2], o: 'trap' }); }
+            for (let e = 0; e < 6; e++) { const A = tf(...(e ? pt(e * 60, 2.19) : pt(30, 1.9))), B = tf(...pt(e * 60 + 60, 2.19)); addWallIdx(lvW, { a: A, b: B, pass: false, mid: [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2], o: 'trap' }); }   // open is alleen de eerste tree (0°–30°)
             const [lq, lr] = mv2CellOf(lo[0], lo[1]), [hq, hr] = mv2CellOf(hi[0], hi[1]);
             stairs.push({ lo: tf(lo[0], lo[1]), hi: tf(hi[0], hi[1]), lq, lr, hq, hr, via, spir: tf(a[0], a[1]) }); continue;
           }
