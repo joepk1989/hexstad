@@ -44,6 +44,7 @@
       check: '<path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z"/><path d="M8.4 12.2l2.6 2.6 4.8-5.2"/>',
       zoomIn: '<circle cx="11" cy="11" r="7"/><path d="M16 16l5 5M11 8v6M8 11h6"/>',
       zoomOut: '<circle cx="11" cy="11" r="7"/><path d="M16 16l5 5M8 11h6"/>',
+      walk: '<circle cx="13.5" cy="4.5" r="1.9"/><path d="M12.5 8.5l-3.2 3.6 2.4 1.4M12.5 8.5l1.3 5.2-2.6 4.3-1.2 3M13.8 13.7l2.7 3.2.6 3.6M12.5 8.5l3.3 2.6 2.4-.8"/>',
       fit: '<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/>',
       brush: '<path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z"/><path d="M12 12l7.8-4.5M12 12v9M12 12L4.2 7.5" opacity=".5"/>',
       hexramp: '<path d="M3 17L21 7v10z"/><path d="M3 17h18M7 15l10-5" opacity=".5"/><path d="M5 12l4-2M9 10l-1 3" opacity=".8"/>',
@@ -85,9 +86,10 @@
     mkBtn('edit', 'check', 'Controleren: kun je overal komen, komen trappen uit, staan voorwerpen goed? (Shift+C)', () => runCheck());
     const b2d = mkBtn('view', 'v2d', 'Bovenaanzicht (2)', () => setView('2d')), b3d = mkBtn('view', 'v3d', '3D (3): teken op de verdieping waar je bent; draaien met de middelste muisknop, Alt of het handje, schuiven met Shift', () => setView('3d'));
     const bUpto = mkBtn('view', 'upto', 'In 3D alleen tot en met de huidige verdieping tonen', () => { E.upto = !E.upto; bUpto.setAttribute('aria-pressed', String(E.upto)); dirty3(); });
+    const bWalk = mkBtn('view', 'walk', 'Rondlopen (4): loop zelf door de module, met WASD of de pijltjes; Esc gaat terug', () => (E.walk ? walkStop() : walkStart()));
     mkBtn('view', 'zoomIn', 'Inzoomen', () => zoom(1.25)); mkBtn('view', 'zoomOut', 'Uitzoomen', () => zoom(0.8)); mkBtn('view', 'fit', 'Passend maken', () => fit());
-    function setTool(k) { if (k !== 'select') { E.sel = null; E.paste = false; } E.tool = k; for (const t in toolBtns) toolBtns[t].setAttribute('aria-pressed', String(t === k)); E.drag = null; renderCtx(); cv.style.cursor = k === 'hand' ? 'grab' : k === 'select' ? 'default' : 'crosshair'; draw(); }
-    function setView(v) { E.vm = v; b2d.setAttribute('aria-pressed', String(v === '2d')); b3d.setAttribute('aria-pressed', String(v === '3d')); cv3.style.display = v === '3d' ? 'block' : 'none'; if (v === '3d') { ensure3(); camSync(); rebuild3(); } draw(); }
+    function setTool(k) { if (E.walk) walkStop(); if (k !== 'select') { E.sel = null; E.paste = false; } E.tool = k; for (const t in toolBtns) toolBtns[t].setAttribute('aria-pressed', String(t === k)); E.drag = null; renderCtx(); cv.style.cursor = k === 'hand' ? 'grab' : k === 'select' ? 'default' : 'crosshair'; draw(); }
+    function setView(v) { if (E.walk) walkStop(); E.vm = v; b2d.setAttribute('aria-pressed', String(v === '2d')); b3d.setAttribute('aria-pressed', String(v === '3d')); cv3.style.display = v === '3d' ? 'block' : 'none'; if (v === '3d') { ensure3(); camSync(); rebuild3(); } draw(); }
     // ---------- raster ----------
     const ts = () => mv2Ts(E.m);
     const P = (i, j) => mv2P(i, j, ts());
@@ -219,8 +221,12 @@
         hint.textContent = 'Je ziet het voorwerp al staan voor je klikt. Klik om neer te zetten, of houd ingedrukt en sleep om het te richten (per 30°, met Ctrl vrij). Draaien: Q en E, Shift+scroll of de knoppen; op een voorwerp: klik draait 30° (Shift-klik terug), slepen richt het, rechtermuisknop haalt het weg. Het pijltje is de voorkant.'; }
       else if (E.tool === 'erase') { title.textContent = 'Gum'; mk(BRUSH_LAB, E.brush, k => { E.brush = k; }); hint.textContent = 'Klik of sleep: voorwerp, muur, trap, dak of vloer onder de muis wordt weggehaald. Bij vloer bepaalt het penseel hoeveel (wisselen met N).'; }
       else if (E.tool === 'select') { title.textContent = 'Kiezen'; const S = sel(), n = selCount(S);
-        mk({ l: '↺ 60°', r: '↻ 60°', c: 'Kopiëren', v: 'Plakken', x: 'Weghalen', u: 'Keuze ↑ verdieping', d: 'Keuze ↓ verdieping', a: 'Alles' }, '', k => ({ l: () => selRotate(-1), r: () => selRotate(1), c: () => selCopy(false), v: () => selPaste(false), x: () => selDelete(), u: () => selToLevel(1), d: () => selToLevel(-1), a: () => selAll() })[k]());
-        hint.textContent = (n ? selSay('Gekozen') + '. ' : '') + 'Klik op iets om het te kiezen (een vloer: de hele ruimte tot aan de muren), sleep een rechthoek voor meer; Ctrl+klik voegt toe of haalt eraf. Sleep wat gekozen is om het te verplaatsen (langs het raster). Q/E draait 60°, Delete haalt weg, Ctrl+C / X / V kopieert, knipt en plakt (Ctrl+Shift+V: op dezelfde plek, ook op een andere verdieping), Ctrl+D dupliceert, Ctrl+A kiest alles, Esc kiest niets. Schuiven met het beeld: Shift+slepen of de middelste knop.'; }
+        mk({ l: '↺ 60°', r: '↻ 60°', h: 'Spiegel ↔', g: 'Spiegel ↕', c: 'Kopiëren', v: 'Plakken', x: 'Weghalen', u: 'Keuze ↑ verdieping', d: 'Keuze ↓ verdieping', a: 'Alles' }, '', k => ({ l: () => selRotate(-1), r: () => selRotate(1), h: () => selMirror('x'), g: () => selMirror('z'), c: () => selCopy(false), v: () => selPaste(false), x: () => selDelete(), u: () => selToLevel(1), d: () => selToLevel(-1), a: () => selAll() })[k]());
+        { const L = lvl(), same = (ids, get) => { const v = new Set(ids.map(get).filter(Boolean)); return v.size === 1 ? [...v][0] : ''; }, sub = txt => { const d = document.createElement('div'); d.className = 'mm-sub'; d.textContent = txt; sw.appendChild(d); };
+          const wIds = [...S.w].filter(id => L.w[id]), fIds = [...S.f].filter(id => L.f[id]);
+          if (wIds.length) { sub('Muren in de keuze: materiaal'); mk(MV2.walls, same(wIds, id => L.w[id].m), k => selMat('w', k)); }
+          if (fIds.length) { sub('Vloer in de keuze: materiaal'); mk(MV2.floors, same(fIds, id => L.f[id]), k => selMat('f', k)); } }
+        hint.textContent = (n ? selSay('Gekozen') + '. ' : '') + 'Klik op iets om het te kiezen (een vloer: de hele ruimte tot aan de muren), sleep een rechthoek voor meer; Ctrl+klik voegt toe of haalt eraf. Sleep wat gekozen is om het te verplaatsen (langs het raster). Q/E draait 60°, M spiegelt links ↔ rechts (Shift+M boven ↕ onder), een materiaal hieronder geeft alle gekozen muren of vloeren dat materiaal, Delete haalt weg, Ctrl+C / X / V kopieert, knipt en plakt (Ctrl+Shift+V: op dezelfde plek, ook op een andere verdieping), Ctrl+D dupliceert, Ctrl+A kiest alles, Esc kiest niets. Schuiven met het beeld: Shift+slepen of de middelste knop.'; }
       else { title.textContent = E.tool === 'hand' ? 'Schuiven' : 'Kiezen'; hint.textContent = 'Sleep om te schuiven, scroll om te zoomen. Middelste muisknop of spatie schuift altijd.'; }
     }
     // ---------- bewerkingen ----------
@@ -330,6 +336,19 @@
       for (const R0 of c.r) { if (!pc) { stay.r.push(R0); continue; } let a = R0[0] - pc[0], b = R0[1] - pc[1]; for (let n = 0; n < k; n++) [a, b] = [-b, a + b]; const g = /^gable(\d)$/.exec(R0[2] || ''); out.r.push([a + pc[0], b + pc[1], g ? 'gable' + ((+g[1] + k) % 3) : R0[2]]); }
       void n0; return { out, stay };
     }
+    // spiegelen om rasterpunt pv: 'z' keert boven en onder om (in het bovenaanzicht), 'x' links en rechts (= 'z' plus 180° draaien).
+    // Zelfde afbeelding als mv2Mirror (een gespiegeld geplaatste module), maar dan om een punt binnen de module.
+    function clipMirror(c, axis, pv) {
+      const mI = ([i, j]) => { const a = i - pv[0], b = j - pv[1]; return [a + pv[0], -a - b + pv[1]]; };
+      const pw = P(pv[0], pv[1]), pc = cellStep(pv[0], pv[1]), D6 = [5, 4, 3, 2, 1, 0], stay = { f: [], w: [], s: [], o: [], r: [] }, out = { f: [], w: [], s: [], o: [], r: [] };
+      for (const [i, j, t, m] of c.f) { const V = triVertsIdx(i, j, t).map(mI).map(([a, b]) => P(a, b)); out.f.push([...triAt((V[0][0] + V[1][0] + V[2][0]) / 3, (V[0][1] + V[1][1] + V[2][1]) / 3), m]); }
+      for (const [i, j, d, W2] of c.w) { const D = MV2.DIRW[d], key = keyFromSeg(mI([i, j]), mI([i + D[0], j + D[1]])); if (key) out.w.push([...key.split(',').map(Number), W2]); }
+      for (const o of c.o) out.o.push(Object.assign({}, o, { z: Math.round((2 * pw[1] - o.z) * 4) / 4, rot: -(o.rot || 0) }));
+      for (const St of c.s) { if (St.k === 'hexramp') { stay.s.push(St); continue; } const S2 = Object.assign({}, St, { a: mI(St.a), d: D6[St.d || 0] }); if (S2.off) S2.off = -S2.off; if (S2.k === 'spiral' || S2.k === 'u') S2.side = -(S2.side || 1); else if (S2.side) S2.side = -S2.side; out.s.push(S2); }
+      for (const R0 of c.r) { if (!pc) { stay.r.push(R0); continue; } const dq = R0[0] - pc[0], dr = R0[1] - pc[1], g = /^gable(\d)$/.exec(R0[2] || ''); out.r.push([dq + dr + pc[0], -dr + pc[1], g ? 'gable' + [2, 1, 0][+g[1] % 3] : R0[2]]); }
+      if (axis !== 'x') return { out, stay };
+      const r2 = clipRot(out, 3, pv); return { out: r2.out, stay: clipJoin(stay, r2.stay) };
+    }
     const clipJoin = (A, B) => ({ f: [...A.f, ...B.f], w: [...A.w, ...B.w], s: [...A.s, ...B.s], o: [...A.o, ...B.o], r: [...A.r, ...B.r] });
     const clipSize = c => c.f.length + c.w.length + c.s.length + c.o.length + c.r.length;
     // middelpunt (rasterpunt) van een stuk: het draaipunt en het aangrijppunt bij plakken
@@ -372,6 +391,9 @@
     function selApply(fn, msg) { const S = sel(); if (!selCount(S)) { say('Niets gekozen', 900); return; } snap(); const c = selClip(S); selRemove(S); const { out, stay } = fn(c); clipInsert(stay, S.lv); E.sel = clipInsert(out, S.lv); changed(); renderCtx(); const left = clipSize(stay); say(msg + (left ? ' · ' + left + ' dak/schans bleef staan (die horen bij een heel vak)' : ''), 1400); }
     const selMove = (di, dj) => selApply(c => clipShift(c, di, dj), 'Verplaatst');
     const selRotate = k => selApply(c => clipRot(c, k, clipPivot(c)), k > 0 ? 'Gedraaid 60° rechtsom' : 'Gedraaid 60° linksom');
+    const selMirror = axis => selApply(c => clipMirror(c, axis, clipPivot(c)), axis === 'x' ? 'Gespiegeld (links ↔ rechts)' : 'Gespiegeld (boven ↕ onder)');
+    // materiaal van de gekozen muren of vloeren in één keer wisselen
+    function selMat(kind, mat) { const S = sel(), L = E.m.lv[S.lv], ids = [...S[kind]].filter(id => kind === 'w' ? L.w[id] : L.f[id]); if (!ids.length) return; snap(); for (const id of ids) { if (kind === 'w') L.w[id] = Object.assign({}, L.w[id], { m: mat }); else L.f[id] = mat; } changed(); say(ids.length + (kind === 'w' ? (ids.length === 1 ? ' muur' : ' muren') + ': ' + MV2.walls[mat] : ' vloerdriehoek' + (ids.length === 1 ? '' : 'en') + ': ' + MV2.floors[mat]), 1400); }
     function selDelete() { const S = sel(); if (!selCount(S)) return; snap(); selRemove(S); E.sel = selEmpty(); changed(); renderCtx(); say('Weggehaald', 900); }
     function selCopy(cut) { const S = sel(); if (!selCount(S)) { say('Niets gekozen om te kopiëren', 1000); return; } const c = selClip(S); E.clip = { c, pv: clipPivot(c) }; if (cut) selDelete(); say(selSay(cut ? 'Geknipt' : 'Gekopieerd') + ' · Ctrl+V: plakken waar je klikt, Ctrl+Shift+V: op dezelfde plek', 2600); }
     function selPaste(inPlace) { if (!E.clip) { say('Eerst iets kopiëren (Ctrl+C)', 1200); return; } if (inPlace) { snap(); E.sel = clipInsert(clipShift(E.clip.c, 0, 0).out); changed(); renderCtx(); say('Geplakt op dezelfde plek', 1000); return; } setTool('select'); E.paste = true; say('Klik waar het moet komen (Esc stopt)', 2000); draw(); }
@@ -429,7 +451,8 @@
       });
       return res;
     }
-    E.checkModule = () => checkModule();   // voor de tests
+    E.checkModule = () => checkModule();
+    E.walkTest = { floor: (x, z, f) => wFloor(x, z, f), blocked: (x, z, f) => wBlocked(x, z, f) };   // voor de tests: botsing tijdens rondlopen   // voor de tests
     function runCheck() {
       const r = checkModule(), lvName = li => li === 0 ? 'begane grond' : li + 'e verdieping'; E.check = r;
       const nBad = [...r.bad.values()].reduce((s2, S2) => s2 + S2.size, 0), where = [...new Set([...r.bad.keys(), ...r.marks.map(k => k.li)])].sort((a, b) => a - b);
@@ -554,9 +577,10 @@
         if (ctl && kl === 'a') { e.preventDefault(); setTool('select'); selAll(); return; }
         if (ctl && kl === 'd') { e.preventDefault(); selCopy(false); selPaste(false); return; }
         if (E.tool === 'select' && (e.key === 'Delete' || e.key === 'Backspace')) { e.preventDefault(); selDelete(); return; }
-        if (E.tool === 'select' && !ctl && (kl === 'q' || kl === 'e')) { selRotate(kl === 'q' ? -1 : 1); return; } }
+        if (E.tool === 'select' && !ctl && (kl === 'q' || kl === 'e')) { selRotate(kl === 'q' ? -1 : 1); return; }
+        if (E.tool === 'select' && !ctl && kl === 'm') { selMirror(e.shiftKey ? 'z' : 'x'); return; } }
       if (e.key === 'Escape') { if (E.paste) E.paste = false; else if (E.tool === 'select') { E.sel = selEmpty(); renderCtx(); } E.drag = null; draw(); return; }
-      if (e.key === '2') setView('2d'); if (e.key === '3') setView('3d'); if (e.key === 'n' || e.key === 'N') { nextBrush(); return; }
+      if (e.key === '2') setView('2d'); if (e.key === '3') setView('3d'); if (e.key === '4') { E.walk ? walkStop() : walkStart(); return; } if (e.key === 'n' || e.key === 'N') { nextBrush(); return; }
       if (E.tool === 'object' && (e.key === 'q' || e.key === 'Q' || e.key === 'e' || e.key === 'E')) { rotStep(e.key.toLowerCase() === 'q' ? -1 : 1); return; }
       const t = TOOLS.find(x => x[2].toLowerCase() === e.key.toLowerCase()); if (t) setTool(t[0]);
     });
@@ -568,6 +592,7 @@
     function draw() { if (drawReq) return; drawReq = true; requestAnimationFrame(() => { drawReq = false; if (!app.hidden) paint(); }); }
     function hexPath(cx, cz, rad) { ctx.beginPath(); for (let i = 0; i < 6; i++) { const a = (30 + 60 * i) * Math.PI / 180, [sx, sz] = toS(cx + rad * Math.cos(a), cz + rad * Math.sin(a)); i ? ctx.lineTo(sx, sz) : ctx.moveTo(sx, sz); } ctx.closePath(); }
     function paint() {
+      if (E.walk) { ctx.clearRect(0, 0, W, H); return; }
       const m = E.m; if (!m) return; const L = lvl(), k = m.k || 0, t = ts(), s = E.view.s;
       const in3 = E.vm === '3d';
       if (in3) { camSync(); ctx.clearRect(0, 0, W, H); } else { ctx.fillStyle = css('--paper'); ctx.fillRect(0, 0, W, H); }
@@ -805,15 +830,102 @@
       // gebied als zeshoeken op de grond
       const k = E.m.k || 0; const area = new THREE.Group(); for (let q = -k; q <= k; q++) for (let r = -k; r <= k; r++) if (mv2HexDist(q, r) <= k) { const c = mv2CellXZ(q, r), h = new THREE.Mesh(new THREE.CylinderGeometry(R - 0.15, R - 0.15, 0.06, 6), new THREE.MeshStandardMaterial({ color: '#4d5a3e' })); h.position.set(c[0], 0.0, c[1]); h.receiveShadow = true; h.userData.own = true; area.add(h); } if (grp) grp.add(area); else scn.add(area);
     }
+    // ---------- Rondlopen (4): zelf door de module lopen ----------
+    // Zelfde botsing als in de stad (09: surfTop, trisBlock, segDist), maar alleen met de loopvlakken en muren van deze module.
+    // Je begint aan de rand van het gebied (of op de verdieping waar je tekent, als daar vloer is) en kijkt naar het midden.
+    const WK = { walk: 3.0, run: 6.0, eye: 1.62, g: 22 };
+    let wGrp = null, wCol = null, wCam = null, wKeys = new Set(), wHud = null, wLast = 0, wRaf = 0, wDrag = null;
+    function wFloor(x, z, feet) {
+      let best = 0;
+      for (const [ox, oz] of SAMPLES) for (const sf of wCol.surfaces) { const t = surfTop(sf, x + ox, z + oz); if (t !== null && t <= feet + STEP && t > best) best = t; }
+      return best;
+    }
+    function wBlocked(x, z, feet) {
+      if (!mv2NearArea(E.m, x, z) && Math.hypot(x, z) > 6) return true;   // niet het niets in lopen
+      for (const sf of wCol.surfaces) { if (surfBottom(sf) >= feet + TORSO) continue; for (const [ox, oz] of SAMPLES) if (trisBlock(sf, x + ox, z + oz, feet + STEP, feet + TORSO)) return true; }
+      for (const w of wCol.walls) { if (w.y0 >= feet + TORSO || w.y1 <= feet + STEP) continue; if (segDist(x, z, w) < PR + w.half) return true; }
+      return false;
+    }
+    function walkSpawn() {
+      const LH = MV2.LV_H, want = E.lv * LH;
+      if (E.lv > 0) {   // eerst: een plek op de verdieping waar je tekent, zo dicht mogelijk bij het midden
+        for (let rr = 0; rr < 30; rr += 0.75) for (let a = 0; a < 12; a++) { const x = rr * Math.cos(a * Math.PI / 6), z = rr * Math.sin(a * Math.PI / 6), f = wFloor(x, z, want + 0.2); if (Math.abs(f - want) < 0.35 && !wBlocked(x, z, f)) return { x, z, y: f, yaw: Math.atan2(x, z) }; }
+      }
+      for (const a of [90, 30, 150, 210, 270, 330]) {   // anders: op de grond aan de rand, kijkend naar het midden
+        const ux = Math.cos(a * Math.PI / 180), uz = Math.sin(a * Math.PI / 180); let d = 60; while (d > 1 && !inArea(ux * d, uz * d)) d -= 0.25;
+        for (let dd = d - 0.6; dd > 1; dd -= 0.5) { const x = ux * dd, z = uz * dd, f = wFloor(x, z, 0.3); if (f < 0.5 && !wBlocked(x, z, f)) return { x, z, y: f, yaw: Math.atan2(x, z) }; }
+      }
+      return { x: 0, z: 0, y: wFloor(0, 0, 0.3), yaw: 0 };
+    }
+    function walkStart() {
+      if (!E.m || E.walk) return; if (E.vm !== '3d') setView('3d'); ensure3();
+      let b; try { b = mv2Build(E.m, (x, z) => [x, z]); } catch (err) { say('Rondlopen kan niet: ' + err.message, 3000); return; }
+      wGrp = b.group; wCol = { surfaces: b.surfaces, walls: b.walls }; if (grp) grp.visible = false; scn.add(wGrp); scn.background = new THREE.Color('#b8cfe0'); scn.fog = new THREE.Fog('#b8cfe0', 60, 220);
+      if (!wCam) wCam = new THREE.PerspectiveCamera(70, 1, 0.05, 600); wCam.rotation.order = 'YXZ';
+      const sp = walkSpawn(); E.walk = { x: sp.x, z: sp.z, y: sp.y, vy: 0, yaw: sp.yaw, pitch: -0.05 };
+      if (!wHud) { wHud = document.createElement('div'); wHud.id = 'mm_walkHud'; stage.appendChild(wHud); }
+      wHud.hidden = false; bWalk.setAttribute('aria-pressed', 'true'); app.classList.add('mm-walking'); wKeys.clear(); draw();
+      wLast = performance.now(); cancelAnimationFrame(wRaf); wRaf = requestAnimationFrame(walkTick);
+    }
+    function walkStop() {
+      if (!E.walk) return; E.walk = null; cancelAnimationFrame(wRaf); wKeys.clear(); wDrag = null;
+      if (document.pointerLockElement) document.exitPointerLock();
+      if (wGrp) { scn.remove(wGrp); wGrp.traverse(o => { if (o.isMesh && o.userData.own) o.geometry.dispose(); }); wGrp = null; } wCol = null; if (grp) grp.visible = true; scn.background = null; scn.fog = null;
+      if (wHud) wHud.hidden = true; bWalk.setAttribute('aria-pressed', 'false'); app.classList.remove('mm-walking'); render3(); draw();
+    }
+    function walkTick(now) {
+      const P0 = E.walk; if (!P0 || app.hidden) { if (P0) walkStop(); return; }
+      const dt = Math.min(0.12, (now - wLast) / 1000); wLast = now;
+      const k = c => wKeys.has(c), fw = (k('KeyW') || k('ArrowUp') ? 1 : 0) - (k('KeyS') || k('ArrowDown') ? 1 : 0), sd = (k('KeyD') ? 1 : 0) - (k('KeyA') ? 1 : 0), turn = (k('ArrowRight') ? 1 : 0) - (k('ArrowLeft') ? 1 : 0);
+      P0.yaw -= turn * 1.9 * dt;
+      if (fw || sd) {
+        const sp = (k('ShiftLeft') || k('ShiftRight') ? WK.run : WK.walk) * dt / Math.hypot(fw, sd), fx = -Math.sin(P0.yaw), fz = -Math.cos(P0.yaw), rx = Math.cos(P0.yaw), rz = -Math.sin(P0.yaw);
+        const n = Math.max(1, Math.ceil(sp / 0.12)), dx = (fx * fw + rx * sd) * sp / n, dz = (fz * fw + rz * sd) * sp / n;   // in stapjes: niet door een dunne muur heen
+        for (let i = 0; i < n; i++) {
+          if (!wBlocked(P0.x + dx, P0.z + dz, P0.y)) { P0.x += dx; P0.z += dz; }   // anders langs de muur glijden
+          else if (!wBlocked(P0.x + dx, P0.z, P0.y)) P0.x += dx; else if (!wBlocked(P0.x, P0.z + dz, P0.y)) P0.z += dz; else break;
+          const f2 = wFloor(P0.x, P0.z, P0.y); if (f2 > P0.y) P0.y = f2;   // trap op: per stapje
+        }
+      }
+      const fl = wFloor(P0.x, P0.z, P0.y);
+      if (fl >= P0.y - 0.02) { P0.y = fl; P0.vy = 0; } else { P0.vy -= WK.g * dt; P0.y = Math.max(fl, P0.y + P0.vy * dt); if (P0.y === fl) P0.vy = 0; }
+      wCam.aspect = W / H; wCam.position.set(P0.x, P0.y + WK.eye, P0.z); wCam.rotation.set(P0.pitch, P0.yaw, 0); wCam.updateProjectionMatrix();
+      rnd.render(scn, wCam);
+      const lv = Math.max(0, Math.round(P0.y / MV2.LV_H)), lvT = lv === 0 ? 'begane grond' : lv + 'e verdieping';
+      const txt = 'Rondlopen · ' + lvT + ' · WASD of pijltjes lopen, Shift rennen · slepen of klikken (muis vangen) om te kijken · Esc of 4: terug';
+      if (wHud.textContent !== txt) wHud.textContent = txt;
+      wRaf = requestAnimationFrame(walkTick);
+    }
+    // invoer tijdens het lopen gaat vóór de gereedschappen (capture), zodat W niet de muur kiest
+    window.addEventListener('keydown', e => {
+      if (!E.walk || app.hidden) return; if (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
+      if (e.key === 'Escape' || e.key === '4') { e.preventDefault(); e.stopPropagation(); walkStop(); return; }
+      if (e.ctrlKey || e.metaKey) return;
+      wKeys.add(e.code); e.preventDefault(); e.stopPropagation();
+    }, true);
+    window.addEventListener('keyup', e => { if (E.walk) { wKeys.delete(e.code); e.stopPropagation(); } }, true);
+    window.addEventListener('blur', () => wKeys.clear());
+    const wLook = (mx, my) => { const P0 = E.walk; P0.yaw -= mx * 0.0028; P0.pitch = Math.max(-1.35, Math.min(1.35, P0.pitch - my * 0.0028)); };
+    stage.addEventListener('pointerdown', e => { if (!E.walk) return; e.stopPropagation(); e.preventDefault(); wDrag = { x: e.clientX, y: e.clientY, moved: 0, id: e.pointerId }; try { stage.setPointerCapture(e.pointerId); } catch (err) { /* */ } }, true);
+    stage.addEventListener('pointermove', e => { if (!E.walk) return; e.stopPropagation(); if (document.pointerLockElement === stage) { wLook(e.movementX, e.movementY); return; } if (!wDrag) return; const mx = e.clientX - wDrag.x, my = e.clientY - wDrag.y; wDrag.x = e.clientX; wDrag.y = e.clientY; wDrag.moved += Math.abs(mx) + Math.abs(my); wLook(mx, my); }, true);
+    stage.addEventListener('pointerup', e => { if (!E.walk) return; e.stopPropagation(); const click = wDrag && wDrag.moved < 4; wDrag = null; if (click && e.pointerType === 'mouse' && stage.requestPointerLock) { try { stage.requestPointerLock(); } catch (err) { /* */ } } }, true);
+    stage.addEventListener('wheel', e => { if (E.walk) { e.stopPropagation(); e.preventDefault(); } }, { capture: true, passive: false });
     // ---------- module: laden, bewaren, bibliotheek ----------
     const catSel = $('cat'); for (const c of MV2.cats) { const o = document.createElement('option'); o.value = c; o.textContent = c; catSel.appendChild(o); }
     function loadModule(m, idx) { E.m = mv2Fix(JSON.parse(JSON.stringify(m))); E.editing = idx; E.lv = 0; E.undo = []; E.redo = []; E.dirty = false; $('name').value = E.m.name; catSel.value = E.m.cat || 'Overig'; $('area').value = String(E.m.k || 0); $('grid').value = String(E.m.n || 4); fit(); changed(); renderLib(); }
     function newModule() { loadModule(mv2New('Nieuwe module'), -1); $('name').value = ''; say('Nieuwe module: begin met vloer of muren', 2500); }
+    // duidelijke melding bovenin (niet alleen het kleine regeltje rechtsonder) en de knop kleurt even groen
+    let toastT = 0;
+    function toastMM(t, ms = 3200) { const el = $('toast'); if (!el) return say(t, ms); el.textContent = t; el.hidden = false; el.classList.remove('uit'); clearTimeout(toastT); toastT = setTimeout(() => { el.classList.add('uit'); toastT = setTimeout(() => { el.hidden = true; }, 300); }, ms); }
     function save(asCopy) {
       const m = E.m; m.name = ($('name').value || '').trim() || 'Module ' + (modules.length + 1); m.cat = catSel.value; m.codes = modV2Codes(m); m._sig = Date.now(); m.name = m.name.replace(/( · \d+[Lv])+$/, '') + modSuffix(modMeta(m)); $('name').value = m.name;   // lagen en maat altijd achteraan, kloppend
-      if (asCopy || E.editing < 0 || !modules[E.editing]) { m.id = uid(); modules.push(JSON.parse(JSON.stringify(m))); E.editing = modules.length - 1; }
-      else { modules[E.editing] = JSON.parse(JSON.stringify(m)); const n = syncModule(modules[E.editing]); if (n) say('"' + m.name + '" bewaard · ' + n + ' in de stad bijgewerkt', 2500); }
-      E.dirty = false; saveMods(); renderStrip(); renderLib(); if (!asCopy) say('"' + m.name + '" bewaard'); else say('Kopie bewaard als "' + m.name + '"');
+      let n = 0, isNew = false;
+      if (asCopy || E.editing < 0 || !modules[E.editing]) { m.id = uid(); modules.push(JSON.parse(JSON.stringify(m))); E.editing = modules.length - 1; isNew = true; }
+      else { modules[E.editing] = JSON.parse(JSON.stringify(m)); n = syncModule(modules[E.editing]) || 0; }
+      E.dirty = false; saveMods(); renderStrip(); renderLib();
+      const msg = asCopy ? 'Kopie bewaard als "' + m.name + '"' : (isNew ? 'Nieuwe module bewaard: "' + m.name + '"' : '"' + m.name + '" bewaard') + (n ? ' · ' + n + (n === 1 ? ' exemplaar' : ' exemplaren') + ' in de stad bijgewerkt' : '');
+      toastMM(msg); say(msg, 2500);
+      const btn = $(asCopy ? 'bDup' : 'bSave'); if (btn) { const t0 = btn.dataset.t || btn.textContent; btn.dataset.t = t0; btn.textContent = 'Bewaard ✓'; btn.classList.add('mm-saved'); clearTimeout(btn._t); btn._t = setTimeout(() => { btn.textContent = t0; btn.classList.remove('mm-saved'); }, 1600); }
     }
     $('bSave').onclick = () => save(false); $('bDup').onclick = () => { $('name').value = ($('name').value || E.m.name).replace(/( · \d+[Lv])+$/, '') + ' · kopie'; save(true); };
     $('bNew').onclick = () => { if (E.dirty && !sure('new', 'Niet-bewaarde wijzigingen weggooien?')) return; newModule(); };

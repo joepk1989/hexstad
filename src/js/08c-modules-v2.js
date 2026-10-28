@@ -18,8 +18,8 @@
     DIRW: [[1, 0], [0, 1], [-1, 1], [2, -1], [1, 1], [-1, 2]],
     DIR12: [[1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1], [2, -1], [1, 1], [-1, 2], [-2, 1], [-1, -1], [1, -2]],
     DIR6: [[1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]],
-    floors: { paver: 'Klinkers', tile: 'Stoeptegels', wood: 'Houten vloer', parquet: 'Visgraat parket', carpet: 'Kantoorvloer', concrete: 'Beton', polished: 'Gepolijst beton', stonetile: 'Natuursteen tegels', grass: 'Gras', water: 'Water', asphalt: 'Asfalt', roof: 'Dakbedekking', glass: 'Glazen dak' },
-    walls: { brick: 'Baksteen', darkbrick: 'Donkere steen', plaster: 'Wit stucwerk', concrete: 'Schoon beton', panel: 'Gevelpanelen', slats: 'Houten lamellen', corten: 'Cortenstaal', curtain: 'Glasgevel', glass: 'Glaswand', wood: 'Hout', stone: 'Natuursteen', hedge: 'Haag', fence: 'Hek' },
+    floors: { paver: 'Klinkers', tile: 'Stoeptegels', wood: 'Houten vloer', parquet: 'Visgraat parket', carpet: 'Kantoor\u00ADvloer', concrete: 'Beton', polished: 'Gepolijst beton', stonetile: 'Natuur\u00ADsteen tegels', grass: 'Gras', water: 'Water', asphalt: 'Asfalt', roof: 'Dak\u00ADbedekking', glass: 'Glazen dak' },
+    walls: { brick: 'Baksteen', darkbrick: 'Donkere steen', plaster: 'Wit stucwerk', concrete: 'Schoon beton', panel: 'Gevel\u00ADpanelen', slats: 'Houten lamel\u00ADlen', corten: 'Corten\u00ADstaal', curtain: 'Glasgevel', glass: 'Glaswand', wood: 'Hout', stone: 'Natuur\u00ADsteen', hedge: 'Haag', fence: 'Hek' },
     openings: { '': 'Dicht', door: 'Deur', window: 'Raam', gate: 'Poort', open: 'Open' },
     objects: { tree: 'Boom', bush: 'Struik', bench: 'Bankje', lamp: 'Lantaarn', pillar: 'Zuil', table: 'Tafel', planter: 'Plantenbak', fountain: 'Fontein', bin: 'Prullenbak', bike: 'Fietsenrek', shelf: 'Winkelstelling', counter: 'Toonbank', sign: 'Lichtreclame',
       bed: 'Bed', sofa: 'Bank (binnen)', desk: 'Bureau', kitchen: 'Keukenblok', screen: 'Filmdoek', car: 'Auto', pump: 'Tankpomp', charger: 'Laadpaal', solar: 'Zonnepanelen', turbine: 'Windmolen', chimney: 'Schoorsteen', container: 'Container', goal: 'Doel', grave: 'Grafsteen', boat: 'Boot', shelter: 'Abri', slide: 'Glijbaan', swing: 'Schommel', sheep: 'Schaap' },
@@ -739,7 +739,7 @@
       const w = {}; for (const id in L.w) { const [i, j, d] = id.split(',').map(Number), D = MV2.DIRW[d]; if (!D) continue; if (d === 3) { const [a, b] = mp(i, j); w[a + ',' + b + ',3'] = L.w[id]; } else { const [a, b] = mp(i + D[0], j + D[1]); w[a + ',' + b + ',' + WMAP[d]] = L.w[id]; } } L.w = w;
       for (const S of L.s) {
         if (S.k === 'hexramp') { const q = S.q || 0, r = S.r || 0; S.q = q + r; S.r = -r; S.side = (6 - (S.side || 0)) % 6; continue; }
-        S.a = mp(S.a[0], S.a[1]); S.d = D6[S.d || 0]; if (S.off) S.off = -S.off; if (S.side) S.side = -S.side;
+        S.a = mp(S.a[0], S.a[1]); S.d = D6[S.d || 0]; if (S.off) S.off = -S.off; if (S.k === 'spiral' || S.k === 'u') S.side = -(S.side || 1); else if (S.side) S.side = -S.side;   // zonder side is het 1: ook dan keert de draairichting om
       }
       const r = {}; for (const id in L.r) { const [q, rr] = id.split(',').map(Number), g = /^gable(\d)$/.exec(L.r[id] || ''); r[(q + rr) + ',' + (-rr)] = g ? 'gable' + [2, 1, 0][+g[1] % 3] : L.r[id]; } L.r = r;   // zadeldak: de nok spiegelt mee
       for (const o of L.o) { o.z = -o.z; o.rot = -(o.rot || 0); }

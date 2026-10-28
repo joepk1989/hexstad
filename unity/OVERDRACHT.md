@@ -356,6 +356,16 @@ Gemeten in het bestand: vak R = 9 m, verdieping 3 m, vloer 0,3 m dik; steek 6,75
   kwamen knopen boven een gat en vielen mensen in het winkelcentrum; nu weggelaten (oppervlak > 0,02 m²). Op een wenteltrap houden we lopers
   alleen tussen kern en leuning als ze al op de trap staan (anders sprongen ze er soms heen), en de leuning van de tweede tree telt mee als muur.
 
+## 26. Raatbouwer: spiegelen, materiaal van een keuze, rondlopen (28 okt; `08d-module-maker.js`)
+- **Spiegelen** om rasterpunt (i0, j0): boven ↕ onder = (a, b) → (a, −a − b) op de verschillen (zelfde als `mv2Mirror`, z → −z);
+  links ↔ rechts = die spiegeling plus 180° draaien. Trapsrichting d → 5 − d, `off` en `side` keren om; voorwerpen z → 2·z0 − z en rot → −rot;
+  zadeldaknok a → [2, 1, 0][a]; daken alleen als het spiegelpunt een vakmidden is.
+- **Gevonden**: een wenteltrap of bordestrap zonder `side` (= 1) bleef bij spiegelen dezelfde kant op draaien, ook bij gespiegeld geplaatste
+  modules in de stad. Nu wordt `side` altijd −(side || 1) voor `spiral` en `u`.
+- **Rondlopen**: bouwt de hele module met `mv2Build` en gebruikt de loopvlakken (`surfaces`, driehoeken) en `walls` daarvan met dezelfde
+  functies als de stad (`surfTop`, `trisBlock`, `segDist`; stap 0,4 m, romp 1,2 m, straal 0,25 m). Bewegen in stapjes van ≤ 0,12 m zodat je niet
+  door een dunne muur schiet; een vloer tot 0,4 m hoger is een trede. Camera op 1,62 m. In Unity: een CharacterController met stepOffset 0,4.
+
 ## 21. Open punten
 - Unity: noord- en zuidpool op de bol (vraag staat open); `unity/README.md` is niet bijgewerkt sinds het planeet-wegensysteem.
 - Web: eerste klap op een gebouw geeft een korte hapering (omzetten naar stukken); mensen ontwijken brokstukken niet en het loopnetwerk kent de gaten niet; instortingen worden niet bewaard; jagers maken soms nog sprongetjes van 3–7 m.
