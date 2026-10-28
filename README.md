@@ -215,7 +215,8 @@ De schansflanken (`schans_zijde`) staan tussen de vakken en zijn weggelaten. **M
 
 Nieuw in de Raatbouwer hiervoor:
 - **Schans (S)**: klik in een vak bij de zijde waar je onderaan instapt; het hele vak wordt een oprit die aan de overkant 3 m hoger uitkomt (`hexramp` in `mv2Build`: vlakke middenstrook van 9 m en twee gewrongen zijdriehoeken, dichte wanden eromheen).
-- **Penseel (N)** voor de vloer: zeshoek · één driehoek · heel vak · kern (¾) · rand (galerij).
+- **Penseel** voor de vloer (knoppen onder de vloerkleuren, of N): zeshoek · één driehoek · heel vak · kern (¾) · rand (galerij). Geldt ook voor de gum op vloer.
+- **Kopie ↑** onder de verdiepingknoppen links kopieert deze verdieping naar de verdieping erboven.
 - Vloermateriaal **Glazen dak** (doorzichtig, voor lichtkappen) en de voorwerpen **winkelstelling**, **toonbank** en **lichtreclame**.
 - Een trap kan zijwaarts verschoven staan (`off` in een trap-item), zodat hij in een galerijband van 1,95 m past.
 
@@ -270,7 +271,7 @@ In de stad wordt een module echt gebouwd (`mv2Build`): één mesh per materiaal,
 
 De **Raatbouwer** (vroeger module maker of schets; in het menu **Raatbouwer**, of Modules → Nieuw, of dubbelklik op een module) werkt als een bouwtekening: gereedschap bovenaan met sneltoetsen (V kiezen, H schuiven, F vloer, G vullen, W muur, M kamer, D deur, R raam, P poort, O open, C dicht, T trap, U bordestrap, J wenteltrap, L helling, S schans, K dak, B voorwerp, X gum), verdiepingen met ▲▼ of Page Up/Down, 3D-weergave met 3, ongedaan maken met Ctrl+Z. Bewaren zet de module in het palet; geplaatste exemplaren worden meteen bijgewerkt. Modules zijn als JSON-bestand te delen.
 
-**Kiezen (V)**: klik op iets om het te kiezen (een vloer: de hele ruimte tot aan de muren), sleep een rechthoek om meer te kiezen, Ctrl+klik voegt toe of haalt eraf. Sleep wat gekozen is om het te verplaatsen (in stappen van een driehoekzijde, zodat alles op het raster blijft), Q/E draait 60° om het rasterpunt in het midden, Delete haalt weg, Ctrl+C / X / V kopieert, knipt en plakt (het stuk hangt aan de muis tot je klikt; Ctrl+Shift+V plakt op dezelfde plek, ook op een andere verdieping), Ctrl+D dupliceert, Ctrl+A kiest alles, en met ↑/↓ Verdieping gaat de keuze een verdieping op of neer. Daken en schansen horen bij een heel vak: die gaan alleen mee bij verplaatsen over hele vakken.
+**Kiezen (V)**: klik op iets om het te kiezen (een vloer: de hele ruimte tot aan de muren), sleep een rechthoek om meer te kiezen, Ctrl+klik voegt toe of haalt eraf. Sleep wat gekozen is om het te verplaatsen (in stappen van een driehoekzijde, zodat alles op het raster blijft), Q/E draait 60° om het rasterpunt in het midden, Delete haalt weg, Ctrl+C / X / V kopieert, knipt en plakt (het stuk hangt aan de muis tot je klikt; Ctrl+Shift+V plakt op dezelfde plek, ook op een andere verdieping), Ctrl+D dupliceert, Ctrl+A kiest alles, en met Keuze ↑/↓ verdieping gaat de keuze een verdieping op of neer. Daken en schansen horen bij een heel vak: die gaan alleen mee bij verplaatsen over hele vakken.
 
 **Controleren (knop met het vinkje, Shift+C)**: kijkt op de gegevens of je overal kunt komen (vloerdriehoeken die je vanaf buiten niet bereikt worden rood), of trappen boven op een vloer uitkomen, en of voorwerpen zweven, in een muur of buiten het gebied staan; zwevende muren krijgen een rode stip met uitleg. Staat er ook iets rood op een andere verdieping, dan staat dat bovenin.
 

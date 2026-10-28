@@ -69,7 +69,9 @@
     const mkBtn = (host, k, title, fn) => { const b = document.createElement('button'); b.type = 'button'; b.title = title; b.innerHTML = svg(k); b.addEventListener('click', fn); $(host).appendChild(b); return b; };
     const bUndo = mkBtn('edit', 'undo', 'Ongedaan maken (Ctrl+Z)', () => undo()), bRedo = mkBtn('edit', 'redo', 'Opnieuw (Ctrl+Y)', () => redo());
     const BRUSHES = [['hex', 'zeshoek van 6 driehoeken'], ['tri', 'één driehoek'], ['cell', 'heel vak'], ['core', 'kern van het vak (¾)'], ['ring', 'rand van het vak (galerij, 1,95 m)']];
-    const bBrush = mkBtn('edit', 'brush', 'Penseel (N): zeshoek · driehoek · heel vak · kern · rand', () => { const i = BRUSHES.findIndex(b => b[0] === E.brush); E.brush = BRUSHES[(i + 1) % BRUSHES.length][0]; bBrush.setAttribute('aria-pressed', String(E.brush !== 'tri')); say('Penseel: ' + BRUSHES.find(b => b[0] === E.brush)[1], 1200); }); bBrush.setAttribute('aria-pressed', 'true');
+    const BRUSH_LAB = { hex: 'Zeshoek', tri: 'Driehoek', cell: 'Heel vak', core: 'Kern ¾', ring: 'Rand' };
+    /* penseel: keuze staat bij Vloer (en N wisselt); geen aparte knop meer in de balk (leek op de 3D-knop) */
+    const nextBrush = () => { const i = BRUSHES.findIndex(b => b[0] === E.brush); E.brush = BRUSHES[(i + 1) % BRUSHES.length][0]; say('Penseel: ' + BRUSHES.find(b => b[0] === E.brush)[1], 1200); if (E.tool === 'floor' || E.tool === 'erase') renderCtx(); draw(); };
     // driehoeken van het penseel rond (x, z): zeshoek rond het rasterpunt, één driehoek, of (delen van) het vak
     function brushTris(x, z) {
       if (E.brush === 'hex') return around(...vertexAt(x, z)); if (E.brush === 'tri') return [triAt(x, z)];
@@ -79,7 +81,7 @@
       for (let i = ci - iM; i <= ci + iM; i++) for (let j = cj - jM; j <= cj + jM; j++) for (const tt of [0, 1]) { const v = mv2TriVerts(i, j, tt, t), px = (v[0][0] + v[1][0] + v[2][0]) / 3, pz = (v[0][1] + v[1][1] + v[2][1]) / 3; if (!inHex(px, pz, INNER)) continue; const core = inHex(px, pz, INNER * 0.75); if (E.brush === 'cell' || (E.brush === 'core' ? core : !core)) out.push([i, j, tt]); }
       return out;
     }
-    mkBtn('edit', 'copyUp', 'Verdieping kopiëren naar de verdieping erboven', () => copyUp());
+    { const lv = $('levels'), b = document.createElement('button'); b.type = 'button'; b.id = 'mm_lvCopy'; b.className = 'mm-lvcopy'; b.title = 'Deze verdieping kopiëren naar de verdieping erboven'; b.textContent = 'Kopie ↑'; b.addEventListener('click', () => { if (E.m) copyUp(); }); lv.appendChild(b); }
     mkBtn('edit', 'check', 'Controleren: kun je overal komen, komen trappen uit, staan voorwerpen goed? (Shift+C)', () => runCheck());
     const b2d = mkBtn('view', 'v2d', 'Bovenaanzicht (2)', () => setView('2d')), b3d = mkBtn('view', 'v3d', '3D (3): teken op de verdieping waar je bent; draaien met de middelste muisknop, Alt of het handje, schuiven met Shift', () => setView('3d'));
     const bUpto = mkBtn('view', 'upto', 'In 3D alleen tot en met de huidige verdieping tonen', () => { E.upto = !E.upto; bUpto.setAttribute('aria-pressed', String(E.upto)); dirty3(); });
@@ -188,7 +190,7 @@
     const redo = () => { if (!E.redo.length) return; E.sel = null; E.undo.push(JSON.stringify(E.m)); E.m = mv2Fix(JSON.parse(E.redo.pop())); E.lv = Math.min(E.lv, E.m.lv.length - 1); changed(); };
     function changed() { bUndo.disabled = !E.undo.length; bRedo.disabled = !E.redo.length; renderLevels(); rebuild3(); draw(); }
     // ---------- verdiepingen ----------
-    function renderLevels() { $('lvName').textContent = E.lv === 0 ? 'Begane grond' : E.lv + 'e verdieping'; $('lvUp').disabled = E.lv >= MV2.MAX_LV - 1; $('lvDn').disabled = E.lv === 0; }
+    function renderLevels() { $('lvName').textContent = E.lv === 0 ? 'Begane grond' : E.lv + 'e verdieping'; $('lvUp').disabled = E.lv >= MV2.MAX_LV - 1; $('lvDn').disabled = E.lv === 0; const c = $('lvCopy'); if (c) c.disabled = E.lv >= MV2.MAX_LV - 1; }
     $('lvUp').onclick = () => { if (!E.m || E.lv >= MV2.MAX_LV - 1) return; E.lv++; while (E.m.lv.length <= E.lv) E.m.lv.push(mv2Level()); changed(); };
     $('lvDn').onclick = () => { if (!E.m || E.lv === 0) return; const top = E.m.lv.length - 1; E.lv--; if (top > E.lv && isEmptyLevel(E.m.lv[top]) && top === E.m.lv.length - 1 && top > 0) E.m.lv.pop(); changed(); };
     const isEmptyLevel = L => !Object.keys(L.f).length && !Object.keys(L.w).length && !L.s.length && !Object.keys(L.r).length && !L.o.length;
@@ -202,7 +204,7 @@
       const sw = $('sw'), title = $('ctxTitle'), hint = $('ctxHint'); sw.innerHTML = '';
       const mk = (items, cur, set, glyph) => { const opt = !glyph && !Object.keys(items).some(k => COL[k]); let host = sw; if (opt) { host = document.createElement('div'); host.className = 'mm-opts'; host.setAttribute('role', 'group'); sw.appendChild(host); }   // keuzes zonder kleur: een rij keuzeknoppen
         for (const k in items) { const b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-pressed', String(cur === k)); b.innerHTML = opt ? items[k] : (glyph ? `<span class="sw" style="border:0;font-size:16px;line-height:18px;text-align:center">${glyph[k] || ''}</span>` : `<span class="sw" style="background:${COL[k] || '#888'}"></span>`) + items[k]; b.addEventListener('click', () => { set(k); renderCtx(); }); host.appendChild(b); } };
-      if (E.tool === 'floor') { title.textContent = 'Vloer'; mk(MV2.floors, E.fmat, k => { E.fmat = k; }); hint.textContent = 'Schilder driehoeken. Op een verdieping wordt de vloer ook het plafond eronder. Rechtermuisknop wist.'; }
+      if (E.tool === 'floor') { title.textContent = 'Vloer'; mk(MV2.floors, E.fmat, k => { E.fmat = k; }); mk(BRUSH_LAB, E.brush, k => { E.brush = k; }); hint.textContent = 'Penseel wisselen kan ook met N. Schilder driehoeken. Op een verdieping wordt de vloer ook het plafond eronder. Rechtermuisknop wist.'; }
       else if (E.tool === 'fill') { title.textContent = 'Vullen'; mk(MV2.floors, E.fmat, k => { E.fmat = k; }); hint.textContent = 'Klik in een ruimte: alle driehoeken tot aan de muren (en de rand van het gebied) krijgen deze vloer.'; }
       else if (E.tool === 'room') { title.textContent = 'Kamer'; mk(MV2.walls, E.wmat, k => { E.wmat = k; }); hint.textContent = 'Klik op een vak: er komen muren op alle zes zijden. Bestaande muren blijven staan.'; }
       else if (E.tool === 'wall') { title.textContent = 'Muur'; mk(MV2.walls, E.wmat, k => { E.wmat = k; }); hint.textContent = 'Sleep van rasterpunt naar rasterpunt. Haag en hek zijn laag; glas is een glaswand. Een muur op een bestaande muur wisselt het materiaal.'; }
@@ -215,9 +217,9 @@
       else if (E.tool === 'roof') { title.textContent = 'Dak'; mk(ROOF_NAME, E.rkind || 'hip', k => { E.rkind = k; }); hint.textContent = 'Klik op een vak: het dak ligt bovenop deze verdieping en volgt de muren van dat vak (een gebouw van ¾ krijgt een dak van ¾, met overstek). Zadeldak: de nok wijst naar de hoek bij de muis. Nog eens klikken met hetzelfde dak, of rechtermuisknop: weg.'; }
       else if (E.tool === 'object') { title.textContent = 'Voorwerp'; mk(MV2.objects, E.obj, k => { E.obj = k; }, OBJ_GLYPH); mk({ l: '↺ 30°', n: degOf(E.orot || 0) + '° · terug naar 0°', r: '↻ 30°' }, '', k => { if (k === 'n') { E.orot = 0; draw(); } else rotStep(k === 'l' ? -1 : 1); });
         hint.textContent = 'Je ziet het voorwerp al staan voor je klikt. Klik om neer te zetten, of houd ingedrukt en sleep om het te richten (per 30°, met Ctrl vrij). Draaien: Q en E, Shift+scroll of de knoppen; op een voorwerp: klik draait 30° (Shift-klik terug), slepen richt het, rechtermuisknop haalt het weg. Het pijltje is de voorkant.'; }
-      else if (E.tool === 'erase') { title.textContent = 'Gum'; hint.textContent = 'Klik of sleep: voorwerp, muur, trap, dak of vloer onder de muis wordt weggehaald.'; }
+      else if (E.tool === 'erase') { title.textContent = 'Gum'; mk(BRUSH_LAB, E.brush, k => { E.brush = k; }); hint.textContent = 'Klik of sleep: voorwerp, muur, trap, dak of vloer onder de muis wordt weggehaald. Bij vloer bepaalt het penseel hoeveel (wisselen met N).'; }
       else if (E.tool === 'select') { title.textContent = 'Kiezen'; const S = sel(), n = selCount(S);
-        mk({ l: '↺ 60°', r: '↻ 60°', c: 'Kopiëren', v: 'Plakken', x: 'Weghalen', u: '↑ Verdieping', d: '↓ Verdieping', a: 'Alles' }, '', k => ({ l: () => selRotate(-1), r: () => selRotate(1), c: () => selCopy(false), v: () => selPaste(false), x: () => selDelete(), u: () => selToLevel(1), d: () => selToLevel(-1), a: () => selAll() })[k]());
+        mk({ l: '↺ 60°', r: '↻ 60°', c: 'Kopiëren', v: 'Plakken', x: 'Weghalen', u: 'Keuze ↑ verdieping', d: 'Keuze ↓ verdieping', a: 'Alles' }, '', k => ({ l: () => selRotate(-1), r: () => selRotate(1), c: () => selCopy(false), v: () => selPaste(false), x: () => selDelete(), u: () => selToLevel(1), d: () => selToLevel(-1), a: () => selAll() })[k]());
         hint.textContent = (n ? selSay('Gekozen') + '. ' : '') + 'Klik op iets om het te kiezen (een vloer: de hele ruimte tot aan de muren), sleep een rechthoek voor meer; Ctrl+klik voegt toe of haalt eraf. Sleep wat gekozen is om het te verplaatsen (langs het raster). Q/E draait 60°, Delete haalt weg, Ctrl+C / X / V kopieert, knipt en plakt (Ctrl+Shift+V: op dezelfde plek, ook op een andere verdieping), Ctrl+D dupliceert, Ctrl+A kiest alles, Esc kiest niets. Schuiven met het beeld: Shift+slepen of de middelste knop.'; }
       else { title.textContent = E.tool === 'hand' ? 'Schuiven' : 'Kiezen'; hint.textContent = 'Sleep om te schuiven, scroll om te zoomen. Middelste muisknop of spatie schuift altijd.'; }
     }
@@ -554,7 +556,7 @@
         if (E.tool === 'select' && (e.key === 'Delete' || e.key === 'Backspace')) { e.preventDefault(); selDelete(); return; }
         if (E.tool === 'select' && !ctl && (kl === 'q' || kl === 'e')) { selRotate(kl === 'q' ? -1 : 1); return; } }
       if (e.key === 'Escape') { if (E.paste) E.paste = false; else if (E.tool === 'select') { E.sel = selEmpty(); renderCtx(); } E.drag = null; draw(); return; }
-      if (e.key === '2') setView('2d'); if (e.key === '3') setView('3d'); if (e.key === 'n' || e.key === 'N') { bBrush.click(); return; }
+      if (e.key === '2') setView('2d'); if (e.key === '3') setView('3d'); if (e.key === 'n' || e.key === 'N') { nextBrush(); return; }
       if (E.tool === 'object' && (e.key === 'q' || e.key === 'Q' || e.key === 'e' || e.key === 'E')) { rotStep(e.key.toLowerCase() === 'q' ? -1 : 1); return; }
       const t = TOOLS.find(x => x[2].toLowerCase() === e.key.toLowerCase()); if (t) setTool(t[0]);
     });
