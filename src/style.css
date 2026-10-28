@@ -479,6 +479,10 @@ body.night .btn.tod { color: #cdd8ff; }
 #mm_walkHud { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); max-width: calc(100% - 32px); padding: 8px 14px; border-radius: 10px; background: rgba(23,27,20,.85); border: 1px solid var(--line); color: var(--ink); font: 600 13px var(--ui); text-align: center; pointer-events: none; z-index: 4; }
 #mmApp.mm-walking #mm_stage::before { content: ''; position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: rgba(255,255,255,.75); box-shadow: 0 0 0 1px rgba(0,0,0,.4); z-index: 4; pointer-events: none; }
 #mmApp.mm-walking #mm_levels, #mmApp.mm-walking #mm_readout, #mmApp.mm-walking #mm_cv { visibility: hidden; }
+#mmApp button.mm-check { position: relative; }
+#mmApp button.mm-check[data-st]::after { content: ''; position: absolute; right: 5px; top: 5px; width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 2px var(--panel); }
+#mmApp button.mm-check[data-st="ok"]::after { background: #5cc06a; }
+#mmApp button.mm-check[data-st="bad"]::after { background: var(--bad); }
 #mm_toast.uit { opacity: 0; transform: translate(-50%, -8px); }
 #mmApp button.mm-saved, #mmApp button.primary.mm-saved { background: #2f5d34; border-color: #5d9a5f; color: #f1f7ec; }
 #mm_side { display: flex; flex-direction: column; gap: 14px; padding: 12px max(14px, env(safe-area-inset-right, 0px)) 14px 14px; overflow-y: auto; border-left: 1px solid var(--line); box-sizing: border-box; min-height: 0; }

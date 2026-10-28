@@ -366,6 +366,13 @@ Gemeten in het bestand: vak R = 9 m, verdieping 3 m, vloer 0,3 m dik; steek 6,75
   functies als de stad (`surfTop`, `trisBlock`, `segDist`; stap 0,4 m, romp 1,2 m, straal 0,25 m). Bewegen in stapjes van ≤ 0,12 m zodat je niet
   door een dunne muur schiet; een vloer tot 0,4 m hoger is een trede. Camera op 1,62 m. In Unity: een CharacterController met stepOffset 0,4.
 
+## 27. Raatbouwer: voorwerpen tegen de muur, controle na elke wijziging (28 okt; `08d-module-maker.js`)
+- Voorwerp-assen: lokale x = lengte (wereld (cos rot, sin rot)), rug = lokale −z (wereld (sin rot, −cos rot)); bed: hoofdeinde = lokale −x.
+  `OBJ_BACK` geeft per soort de afstand midden–rug. Dichtstbijzijnde muur (geen deur/doorgang) binnen rug + 1 m: rot zo dat de rug naar de muur
+  wijst, midden op voetpunt + normaal × (muurdikte/2 + rug + 2 cm). Verschuiven/draaien/spiegelen ronden voorwerpen niet meer af op 0,25 m (dan
+  blijft iets tegen de muur ook tegen de muur).
+- Controle: `checkModule` draait 350 ms na elke wijziging; de knop krijgt `data-st` ok/bad (groen/rood bolletje).
+
 ## 21. Open punten
 - Unity: noord- en zuidpool op de bol (vraag staat open); `unity/README.md` is niet bijgewerkt sinds het planeet-wegensysteem.
 - Web: eerste klap op een gebouw geeft een korte hapering (omzetten naar stukken); mensen ontwijken brokstukken niet en het loopnetwerk kent de gaten niet; instortingen worden niet bewaard; jagers maken soms nog sprongetjes van 3–7 m.

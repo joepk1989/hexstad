@@ -273,13 +273,15 @@ De **Raatbouwer** (vroeger module maker of schets; in het menu **Raatbouwer**, o
 
 **Kiezen (V)**: klik op iets om het te kiezen (een vloer: de hele ruimte tot aan de muren), sleep een rechthoek om meer te kiezen, Ctrl+klik voegt toe of haalt eraf. Sleep wat gekozen is om het te verplaatsen (in stappen van een driehoekzijde, zodat alles op het raster blijft), Q/E draait 60° om het rasterpunt in het midden, M spiegelt links ↔ rechts en Shift+M boven ↕ onder (ook als knoppen), Delete haalt weg, Ctrl+C / X / V kopieert, knipt en plakt (het stuk hangt aan de muis tot je klikt; Ctrl+Shift+V plakt op dezelfde plek, ook op een andere verdieping), Ctrl+D dupliceert, Ctrl+A kiest alles, en met Keuze ↑/↓ verdieping gaat de keuze een verdieping op of neer. Daken en schansen horen bij een heel vak: die gaan alleen mee bij verplaatsen over hele vakken.
 
+**Voorwerpen tegen de muur**: een kast, (binnen)bank, bed, bureau, keukenblok, toonbank, bankje of filmdoek gaat vanzelf met de rug tegen de dichtstbijzijnde muur staan (binnen ongeveer een meter; het bed met het hoofdeinde). Het voorbeeld laat het al zien; met Ctrl blijft het los.
+
 **Materiaal van een keuze**: zitten er muren of vloer in de keuze, dan staan onder de knoppen van Kiezen de muur- en vloermaterialen; één klik geeft alle gekozen muren (openingen blijven) of vloerdriehoeken dat materiaal.
 
 **Rondlopen (knop met het poppetje, 4)**: loop zelf door de module, met dezelfde botsing als in de stad (trappen op, muren houden je tegen). WASD of de pijltjes lopen (← → draaien), Shift rent, slepen kijkt rond en een klik vangt de muis (Esc laat hem los). Je begint op de verdieping waar je tekent als daar vloer is, anders buiten aan de rand. Esc of 4 gaat terug naar het tekenen.
 
 **Bewaren** geeft een groene melding bovenin (en de knop wordt even "Bewaard ✓"), ook met hoeveel exemplaren in de stad zijn bijgewerkt.
 
-**Controleren (knop met het vinkje, Shift+C)**: kijkt op de gegevens of je overal kunt komen (vloerdriehoeken die je vanaf buiten niet bereikt worden rood), of trappen boven op een vloer uitkomen, en of voorwerpen zweven, in een muur of buiten het gebied staan; zwevende muren krijgen een rode stip met uitleg. Staat er ook iets rood op een andere verdieping, dan staat dat bovenin.
+**Controleren (knop met het vinkje, Shift+C)**: na elke wijziging wordt stil gecontroleerd; een groen of rood bolletje op de knop laat zien of alles klopt (de tooltip zegt hoeveel), klikken laat zien waar. kijkt op de gegevens of je overal kunt komen (vloerdriehoeken die je vanaf buiten niet bereikt worden rood), of trappen boven op een vloer uitkomen, en of voorwerpen zweven, in een muur of buiten het gebied staan; zwevende muren krijgen een rode stip met uitleg. Staat er ook iets rood op een andere verdieping, dan staat dat bovenin.
 
 **Daken**: schilddak, zadeldak of plat dak. Het dak volgt de muren van dat vak op die verdieping: een gebouw van ¾ krijgt een dak van ¾ met 35 cm overstek (niet meer over de tuin heen). Bij een zadeldak wijst de nok naar de hoek bij de muis; boven de muur bij de nokhoeken komt een driehoek muur in het materiaal van de gevel.
 
