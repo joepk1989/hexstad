@@ -28,8 +28,17 @@
         g.translate(-c.x, -(c.y - built.G), -c.z);
         const mesh = new THREE.Mesh(g, mat); mesh.position.copy(c); mesh.castShadow = true; mesh.receiveShadow = true; mesh.matrixAutoUpdate = true;
         const sx = bb.max.x - bb.min.x, sy = bb.max.y - bb.min.y, sz = bb.max.z - bb.min.z;
-        S.P.push({ mesh, c: c.clone(), hx: sx / 2, hy: sy / 2, hz: sz / 2, st: 'stand', nb: [], dist: 0, flat: sy < 0.45 && sx * sz > 1.5, big: sx * sy * sz });
+        // niet dragend: glas en dunne delen (kozijnstijlen, ruiten, leuningen) staan zelf wel, maar houden niets omhoog
+        const weak = !!(mat && (mat.transparent || (mat.opacity ?? 1) < 0.95)) || sx * sy * sz < 0.06 || Math.min(sx, sz) < 0.07 && sy > 0.3 || sy < 0.03;   // ook het plafond (een vlak zonder dikte) draagt de vloer niet
+        S.P.push({ mesh, c: c.clone(), hx: sx / 2, hy: sy / 2, hz: sz / 2, st: 'stand', nb: [], dist: 0, flat: sy < 0.45 && sx * sz > 1.5, big: sx * sy * sz, weak });
         grp.add(mesh);
+      }
+      // het hek op de rand van vloeren en daken (08c, buildRails) doet als losse stukken mee: het valt pas als de vloer eronder valt
+      for (const g0 of railParts(I)) {
+        const g = g0.clone(); g.computeBoundingBox(); const bb = g.boundingBox, c = bb.getCenter(new THREE.Vector3()); g.translate(-c.x, -c.y, -c.z);
+        const mesh = new THREE.Mesh(g, mv2Mats().metal); mesh.position.copy(c); mesh.castShadow = true; mesh.matrixAutoUpdate = true;
+        const sx = bb.max.x - bb.min.x, sy = bb.max.y - bb.min.y, sz = bb.max.z - bb.min.z;
+        S.P.push({ mesh, c: c.clone(), hx: sx / 2, hy: sy / 2, hz: sz / 2, st: 'stand', nb: [], dist: 0, flat: false, big: sx * sy * sz, weak: true, rail: true }); grp.add(mesh);
       }
       // aanraking: dozen die elkaar (bijna) raken
       const P = S.P, n = P.length;
@@ -38,7 +47,7 @@
         if (Math.abs(a.c.x - b.c.x) > a.hx + b.hx + TOL || Math.abs(a.c.y - b.c.y) > a.hy + b.hy + TOL || Math.abs(a.c.z - b.c.z) > a.hz + b.hz + TOL) continue;
         a.nb.push(j); b.nb.push(i);
       }
-      e.collapsed = true; modBatchRefresh(); mods.set(I, S); S.baked = false;
+      e.collapsed = true; modBatchRefresh(); railsHide(I, true); mods.set(I, S); S.baked = false;
       if (e.col) { S.colBak = { w: e.col.walls, s: e.col.surfaces }; e.col.walls = []; e.col.surfaces = []; S.col = e.col; }   // geen onzichtbare muren meer: de botsing van het hele gebouw valt weg
       return S;
     }
@@ -47,7 +56,7 @@
       unbake(S); root.remove(S.grp); for (const p of S.P) if (p.mesh.parent === S.grp) p.mesh.geometry.dispose();
       for (let i = debris.length - 1; i >= 0; i--) if (debris[i].S === S) { root.remove(debris[i].p.mesh); debris[i].p.mesh.geometry.dispose(); debris.splice(i, 1); }
       if (S.col && S.colBak) { S.col.walls = S.colBak.w; S.col.surfaces = S.colBak.s; }
-      if (S.e) S.e.collapsed = false; modBatchRefresh();
+      if (S.e) S.e.collapsed = false; modBatchRefresh(); railsHide(I, false);
     }
     // Wat blijft staan wordt weer per materiaal samengevoegd (anders kost een kapot gebouw honderden tekenopdrachten); de losse
     // stukken blijven onzichtbaar staan voor de volgende klap. Per gebouw en in hetzelfde beeld: eerst het samengevoegde stuk
@@ -88,16 +97,17 @@
       if (S.bk) { S.grp.remove(S.bk); S.bk.traverse(o => { if (o.isMesh) o.geometry.dispose(); }); S.bk = null; }
       gDirty = true; gIdle = 0;
     }
-    // steun: kleinste 'prijs' van de grond tot elk stuk (0 omhoog, 1 opzij, 2 naar beneden hangend)
+    // steun: kleinste 'prijs' van de grond tot elk stuk (0 omhoog; opzij 1 per 1,5 m; naar beneden hangend 2 plus de afstand; via een niet-dragend stuk 4; meer dan 3 valt)
     function support(S) {
       const P = S.P, n = P.length, dist = new Array(n).fill(99), open = [];
-      for (let i = 0; i < n; i++) { const p = P[i]; if (p.st !== 'stand') continue; if (p.c.y - p.hy <= S.G + 0.4) { dist[i] = 0; open.push(i); } }
+      for (let i = 0; i < n; i++) { const p = P[i]; p.pre = -1; if (p.st !== 'stand') continue; if (p.c.y - p.hy <= S.G + 0.4) { dist[i] = 0; open.push(i); } }
       while (open.length) {
         open.sort((a, b) => dist[b] - dist[a]); const i = open.pop(), a = P[i];
         for (const j of a.nb) {
           const b = P[j]; if (b.st !== 'stand') continue;
-          const above = b.c.y - b.hy >= a.c.y + a.hy - 0.3, below = b.c.y + b.hy <= a.c.y - a.hy + 0.3, cost = above ? 0 : below ? 2 : 1;
-          if (dist[i] + cost < dist[j]) { dist[j] = dist[i] + cost; open.push(j); }
+          const lift = Math.min(a.hy, b.hy) + 0.05, above = b.c.y - b.hy >= a.c.y + a.hy - 0.3 && b.c.y - a.c.y > lift, below = b.c.y + b.hy <= a.c.y - a.hy + 0.3 && a.c.y - b.c.y > lift,   // twee vloertegels naast elkaar liggen niet óp elkaar (ze zijn dunner dan de speling)
+          hd = Math.hypot(b.c.x - a.c.x, b.c.z - a.c.z), over = Math.hypot(Math.max(0, Math.abs(b.c.x - a.c.x) - a.hx), Math.max(0, Math.abs(b.c.z - a.c.z) - a.hz)), cost = a.weak && !b.weak ? 4 : above ? (over < 0.25 ? 0 : Math.max(0.5, over / 1.5)) : below ? 2 + hd / 1.5 : Math.max(0.5, hd / 1.5);   // óp iets staan is gratis als je midden erboven staat; op de rand leunen telt als uitkragen   // wat alleen op glas of een dun stijltje rust, valt; opzij telt per meter (ruim 4,5 m uitkragen houdt niets)
+          if (dist[i] + cost < dist[j]) { dist[j] = dist[i] + cost; b.pre = i; open.push(j); }
         }
       }
       for (let i = 0; i < n; i++) P[i].dist = dist[i];
@@ -243,6 +253,10 @@
       hit(x, z, sp, vx, vz) { return probe(x, z, sp, vx, vz); },
       log: LOG, cnt: CNT,
       dbg: () => [...mods.values()][0],
+      // voor tests: een gebouw in losse stukken zetten, en stukken weghalen (zoals een klap), dan valt wat geen steun meer heeft
+      prep(x, z) { const [q, r] = worldToCell(x, z), top = modTop.get(q + ',' + r); return top && top.inst ? ensure(top.inst) : null; },
+      chain(S, i) { support(S); const P = S.P, out = []; let k = i, guard = 0; while (k >= 0 && guard++ < 60) { const q = P[k]; out.push([+(q.c.x).toFixed(1), +(q.c.y - S.G).toFixed(2), +(q.c.z).toFixed(1), +q.hx.toFixed(2), +q.hy.toFixed(2), +q.hz.toFixed(2), q.flat ? 'F' : q.weak ? 'w' : '', +q.dist.toFixed(2)]); k = q.pre; } return out; },
+      knock(S, fn) { let n = 0; for (const p of S.P) if (p.st === 'stand' && fn(p)) { release(S, p, 0, 0, 0); n++; } if (n) { S.clock = 0.25; unbake(S); } return n; },
       stats: () => ({ baked: [...mods.values()].filter(S => S.baked).length, gm: gMeshes.length + [...mods.values()].reduce((n, S) => n + (S.bk && S.bk.visible ? S.bk.children.length : 0), 0), inG: [...mods.values()].filter(S => S.inG).length, dup: [...mods.values()].filter(S => S.inG && S.bk && S.bk.visible).length, gGlobal: gMeshes.length, liveMeshes: [...mods.values()].reduce((n, S) => n + S.P.filter(p => p.st === 'stand' && p.mesh.visible).length, 0), modules: mods.size, debris: debris.length, dust: dust.length, standing: [...mods.values()].reduce((n, S) => n + S.P.filter(p => p.st === 'stand').length, 0), pieces: [...mods.values()].reduce((n, S) => n + S.P.length, 0), pending: [...mods.values()].reduce((n, S) => n + S.pend, 0) })
     };
   })();

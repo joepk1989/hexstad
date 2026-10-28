@@ -653,8 +653,23 @@
   // geen trap, helling of maaiveld), dan komt er een hek van 1,05 m, met botsing.
   const railGroup = new THREE.Group(); scene.add(railGroup);
   let railCols = new Map();
+  // het hek van één gebouw weg (ingestort) of terug: beeld en botsing
+  // Het hek van alle gebouwen is één samengevoegd stuk (één tekenopdracht); per gebouw bewaren we de losse stukjes en de botsing,
+  // zodat een ingestort gebouw zijn hek kwijtraakt (het doet dan als losse stukken mee met instorten) en het terugkomt bij herbouwen.
+  let railData = new Map(), railHidden = new Set();
+  const railParts = I => (railData.get(I) || { parts: [] }).parts;
+  function railsMesh() {
+    for (const c of railGroup.children) c.geometry.dispose(); railGroup.clear();
+    const list = []; for (const [I, R0] of railData) if (!railHidden.has(I)) list.push(...R0.parts);
+    if (list.length) { const mesh = new THREE.Mesh(mergeGeos(list), mv2Mats().metal); mesh.castShadow = true; railGroup.add(mesh); }
+  }
+  function railsHide(I, hide) {
+    const R0 = railData.get(I); if (hide) railHidden.add(I); else railHidden.delete(I); if (!R0) return;
+    for (const [col, w] of R0.cols) { const i = col.walls.indexOf(w); if (hide && i >= 0) col.walls.splice(i, 1); else if (!hide && i < 0) col.walls.push(w); }
+    railsMesh();
+  }
   function buildRails(live) {
-    for (const c of railGroup.children) c.geometry.dispose(); railGroup.clear(); railCols = new Map();
+    for (const R0 of railData.values()) for (const g of R0.parts) g.dispose(); railCols = new Map();
     const LH = MV2.LV_H, edges = new Map(), r2 = v => Math.round(v * 100);
     for (const I of live) {
       const m = I.m, ts = mv2Ts(m), tf = mv2Tf(I.rot, I.q, I.r), e = modGroups.get(I) || {}, mask = e.mask, fl = modMeta(m).fl, G = gH(I.q, I.r) + instLv(I) * LH;
@@ -667,15 +682,17 @@
           const W = v.map(p => tf(p[0], p[1])), Wc = tf(cx, cz);
           for (const [A, B] of [[W[0], W[1]], [W[1], W[2]], [W[2], W[0]]]) {
             const k = Math.round(y * 10) + '|' + [r2(A[0]) + ',' + r2(A[1]), r2(B[0]) + ',' + r2(B[1])].sort().join('|');
-            const E = edges.get(k); if (E) E.n++; else edges.set(k, { n: 1, A, B, y, c: Wc });
+            const E = edges.get(k); if (E) E.n++; else edges.set(k, { n: 1, A, B, y, c: Wc, I });
           }
         }
       });
     }
     const wallOn = (x, z, y) => { for (const c of nearby(x, z)) for (const w of c.walls) if (w.y0 <= y + 0.3 && w.y1 >= y + 0.6 && segDist(x, z, w) <= w.half + 0.15) return true; return false; };   // ook een borstwering onder een raam (0,9 m) telt als muur: geen hek in het raam
-    const geos = [], posts = new Set(), bar = (A, B, y0, y1, t) => { const dx = B[0] - A[0], dz = B[1] - A[1], l = Math.hypot(dx, dz); if (l < 0.01) return; const g = new THREE.BoxGeometry(l, y1 - y0, t); g.rotateY(-Math.atan2(dz, dx)); g.translate((A[0] + B[0]) / 2, (y0 + y1) / 2, (A[1] + B[1]) / 2); geos.push(g); };
+    const byI = new Map(), posts = new Set(); let geos = [];   // per gebouw: stort het in, dan gaat zijn hek mee (railsHide)
+    const bar = (A, B, y0, y1, t) => { const dx = B[0] - A[0], dz = B[1] - A[1], l = Math.hypot(dx, dz); if (l < 0.01) return; const g = new THREE.BoxGeometry(l, y1 - y0, t); g.rotateY(-Math.atan2(dz, dx)); g.translate((A[0] + B[0]) / 2, (y0 + y1) / 2, (A[1] + B[1]) / 2); geos.push(g); };
     for (const E of edges.values()) {
       if (E.n !== 1 || E.y < 0.5) continue;
+      let R0 = byI.get(E.I); if (!R0) byI.set(E.I, R0 = { geos: [], cols: [], parts: [] }); geos = R0.geos;
       const mx = (E.A[0] + E.B[0]) / 2, mz = (E.A[1] + E.B[1]) / 2, ex = E.B[0] - E.A[0], ez = E.B[1] - E.A[1], l = Math.hypot(ex, ez) || 1;
       let nx = -ez / l, nz = ex / l; if ((mx - E.c[0]) * nx + (mz - E.c[1]) * nz < 0) { nx = -nx; nz = -nz; }   // naar buiten
       if (wallOn(mx, mz, E.y)) continue;
@@ -690,16 +707,20 @@
       const y0 = E.y, [q, r] = worldToCell(mx, mz), ck = q + ',' + r; let col = railCols.get(ck); if (!col) railCols.set(ck, col = { surfaces: [], walls: [] });
       for (let i = 0; i < NS;) {
         if (open[i]) { i++; continue; }
-        let j = i; while (j < NS && !open[j]) j++;
+        let j = i; while (j < NS && !open[j]) j++; const g0 = geos.length;
         const f0 = i / NS, f1 = j / NS, A = [E.A[0] + ex * f0 - nx * 0.04, E.A[1] + ez * f0 - nz * 0.04], B = [E.A[0] + ex * f1 - nx * 0.04, E.A[1] + ez * f1 - nz * 0.04];
         bar(A, B, y0 + 0.98, y0 + 1.05, 0.05); bar(A, B, y0 + 0.45, y0 + 0.49, 0.03);
         for (const P of [A, B]) { const pk = Math.round(P[0] * 10) + ',' + Math.round(P[1] * 10) + ',' + Math.round(y0 * 10); if (posts.has(pk)) continue; posts.add(pk); const g = new THREE.CylinderGeometry(0.03, 0.03, 1.05, 6); g.translate(P[0], y0 + 0.525, P[1]); geos.push(g); }
-        col.walls.push({ ax: A[0], az: A[1], bx: B[0], bz: B[1], y0, y1: y0 + 1.05, half: 0.06 });
+        { const w = { ax: A[0], az: A[1], bx: B[0], bz: B[1], y0, y1: y0 + 1.05, half: 0.06 }; col.walls.push(w); R0.cols.push([col, w]); }
+        R0.parts.push(mergeGeos(geos.slice(g0)));   // dit stukje hek als los stuk voor instorten
         i = j;
       }
     }
     for (const [k, col] of railCols) { let L = modCols.get(k); if (!L) modCols.set(k, L = []); L.push(col); }
-    if (geos.length) { const mesh = new THREE.Mesh(mergeGeos(geos), mv2Mats().metal); mesh.castShadow = true; railGroup.add(mesh); }
+    for (const R0 of byI.values()) for (const g of R0.geos) g.dispose();
+    railData = byI; railHidden = new Set([...byI.keys()].filter(I => { const e = modGroups.get(I); return e && e.collapsed; }));
+    for (const I of railHidden) for (const [col, w] of byI.get(I).cols) { const i = col.walls.indexOf(w); if (i >= 0) col.walls.splice(i, 1); }
+    railsMesh();
   }
   // Kan de module hier, op laag lv? Op de grond: geen blokken, weg of module. Hoger: op elk vak moet precies op die
   // laag een module eindigen (geen schuin dak), zodat hij er vlak op staat.
