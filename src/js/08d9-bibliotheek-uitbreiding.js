@@ -10,6 +10,7 @@
     const ts = 2.25, vAt = (x, z) => { const fi = x / (ts * SQ3 / 2), fj = z / ts - fi / 2; return [Math.round(fi), Math.round(fj)]; };
     const inHex6 = (x, z, rad, cx = 0, cz = 0) => { for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; if ((x - cx) * Math.cos(a) + (z - cz) * Math.sin(a) > rad * SQ3 / 2 + 1e-6) return false; } return true; };
     const sideTo = (cx, cz) => (Math.round(Math.atan2(-cz, -cx) / (Math.PI / 3)) + 5 + 12) % 6;   // zijde van een vak die naar het midden kijkt
+    const cellOf = (x, z) => { let best = [0, 0], bd = 1e9; for (let q = -2; q <= 2; q++) for (let r = -2; r <= 2; r++) { const c = mv2CellXZ(q, r), d = Math.hypot(x - c[0], z - c[1]); if (d < bd) { bd = d; best = [q, r]; } } return best; };
     const areaOf = k => { const out = []; for (let q = -k; q <= k; q++) for (let r = -k; r <= k; r++) if (mv2HexDist(q, r) <= k) out.push([q, r]); return out; };
     // afscheiding langs de buitenrand van het hele gebied (haag of hek), met poorten: [[q, r, zijde, opening]]
     const edgeRing = (b, k, mat, gates = []) => { for (const [q, r] of areaOf(k)) { const sides = [], open = {}; for (let s = 0; s < 6; s++) if (mv2HexDist(q + NB_S[s][0], r + NB_S[s][1]) > k) sides.push(s); for (const [gq, gr, gs, go] of gates) if (gq === q && gr === r) open[gs] = go; if (sides.length) b.cellRing(0, q, r, mat, { sides, open }); } };
@@ -104,6 +105,37 @@
     { const b = libBuilder('Trappenhuis · glas', 'Verbindingen'); b.cell(0, 0, 0, 'paver');
       for (let f = 0; f < 4; f++) { b.hex(f, 0, 0, 4.5, f ? 'concrete' : 'tile'); b.ring(f, 0, 0, 4.5, 'glass', { open: f ? {} : { 0: 'door' } }); b.stairUp(f, 0, 0, 0, 1, 1.5, 'spiral'); }
       b.hex(4, 0, 0, 4.5, 'concrete').ring(4, 0, 0, 4.5, 'fence'); libExtraDetails(b, 'trappenhuis'); add(b); }
+    // ---------- Klein winkelcentrum (7 vakken, 2 lagen): een hoge hal in het midden met fontein en een glazen dak, zes units
+    // eromheen met een glazen pui naar de hal, twee doorgangen naar de straat tegenover elkaar, boven een galerij met balustrade
+    // en een trap in de rand van de hal. Eerst de basis (vloeren, muren, trap), dan per unit de inrichting. ----------
+    { const b = libBuilder('Winkelcentrum · klein', 'Winkels', 1), CORE = 6.75;
+      const cells = areaOf(1).filter(([q, r]) => q || r).map(([q, r]) => { const c = mv2CellXZ(q, r); return { q, r, c, a: Math.atan2(c[1], c[0]) }; }).sort((A, B) => A.a - B.a);
+      const ROLE0 = ['ingang', 'mode', 'horeca', 'ingang', 'boeken', 'super'], ROLE1 = ['kantoor', 'mode', 'restaurant', 'kapper', 'kantoor', 'sport'];
+      const FLOOR0 = { ingang: 'paver', mode: 'polished', horeca: 'stonetile', boeken: 'parquet', super: 'tile' }, FLOOR1 = { kantoor: 'carpet', mode: 'polished', restaurant: 'wood', kapper: 'tile', sport: 'wood' };
+      // hal: begane grond helemaal, boven alleen de galerij (de band van 1,95 m langs de rand) met een balustrade; de trap ligt in die band
+      b.cell(0, 0, 0, 'polished'); b.where(1, (x, z) => mv2HexDist(...cellOf(x, z)) === 0 && !inHex6(x, z, CORE), 'polished'); b.ring(1, 0, 0, CORE, 'fence');
+      bandStair(b, 0, 'A');
+      const behind = cells.reduce((bi, C, i) => (C.c[0] < cells[bi].c[0] ? i : bi), 0);   // de unit achter de trap (die ligt in de band aan de −x-kant)
+      cells.forEach(({ q, r, c }, i) => {
+        const st = sideTo(c[0], c[1]), shared = [(st + 1) % 6, (st + 5) % 6], outer = [(st + 2) % 6, (st + 3) % 6, (st + 4) % 6], r0 = ROLE0[i], r1 = ROLE1[i];
+        // begane grond
+        b.cell(0, q, r, FLOOR0[r0]);
+        if (r0 === 'ingang') { /* open naar de hal en naar de straat; de zijmuren komen van de buren */ }
+        else {
+          b.cellRing(0, q, r, 'panel', { sides: shared });
+          b.cellRing(0, q, r, 'curtain', { sides: [st], open: { [st]: i === behind ? [['open', 0], ['open', 3]] : [['open', 1], ['open', 2]] } });   // brede open pui naar de hal (achter de trap: aan beide uiteinden, naast de trap)
+          b.cellRing(0, q, r, 'brick', { sides: outer, open: { [(st + 3) % 6]: 'door' }, win: 2 });   // achterdeur voor de bevoorrading
+        }
+        // verdieping: een unit met een glazen pui en een open ingang naar de galerij
+        b.cell(1, q, r, FLOOR1[r1]);
+        b.cellRing(1, q, r, 'panel', { sides: shared });
+        b.cellRing(1, q, r, 'curtain', { sides: [st], open: { [st]: i === behind ? [['open', 3]] : [['open', 1]] } });   // open pui naar de galerij (boven de trap: aan het eind waar de trap uitkomt)
+        b.cellRing(1, q, r, 'brick', { sides: outer, win: 2 });
+        // plat dak met zonnepanelen
+        b.cell(2, q, r, 'roof');
+      });
+      b.cell(2, 0, 0, 'glass');   // glazen dak boven de hal
+      libExtraDetails(b, 'winkelcentrum_klein', cells, ROLE0, ROLE1); add(b); }
     { const b = libBuilder('Roltrap · glas', 'Verbindingen'); b.cell(0, 0, 0, 'polished').cell(1, 0, 0, 'polished'); bandStair(b, 0, 'A', 'esc'); b.cellRing(1, 0, 0, 'fence'); libExtraDetails(b, 'roltrap'); add(b); }
   }
   // ---------- Tweede ronde: inrichting en bijzonderheden ----------
@@ -172,8 +204,30 @@
     if (nm === 'Kade') { b.obj(0, 'boat', -2.5, -4.6, 0).obj(0, 'boat', 3.2, -6.2, 0.1); return; }
   }
   // ---- nieuwe modules: inrichting ----
-  function libExtraDetails(b, key) {
+  function libExtraDetails(b, key, ...args) {
     const D = {
+      winkelcentrum_klein: () => {
+        const [cells, ROLE0, ROLE1] = args;
+        // hal: fontein in het midden, bankjes eromheen, bomen in bakken, lantaarns
+        b.obj(0, 'fountain', 0, 0).circle(0, 'bench', 0, 0, 3.9, 3, Math.PI / 6).circle(0, 'planter', 0, 0, 4.4, 3, Math.PI / 2).obj(0, 'lamp', 4.6, 0).obj(0, 'lamp', -2.3, 4);
+        // op de galerij (1,95 m breed) geen meubels: dan kun je er niet meer rondlopen
+        cells.forEach(({ c }, i) => {
+          const u = [-c[0] / Math.hypot(c[0], c[1]), -c[1] / Math.hypot(c[0], c[1])], v = [-u[1], u[0]], P = (du, dv) => [c[0] + u[0] * du + v[0] * dv, c[1] + u[1] * du + v[1] * dv];
+          const along = Math.atan2(v[1], v[0]), across = Math.atan2(u[1], u[0]), put = (li, t, du, dv, rot) => { const [x, z] = P(du, dv); b.obj(li, t, x, z, rot); };
+          const r0 = ROLE0[i], r1 = ROLE1[i];
+          if (r0 === 'ingang') { put(0, 'bench', 0, 3.6, across); put(0, 'bench', 0, -3.6, across); put(0, 'planter', -5.5, 3.2); put(0, 'bin', -5.5, -3.2); put(0, 'sign', 6.4, 0, along); }
+          if (r0 === 'mode') { put(0, 'shelf', -4.6, -2.6, along); put(0, 'shelf', -4.6, 2.6, along); put(0, 'shelf', -1.2, 0, across); put(0, 'counter', 3, 4.3, across); put(0, 'sign', 6.6, -3.6, along); put(0, 'planter', 4.6, -4.4); }
+          if (r0 === 'horeca') { put(0, 'counter', -5, 0, along); b.circle(0, 'table', ...P(0.8, 0), 3.2, 5, 0.3); put(0, 'planter', 5.6, 4.4); put(0, 'planter', 5.6, -4.4); put(0, 'sign', 6.6, 0, along); }
+          if (r0 === 'boeken') { for (const dv of [-4.5, -1.5, 1.5, 4.5]) put(0, 'shelf', -2.2, dv, across); put(0, 'counter', 3.6, -3.8, across); put(0, 'table', 3.4, 3.4); put(0, 'sign', 6.6, 0, along); }
+          if (r0 === 'super') { for (const du of [-4.6, -2, 0.6]) for (const dv of [-2.7, 2.7]) put(0, 'shelf', du, dv, along); put(0, 'counter', 4.4, -3.6, across); put(0, 'counter', 4.4, 3.6, across); put(0, 'sign', 6.6, 0, along); }
+          if (r1 === 'kantoor') { for (const dv of [-3, 0, 3]) put(1, 'desk', -2.4, dv, along); put(1, 'shelf', -5.6, 0, along); put(1, 'sofa', 2.8, 3.8, across); put(1, 'planter', 4.4, -4.2); }
+          if (r1 === 'mode') { put(1, 'shelf', -4.6, -2.6, along); put(1, 'shelf', -4.6, 2.6, along); put(1, 'counter', 3, 4.3, across); put(1, 'sofa', 2.6, -3.6, across); }
+          if (r1 === 'restaurant') { put(1, 'kitchen', -5.4, 0, along); b.circle(1, 'table', ...P(0.6, 0), 3.2, 5, 0.2); put(1, 'planter', 5, 4.4); }
+          if (r1 === 'kapper') { for (const dv of [-3.2, 0, 3.2]) put(1, 'sofa', -4.6, dv, along); put(1, 'counter', 3.2, -4, across); put(1, 'planter', 4.6, 4.2); }
+          if (r1 === 'sport') { put(1, 'shelf', -5.6, 0, along); for (const dv of [-3.4, 0, 3.4]) put(1, 'bench', -1.4, dv, across); put(1, 'bin', 4.4, 4.2); }
+          for (const dv of [-3, 3]) put(2, 'solar', -2.2, dv, along);   // zonnepanelen op het platte dak
+        });
+      },
       tankstation: () => { b.obj(0, 'pump', 3.8, 1.5).obj(0, 'pump', 3.8, -1.5).obj(0, 'car', 2.2, 0, Math.PI / 2).obj(0, 'sign', 1.0, 6.5, Math.PI / 6); b.obj(0, 'counter', -3.0, -1.3, Math.PI / 2).obj(0, 'shelf', -6.0, 0.2, Math.PI / 2).obj(0, 'charger', 6.6, 0); },
       laadplein: () => { b.obj(0, 'car', -2.6, 2.0, Math.PI / 2).obj(0, 'car', 2.6, -2.0, Math.PI / 2).obj(0, 'charger', -2.6, 4.7).obj(0, 'charger', 2.6, -4.7); for (const x of [-3.6, 0, 3.6]) for (const z of [-3.2, -1.05, 1.05, 3.2]) b.obj(1, 'solar', x, z); },
       trafo: () => { b.obj(0, 'bush', -4.6, 3.8).obj(0, 'bush', 4.6, -3.8).obj(0, 'lamp', -4.4, -4.0); },

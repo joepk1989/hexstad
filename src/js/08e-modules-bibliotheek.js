@@ -355,6 +355,12 @@
       for (const m of std) { m.lib = 10; const i = match(m); if (i >= 0) { used.add(i); if (modules[i]._sig) continue; m.id = modules[i].id; modules[i] = m; } else { modules.push(m); used.add(modules.length - 1); libNews++; } }
       saveMods(); localStorage.setItem('hexstad-lib10', '1'); libRefreshed = true;
     }
+    // lib11: nieuwe standaardmodules erbij (klein winkelcentrum); wat er al is blijft zoals het is
+    if (!localStorage.getItem('hexstad-lib11')) {
+      const base = n => (n || '').replace(/( · \d+[Lv])+$/, ''), have = new Set(modules.map(m => base(m.name)));
+      for (const m of libStandard()) if (!have.has(base(m.name))) { m.lib = 11; modules.push(m); libNews++; }
+      saveMods(); localStorage.setItem('hexstad-lib11', '1'); libRefreshed = true;
+    }
   } catch (e) { /* geen opslag */ }
   // voor de tests (bibliotheekcontrole): de rekenhulpen van modules v2
   window.__mv2thumb = (m, rot, px) => mv2Thumb(m, rot, px);
