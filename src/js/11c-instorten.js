@@ -44,25 +44,49 @@
     }
     function drop(I) {
       const S = mods.get(I); if (!S) return; mods.delete(I);
-      unbake(S); gDirty = true; root.remove(S.grp); for (const p of S.P) if (p.mesh.parent === S.grp) p.mesh.geometry.dispose();
+      unbake(S); root.remove(S.grp); for (const p of S.P) if (p.mesh.parent === S.grp) p.mesh.geometry.dispose();
       for (let i = debris.length - 1; i >= 0; i--) if (debris[i].S === S) { root.remove(debris[i].p.mesh); debris[i].p.mesh.geometry.dispose(); debris.splice(i, 1); }
       if (S.col && S.colBak) { S.col.walls = S.colBak.w; S.col.surfaces = S.colBak.s; }
       if (S.e) S.e.collapsed = false; modBatchRefresh();
     }
-    // Wat blijft staan wordt weer per materiaal samengevoegd, over alle kapotte gebouwen heen (anders kost elk kapot gebouw
-    // honderden tekenopdrachten); de losse stukken blijven onzichtbaar staan voor de volgende klap.
-    let gMeshes = [], gDirty = false, gT = 0;
-    function bake(S) { if (S.baked) return; S.baked = true; for (const p of S.P) if (p.st === 'stand') p.mesh.visible = false; gDirty = true; }
-    function unbake(S) { if (!S.baked) return; S.baked = false; for (const p of S.P) if (p.st === 'stand') p.mesh.visible = true; gDirty = true; }
-    function rebuildGlobal() {
-      for (const m of gMeshes) { root.remove(m); m.geometry.dispose(); } gMeshes = [];
+    // Wat blijft staan wordt weer per materiaal samengevoegd (anders kost een kapot gebouw honderden tekenopdrachten); de losse
+    // stukken blijven onzichtbaar staan voor de volgende klap. Per gebouw en in hetzelfde beeld: eerst het samengevoegde stuk
+    // maken, dan pas de losse stukken verbergen (en bij een nieuwe klap andersom). Vroeger gebeurde het samenvoegen pas tot
+    // 0,4 s later voor alle gebouwen tegelijk: dan was het gebouw even weg, of stond het er dubbel (dat knipperde).
+    // Daarna, als alles een paar seconden stil ligt, gaan alle kapotte gebouwen samen in één set (minder tekenopdrachten); ook
+    // die wissel gebeurt in één beeld, en een nieuwe klap zet meteen de losse sets per gebouw terug.
+    let gMeshes = [], gDirty = false, gIdle = 0;
+    function mergeStanding(list) {
       const bags = new Map();
-      for (const S of mods.values()) if (S.baked) for (const p of S.P) {
+      for (const S of list) for (const p of S.P) {
         if (p.st !== 'stand') continue; const m = p.mesh, k = matKey(m.material, true, true); let L = bags.get(k); if (!L) bags.set(k, L = { mat: m.material, list: [] });
         m.updateMatrix(); const g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone(); g.applyMatrix4(m.matrix); L.list.push(g);
       }
-      for (const L of bags.values()) { const mesh = new THREE.Mesh(mergeGeos(L.list), L.mat); mesh.castShadow = true; mesh.receiveShadow = true; mesh.matrixAutoUpdate = false; root.add(mesh); gMeshes.push(mesh); }
-      gDirty = false;
+      const out = []; for (const L of bags.values()) { const mesh = new THREE.Mesh(mergeGeos(L.list), L.mat); mesh.castShadow = true; mesh.receiveShadow = true; mesh.matrixAutoUpdate = false; out.push(mesh); for (const g of L.list) g.dispose(); }
+      return out;
+    }
+    function dissolveGlobal() {   // de gezamenlijke set weg, de sets per gebouw weer zichtbaar (zelfde beeld)
+      if (!gMeshes.length) return;
+      for (const S of mods.values()) if (S.inG) { S.inG = false; if (S.bk) S.bk.visible = true; }
+      for (const m of gMeshes) { root.remove(m); m.geometry.dispose(); } gMeshes = [];
+    }
+    function consolidate() {
+      const list = [...mods.values()].filter(S => S.baked && S.bk); gDirty = false; if (list.length < 2) return;
+      dissolveGlobal(); gMeshes = mergeStanding(list); for (const m of gMeshes) root.add(m);
+      for (const S of list) { S.inG = true; S.bk.visible = false; }
+    }
+    function bake(S) {
+      if (S.baked) return; S.baked = true;
+      S.bk = new THREE.Group(); for (const m of mergeStanding([S])) S.bk.add(m); S.grp.add(S.bk);
+      for (const p of S.P) if (p.st === 'stand') p.mesh.visible = false;
+      gDirty = true; gIdle = 0;
+    }
+    function unbake(S) {
+      if (!S.baked) return; S.baked = false;
+      if (S.inG) dissolveGlobal();
+      for (const p of S.P) if (p.st === 'stand') p.mesh.visible = true;
+      if (S.bk) { S.grp.remove(S.bk); S.bk.traverse(o => { if (o.isMesh) o.geometry.dispose(); }); S.bk = null; }
+      gDirty = true; gIdle = 0;
     }
     // steun: kleinste 'prijs' van de grond tot elk stuk (0 omhoog, 1 opzij, 2 naar beneden hangend)
     function support(S) {
@@ -173,10 +197,9 @@
     }
     function update(dt) {
       for (const [I, S] of [...mods]) if (!cells.inst || !cells.inst.includes(I) || modGroups.get(I) !== S.e) drop(I);   // weggehaald, vervangen of nieuwe stad: de brokstukken verdwijnen mee
-      if (gDirty && !mods.size) rebuildGlobal();
       if (!mods.size && !dust.length) return;
-      tNow += dt; dt = Math.min(dt, 0.05); gT += dt;
-      if (gDirty && gT > 0.4) { gT = 0; rebuildGlobal(); }
+      tNow += dt; dt = Math.min(dt, 0.05); gIdle += dt;
+      if (gDirty && gIdle > 2.5 && ![...mods.values()].some(S => S.pend > 0 || S.clock > 0)) consolidate();
       for (const S of [...mods.values()]) {
         if (modGroups.get(S.I) !== S.e) { drop(S.I); continue; }   // het gebouw is intussen opnieuw opgebouwd
         for (const p of S.P) if (p.st === 'pend') { p.t -= dt; if (p.t <= 0) launch(S, p); }
@@ -212,7 +235,7 @@
       dust.forEach((q, i) => { const k = q.t / q.life, s = q.s * (0.5 + k * 1.4) * (1 - k * k); EU.set(q.t * 2, q.t, 0); M4.makeRotationFromEuler(EU).scale(S3.set(s, s, s)).setPosition(q.x, q.y, q.z); dustMesh.setMatrixAt(i, M4); });
       dustMesh.instanceMatrix.needsUpdate = true;
     }
-    function reset() { for (const I of [...mods.keys()]) drop(I); dust.length = 0; dustMesh.count = 0; }
+    function reset() { for (const I of [...mods.keys()]) drop(I); dissolveGlobal(); dust.length = 0; dustMesh.count = 0; }
     return {
       probe, update, reset, ahead, shoot,
       get on() { return ST.on; }, setOn(v) { ST.on = !!v; if (!v) reset(); },
@@ -220,6 +243,6 @@
       hit(x, z, sp, vx, vz) { return probe(x, z, sp, vx, vz); },
       log: LOG, cnt: CNT,
       dbg: () => [...mods.values()][0],
-      stats: () => ({ baked: [...mods.values()].filter(S => S.baked).length, gm: gMeshes.length, liveMeshes: [...mods.values()].reduce((n, S) => n + S.P.filter(p => p.st === 'stand' && p.mesh.visible).length, 0), modules: mods.size, debris: debris.length, dust: dust.length, standing: [...mods.values()].reduce((n, S) => n + S.P.filter(p => p.st === 'stand').length, 0), pieces: [...mods.values()].reduce((n, S) => n + S.P.length, 0), pending: [...mods.values()].reduce((n, S) => n + S.pend, 0) })
+      stats: () => ({ baked: [...mods.values()].filter(S => S.baked).length, gm: gMeshes.length + [...mods.values()].reduce((n, S) => n + (S.bk && S.bk.visible ? S.bk.children.length : 0), 0), inG: [...mods.values()].filter(S => S.inG).length, dup: [...mods.values()].filter(S => S.inG && S.bk && S.bk.visible).length, gGlobal: gMeshes.length, liveMeshes: [...mods.values()].reduce((n, S) => n + S.P.filter(p => p.st === 'stand' && p.mesh.visible).length, 0), modules: mods.size, debris: debris.length, dust: dust.length, standing: [...mods.values()].reduce((n, S) => n + S.P.filter(p => p.st === 'stand').length, 0), pieces: [...mods.values()].reduce((n, S) => n + S.P.length, 0), pending: [...mods.values()].reduce((n, S) => n + S.pend, 0) })
     };
   })();
