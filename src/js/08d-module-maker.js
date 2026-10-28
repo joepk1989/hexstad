@@ -189,8 +189,8 @@
     function changed() { bUndo.disabled = !E.undo.length; bRedo.disabled = !E.redo.length; renderLevels(); rebuild3(); draw(); }
     // ---------- verdiepingen ----------
     function renderLevels() { $('lvName').textContent = E.lv === 0 ? 'Begane grond' : E.lv + 'e verdieping'; $('lvUp').disabled = E.lv >= MV2.MAX_LV - 1; $('lvDn').disabled = E.lv === 0; }
-    $('lvUp').onclick = () => { if (E.lv >= MV2.MAX_LV - 1) return; E.lv++; while (E.m.lv.length <= E.lv) E.m.lv.push(mv2Level()); changed(); };
-    $('lvDn').onclick = () => { if (E.lv === 0) return; const top = E.m.lv.length - 1; E.lv--; if (top > E.lv && isEmptyLevel(E.m.lv[top]) && top === E.m.lv.length - 1 && top > 0) E.m.lv.pop(); changed(); };
+    $('lvUp').onclick = () => { if (!E.m || E.lv >= MV2.MAX_LV - 1) return; E.lv++; while (E.m.lv.length <= E.lv) E.m.lv.push(mv2Level()); changed(); };
+    $('lvDn').onclick = () => { if (!E.m || E.lv === 0) return; const top = E.m.lv.length - 1; E.lv--; if (top > E.lv && isEmptyLevel(E.m.lv[top]) && top === E.m.lv.length - 1 && top > 0) E.m.lv.pop(); changed(); };
     const isEmptyLevel = L => !Object.keys(L.f).length && !Object.keys(L.w).length && !L.s.length && !Object.keys(L.r).length && !L.o.length;
     function copyUp() { snap(); const L = lvl(); while (E.m.lv.length <= E.lv + 1) E.m.lv.push(mv2Level()); const U = E.m.lv[E.lv + 1]; U.f = Object.assign({}, L.f, U.f); U.w = Object.assign({}, JSON.parse(JSON.stringify(L.w)), U.w); E.lv++; changed(); say('Verdieping gekopieerd naar boven'); }
     // ---------- zijpaneel: materiaal of keuze bij het gereedschap ----------
