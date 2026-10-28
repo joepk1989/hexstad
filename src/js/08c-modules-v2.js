@@ -332,6 +332,14 @@
             const A = Pt(th(kk), Ap), yk = y0 + kk * hs; { const p2 = tfp(A), g = new THREE.CylinderGeometry(0.03, 0.03, 0.95 + TH, 6); g.translate(p2[0], yk - TH + (0.95 + TH) / 2, p2[1]); put(Mt.metal, g); }
             if (kk < NS - 1) bar(A, yk + 0.95, Pt(th(kk + 1), Ap), yk + hs + 0.95);
           }
+          // balustrade rond het gat in de vloer erboven, op vloerhoogte: het stuk muur per tree (hierboven, addWall) loopt schuin
+          // mee omhoog en blokkeert het gat alleen vlak bij de uitstap op de goede hoogte — verderop (30°–210°) ligt die veel
+          // te laag voor de bovenverdieping en kon je er zo in lopen. Deze rand (addWall, dus ook echt tegenhouden) staat vast
+          // op vloerhoogte en dekt dezelfde boog als het gat (0°–330°); het laatste stuk (330°–360°) is waar de vloer heel blijft.
+          { const topY = y0 + rise;
+            for (let kk = 0; kk <= NS - 3; kk++) { const A = Pt(th(kk), Ap), B = Pt(th(kk + 1), Ap); const p2 = tfp(A), g = new THREE.CylinderGeometry(0.03, 0.03, 0.95, 6); g.translate(p2[0], topY + 0.475, p2[1]); put(Mt.metal, g); bar(A, topY + 0.95, B, topY + 0.95); addWall(A, B, topY, topY + 0.95, 0.05); }
+            for (let kk = NS - 2; kk <= NS - 1; kk++) { const A = Pt(th(kk), Ap), p2 = tfp(A), g = new THREE.CylinderGeometry(0.03, 0.03, 0.95, 6); g.translate(p2[0], topY + 0.475, p2[1]); put(Mt.metal, g); }   // laatste twee treden: hier blijft de vloer heel, dat is de uitstap
+          }
           continue;
         }
         if (S.k === 'hexramp') {   // schans: het hele vak is een helling van de instapzijde (maaiveld) naar de overkant (3 m)

@@ -275,6 +275,8 @@ De **Raatbouwer** (vroeger module maker of schets; in het menu **Raatbouwer**, o
 
 **Voorwerpen tegen de muur**: een kast, (binnen)bank, bed, bureau, keukenblok, toonbank, bankje of filmdoek gaat vanzelf met de rug tegen de dichtstbijzijnde muur staan (binnen ongeveer een meter; het bed met het hoofdeinde). Het voorbeeld laat het al zien; met Ctrl blijft het los.
 
+**Voorwerpen fijn verplaatsen**: kies één voorwerp (Kiezen, V) en sleep het: het schuift vrij mee met de muis (op de millimeter), niet in rasterstappen. Zitten er ook vloer, muren of trappen in de keuze, dan gaat alles samen langs het raster. Een langwerpig voorwerp (bank, stelling, bed, toonbank, filmdoek) is over zijn hele lengte aan te klikken, niet alleen in het midden; daardoor pak je niet meer per ongeluk de vloer of muur eronder.
+
 **Materiaal van een keuze**: zitten er muren of vloer in de keuze, dan staan onder de knoppen van Kiezen de muur- en vloermaterialen; één klik geeft alle gekozen muren (openingen blijven) of vloerdriehoeken dat materiaal.
 
 **Rondlopen (knop met het poppetje, 4)**: loop zelf door de module, met dezelfde botsing als in de stad (trappen op, muren houden je tegen). WASD of de pijltjes lopen (← → draaien), Shift rent, slepen kijkt rond en een klik vangt de muis (Esc laat hem los). Je begint op de verdieping waar je tekent als daar vloer is, anders buiten aan de rand. Esc of 4 gaat terug naar het tekenen.

@@ -373,6 +373,18 @@ Gemeten in het bestand: vak R = 9 m, verdieping 3 m, vloer 0,3 m dik; steek 6,75
   blijft iets tegen de muur ook tegen de muur).
 - Controle: `checkModule` draait 350 ms na elke wijziging; de knop krijgt `data-st` ok/bad (groen/rood bolletje).
 
+## 28. Fijn verplaatsen, wenteltrap-balustrade, minder sloop door de kogel (28 okt)
+- **Raken van voorwerpen** (`objectAt`, 08d): langwerpige voorwerpen als georiënteerde rechthoek (lengte `CK_LEN` langs (cos rot, sin rot),
+  breedte `CK_RAD` + marge), andere als cirkel. Gaat vóór muur en vloer.
+- **Vrij verplaatsen**: is de keuze precies één voorwerp, dan volgt het de muis met een wereldverschuiving (afgerond op 1 mm) in plaats van
+  rasterstappen; andere keuzes blijven langs het raster.
+- **Wenteltrap**: de leuning langs de treden loopt schuin omhoog en hield je op de bovenverdieping alleen bij de uitstap tegen. Nu staat er op
+  vloerhoogte boven de trap een zeshoekige balustrade (apothema 1,9 m, 0,95 m hoog, ook als botsingsmuur) over 0°–300°; de laatste twee treden
+  (300°–360°) blijven vrij als uitstap, zodat het loopnetwerk erlangs kan.
+- **Kanonskogel** (`collapse.shoot`, 11c): breekt alleen rond de inslag los: straal min(3,2; 0,55 + 0,028·v + 1,1·r) (was tot 10 m), en per stuk
+  een kans die afneemt met de afstand. Wat daarna geen steun meer heeft valt nog steeds via `settle()`. Drie schoten op een stadswoning: 18 stukken
+  los (was: 170, het maximum, en het halve gebouw).
+
 ## 21. Open punten
 - Unity: noord- en zuidpool op de bol (vraag staat open); `unity/README.md` is niet bijgewerkt sinds het planeet-wegensysteem.
 - Web: eerste klap op een gebouw geeft een korte hapering (omzetten naar stukken); mensen ontwijken brokstukken niet en het loopnetwerk kent de gaten niet; instortingen worden niet bewaard; jagers maken soms nog sprongetjes van 3–7 m.

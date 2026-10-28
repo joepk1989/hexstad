@@ -198,7 +198,19 @@
     }
     const objPose = (t, x, z) => wallSnap(t, x, z) || { x: snapObj(x), z: snapObj(z), rot: E.orot || 0, wall: false };
     const OBJ_FOOT = { bench: [1.8, 0.5], shelf: [2.4, 0.5], counter: [2.3, 0.8], bike: [2.4, 0.64], sign: [1.6, 0.12], solar: [3.4, 1.6], container: [2.4, 1.4], goal: [3.7, 1.0], boat: [4.2, 1.7], shelter: [3.0, 1.4], car: [4.3, 1.9], bed: [2.0, 1.6], sofa: [2.1, 0.9], desk: [1.6, 0.8], kitchen: [2.4, 0.65], screen: [6.0, 0.2], swing: [2.7, 1.2] }, OBJ_R = { tree: 1.7, bush: 0.9, lamp: 0.2, pillar: 0.45, table: 1.1, planter: 0.75, fountain: 1.9, bin: 0.25, pump: 0.6, charger: 0.3, turbine: 1.0, chimney: 1.3, grave: 0.5, slide: 1.0, sheep: 0.6 };
-    function objectAt(x, z, r = 0.9) { const L = lvl(); let best = -1, bd = r; L.o.forEach((o, i) => { const d = Math.hypot(o.x - x, o.z - z); if (d < bd) { bd = d; best = i; } }); return best; }
+    // voorwerp onder (x,z): een langwerpig voorwerp (bank, stelling, bed...) telt over zijn hele lengte mee, niet alleen vlak bij het midden
+    function objectAt(x, z, r = 0.9) {
+      const L = lvl(); let best = -1, bd = Infinity;
+      L.o.forEach((o, i) => {
+        const ln = CK_LEN[o.t], hw = Math.max(CK_RAD[o.t] || 0.3, r) + 0.15;
+        let d;
+        if (ln) { const ang = o.rot || 0, ux = Math.cos(ang), uz = Math.sin(ang), dx = x - o.x, dz = z - o.z, u = dx * ux + dz * uz, v = -dx * uz + dz * ux;
+          if (Math.abs(u) > ln / 2 + 0.15 || Math.abs(v) > hw) return; d = Math.hypot(Math.max(0, Math.abs(u) - ln / 2), v); }
+        else { d = Math.hypot(o.x - x, o.z - z); if (d > Math.max(r, hw)) return; }
+        if (d < bd) { bd = d; best = i; }
+      });
+      return best;
+    }
     const cellAt = (x, z) => mv2CellOf(x, z);
     const lvl = () => E.m.lv[E.lv];
     // ---------- geschiedenis ----------
@@ -411,6 +423,9 @@
     // bewerkingen
     function selApply(fn, msg) { const S = sel(); if (!selCount(S)) { say('Niets gekozen', 900); return; } snap(); const c = selClip(S); selRemove(S); const { out, stay } = fn(c); clipInsert(stay, S.lv); E.sel = clipInsert(out, S.lv); changed(); renderCtx(); const left = clipSize(stay); say(msg + (left ? ' · ' + left + ' dak/schans bleef staan (die horen bij een heel vak)' : ''), 1400); }
     const selMove = (di, dj) => selApply(c => clipShift(c, di, dj), 'Verplaatst');
+    // een los gekozen voorwerp (geen vloer/muur/trap/dak erbij) vrij verplaatsen, zonder aan het raster vast te zitten
+    const clipShiftObjFree = (c, ox, oz) => ({ f: c.f, w: c.w, s: c.s, r: c.r, o: c.o.map(o => Object.assign({}, o, { x: Math.round((o.x + ox) * 1000) / 1000, z: Math.round((o.z + oz) * 1000) / 1000 })) });
+    const selMoveFree = (dx, dz) => selApply(c => ({ out: clipShiftObjFree(c, dx, dz), stay: { f: [], w: [], s: [], o: [], r: [] } }), 'Verplaatst');
     const selRotate = k => selApply(c => clipRot(c, k, clipPivot(c)), k > 0 ? 'Gedraaid 60° rechtsom' : 'Gedraaid 60° linksom');
     const selMirror = axis => selApply(c => clipMirror(c, axis, clipPivot(c)), axis === 'x' ? 'Gespiegeld (links ↔ rechts)' : 'Gespiegeld (boven ↕ onder)');
     // materiaal van de gekozen muren of vloeren in één keer wisselen
@@ -510,7 +525,9 @@
         if (right) { E.sel = selEmpty(); E.paste = false; renderCtx(); draw(); return; }
         if (E.paste && E.clip) { const v = vertexAt(x, z), pv = E.clip.pv; snap(); E.sel = clipInsert(clipShift(E.clip.c, v[0] - pv[0], v[1] - pv[1]).out); E.paste = false; changed(); renderCtx(); say(selSay('Geplakt'), 1200); return; }
         const add = e.ctrlKey || e.metaKey, Hh = selHit(x, z), S = sel();
-        if (Hh && selCount(Hh)) { if (add) { selToggle(S, Hh); renderCtx(); draw(); say(selSay(), 900); return; } if (!selHas(S, Hh)) { E.sel = Hh; renderCtx(); say(selSay(), 900); } E.drag = { kind: 'selmove', a: vertexAt(x, z), di: 0, dj: 0 }; draw(); return; }
+        if (Hh && selCount(Hh)) { if (add) { selToggle(S, Hh); renderCtx(); draw(); say(selSay(), 900); return; } if (!selHas(S, Hh)) { E.sel = Hh; renderCtx(); say(selSay(), 900); }
+          const S2 = sel(), free = S2.o.size === 1 && !S2.f.size && !S2.w.size && !S2.s.size && !S2.r.size;
+          E.drag = { kind: 'selmove', a: vertexAt(x, z), aw: [x, z], di: 0, dj: 0, free, fx: 0, fz: 0 }; draw(); return; }
         E.drag = { kind: 'marq', s0: [sx, sy], s1: [sx, sy], add }; draw(); return;
       }
       if (E.tool === 'floor') { snap(); paintFloor(x, z, right); E.drag = { kind: 'floor', erase: right }; changed(); return; }
@@ -552,7 +569,7 @@
             say(`${n} ${n === 1 ? 'zijde' : 'zijden'} · ${f(len)} m · ${u ? '2 × 8' : '16'} treden van ${Math.round(run * 100)} cm · ${run < 0.25 ? 'te steil' : run > 0.5 ? 'erg flauw' : 'goede trap'}${up ? ' · rood: gat in de vloer erboven' : ' · nog geen vloer erboven'}`, 1500);
           } }
         else if (E.drag.kind === 'erase') { if (eraseAt(x, z, true)) dirty3(); }
-        else if (E.drag.kind === 'selmove') { const v = vertexAt(x, z); E.drag.di = v[0] - E.drag.a[0]; E.drag.dj = v[1] - E.drag.a[1]; }
+        else if (E.drag.kind === 'selmove') { if (E.drag.free) { E.drag.fx = x - E.drag.aw[0]; E.drag.fz = z - E.drag.aw[1]; } else { const v = vertexAt(x, z); E.drag.di = v[0] - E.drag.a[0]; E.drag.dj = v[1] - E.drag.a[1]; } }
         else if (E.drag.kind === 'marq') E.drag.s1 = [sx, sy];
         else if (E.drag.kind === 'obj') { const D = E.drag; if (Math.hypot(x - D.x, z - D.z) > 0.6) { const free = e.ctrlKey || e.metaKey, r2 = aimRot(D.x, D.z, x, z, free); D.moved = true; if (r2 !== D.rot) { D.rot = r2; if (D.oi >= 0) { lvl().o[D.oi].rot = r2; rebuild3(); } } say('Draaiing ' + degOf(D.rot) + '°' + (free ? ' · vrij' : ' · per 30°, Ctrl: vrij'), 1200); } }
       }
@@ -566,7 +583,7 @@
       else if (D.kind === 'stair' && D.n > 0) { snap(); lvl().s.push(newStair(D)); changed(); }
       else if (D.kind === 'stair') { snap(); lvl().s.push(newStair({ a: D.a, d: D.d, n: 3 })); changed(); say(E.tool === 'ramp' ? 'Helling geplaatst' : 'Trap geplaatst · sleep voor een andere lengte of richting', 1200); }
       else if (D.kind === 'spiral') { snap(); lvl().s.push(newSpiral(D)); changed(); say('Wenteltrap geplaatst', 900); }
-      else if (D.kind === 'selmove') { if (D.di || D.dj) selMove(D.di, D.dj); else draw(); }
+      else if (D.kind === 'selmove') { if (D.free) { if (D.fx || D.fz) selMoveFree(D.fx, D.fz); else draw(); } else if (D.di || D.dj) selMove(D.di, D.dj); else draw(); }
       else if (D.kind === 'marq') { if (Math.hypot(D.s1[0] - D.s0[0], D.s1[1] - D.s0[1]) < 5) { if (!D.add) E.sel = selEmpty(); } else { const R2 = selRect(D.s0, D.s1); if (D.add) { const S = sel(); for (const kk of ['f', 'w', 's', 'o', 'r']) for (const v of R2[kk]) S[kk].add(v); } else E.sel = R2; } renderCtx(); draw(); if (selCount(sel())) say(selSay(), 1200); }
       else if (D.kind === 'obj') { const L = lvl();
         if (D.oi >= 0) { const o = L.o[D.oi]; if (!D.moved) o.rot = normRot((o.rot || 0) + (D.back ? -ROT_STEP : ROT_STEP)); E.orot = o.rot; }
@@ -716,7 +733,10 @@
       }
       function selPaint() {
         const S = sel(), D = E.drag;
-        if (selCount(S)) { const c = selClip(S); if (D && D.kind === 'selmove' && (D.di || D.dj)) { clipPaint(c, 'rgba(79,176,255,0.55)', 'rgba(79,176,255,0.10)', 1.5); clipPaint(clipShift(c, D.di, D.dj).out, '#f2b233', 'rgba(242,178,51,0.32)', 2.5); } else clipPaint(c, '#4fb0ff', 'rgba(79,176,255,0.28)', 2.5); }
+        if (selCount(S)) { const c = selClip(S);
+          if (D && D.kind === 'selmove' && D.free) { clipPaint(c, 'rgba(79,176,255,0.55)', 'rgba(79,176,255,0.10)', 1.5); clipPaint(clipShiftObjFree(c, D.fx, D.fz), '#f2b233', 'rgba(242,178,51,0.32)', 2.5); }
+          else if (D && D.kind === 'selmove' && (D.di || D.dj)) { clipPaint(c, 'rgba(79,176,255,0.55)', 'rgba(79,176,255,0.10)', 1.5); clipPaint(clipShift(c, D.di, D.dj).out, '#f2b233', 'rgba(242,178,51,0.32)', 2.5); }
+          else clipPaint(c, '#4fb0ff', 'rgba(79,176,255,0.28)', 2.5); }
         if (E.paste && E.clip && E.hover) { const v = vertexAt(E.hover[0], E.hover[1]); clipPaint(clipShift(E.clip.c, v[0] - E.clip.pv[0], v[1] - E.clip.pv[1]).out, '#f2b233', 'rgba(242,178,51,0.32)', 2.5); }
         if (D && D.kind === 'marq') { ctx.save(); ctx.setLineDash([5, 4]); ctx.strokeStyle = '#4fb0ff'; ctx.fillStyle = 'rgba(79,176,255,0.10)'; ctx.lineWidth = 1.5; const a = D.s0, b = D.s1, rx = Math.min(a[0], b[0]), ry = Math.min(a[1], b[1]), rw = Math.abs(b[0] - a[0]), rh = Math.abs(b[1] - a[1]); ctx.fillRect(rx, ry, rw, rh); ctx.strokeRect(rx, ry, rw, rh); ctx.restore(); }
       }
