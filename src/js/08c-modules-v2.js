@@ -109,7 +109,8 @@
   // Staat op dit punt (met kruin erbij) een weg, stoep of een gebouw van een ander vak? Dan komt er geen boom of bankje.
   const GREENISH = /^(Park|Bos|Tuin|Grasveld|Plein|Water|Vlak|Parkeer|Rij|Afscheiding|Kade)/;
   const areaCache = new WeakMap();
-  function offSpot(I, x, z) {
+  function offSpot(I, x, z, yRel) {
+    if (yRel !== undefined) { const y = gH(I.q, I.r) + instLv(I) * MV2.LV_H + yRel, t = typeof roadTop === 'function' ? roadTop(x, z, y) : null; return t !== null && Math.abs(t - y) < 1.5; }   // op een dak: ligt hier een dakweg?
     if (onRoadNow(x, z)) return true;
     let own = areaCache.get(I); if (!own || own.sig !== I.q + ',' + I.r + ',' + I.rot) { own = new Set(mv2Area(I).map(([q, r]) => q + ',' + r)); own.sig = I.q + ',' + I.r + ',' + I.rot; areaCache.set(I, own); }
     for (let k = -1; k < 6; k++) {
@@ -480,6 +481,7 @@
         }
         const W = tf(O.x, O.z), W2 = tf(O.x + Math.cos(O.rot || 0), O.z + Math.sin(O.rot || 0)), ang = Math.atan2(-(W2[1] - W[1]), W2[0] - W[0]);
         if ((opts.baseLv || 0) + li === 0 && OFF_ROAD.has(O.t)) { cand.push([W[0], W[1]]); if (opts.offRoad && opts.offRoad(W[0], W[1])) continue; }   // bomen, struiken en bankjes nooit op een weg of stoep
+        else if (li > 0 && li >= nLv - 1) { cand.push([W[0], W[1], y0]); if (opts.offRoad && opts.offRoad(W[0], W[1], y0)) continue; }   // op het dak: niets onder een dakweg (zonnepanelen, lichtkap, groen)
         const place = (mat, g) => { g.rotateY(ang); g.translate(W[0], y0, W[1]); put(mat, g); };
         const box = (mat, sx, sy, sz, x, y, z) => place(mat, new THREE.BoxGeometry(sx, sy, sz).translate(x, y, z));
         const col = (mat, rt, rb, h, x, y, z, n = 8) => place(mat, new THREE.CylinderGeometry(rt, rb, h, n).translate(x, y + h / 2, z));
@@ -538,7 +540,7 @@
   // stukken van een module (voor het instorten): zelfde bouw als in de stad, maar elk stuk apart
   function modPiecesOf(I) {
     const e = modGroups.get(I); if (!e) return null; const o = cellToWorld(I.q, I.r), G = gH(I.q, I.r) + instLv(I) * MV2.LV_H;
-    const b = mv2Build(I.m, mv2Tf(I.rot, I.q, I.r), [o.x, o.z], { stacked: instLv(I) > 0, roofMask: e.mask, roofStyle: e.style, skip: e.skip, baseLv: instLv(I), offRoad: (x, z) => offSpot(I, x, z), pieces: true });
+    const b = mv2Build(I.m, mv2Tf(I.rot, I.q, I.r), [o.x, o.z], { stacked: instLv(I) > 0, roofMask: e.mask, roofStyle: e.style, skip: e.skip, baseLv: instLv(I), offRoad: (x, z, y) => offSpot(I, x, z, y), pieces: true });
     return { e, G, pieces: b.pieces };
   }
   // ---------- Samenvoegen per buurt ----------
@@ -654,11 +656,11 @@
     for (const I of live) {
       const cov = instCover(I), skip = skips.get(I) || new Set(), sig = cov.sig + '#' + [...skip].sort().join(';');
       let e = modGroups.get(I);
-      if (e && e.cand && e.sig === sig && e.off !== e.cand.map(c => offSpot(I, c[0], c[1]) ? 1 : 0).join('')) e.sig = '';   // er ligt nu een weg onder een boom of bankje (of juist niet meer)
+      if (e && e.cand && e.sig === sig && e.off !== e.cand.map(c => offSpot(I, c[0], c[1], c[2]) ? 1 : 0).join('')) e.sig = '';   // er ligt nu een weg onder een boom of bankje (of juist niet meer)
       if (e && e.sig === sig) { /* ongewijzigd */ } else {
         if (e) { e.group.traverse(o => { if (o.isMesh && o.userData.own) o.geometry.dispose(); }); scene.remove(e.group); }
-        const o = cellToWorld(I.q, I.r), G = gH(I.q, I.r) + instLv(I) * MV2.LV_H, b = mv2Build(I.m, mv2Tf(I.rot, I.q, I.r), [o.x, o.z], { stacked: instLv(I) > 0, roofMask: cov.mask, roofStyle: cov.style, skip, baseLv: instLv(I), offRoad: (x, z) => offSpot(I, x, z) });
-        b.group.position.y += G; b.group.userData.inst = I; doors.clear(I); for (const d of b.doors) { d.y += G; doors.add(I, d); } e = { cand: b.cand, off: b.cand.map(c => offSpot(I, c[0], c[1]) ? 1 : 0).join(''), group: b.group, col: shiftCol({ surfaces: b.surfaces, walls: b.walls }, G), sig, roofed: !!cov.mask, mask: cov.mask, skip, style: cov.style }; scene.add(e.group); modGroups.set(I, e); touched = true;
+        const o = cellToWorld(I.q, I.r), G = gH(I.q, I.r) + instLv(I) * MV2.LV_H, b = mv2Build(I.m, mv2Tf(I.rot, I.q, I.r), [o.x, o.z], { stacked: instLv(I) > 0, roofMask: cov.mask, roofStyle: cov.style, skip, baseLv: instLv(I), offRoad: (x, z, y) => offSpot(I, x, z, y) });
+        b.group.position.y += G; b.group.userData.inst = I; doors.clear(I); for (const d of b.doors) { d.y += G; doors.add(I, d); } e = { cand: b.cand, off: b.cand.map(c => offSpot(I, c[0], c[1], c[2]) ? 1 : 0).join(''), group: b.group, col: shiftCol({ surfaces: b.surfaces, walls: b.walls }, G), sig, roofed: !!cov.mask, mask: cov.mask, skip, style: cov.style }; scene.add(e.group); modGroups.set(I, e); touched = true;
       }
       e.col.tag = (I.m.name || '') + ' @' + I.q + ',' + I.r + ' lv' + instLv(I) + ' rot' + I.rot + (I.mir ? ' mir' : '');
       for (const [q, r] of mv2Area(I)) { const k = q + ',' + r; if (!instLv(I)) modCellSet.add(k); let L = modCols.get(k); if (!L) modCols.set(k, L = []); L.push(e.col); }
@@ -716,7 +718,7 @@
     const bar = (A, B, y0, y1, t) => { const dx = B[0] - A[0], dz = B[1] - A[1], l = Math.hypot(dx, dz); if (l < 0.01) return; const g = new THREE.BoxGeometry(l, y1 - y0, t); g.rotateY(-Math.atan2(dz, dx)); g.translate((A[0] + B[0]) / 2, (y0 + y1) / 2, (A[1] + B[1]) / 2); geos.push(g); };
     for (const E of edges.values()) {
       if (E.n !== 1 || E.y < 0.5) continue;
-      if (isDeckMod(E.I.m)) { const mx0 = (E.A[0] + E.B[0]) / 2, mz0 = (E.A[1] + E.B[1]) / 2, rt = roadTop(mx0 - (mx0 - E.c[0]) * 0.15, mz0 - (mz0 - E.c[1]) * 0.15, E.y); if (rt !== null && Math.abs(rt - E.y) < 1) continue; }   // wegdek: geen hek waar de weg op of af gaat
+      if (roofMap_ && roofMap_.size && E.y > 1) { const mx0 = (E.A[0] + E.B[0]) / 2, mz0 = (E.A[1] + E.B[1]) / 2, rt = roadTop(mx0 - (mx0 - E.c[0]) * 0.15, mz0 - (mz0 - E.c[1]) * 0.15, E.y); if (rt !== null && Math.abs(rt - E.y) < 1) continue; }   // wegdek of dakweg: geen hek waar de weg op of af gaat
       let R0 = byI.get(E.I); if (!R0) byI.set(E.I, R0 = { geos: [], cols: [], parts: [] }); geos = R0.geos;
       const mx = (E.A[0] + E.B[0]) / 2, mz = (E.A[1] + E.B[1]) / 2, ex = E.B[0] - E.A[0], ez = E.B[1] - E.A[1], l = Math.hypot(ex, ez) || 1;
       let nx = -ez / l, nz = ex / l; if ((mx - E.c[0]) * nx + (mz - E.c[1]) * nz < 0) { nx = -nx; nz = -nz; }   // naar buiten

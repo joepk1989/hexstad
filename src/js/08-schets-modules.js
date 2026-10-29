@@ -60,6 +60,7 @@
     ensureIds();
     if (lv === undefined && mod.v === 2 && hudLayer() !== null) lv = hudLayer();   // laagkiezer (15d)
     if (lv === undefined) lv = mod.v === 2 && Number.isInteger(q0) && Number.isInteger(r0) && lastPickRes && lastPickRes.inst ? stackLvAt(q0, r0) : 0;
+    if (!lv && mod.v === 2 && Number.isInteger(q0) && Number.isInteger(r0)) { const t = cellModTop(q0, r0); if (t && isDeckMod(t.inst.m) && !isDeckMod(mod)) lv = t.top; }   // op een wegdek geklikt: erbovenop (het dek is de grond)
     if (!lv && mod.v === 2 && Number.isInteger(q0) && Number.isInteger(r0)) { const ol = overRoadLv(mod, moduleRot, q0, r0); if (ol) lv = ol; }   // op een weg geklikt: de module komt erboven, op poten (08l)
     if (lastPickRes && lastPickRes.inst && lastPickRes.side) { const i = cells.inst.indexOf(lastPickRes.inst); if (i >= 0 && swapInst(i)) return true; }   // op de gevel van een geplaatste module: wisselen
     const { n, skip } = placeCore(mod, moduleRot, q0, r0, lv);

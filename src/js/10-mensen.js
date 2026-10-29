@@ -101,6 +101,21 @@
         vnode.edges.set(n.key, { to: n, side: -1, climb: false, vecDoor: link, dir: dir ? 0 : 1 });
       }
     }
+    // Daken en wegdekken (08l): een beloopbaar dak naast of onder een dakweg sluit aan op de stoep van die weg (zelfde hoogte)
+    if (typeof roofMap_ !== 'undefined' && roofMap_.size) for (const n of [...nodes.values()]) {
+      if (n.kind.b !== 'mod' || !n.kind.open || n.yr < 0.41) continue;
+      let near = vecCover.has(n.q + ',' + n.r); if (!near) for (const [dq, dr] of NEIGH) if (vecCover.has((n.q + dq) + ',' + (n.r + dr))) { near = true; break; }
+      if (!near) continue;
+      let best = null;
+      for (const W of walkSides) {
+        if (Math.abs(W.pts[0][0] - n.x) > W.reach + 4 || Math.abs(W.pts[0][1] - n.z) > W.reach + 4) continue;
+        for (let i = 0; i < W.pts.length - 1; i++) { const A = W.pts[i], B = W.pts[i + 1], ex = B[0] - A[0], ez = B[1] - A[1], l2 = ex * ex + ez * ez || 1e-9, t = Math.max(0, Math.min(1, ((n.x - A[0]) * ex + (n.z - A[1]) * ez) / l2)), px = A[0] + ex * t, pz = A[1] + ez * t, d = Math.hypot(px - n.x, pz - n.z);
+          if (d > 3.2 || (best && d >= best.d)) continue; const rt = roadTop(px, pz, n.y); if (rt === null || Math.abs(rt - n.y) > 0.5) continue; best = { e: W.e, sg: W.sg, d, back: 0, pt: [px, pz] }; }
+      }
+      if (!best) continue;
+      for (const [vnode, dir] of [[vn[best.e.b], 0], [vn[best.e.a], 1]]) { const link = { e: best.e, sg: best.sg, pt: best.pt, door: [n.x, n.z], out: null, mod: true };
+        n.edges.set(vnode.key, { to: vnode, side: -1, climb: false, vecDoor: link, dir }); vnode.edges.set(n.key, { to: n, side: -1, climb: false, vecDoor: link, dir: dir ? 0 : 1 }); }
+    }
     for (const [k, n] of nodes) if (!n.edges.size) nodes.delete(k);
     // Afgesloten stukken (een winkel waar je niet uit kunt): wel in het netwerk, maar daar begint niemand
     { const seen = new Set();

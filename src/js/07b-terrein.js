@@ -59,7 +59,7 @@
   // 4: langs de wegen. Een weg die boven het veld ligt geeft een dijkje, eronder een ingraving; flank minstens 3 m
   // en zo flauw dat het niet steiler dan ~40° wordt.
   function roadAdjust(x, z, v, segs = tRoadSegs) {
-    if (deckMap_ && deckMap_.size && deckAt(x, z, true) !== null) return v;   // onder een wegdek blijft het maaiveld liggen (08l)
+    if (roofMap_ && roofMap_.size && deckAt(x, z, true, true) !== null) return v;   // onder een wegdek blijft het maaiveld liggen (08l)
     let wBest = 0, tBest = v, dBest = 1e9;
     for (const s of segs) {
       if (s[6] && v < 0.02) continue;

@@ -163,4 +163,16 @@
         }
       }
     }
+    // trappenhuis-poot (08l): ingang op de grond, wenteltrap omhoog, bordes, door de deur naar de sectorknoop erachter
+    if (typeof legTowers !== 'undefined') { let ti = 0; for (const [I, T] of legTowers) {
+      const ii = insts.indexOf(I); if (ii < 0) continue; ti++;
+      const step = Math.PI / 6, P = (th, r) => [T.c[0] + Math.cos(th) * r, T.c[1] + Math.sin(th) * r], t0 = T.phi - T.N * step;
+      const eo = P(t0 - step / 2, 2.4), ent = mk('mtw' + ti, eo[0], eo[1], T.y0 + 0.02, { b: 'mdoor', d: T.k, outside: P(t0 - step / 2, 3.4) });
+      const lo = mk('mtl' + ti, ...P(t0 + step / 2, 1.1), T.y0 + (T.yT - T.y0) / T.N, { b: 'mod', stair: 'low' }, { lvW: 0 });
+      const hi = mk('mth' + ti, ...P(T.phi - step / 2, 1.1), T.yT, { b: 'mod', stair: 'high' }, { lvW: T.lvW });
+      const via = []; for (let a = t0 + step; a < T.phi - step * 0.9; a += step * 0.67) via.push(P(a, 1.1));
+      conn(ent, lo, null, false); conn(lo, hi, via, true); { const e1 = lo.edges.get(hi.key), e2 = hi.edges.get(lo.key); if (e1) e1.spir = T.c; if (e2) e2.spir = T.c; }
+      const inN = mk('mti' + ti, T.inP[0], T.inP[1], T.yT, { b: 'mod' }, { lvW: T.lvW }); conn(hi, inN, [T.door], false);
+      const C = byCell.get(T.lvW + '|' + T.q + ',' + T.r); if (C) { const S = C[T.k] || Object.values(C)[0]; if (S) conn(inN, S, route(T.lvW, [inN.x, inN.z], [S.x, S.z]) || null, false); }
+    } }
   }

@@ -97,9 +97,13 @@
       ghost.visible = false; ghostArrow.visible = false; pendingKey = null;
       if (downInfo.road) {
         if (EDGE_TOOLS.has(tool)) { edgePaintAt(e.clientX, e.clientY); return; }
-        if (!roadDrag.on) { roadDrag.pt = groundPointAt(downInfo.x, downInfo.y); roadDragStart(groundCellAt(downInfo.x, downInfo.y)); }
+        if (!roadDrag.on) {   // begint de sleep op een plat dak (met een weg gekozen), dan wordt het een dakweg op die hoogte (08l)
+          const rf = VEC_TOOLS.has(tool) ? roofUnder(pick(downInfo.x, downInfo.y, true)) : null;
+          roadDrag.pt = groundPointAt(downInfo.x, downInfo.y); roadDrag.roofY = rf ? rf.y : null; roadDragStart(rf ? planeCellAt(downInfo.x, downInfo.y, rf.y) : groundCellAt(downInfo.x, downInfo.y));
+          if (rf && roadDrag.vp) roadDrag.vp.dak = true;
+        }
         roadDrag.pt = groundPointAt(e.clientX, e.clientY);
-        roadPaintTo(groundCellAt(e.clientX, e.clientY));
+        roadPaintTo(roadDrag.roofY != null ? planeCellAt(e.clientX, e.clientY, roadDrag.roofY) : groundCellAt(e.clientX, e.clientY));
         if (!roadDrag.vmoveP || Math.hypot(e.clientX - roadDrag.vmoveP[0], e.clientY - roadDrag.vmoveP[1]) > 4) { roadDrag.vmoveP = [e.clientX, e.clientY]; roadDrag.vmoveT = performance.now(); }   // ná het tekenen: stilstaan telt pas vanaf dan
         return;
       }
@@ -220,6 +224,11 @@
     const objs = pathGroup ? [ground, terrGroup, blocks, pathGroup] : [ground, terrGroup, blocks];
     return curvedHits(raycaster, objs)[0] || null;
   }
+  function planeCellAt(cx, cy, y) {   // vak onder het scherm-punt, gemeten op een vlak op hoogte y (dakweg: anders schuift alles door de parallax op)
+    ndc.set(cx / window.innerWidth * 2 - 1, -(cy / window.innerHeight) * 2 + 1); raycaster.setFromCamera(ndc, camera);
+    const o = raycaster.ray.origin, d = raycaster.ray.direction; if (Math.abs(d.y) < 1e-4) return groundCellAt(cx, cy);
+    const t = (y - o.y) / d.y; if (t <= 0) return groundCellAt(cx, cy); return worldToCell(o.x + d.x * t, o.z + d.z * t);
+  }
   function groundCellAt(cx, cy) { const h = groundHit(cx, cy); return h ? worldToCell(h.point.x, h.point.z) : null; }
   function groundPointAt(cx, cy) { const h = groundHit(cx, cy); return h ? { x: h.point.x, z: h.point.z } : null; }
   function hexLine(a, b) {
@@ -330,7 +339,7 @@
   }
   function vecPaintTo(cell) {
     const D = roadDrag;
-    if (!D.vp) { D.vp = { t: VEC_T[D.tool], l: 0, r: 0, p: [] }; D.vstart = cell; D.vcorners = []; D.voffs = []; D.voff0 = 0; D.voff = 0; pathsOf().push(D.vp); showDragH(true); }
+    if (!D.vp) { D.vp = Object.assign({ t: VEC_T[D.tool], l: 0, r: 0, p: [] }, D.roofY != null ? { dak: true } : {}); D.vstart = cell; D.vcorners = []; D.voffs = []; D.voff0 = 0; D.voff = 0; pathsOf().push(D.vp); showDragH(true); }
     cell = vecAlignCell(D.vfrom ? D.vfrom() : D.vstart, cell);
     const L = D.last; if (L && L[0] === cell[0] && L[1] === cell[1]) return;
     D.last = cell;
@@ -392,7 +401,7 @@
     if (!vp.core || vp.core.length < 2) { const i = cells.paths.indexOf(vp); if (i >= 0) cells.paths.splice(i, 1); buildPathNet(); vecChainClick(D.vstart); return; }
     { const ex = vecExtend(vp.core, true, vp); if (vp.y) { const ys = vp.y.slice(vp.y.length > vp.core.length ? 1 : 0, vp.y.length > vp.core.length ? 1 + vp.core.length : vp.core.length); vp.y = [...(vp.tipS ? [ys[0]] : []), ...ys, ...(vp.tipE ? [ys[ys.length - 1]] : [])]; } vp.p = ex; delete vp.core; }
     const gone = vecClearUnder([vp]);
-    buildPathNet(); changed(); toast(TYPES[D.tool].name + ' aangelegd, ' + D.count + ' vakken lang' + (gone ? ' · ' + gone + ' ' + (gone === 1 ? 'gebouw' : 'gebouwen') + ' weggehaald (Ctrl+Z zet terug)' : ''), gone ? 2600 : 1400);
+    buildPathNet(); changed(); toast(TYPES[D.tool].name + (vp.dak ? ' over de daken' : '') + ' aangelegd, ' + D.count + ' vakken lang' + (gone ? ' · ' + gone + ' ' + (gone === 1 ? 'gebouw' : 'gebouwen') + ' weggehaald (Ctrl+Z zet terug)' : ''), gone ? 2600 : 1400);
   }
   // Wat onder een nieuwe weg staat, gaat weg: gebouwen, blokken en modules op de vakken waarvan het midden op de
   // verharding ligt. Water, een uitgraving en het terrein blijven (daar wordt de weg een brug of klimt hij).
@@ -401,7 +410,7 @@
     for (const k of vecCoverOf(P, true)) {
       const [q, r] = k.split(',').map(Number);
       if (cells.inst && cells.inst.length) {
-        const hit = cells.inst.filter(I => I.m && !isDeckMod(I.m) && !(I.lv > 0 && I.m.v === 2) && (I.m.v === 2 ? mv2Area(I).some(([a, b]) => a === q && b === r) : moduleCells(I.m, I.rot, I.q, I.r).some(([a, b]) => a === q && b === r)));
+        const dak = P.some(p => p.dak), hit = cells.inst.filter(I => I.m && !isDeckMod(I.m) && !(dak && isRoofMod(I.m)) && !(I.lv > 0 && I.m.v === 2) && (I.m.v === 2 ? mv2Area(I).some(([a, b]) => a === q && b === r) : moduleCells(I.m, I.rot, I.q, I.r).some(([a, b]) => a === q && b === r)));
         for (const I of hit) { const i = cells.inst.indexOf(I); if (i >= 0) { cells.inst.splice(i, 1); removeInst(I); gone++; } }
       }
       const st = stackOf(q, r); if (!st.length) continue;
@@ -613,7 +622,7 @@
   function roadDragStart(cell) { if (flyCam.on) return; vecChainEnd(true); vecPreClear(); roadDrag.on = true; roadDrag.last = null; roadDrag.count = 0; roadDrag.skip = 0; roadDrag.lp = null; roadDrag.sp = null; roadDrag.vp = null; roadDrag.vstart = null; roadDrag.prior = null; roadDrag.tool = tool; ghost.visible = false; ghostArrow.visible = false; vecGhost.visible = false; previewGroup.visible = false; roadPaintTo(cell); }
   function roadDragEnd() {
     if (!roadDrag.on) return;
-    roadDrag.on = false; roadDrag.last = null;
+    roadDrag.on = false; roadDrag.last = null; roadDrag.roofY = null;
     if (VEC_TOOLS.has(roadDrag.tool)) return vecDragEnd();
     if (roadDrag.tool === 'module') return lineDragEnd();
     const what = { pad: 'pad', fietspad: 'fietspad', kuil: 'uitgraving', heuvel: 'verhoging', looppad: 'looppad', tunnel: 'tunnel', water: 'gracht', meer: 'meer' }[roadDrag.tool] || 'blokken';
