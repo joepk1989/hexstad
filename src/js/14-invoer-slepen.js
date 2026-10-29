@@ -214,7 +214,7 @@
   // Waar geen weg mag komen wordt stil overgeslagen; bestaande wegen blijven gewoon liggen.
   // Alles wat een lijn vormt kun je trekken: wegen, paden, looppaden, tunnels en grachten
   const DRAG_TOOLS = new Set(['pad', 'fietspad', 'kuil', 'heuvel', 'looppad', 'tunnel', 'water', 'meer', 'vweg', 'vbrd', 'vlaan', 'vsnel', 'vklink', 'vfiets']);
-  const roadDrag = { on: false, last: null, count: 0, tool: 'weg' };
+  const roadDrag = { on: false, last: null, count: 0, tool: 'weg', preset: 0 };   // preset: hoogte waarop de volgende getekende weg begint (vooraf in te stellen met ▲▼)
   let frameMs = 16;
   let dakHintShown = false, padHintShown = false;
   // Waar wijs je naar op de grond? Ook op een heuvel: eerst het terrein (en wegen), anders het grondvlak
@@ -339,7 +339,7 @@
   }
   function vecPaintTo(cell) {
     const D = roadDrag;
-    if (!D.vp) { D.vp = Object.assign({ t: VEC_T[D.tool], l: 0, r: 0, p: [] }, D.roofY != null ? { dak: true } : {}); D.vstart = cell; D.vcorners = []; D.voffs = []; D.voff0 = 0; D.voff = 0; pathsOf().push(D.vp); showDragH(true); }
+    if (!D.vp) { D.vp = Object.assign({ t: VEC_T[D.tool], l: 0, r: 0, p: [] }, D.roofY != null ? { dak: true } : {}); D.vstart = cell; D.vcorners = []; D.voffs = []; D.voff0 = D.preset || 0; D.voff = D.voff0; pathsOf().push(D.vp); showDragH(true); }
     cell = vecAlignCell(D.vfrom ? D.vfrom() : D.vstart, cell);
     const L = D.last; if (L && L[0] === cell[0] && L[1] === cell[1]) return;
     D.last = cell;
@@ -369,19 +369,40 @@
   // Tijdens het slepen van een weg: hoger of lager (E/Q, Page Up/Down, + / −, scrollwiel of de knoppen ▲▼).
   // Zolang je nog op het beginvak staat, verander je het begin; daarna het punt waar je nu bent.
   const dragHEl = document.getElementById('dragH');
-  function showDragH(on) { if (dragHEl) dragHEl.hidden = !on; }
+  // Het hoogtepaneel staat er zodra een getekende weg gekozen is (niet pas tijdens het slepen): met een muis houd je
+  // tijdens het slepen de knop ingedrukt, dus ▲▼ waren dan niet aan te klikken. Vooraf instellen werkt met muis én vinger.
+  const dragHLbl = dragHEl && dragHEl.querySelector('span');
+  function dragHText() {
+    if (!dragHLbl) return; const D = roadDrag, v = D.on && D.vp ? D.voff : (D.preset || 0);
+    dragHLbl.textContent = D.abs ? 'laag ' + Math.round(v / 3) : v ? v.toLocaleString('nl') + ' m' : 'hoogte';
+  }
+  function dragHSync() {
+    if (!dragHEl) return; const on = roadDrag.on && !!roadDrag.vp || (mode === 'build' && !flyCam.on && VEC_TOOLS.has(tool) && !(typeof sheet !== 'undefined' && sheet && !sheet.hidden));
+    if (dragHEl.hidden === on) dragHEl.hidden = !on;
+  }
+  function showDragH(on) { dragHText(); dragHSync(); }
+  setInterval(dragHSync, 250);
   function roadAbsToggle() {   // vaste laag (modulehoogte, los van het terrein) of volgt het terrein
     const D = roadDrag; D.abs = !D.abs; const b = dragHEl && dragHEl.querySelector('[data-m=abs]'); if (b) b.setAttribute('aria-pressed', String(D.abs));
-    if (D.abs) { D.voff0 = Math.round(D.voff0 / 3) * 3; D.voff = Math.round(D.voff / 3) * 3; D.voffs = D.voffs.map(v => Math.round(v / 3) * 3); }
+    D.preset = D.abs ? Math.round((D.preset || 0) / 3) * 3 : D.preset || 0;
+    if (D.abs && D.vp) { D.voff0 = Math.round(D.voff0 / 3) * 3; D.voff = Math.round(D.voff / 3) * 3; D.voffs = D.voffs.map(v => Math.round(v / 3) * 3); }
+    dragHText();
     D.last = null; if (D.vp) vecPaintTo(D.vend || D.vstart);
     toast(D.abs ? 'Vaste laag: hoogte in modulelagen van 3 m, los van het terrein' : 'Hoogte volgt het terrein', 1600);
   }
   function roadHeightStep(dir) {
-    const D = roadDrag; if (!D.on || !D.vp) return false;
+    const D = roadDrag;
+    if (!D.on || !D.vp) {   // nog niet aan het slepen: de beginhoogte van de volgende weg
+      if (!VEC_TOOLS.has(tool)) return false;
+      const cur = D.preset || 0, nv = Math.max(0, Math.min(D.abs ? 24 : ROAD_MAX_OFF, D.abs ? Math.round(cur / 3 + dir) * 3 : Math.round((cur + dir * 1.5) * 2) / 2));
+      D.preset = nv; dragHText();
+      toast(nv ? 'Volgende weg begint ' + (D.abs ? 'op laag ' + nv / 3 + ' (' + nv + ' m)' : nv.toLocaleString('nl') + ' m boven het terrein') + ' · tijdens het slepen: E/Q of scrollwiel' : 'Volgende weg ligt op het terrein', 1800);
+      return true;
+    }
     const atStart = !D.vend || (D.vend[0] === D.vstart[0] && D.vend[1] === D.vstart[1] && !D.vcorners.length);
     const cur = atStart ? D.voff0 : D.voff, st = D.abs ? 3 : 1.5, nv = Math.max(0, Math.min(D.abs ? 24 : ROAD_MAX_OFF, D.abs ? Math.round(cur / 3 + dir) * 3 : Math.round((cur + dir * st) * 2) / 2));
     if (atStart) { D.voff0 = nv; D.voff = nv; } else { D.voff = nv; const lc = D.vcorners[D.vcorners.length - 1]; if (lc && D.vend && lc[0] === D.vend[0] && lc[1] === D.vend[1]) D.voffs[D.voffs.length - 1] = nv; }   // op een hoekpunt: dat punt
-    D.last = null; vecPaintTo(D.vend || D.vstart);
+    D.last = null; vecPaintTo(D.vend || D.vstart); dragHText();
     toast(nv ? (atStart ? 'Begin van de weg ' : 'Weg hier ') + (D.abs ? 'op laag ' + nv / 3 + ' (' + nv + ' m)' : nv.toLocaleString('nl') + ' m boven het terrein') : (atStart ? 'Begin van de weg' : 'Weg hier') + ' op het terrein', 1100);
     return true;
   }
