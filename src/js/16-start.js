@@ -15,7 +15,8 @@
   } catch (e) {}
   cells = load() || null;
   // eerste keer: een klein voorbeeldstadje (de grote steden staan in het menu en op het welkomscherm)
-  if (!cells) { cells = load(MINE) || startCity(); slot = load(MINE) ? 'mijn' : 'klad'; slotName = slot === 'mijn' ? 'Mijn stad' : 'Startstadje'; if (!load(MINE)) { orbit.dist = 230; orbit.phi = 0.95; orbit.theta = 0.4; } }
+  let freshCity = false;   // een net gemaakt startstadje: daar hoeft de eenmalige modulereset niets uit te halen (anders stond een nieuwe speler in een lege stad)
+  if (!cells) { if (!load(MINE)) freshCity = true; cells = load(MINE) || startCity(); slot = load(MINE) ? 'mijn' : 'klad'; slotName = slot === 'mijn' ? 'Mijn stad' : 'Startstadje'; if (!load(MINE)) { orbit.dist = 230; orbit.phi = 0.95; orbit.theta = 0.4; } }
   if (!hasMine() && slot === 'mijn') { try { localStorage.setItem(MINE, serialize(cells)); } catch (e) {} }
   if (!hasMine() && slot === 'klad' && !localStorage.getItem(SLOT)) { slot = 'mijn'; slotName = 'Mijn stad'; }
   const cleaned = sanitize(cells);
@@ -29,7 +30,7 @@
   } catch (e) {}
   save();
   if (modsReset) {   // eenmalig: oude modules uit de stad, ook uit de andere opgeslagen stad
-    if (cells.inst && cells.inst.length) { for (const I of cells.inst) removeInst(I); cells.inst = []; }
+    if (!freshCity && cells.inst && cells.inst.length) { for (const I of cells.inst) removeInst(I); cells.inst = []; }
     try { for (const k of [MINE, STORE]) { const o = load(k); if (o && o.inst && o.inst.length) { const keep = cells; cells = o; for (const I of o.inst) removeInst(I); o.inst = []; cells = keep; localStorage.setItem(k, serialize(o)); } } } catch (e) { /* geen opslag */ }
   }
   rebuildAll(); updateStats();
@@ -47,7 +48,9 @@
 
   let last = performance.now(), frameNo = 0, shadowN = 0;
   const mmAppEl = document.getElementById('mmApp');
-  function frame(now) {
+  // een fout in één beeld laat het spel niet vastlopen: melden (15h) en gewoon het volgende beeld tekenen
+  function frame(now) { try { frameBody(now); } catch (e) { beta.report(e); requestAnimationFrame(frame); } }
+  function frameBody(now) {
     if (mmAppEl && !mmAppEl.hidden) { last = now; requestAnimationFrame(frame); return; }   // module maker open: de stad staat stil (scheelt veel rekenwerk)
     frameMs += (Math.min(1000, now - last) - frameMs) * 0.1;   // gemiddelde beeldtijd (trage computer: langer stilhouden voor een hoekpunt)
     const dt = Math.min(0.05, (now - last) / 1000); last = now;

@@ -323,6 +323,10 @@
       slot = 'mijn'; slotName = 'Mijn stad'; changed(); toast('Bewaard als mijn stad'); adoptArmed = false;
     }
     if (act === 'welcome') { sheet.hidden = true; openWelcome(); return; }
+    if (act === 'feedback') { sheet.hidden = true; beta.feedback(); return; }
+    if (act === 'credits') { sheet.hidden = true; beta.credits(); return; }
+    if (act === 'savefile') { beta.saveFile(); return; }
+    if (act === 'openfile') { beta.openFile(); return; }
     if (act === 'mine') {
       if (slot !== 'mijn') { INC.reset(); collapse.reset(); }
       if (slot !== 'mijn') { cells = load(MINE) || new Map(); sanitize(cells); slot = 'mijn'; slotName = 'Mijn stad'; rebuildAll(); changed(); toast('Je eigen stad is terug'); }

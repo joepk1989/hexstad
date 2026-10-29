@@ -178,6 +178,7 @@
   const instOf = mod => (cells.inst || []).filter(I => I.mid ? I.mid === mod.id : I.m.name === mod.name);
   function syncModule(mod) {
     const L = instOf(mod); if (!L.length) return 0;
+    if (mod.v === 2) { for (const I of L) { I.m = instData(mod, I.mir); I.mid = mod.id; } buildModNet(); changed(); return L.length; }   // module v2: alleen de gegevens vervangen (opnieuw neerzetten botste op zichzelf, en dan verdween hij: een nieuwe speler zag een stad zonder huizen)
     for (const I of L.filter(x => !x.tw)) { removeInst(I); const r = placeCore(mod, I.rot, I.q, I.r, I.lv || 0); I.m = instData(mod, I.mir); I.mid = mod.id; if (!r.n) cells.inst.splice(cells.inst.indexOf(I), 1); }
     buildTriNet(); buildPathNet(); buildEdgeNet(); buildModNet(); changed(); return L.length;
   }

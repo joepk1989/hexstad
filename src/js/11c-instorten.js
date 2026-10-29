@@ -5,7 +5,7 @@
   // vanzelf de dragers. Het gebouw wordt pas op dat moment in losse stukken opgebouwd (daarvoor staat het samengevoegd).
   // Het vallen is eenvoudige zwaartekracht met een paar stuiters; het puin zakt na een tijdje weg.
   const collapse = (() => {
-    const ST = { on: true }, mods = new Map(), debris = [], dust = [];
+    const ST = { on: (() => { try { return localStorage.getItem('raatstad-instorten') === '1'; } catch (e) { return false; } })() }, mods = new Map(), debris = [], dust = [];
     const MAXD = 170, TOL = 0.16, MAXDUST = 120;
     const dustMesh = new THREE.InstancedMesh(new THREE.TetrahedronGeometry(0.28), new THREE.MeshLambertMaterial({ color: '#cfc8bb', flatShading: true }), MAXDUST);
     dustMesh.frustumCulled = false; dustMesh.count = 0; dustMesh.userData.noOcc = true; dustMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(dustMesh);
@@ -271,7 +271,7 @@
     function reset() { for (const I of [...mods.keys()]) drop(I); dissolveGlobal(); dust.length = 0; dustMesh.count = 0; }
     return {
       probe, update, reset, ahead, shoot,
-      get on() { return ST.on; }, setOn(v) { ST.on = !!v; if (!v) reset(); },
+      get on() { return ST.on; }, setOn(v) { ST.on = !!v; try { localStorage.setItem('raatstad-instorten', ST.on ? '1' : '0'); } catch (e) { } if (!v) reset(); },
       // voor tests: raak het gebouw op deze plek
       hit(x, z, sp, vx, vz) { return probe(x, z, sp, vx, vz); },
       log: LOG, cnt: CNT,

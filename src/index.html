@@ -244,7 +244,7 @@
 </defs></svg>
 <div class="sheet" id="sheet" hidden>
   <div class="sheet-card menu" role="dialog" aria-labelledby="sheetTitle">
-    <div class="menu-head"><span class="logo-hex" aria-hidden="true"></span><h2 id="sheetTitle">Menu</h2><small class="ver" title="Bouwtijd van deze versie">versie /*__VERSIE__*/</small><button class="btn icon-btn" type="button" data-act="cancel" aria-label="Sluiten">✕</button></div>
+    <div class="menu-head"><span class="logo-hex" aria-hidden="true"></span><h2 id="sheetTitle">Menu</h2><small class="ver" title="Versie en bouwtijd">0.1.0-beta · /*__VERSIE__*/</small><button class="btn icon-btn" type="button" data-act="cancel" aria-label="Sluiten">✕</button></div>
     <div class="mine-box">
       <button class="btn mine" type="button" data-act="mine" id="mineBtn"><svg><use href="#i-hex"/></svg><span class="lbl"><span>Mijn stad</span><small id="mineInfo"></small></span></button>
       <button class="btn mbtn" type="button" data-act="adopt" id="adoptBtn" hidden><svg><use href="#i-save"/></svg><span class="lbl"><b>Deze stad bewaren als mijn stad</b></span></button>
@@ -268,6 +268,8 @@
     <div class="mgrid">
       <button class="btn mbtn" type="button" data-act="copycity"><svg><use href="#i-copy"/></svg><span class="lbl"><b>Stad kopiëren</b><small>Als code naar het klembord</small></span></button>
       <button class="btn mbtn" type="button" data-act="pastecity"><svg><use href="#i-paste"/></svg><span class="lbl"><b>Stad plakken</b><small>Code uit het klembord</small></span></button>
+      <button class="btn mbtn" type="button" data-act="savefile"><svg><use href="#i-save"/></svg><span class="lbl"><b>Stad opslaan als bestand</b><small>Op je apparaat bewaren</small></span></button>
+      <button class="btn mbtn" type="button" data-act="openfile"><svg><use href="#i-paste"/></svg><span class="lbl"><b>Stad openen</b><small>Uit een bestand</small></span></button>
       <button class="btn mbtn" type="button" data-act="sketch"><svg><use href="#i-raat"/></svg><span class="lbl"><b>Raatbouwer</b><small>Ontwerp je eigen modules</small></span></button>
       <button class="btn mbtn" type="button" data-act="oud"><svg><use href="#i-sketch"/></svg><span class="lbl"><b>Oude blokken omzetten</b><small>Woningen en kantoren worden modules</small></span></button>
       <button class="btn mbtn" type="button" data-act="home"><svg><use href="#i-home"/></svg><span class="lbl"><b>Naar het midden</b><small>Camera terug naar het centrum</small></span></button>
@@ -278,8 +280,10 @@
       <button class="btn mbtn tog" type="button" data-act="cars" id="carsBtn"><svg><use href="#i-car"/></svg><span class="lbl"><b>Auto's</b><small class="state">aan</small></span></button>
       <button class="btn mbtn" type="button" data-act="settings" id="setBtn"><svg><use href="#i-gear"/></svg><span class="lbl"><b>Instellingen</b><small>Beeld, prestaties, weer, verkeer</small></span></button>
       <button class="btn mbtn" type="button" data-act="welcome"><svg><use href="#i-book"/></svg><span class="lbl"><b>Welkom en uitleg</b><small>Bediening in het kort</small></span></button>
-      <a class="btn mbtn" href="https://claude.ai/artifact/8eXMwz3T3bTYqZaVYgA6J2" target="_blank" rel="noopener" style="grid-column:1/-1"><svg><use href="#i-link"/></svg><span class="lbl"><b>Werkplaats</b><small>Wat komt er nog</small></span></a>
+      <button class="btn mbtn" type="button" data-act="feedback"><svg><use href="#i-book"/></svg><span class="lbl"><b>Feedback</b><small>Wat ging mis, wat was leuk?</small></span></button>
+      <button class="btn mbtn" type="button" data-act="credits"><svg><use href="#i-hex"/></svg><span class="lbl"><b>Credits</b><small>Wie en wat zit erin</small></span></button>
     </div>
+    <p class="menu-foot beta-note">Dit is een beta: bewaarde steden kunnen tussen versies verdwijnen. Sla je stad op als bestand als je hem wilt houden.</p>
     <p class="menu-foot">Alles is op ware grootte: een vak is 15,6 m breed, een verdieping 3 m, een straat 9 m en je ooghoogte 1,65 m.</p>
   </div>
 </div>
@@ -292,11 +296,12 @@
       <p>Trek een weg, zet een huis neer, leg een park aan, laat een rivier zijn weg zoeken, en zie je stad cel voor cel ontstaan.</p>
       <p>Ook het spel groeit, en snel. Kom af en toe terug: er is altijd iets nieuws te ontdekken.</p>
     </blockquote>
-    <ul class="welcome-list">
-      <li><b>Bouwen</b> — kies onderin een blok en tik op een vak. Huizen, kantoren, parken, wegen en trappen sluiten vanzelf op elkaar aan.</li>
-      <li><b>Lopen</b> — knop rechtsonder: loop door je eigen straten, open deuren en neem de trap naar het dak.</li>
-      <li><b>Leven</b> — auto's rijden, mensen wandelen; in de file komt de Hulk.</li>
-    </ul>
+    <ol class="welcome-list">
+      <li><b>Bouwen</b> — kies onderin een tabblad (Wegen, Gebouwen, Groen …) en tik op een vak. Wegen trek je door te slepen; huizen, parken en trappen sluiten vanzelf op elkaar aan.</li>
+      <li><b>Lopen</b> — knop rechtsonder: loop door je eigen straten, open deuren en neem de trap naar het dak. Met de hamer sloop je, met de bouwhand bouw je verder.</li>
+      <li><b>Raatbouwer</b> — in het menu: ontwerp je eigen gebouw, verdieping voor verdieping, en zet het daarna in je stad.</li>
+    </ol>
+    <p class="welcome-beta">Beta 0.1.0 · bewaarde steden kunnen tussen versies verdwijnen (Menu → Stad opslaan als bestand) · feedback via Menu → Feedback</p>
     <div class="welcome-btns">
       <button class="btn mine" type="button" id="welcomeGo"><svg><use href="#i-go"/></svg><span class="lbl"><span>Verder bouwen</span><small id="welcomeInfo"></small></span></button>
       <button class="btn mbtn" type="button" data-wact="start"><svg><use href="#i-start"/></svg><span class="lbl"><b>Startstadje</b></span></button>

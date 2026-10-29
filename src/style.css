@@ -919,3 +919,13 @@ body.tool-kies #scene { cursor: default; }
 .kies-grid button.wide { grid-column: 1 / -1; }
 .kies-grid button.danger svg { color: var(--danger); }
 .kies-grid button.danger:hover { background: rgba(224, 87, 62, 0.14); border-color: rgba(224, 87, 62, 0.55); }
+
+/* beta: foutmelding onderaan, feedbackgegevens, uitleg in drie stappen */
+.err-bar { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 60; display: flex; align-items: center; gap: 10px; max-width: calc(100% - 32px);
+  padding: 10px 12px 10px 16px; border-radius: 14px; background: #3a1c1c; color: #fff; box-shadow: 0 8px 28px rgba(0,0,0,.35); font-size: 14px; }
+.err-bar[hidden] { display: none; }
+.err-bar .btn { min-height: 34px; padding: 0 12px; }
+.fb-info { white-space: pre-wrap; font-size: 12px; background: rgba(0,0,0,.25); border-radius: 10px; padding: 10px; margin: 6px 0 10px; max-height: 140px; overflow: auto; user-select: text; }
+ol.welcome-list { padding-left: 22px; }
+.welcome-beta { font-size: 12px !important; opacity: .8; margin-top: 8px !important; }
+.beta-note { color: var(--ink) !important; }

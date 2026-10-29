@@ -432,8 +432,8 @@
       }
     }
     btn.addEventListener('click', () => setOn(!on));
-    // Stond het geluid de vorige keer aan? Dan gaat het aan bij de eerste tik (browsers eisen een tik)
-    let wanted = false; try { wanted = localStorage.getItem('raatstad-geluid') === '1'; } catch (e) {}
+    // Geluid staat aan, tenzij je het de vorige keer uitzette; het start bij de eerste tik (browsers eisen een tik)
+    let wanted = true; try { wanted = localStorage.getItem('raatstad-geluid') !== '0'; } catch (e) {}   // standaard aan (bij de eerste tik), met één knop uit
     if (wanted) window.addEventListener('pointerdown', function first(e) { window.removeEventListener('pointerdown', first); if (!on && e.target !== btn) setOn(true); });
     document.addEventListener('visibilitychange', () => { if (ctx) document.hidden ? ctx.suspend() : (on && ctx.resume()); });
     return {

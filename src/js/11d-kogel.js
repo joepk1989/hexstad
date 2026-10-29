@@ -9,6 +9,7 @@
     let lastShot = 0;
     function fire(heavy) {
       const now = performance.now(); if (now - lastShot < (heavy ? 600 : 220)) return; lastShot = now;
+      if (!collapse.on && !fire.hinted) { fire.hinted = true; try { toast('Gebouwen kapotschieten? Zet Instorten aan in Menu → Instellingen', 3200); } catch (e) { } }
       if (list.length >= MAX) { const o = list.shift(); scene.remove(o.mesh); }
       const d = new THREE.Vector3(); camera.getWorldDirection(d);
       const rad = heavy ? 1.2 : 0.45, sp = heavy ? 36 : 48;

@@ -325,6 +325,17 @@ Opslag: `cells.rails = [{ p: [[x, z], …] }]`, in de stadsdata als `__r` (allee
 - **Trappenhuis-poot**: een module die helemaal op poten staat krijgt bij een deur een zeshoekige wenteltrap naar de grond (12 treden per 3 m, kern, leuning) en een bordes naar de deur, zo nodig wat opzij langs de gevel, nooit op de rijbaan (`towerFor`, `towerBuild`). Loopnetwerk: ingang op de grond → trap (`spir`) → bordes → deur (08f). Botsing: treden en bordes als vlakken, kern en leuning als muren.
 - Tests: `test/visueel/wegdek.js`, `wegdek_slepen.js`, `poten_instorten.js`, `dakweg.js`, `dekstad.js`, `trappoot.js`, `trappoot_lopen.js`.
 
+## Beta (15h-beta.js)
+- Versie **0.1.0-beta** staat in het menu (met bouwtijd en commit) en op het welkomstscherm.
+- **Feedback** (menu): toont versie, apparaat en de laatste fout om te kopiëren, en opent het formulier (`FEEDBACK_URL`; leeg = een nieuw bericht op GitHub).
+- **Fouten**: een fout (ook in een beeld van de hoofdlus) geeft onderaan de melding "Er ging iets mis. Meld het via Feedback" in plaats van een vastgelopen scherm; het spel tekent gewoon door.
+- **Stad opslaan als bestand / Stad openen** (menu), met de waarschuwing dat steden tussen beta-versies kunnen verdwijnen.
+- **Credits** (menu): ontwerp, AI-hulp bij de code, three.js en lettertypen, geluiden (bron en licentie nog in te vullen).
+- **Standaard**: Totale chaos, Bloed en Instorten uit (Instorten en Bloed worden bewaard); geluid aan bij de eerste tik, met één knop uit. Schiet je in de cameramodus met Instorten uit, dan zegt een melding waar je het aanzet.
+- Welkomstscherm in drie stappen (Bouwen, Lopen, Raatbouwer) en een korte uitleg bij elke knop (`TIPS`).
+- Gevonden: een nieuwe speler kreeg een startstadje zonder huizen (bij de eerste start ververste de bibliotheek alle modules en zette ze opnieuw neer, wat op zichzelf botste). Nu worden bij een vernieuwde module alleen de gegevens vervangen.
+- Test: `test/visueel/beta.js` (tests zetten Instorten en Bloed zelf aan, `helper.js`).
+
 ## Opslag
 
 Steden en modules staan in `localStorage` van de browser. Modules kunnen als JSON-bestand worden geëxporteerd en geïmporteerd (Raatbouwer → Delen). De 152 standaardmodules worden één keer toegevoegd en zijn met "Standaard terugzetten" te herstellen.

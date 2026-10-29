@@ -45,7 +45,7 @@
     // Wie wordt aangereden bloedt: spatten op het wegdek, een plas bij wie blijft liggen, vlekken op de auto en bloedige
     // bandensporen. Aan/uit in de instellingen.
     const GORE = { on: true, SC: 420, PC: 220 };
-    try { GORE.on = localStorage.getItem('raatstad-bloed') !== '0'; } catch (e) { }
+    try { GORE.on = localStorage.getItem('raatstad-bloed') === '1'; } catch (e) { GORE.on = false; }   // standaard uit (beta)
     const goreSplat = new THREE.InstancedMesh(new THREE.CircleGeometry(1, 6).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#ffffff', polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }), GORE.SC);
     const gorePart = new THREE.InstancedMesh(new THREE.TetrahedronGeometry(0.13), new THREE.MeshBasicMaterial({ color: '#c4101e' }), GORE.PC);
     { const w = new THREE.Color('#ffffff'); for (let i = 0; i < GORE.SC; i++) goreSplat.setColorAt(i, w); }   // eerst de kleurbuffer (hij krijgt de grootte van count), dan pas count 0

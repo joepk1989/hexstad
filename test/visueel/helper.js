@@ -15,6 +15,7 @@ async function open(viewport, opts = {}) {
   await p.goto('file://' + path.join(ROOT, 'site/index.html')); await p.waitForTimeout(2500);
   await p.evaluate(() => document.querySelector('#welcomeGo')?.click()); await p.waitForTimeout(300);
   await p.evaluate(() => window.__SC().doAct('start'));   // het startstadje: rotonde met drie wegen
+  await p.evaluate(() => { const S = window.__SC(); S.collapse.setOn(true); S.cars.setGore(true); });   // tests: instorten en bloed aan (in het spel standaard uit)
   return { b, p };
 }
 const click = (p, sel) => p.evaluate(s => document.querySelector(s).click(), sel);
