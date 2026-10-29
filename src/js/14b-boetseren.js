@@ -7,9 +7,17 @@
   //  Gladstrijken        scherpe overgangen worden zacht (elk vak schuift naar het gemiddelde van zijn buren)
   //  Helling             sleep van A naar B: een gelijkmatige helling van de hoogte bij A naar die bij B
   // Het penseel is 1, 7, 19 of 37 vakken ([ en ]); het midden werkt het hardst. Vakken waar iets op staat blijven
-  // liggen. Hoogtelijnen (elke 1,5 m, dikker elke 7,5 m) laten zien wat je doet.
+  // liggen. Hoogtelijnen (elke 1,5 m, dikker elke 7,5 m) laten zien wat je doet. Ophogen, afgraven en egaliseren
+  // klikken vast op de terreinstap (instelling: 3 m, 1,5 m of vrij; standaard 3 m, gelijk aan een verdieping).
   const TERR_TOOLS = new Set(['tophoog', 'tafgraaf', 'tvlak', 'tglad', 'thelling']);
   const TERR_COL = { tophoog: '#f2b233', tafgraaf: '#5aa9e6', tvlak: '#ffffff', tglad: '#8fd16a', thelling: '#f08a5d' };
+  // Terreinstap (instelling): ophogen, afgraven en egaliseren klikken vast op veelvouden van 3 m (een verdieping), 1,5 m, of vrij (0).
+  // Gladstrijken en Helling trekken blijven vrij: daar gaat het juist om de tussenhoogtes.
+  let terrStep = (() => { try { const v = JSON.parse(localStorage.getItem('hexstad-set') || '{}').tstep; return v === 0 || v === 1.5 || v === 3 ? v : 3; } catch (e) { return 3; } })();
+  const tSnap = h => terrStep ? Math.round(h / terrStep) * terrStep : h;
+  const tUp = h => terrStep ? Math.ceil((h + 0.02) / terrStep) * terrStep : h;     // de eerstvolgende stap erboven
+  const tDown = h => terrStep ? Math.floor((h - 0.02) / terrStep) * terrStep : h;  // de eerstvolgende stap eronder
+  const tFlat = v => terrStep ? tSnap(v) : Math.round(v * 2) / 2;                   // egaliseren: gemiddelde, afgerond
   const brushCells = (q, r, B = terrBrush) => { const out = []; for (let dq = -B; dq <= B; dq++) for (let dr = -B; dr <= B; dr++) { const d = hexDist(dq, dr); if (d <= B) out.push([q + dq, r + dr, d]); } return out; };
   const brushW = d => d === 0 ? 1 : 1 - 0.55 * d / (terrBrush + 0.5);
   const terrFree = (q, r) => !terrOcc(q, r);
@@ -40,11 +48,11 @@
     return {
       show(q, r, tl, inv) {
         const pos = [], raise = (tl === 'tophoog') !== !!inv;
-        let hv = gH(q, r); if (tl === 'tvlak' && !inv) { let s = 0, n = 0; for (const [a, b] of brushCells(q, r)) { s += gH(a, b); n++; } hv = Math.round(s / n * 2) / 2; }
+        let hv = gH(q, r); if (tl === 'tvlak' && !inv) { let s = 0, n = 0; for (const [a, b] of brushCells(q, r)) { s += gH(a, b); n++; } hv = tFlat(s / n); }
         for (const [cq, cr, d] of brushCells(q, r)) {
           if (!terrFree(cq, cr)) continue;
           const w = brushW(d), h = gH(cq, cr); let nh = h;
-          if (tl === 'tophoog' || tl === 'tafgraaf') nh = Math.max(0, Math.min(TERR_TOP, h + (raise ? 1 : -1) * 1.5 * w));
+          if (tl === 'tophoog' || tl === 'tafgraaf') nh = Math.max(0, Math.min(TERR_TOP, terrStep ? (raise ? tUp(h) : tDown(h)) : h + (raise ? 1 : -1) * 1.5 * w));
           else if (tl === 'tvlak') nh = hv;
           else if (tl === 'tglad') { let s = 0; for (const [dq, dr] of NEIGH) s += gH(cq + dq, cr + dr); nh = h + (s / 6 - h) * Math.min(1, 0.8 * w); }
           else continue;
@@ -81,13 +89,13 @@
     return true;
   }
   // Een streek: van indrukken tot loslaten
-  const SC = { on: false, x: 0, y: 0, inv: false, touched: new Set(), a: null, ha: 0, prior: null, hv: 0 };
+  const SC = { on: false, x: 0, y: 0, inv: false, touched: new Set(), a: null, ha: 0, prior: null, hv: 0, raw: new Map() };
   function terrCellAt(cx, cy) { const h = groundHit(cx, cy); return h ? worldToCell(h.point.x, h.point.z) : null; }
   function sculptStart(cx, cy, inv) {
     const c = terrCellAt(cx, cy); if (!c) return false;
     let hv = gH(c[0], c[1]);
-    if (tool === 'tvlak' && !inv) { let s = 0, n = 0; for (const [q, r] of brushCells(c[0], c[1])) { s += gH(q, r); n++; } hv = Math.round(s / n * 2) / 2; }   // links: het gemiddelde; rechts: het startvak
-    Object.assign(SC, { on: true, x: cx, y: cy, inv: !!inv, touched: new Set(), a: c, ha: gH(c[0], c[1]), prior: new Map(), hv });
+    if (tool === 'tvlak' && !inv) { let s = 0, n = 0; for (const [q, r] of brushCells(c[0], c[1])) { s += gH(q, r); n++; } hv = tFlat(s / n); }   // links: het gemiddelde; rechts: het startvak
+    Object.assign(SC, { on: true, x: cx, y: cy, inv: !!inv, touched: new Set(), a: c, ha: gH(c[0], c[1]), prior: new Map(), hv, raw: new Map() });
     guideLine.hide();
     if (tool === 'tophoog' || tool === 'tafgraaf') sculptStep(0.12);   // een klik is ook al een stapje
     if (tool === 'thelling') sculptMove(cx, cy);
@@ -118,7 +126,14 @@
       if (!terrFree(q, r)) continue;
       const w = brushW(d), h = gH(q, r);
       let nh = h;
-      if (tool === 'tophoog' || tool === 'tafgraaf') nh = h + (raise ? 1 : -1) * 6 * w * dt;
+      if (tool === 'tophoog' || tool === 'tafgraaf') {
+        if (!terrStep) nh = h + (raise ? 1 : -1) * 6 * w * dt;
+        else {   // vaste stappen: de beweging wordt opgespaard; bij de eerste klik meteen een stap, daarna elke volle stap
+          const k = q + ',' + r; let acc = SC.raw.get(k); if (acc === undefined) acc = (raise ? 1 : -1) * terrStep * 0.999;
+          acc += (raise ? 1 : -1) * 6 * w * dt; let n = Math.trunc(acc / terrStep); SC.raw.set(k, acc - n * terrStep);
+          nh = n ? Math.max(0, Math.min(TERR_TOP, (n > 0 ? tUp(h) : tDown(h)) + (n - Math.sign(n)) * terrStep)) : h;
+        }
+      }
       else if (tool === 'tvlak') { const dv = SC.hv - h; nh = h + Math.sign(dv) * Math.min(Math.abs(dv), 12 * w * dt); }
       else if (tool === 'tglad') { let s = 0; for (const [dq, dr] of NEIGH) s += gH(q + dq, r + dr); nh = h + (s / 6 - h) * Math.min(1, 4 * w * dt); }
       list.push([q, r, nh]);
@@ -149,7 +164,7 @@
   // Tijdens het lopen (hand: bouwen) een klik: één flinke stap op het vak waar je naar kijkt
   function terrImpulse(q, r) {
     const raise = tool !== 'tafgraaf', list = [];
-    for (const [cq, cr, d] of brushCells(q, r)) { if (!terrFree(cq, cr)) continue; const h = gH(cq, cr), w = brushW(d); list.push([cq, cr, tool === 'tglad' ? h + ([...NEIGH].reduce((s, [dq, dr]) => s + gH(cq + dq, cr + dr), 0) / 6 - h) * 0.6 * w : tool === 'tvlak' ? gH(q, r) : h + (raise ? 1.5 : -1.5) * w]); }
+    for (const [cq, cr, d] of brushCells(q, r)) { if (!terrFree(cq, cr)) continue; const h = gH(cq, cr), w = brushW(d); list.push([cq, cr, tool === 'tglad' ? h + ([...NEIGH].reduce((s, [dq, dr]) => s + gH(cq + dq, cr + dr), 0) / 6 - h) * 0.6 * w : tool === 'tvlak' ? gH(q, r) : terrStep ? (w > 0.3 ? (raise ? tUp(h) : tDown(h)) : h) : h + (raise ? 1.5 : -1.5) * w]); }
     const ch = terrSet(list); if (!ch.length) return toast('Hier ligt iets: het terrein blijft liggen');
     const prevProf = roadProfSnap(); terrVer++; if (!terrainChanged(ch, prevProf)) terrFlush(); peopleDirty = true; carsDirty = true; changed();
   }

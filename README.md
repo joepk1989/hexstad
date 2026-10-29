@@ -95,6 +95,8 @@ Dat maakt `dist/hexstad.html` (één bestand, zelfde als de gepubliceerde versie
 - **Wegen volgen het terrein** (`pathProf` in `07`): het maaiveld onder de middenlijn, uitgevlakt over ±6 m. Tijdens het slepen maakt `E`/`Q` (of Page Up/Down, scrollwiel, ▲▼) de weg 1,5 m hoger of lager boven het terrein (`path.y`, per punt, tot 12 m).
 - Wegen die op verschillende hoogte over elkaar gaan (viaduct) worden **niet** met elkaar verbonden; een echt brugdek met pijlers moet nog komen.
 
+**Terreinstap** (Instellingen, standaard 3 m): Ophogen en Afgraven klikken vast op veelvouden van 3 m (een verdieping), 1,5 m of vrij. Een klik is meteen één stap voor het hele penseel; ingedrukt houden spaart de beweging op (6 m/s in het midden, aan de rand trager) en zet een volgende stap zodra die vol is. Egaliseren rondt het gemiddelde af op de stap. Gladstrijken en Helling trekken blijven vrij. Test: `test/visueel/terreinstap.js`.
+
 ## Instellingen
 
 Menu → Instellingen (`15c-instellingen.js`, bewaard in `localStorage` `hexstad-set`): **terrein** hoog (1 m rooster), normaal (2 m) of low poly (4 m, platte vlakken; het snelst), **schaduwen** zacht, eenvoudig of uit, **beeldscherpte** scherp, normaal of snel, **wolken**, en verder raster, hoogtelijnen, penseel, tijd, mensen, auto's en geluid.

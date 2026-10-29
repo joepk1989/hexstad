@@ -65,6 +65,7 @@
     { sub: 'Bouwen' },
     { id: 'grid', name: 'Raster', opts: [[true, 'Aan'], [false, 'Uit']], get: () => gridOn, set: v => { if (v !== gridOn) optGrid.click(); } },
     { id: 'contour', name: 'Hoogtelijnen', note: 'Tijdens het boetseren van het terrein', opts: [[true, 'Aan'], [false, 'Uit']], get: () => setState.contour, set: v => { setState.contour = v; terrU.uContour.value = v && TERR_TOOLS.has(tool) ? 1 : 0; } },
+    { id: 'tstep', name: 'Terreinstap', note: 'Ophogen, afgraven en egaliseren klikken vast op deze hoogtes (3 m = een verdieping)', opts: [[3, '3 m'], [1.5, '1,5 m'], [0, 'Vrij']], get: () => terrStep, set: v => { terrStep = v; setState.tstep = v; } },
     { id: 'brush', name: 'Penseel', note: 'Terrein: aantal vakken ([ en ])', opts: [[0, '1'], [1, '7'], [2, '19'], [3, '37']], get: () => terrBrush, set: v => setBrush(v) },
     { sub: 'Stad' },
     { id: 'speed', name: 'Tijd', opts: [[0, 'Pauze'], [1, '1×'], [4, '4×'], [12, '12×']], get: () => DN.st.auto ? DN.st.speed : 0, set: v => { const b = optSpeed.querySelector(`[data-sp="${v}"]`); if (b) b.click(); } },
