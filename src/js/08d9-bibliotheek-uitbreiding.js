@@ -195,6 +195,14 @@
     { const b = libBuilder('Trappenhuis · glas', 'Verbindingen'); b.cell(0, 0, 0, 'paver');
       for (let f = 0; f < 4; f++) { b.hex(f, 0, 0, 4.5, f ? 'concrete' : 'tile'); b.ring(f, 0, 0, 4.5, 'glass', { open: f ? {} : { 0: 'door' } }); b.stairUp(f, 0, 0, 0, 1, 1.5, 'spiral'); }
       b.hex(4, 0, 0, 4.5, 'concrete').ring(4, 0, 0, 4.5, 'fence'); libExtraDetails(b, 'trappenhuis'); add(b); }
+    // Wegdekken: een betonnen dak op zeshoekige pijlers; een weg die je eroverheen trekt ligt erop (08l)
+    for (const [nm, k, n] of [['Wegdek · laag', 0, 1], ['Wegdek · hoog', 0, 2], ['Wegdek · extra hoog', 0, 3], ['Wegdek · 7 vakken laag', 1, 1], ['Wegdek · 7 vakken hoog', 1, 2]]) {
+      const b = libBuilder(nm, 'Vervoer', k); b.all(0, 'paver');
+      const legs = []; for (let q = -k; q <= k; q++) for (let r = -k; r <= k; r++) { if (mv2HexDist(q, r) > k) continue; const c = mv2CellXZ(q, r);
+        for (let i = 0; i < 6; i++) { const a2 = Math.PI / 6 + i * Math.PI / 3; legs.push([c[0] + Math.cos(a2) * 6.6, c[1] + Math.sin(a2) * 6.6]); } }
+      const seen = new Set(); for (const [x, z] of legs) { const kk = Math.round(x) + ',' + Math.round(z); if (seen.has(kk)) continue; seen.add(kk); b.obj(0, 'hpillar', x, z); const o = b.m.lv[0].o; o[o.length - 1].h = n; }
+      b.all(n, 'concrete'); b.m.deck = true; add(b);
+    }
     add(mallBuild());   // klein winkelcentrum (7 vakken, 2 lagen); varianten via mallGenerate (knop bij de modules)
     { const b = libBuilder('Roltrap · glas', 'Verbindingen'); b.cell(0, 0, 0, 'polished').cell(1, 0, 0, 'polished'); bandStair(b, 0, 'A', 'esc'); b.cellRing(1, 0, 0, 'fence'); libExtraDetails(b, 'roltrap'); add(b); }
   }

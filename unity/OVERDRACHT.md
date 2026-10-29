@@ -404,6 +404,12 @@ Gemeten in het bestand: vak R = 9 m, verdieping 3 m, vloer 0,3 m dik; steek 6,75
 - **Startstadje**: een rechte lijn op r = 11 (z = 148,5 m) van vak (−22, 11) tot (11, 11), het treinstation (7 vakken) op (−5, 9) en een korte straat van de ring naar het station.
 - Unity: spline per lijn (bijv. Splines-pakket) met dezelfde verlenging; dwarsliggers via GPU instancing; treinen als wagons die twee punten op de spline volgen.
 
+## 30. Gelaagde stad: wegen op wegdekken, modules boven de weg (29 okt; `08l-wegdek.js`)
+- **Wegdek** = module met een plat dak waar een weg over mag: `Wegdek · laag/hoog/extra hoog` (1 vak, 1–3 lagen = 3/6/9 m), `Wegdek · 7 vakken laag/hoog`, en elke `Parkeergarage`. Opbouw: begane grond klinkers, zeshoekige pijlers (r 0,45–0,5 m, 6 zijden) op 6,6 m van elk vakmidden onder 30° + k·60°, doorlopend tot het dak; dak = betonvloer op laag n.
+- **Weghoogte**: per monsterpunt (1,5 m) van de middenlijn dat in een wegdekvak ligt: hoogte = dak + 0,06 m. Daarbuiten oprit: `h = h + (T − h)·smoothstep(1 − d/L)`, `L = max(18, (T − h)/0,12)` (12 %). Waar de weg zo is opgetild geen grondwal maar een verticale wand tot het maaiveld; onder het dek blijft het maaiveld vlak. Auto's en voetgangers gebruiken gewoon het hoogteprofiel.
+- **Module boven de weg**: laag = `max(2, ceil((wegtop − G + 4,5)/3))`. Toegestaan op vakken zonder module eronder als de onderkant ≥ wegtop + 4,5 m. Poten op hoekpunten (op R − 0,6 m) en vakmidden, niet binnen rijbaan + 0,9 m van een weg, van maaiveld (of een lager wegdek) tot onderkant vloer (laag·3 − 0,2 m). Instorten: helemaal op poten → alleen pootvoeten zijn grond.
+- Unity: wegdek als prefab met een `RoadDeck`-component (dakhoogte per vak); het wegprofiel neemt het maximum van terrein en dekken met dezelfde oprit; poten als GPU-instanced prisma's.
+
 ## 21. Open punten
 - Unity: noord- en zuidpool op de bol (vraag staat open); `unity/README.md` is niet bijgewerkt sinds het planeet-wegensysteem.
 - Web: eerste klap op een gebouw geeft een korte hapering (omzetten naar stukken); mensen ontwijken brokstukken niet en het loopnetwerk kent de gaten niet; instortingen worden niet bewaard; jagers maken soms nog sprongetjes van 3–7 m.

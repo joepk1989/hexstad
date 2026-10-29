@@ -401,7 +401,7 @@
     for (const k of vecCoverOf(P, true)) {
       const [q, r] = k.split(',').map(Number);
       if (cells.inst && cells.inst.length) {
-        const hit = cells.inst.filter(I => I.m && (I.m.v === 2 ? mv2Area(I).some(([a, b]) => a === q && b === r) : moduleCells(I.m, I.rot, I.q, I.r).some(([a, b]) => a === q && b === r)));
+        const hit = cells.inst.filter(I => I.m && !isDeckMod(I.m) && !(I.lv > 0 && I.m.v === 2) && (I.m.v === 2 ? mv2Area(I).some(([a, b]) => a === q && b === r) : moduleCells(I.m, I.rot, I.q, I.r).some(([a, b]) => a === q && b === r)));
         for (const I of hit) { const i = cells.inst.indexOf(I); if (i >= 0) { cells.inst.splice(i, 1); removeInst(I); gone++; } }
       }
       const st = stackOf(q, r); if (!st.length) continue;

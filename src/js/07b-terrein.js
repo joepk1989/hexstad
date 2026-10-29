@@ -59,6 +59,7 @@
   // 4: langs de wegen. Een weg die boven het veld ligt geeft een dijkje, eronder een ingraving; flank minstens 3 m
   // en zo flauw dat het niet steiler dan ~40° wordt.
   function roadAdjust(x, z, v, segs = tRoadSegs) {
+    if (deckMap_ && deckMap_.size && deckAt(x, z, true) !== null) return v;   // onder een wegdek blijft het maaiveld liggen (08l)
     let wBest = 0, tBest = v, dBest = 1e9;
     for (const s of segs) {
       if (s[6] && v < 0.02) continue;
@@ -168,7 +169,7 @@
       if (p.t === 'rot' && p.p && p.p.length) { const P = pathProf(p), c = p.p[0], edge = ROT.Ro + 2.9; tRoadSegs.push([c[0], c[1], c[0] + 0.01, c[1], P.h[0], P.h[0], P.flat, edge + 18.5, edge]); continue; }   // rotonde: rond vlak
       const def = PATH_DEF[p.t]; if (!def || !p.p || p.p.length < 2) continue;
       const P = pathProf(p), edge = def.hw + (p.t === 'pad' ? 0.6 : def.walk) + 0.6;
-      for (let i = 0; i < P.pts.length - 1; i++) { const a = P.pts[i], b = P.pts[i + 1]; if (p.abs && P.h[i] > 0.5 && P.h[i + 1] > 0.5) continue; if (!P.flat && roadSpan(p, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (P.h[i] + P.h[i + 1]) / 2, 8)) continue; tRoadSegs.push([a[0], a[1], b[0], b[1], P.h[i], P.h[i + 1], P.flat, edge + 18.5, edge]); }   // brug over een weg: geen dijk eronder
+      for (let i = 0; i < P.pts.length - 1; i++) { const a = P.pts[i], b = P.pts[i + 1]; if (p.abs && P.h[i] > 0.5 && P.h[i + 1] > 0.5) continue; if (P.dk && (P.dk[i] || P.dk[i + 1])) continue; if (!P.flat && roadSpan(p, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (P.h[i] + P.h[i + 1]) / 2, 8)) continue; tRoadSegs.push([a[0], a[1], b[0], b[1], P.h[i], P.h[i + 1], P.flat, edge + 18.5, edge]); }   // brug over een weg: geen dijk eronder
     }
     const touch = segs => { for (const s of segs) { const r = s[7] + 2; for (let i = Math.floor((Math.min(s[0], s[2]) - r) / TSZ); i <= Math.floor((Math.max(s[0], s[2]) + r) / TSZ); i++) for (let j = Math.floor((Math.min(s[1], s[3]) - r) / TSZ); j <= Math.floor((Math.max(s[1], s[3]) + r) / TSZ); j++) { const c = tChunks.get(i + ',' + j); if (c) { c.fin = null; c.dirty = true; } else if (!s[6]) tChunks.set(i + ',' + j, { dirty: true }); } } };
     touch(old); touch(tRoadSegs);

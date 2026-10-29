@@ -159,7 +159,7 @@
   const ROAD_MAX_OFF = 12;
   function pathProf(path) {
     const snels = path.t === 'snel' ? [] : (cells.paths || []).filter(p => p.t === 'snel' && p.p && p.p.length > 1);
-    const sig = terrVer + '|' + JSON.stringify(path.p) + '|' + (path.y ? path.y.join(',') : '') + '|' + snels.map(p => JSON.stringify(p.p)).join(';');
+    const sig = terrVer + '|' + JSON.stringify(path.p) + '|' + (path.y ? path.y.join(',') : '') + '|' + snels.map(p => JSON.stringify(p.p)).join(';') + '|' + deckKey();
     let P = profCache.get(path); if (P && P.sig === sig) return P;
     const sp = smoothPts(path.p), pts = [], S = [];
     for (let i = 0; i < sp.length - 1; i++) { const a = sp[i], b = sp[i + 1], l = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.ceil(l / 1.5)); for (let j = 0; j < n; j++) pts.push([a[0] + (b[0] - a[0]) * j / n, a[1] + (b[1] - a[1]) * j / n]); }
@@ -190,8 +190,9 @@
         }
       }
     }
+    let dk = null; if (live) { const h0 = h; h = deckLift(pts, S, h); if (h !== h0) dk = h.map((v, i) => v - h0[i] > 0.3 ? 1 : 0); }   // over een wegdek: de weg ligt op het dak, met opritten (08l); dk: daar geen dijk maar een wand
     let x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9; for (const p of pts) { x0 = Math.min(x0, p[0]); z0 = Math.min(z0, p[1]); x1 = Math.max(x1, p[0]); z1 = Math.max(z1, p[1]); }
-    P = { sig, pts, S, h, bb: [x0, z0, x1, z1], flat: !h.some(v => Math.abs(v) > 0.01) };
+    P = { sig, pts, S, h, dk, bb: [x0, z0, x1, z1], flat: !h.some(v => Math.abs(v) > 0.01) };
     profCache.set(path, P); return P;
   }
   function pathH(path, x, z) {   // hoogte van de weg bij het dichtstbijzijnde punt van zijn middenlijn
@@ -553,7 +554,7 @@
   function skirtInto(L, pts, sg, path) {   // wand langs een lijn van de weg (bovenkant stoep) tot het maaiveld, waar de weg erboven ligt
     if (pts.length < 2) return;
     pts = densify(pts, 1.5);
-    const top = p => PW_H + hy(p[0], p[1]), bot = p => { const [q, r] = worldToCell(p[0], p[1]), b = baseOf(stackOf(q, r)[0] || ''); return b === 'water' || b === 'kuil' ? null : terrainHeightAt(p[0], p[1]) - 0.05; };
+    const top = p => PW_H + hy(p[0], p[1]), bot = p => { const [q, r] = worldToCell(p[0], p[1]), b = baseOf(stackOf(q, r)[0] || ''); return b === 'water' || b === 'kuil' || deckAt(p[0], p[1], true) !== null ? null : terrainHeightAt(p[0], p[1]) - 0.05; };
     for (let i = 0; i < pts.length - 1; i++) {
       const a = pts[i], b = pts[i + 1];
       if (path && roadSpan(path, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2, hy((a[0] + b[0]) / 2, (a[1] + b[1]) / 2))) { wallSeg(L, a, b, -1.3, PW_H); continue; }   // brugdek: alleen de rand van het dek
@@ -627,6 +628,7 @@
     vecLightReg = []; pathGroup = pathBuild(cells.paths, vecLightReg, quick); scene.add(pathGroup); carsDirty = true; vecDirty = true;
     if (!quick) { peopleDirty = true; peopleLocalEdit = true; }   // een weg erbij of weg: de voetgangers blijven waar ze zijn (alleen wie zijn plek kwijt is, begint opnieuw); tijdens het slepen helemaal niets
     if (!quick) roadCols = pathGroup.userData.col || new Map();
+    if (!quick && deckMap_ && deckMap_.size) railForce_ = true;   // de hekken op een wegdek hangen af van waar de weg erop komt (08l)
     if (!quick) setTimeout(() => { try { if (typeof buildModNet === 'function' && modGroups.size) buildModNet(); } catch (e) {} }, 0);   // bomen op een nieuwe weg verdwijnen
     vecCover = vecCoverOf(cells.paths);
     if (!quick) terrRoadsChanged();   // het maaiveld langs de wegen sluit aan op de weg

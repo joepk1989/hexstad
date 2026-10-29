@@ -492,6 +492,7 @@
           case 'bench': box(Mt.bench, 1.8, 0.06, 0.45, 0, 0.45, 0); box(Mt.bench, 1.8, 0.45, 0.06, 0, 0.72, -0.22); box(Mt.metal, 0.06, 0.45, 0.4, -0.8, 0.22, 0); box(Mt.metal, 0.06, 0.45, 0.4, 0.8, 0.22, 0); solidLen(1.8, 0.25, 0.9); break;
           case 'lamp': col(Mt.lamp, 0.05, 0.08, 4, 0, 0, 0); place(Mt.lampGlow, new THREE.SphereGeometry(0.22, 8, 6).translate(0, 4.05, 0)); solid(0.15, 4); break;
           case 'pillar': col(Mt.wl.stone, 0.3, 0.35, LH, 0, 0, 0, 10); box(Mt.wl.stone, 0.9, 0.12, 0.9, 0, LH - 0.06, 0); solid(0.35, LH); break;
+          case 'hpillar': { const ph = (O.h || 1) * LH; col(Mt.slab, 0.45, 0.5, ph, 0, 0, 0, 6); solid(0.5, ph); break; }   // zeshoekige pijler (wegdek), O.h lagen hoog
           case 'table': col(Mt.metal, 0.04, 0.06, 0.72, 0, 0, 0, 6); col(Mt.bench, 0.6, 0.6, 0.04, 0, 0.72, 0, 12); for (let i = 0; i < 3; i++) { const a = i * 2.1, x = Math.cos(a) * 0.9, z = Math.sin(a) * 0.9; col(Mt.metal, 0.2, 0.2, 0.45, x, 0, z, 8); } solid(0.9, 0.8); break;
           case 'planter': col(Mt.slab, 0.75, 0.65, 0.5, 0, 0, 0, 8); place(Mt.leaf[2], new THREE.IcosahedronGeometry(0.55, 0).scale(1.2, 0.7, 1.2).translate(0, 0.75, 0)); for (let i = 0; i < 5; i++) { const a = i * 1.26, c = ['#e64a3c', '#f2b233', '#e9e6dc', '#d05a9a', '#f28c33'][i]; place(new THREE.MeshBasicMaterial({ color: c }), new THREE.SphereGeometry(0.09, 5, 4).translate(Math.cos(a) * 0.4, 0.95, Math.sin(a) * 0.4)); } solid(0.75, 1); break;
           case 'fountain': col(Mt.wl.stone, 1.8, 1.9, 0.5, 0, 0, 0, 12); col(Mt.water, 1.6, 1.6, 0.1, 0, 0.42, 0, 12); col(Mt.wl.stone, 0.12, 0.18, 1.3, 0, 0.4, 0, 8); col(Mt.wl.stone, 0.6, 0.5, 0.12, 0, 1.6, 0, 10); solid(1.9, 0.6); break;
@@ -665,8 +666,9 @@
     // het terrein onder een module is een plateau: bij een nieuwe of weggehaalde module de stukken eromheen bijwerken
     const diff = []; for (const k of modCellSet) if (!before.has(k)) diff.push(k.split(',').map(Number)); for (const k of before) if (!modCellSet.has(k)) diff.push(k.split(',').map(Number));
     if (diff.length && cells.terr && Object.keys(cells.terr).length) { terrDirty(diff); terrFlush(); }
-    if (touched) { buildRails(live); peopleDirty = true; peopleLocalEdit = true; }   // het loopnetwerk door de modules is veranderd
+    if (touched || railForce_) { railForce_ = false; buildRails(live); peopleDirty = true; peopleLocalEdit = true; }   // het loopnetwerk door de modules is veranderd
     else for (const [k, col] of railCols) { let L = modCols.get(k); if (!L) modCols.set(k, L = []); L.push(col); }
+    try { buildLegs(live); } catch (e) { console.warn('poten', e); }   // poten onder modules die boven een weg zweven (08l)
   }
   // ---------- Balustrades: overal waar je van een vloer of dak naar beneden kunt vallen ----------
   // Alle loopvlakken (vloeren en zichtbare dakvloeren) van alle modules per hoogte; een rand die maar bij één driehoek
@@ -713,6 +715,7 @@
     const bar = (A, B, y0, y1, t) => { const dx = B[0] - A[0], dz = B[1] - A[1], l = Math.hypot(dx, dz); if (l < 0.01) return; const g = new THREE.BoxGeometry(l, y1 - y0, t); g.rotateY(-Math.atan2(dz, dx)); g.translate((A[0] + B[0]) / 2, (y0 + y1) / 2, (A[1] + B[1]) / 2); geos.push(g); };
     for (const E of edges.values()) {
       if (E.n !== 1 || E.y < 0.5) continue;
+      if (isDeckMod(E.I.m)) { const mx0 = (E.A[0] + E.B[0]) / 2, mz0 = (E.A[1] + E.B[1]) / 2, rt = roadTop(mx0 - (mx0 - E.c[0]) * 0.15, mz0 - (mz0 - E.c[1]) * 0.15, E.y); if (rt !== null && Math.abs(rt - E.y) < 1) continue; }   // wegdek: geen hek waar de weg op of af gaat
       let R0 = byI.get(E.I); if (!R0) byI.set(E.I, R0 = { geos: [], cols: [], parts: [] }); geos = R0.geos;
       const mx = (E.A[0] + E.B[0]) / 2, mz = (E.A[1] + E.B[1]) / 2, ex = E.B[0] - E.A[0], ez = E.B[1] - E.A[1], l = Math.hypot(ex, ez) || 1;
       let nx = -ez / l, nz = ex / l; if ((mx - E.c[0]) * nx + (mz - E.c[1]) * nz < 0) { nx = -nx; nz = -nz; }   // naar buiten
@@ -746,12 +749,13 @@
   // Kan de module hier, op laag lv? Op de grond: geen blokken, weg of module. Hoger: op elk vak moet precies op die
   // laag een module eindigen (geen schuin dak), zodat hij er vlak op staat.
   function mv2CanPlace(mod, rot, q0, r0, lv = 0) {
+    const deck = isDeckMod(mod);
     for (const [q, r] of mv2Area({ m: mod, rot, q: q0, r: r0 })) {
       if (stackOf(q, r).length) return 'Hier staat al iets';
-      if (vecCover.has(key(q, r))) return 'Hier ligt een weg';
       const t = cellModTop(q, r);
+      if (vecCover.has(key(q, r)) && !deck && !(lv && !t)) return 'Hier ligt een weg';   // een wegdek mag op een weg (de weg gaat erover), een module hoog genoeg erboven ook
       if (!lv) { if (t) return 'Hier staat al een module (klik op het dak om erop te bouwen)'; continue; }
-      if (!t) return 'Hier staat niets om op te bouwen';
+      if (!t) { if (floatOK({ q: q0, r: r0 }, q, r, lv)) continue; return 'Te laag boven de weg: hij moet ' + CLEAR + ' m vrij hebben'; }   // zweven boven de weg of een leeg vak (met poten, 08l)
       if (t.top !== lv) return t.top > lv ? 'Hier staat al een module' : 'Niet overal even hoog: ' + (lv - t.top) + ' laag lager';
       if (t.kap) return 'Op een schuin dak kun je niet bouwen';
     }

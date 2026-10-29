@@ -369,6 +369,12 @@
       for (const m of libStandard()) if (!have.has(base(m.name))) { m.lib = 11; modules.push(m); libNews++; }
       saveMods(); localStorage.setItem('hexstad-lib11', '1'); libRefreshed = true;
     }
+    // lib14: wegdekken erbij
+    if (!localStorage.getItem('hexstad-lib14')) {
+      const base = n => (n || '').replace(/( · \d+[Lv])+$/, ''), have = new Set(modules.map(m => base(m.name)));
+      for (const m of libStandard()) if (!have.has(base(m.name))) { m.lib = 14; modules.push(m); libNews++; }
+      saveMods(); localStorage.setItem('hexstad-lib14', '1'); libRefreshed = true;
+    }
     // lib13: nieuwe indeling (Horeca, Sport, Vervoer); ook voor aangepaste modules met dezelfde naam
     if (!localStorage.getItem('hexstad-lib13')) {
       for (const m of modules) { const c = m.v === 2 && CAT_FIX[catBase(m.name)]; if (c) m.cat = c; }

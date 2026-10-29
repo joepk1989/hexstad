@@ -60,12 +60,13 @@
     ensureIds();
     if (lv === undefined && mod.v === 2 && hudLayer() !== null) lv = hudLayer();   // laagkiezer (15d)
     if (lv === undefined) lv = mod.v === 2 && Number.isInteger(q0) && Number.isInteger(r0) && lastPickRes && lastPickRes.inst ? stackLvAt(q0, r0) : 0;
+    if (!lv && mod.v === 2 && Number.isInteger(q0) && Number.isInteger(r0)) { const ol = overRoadLv(mod, moduleRot, q0, r0); if (ol) lv = ol; }   // op een weg geklikt: de module komt erboven, op poten (08l)
     if (lastPickRes && lastPickRes.inst && lastPickRes.side) { const i = cells.inst.indexOf(lastPickRes.inst); if (i >= 0 && swapInst(i)) return true; }   // op de gevel van een geplaatste module: wisselen
     const { n, skip } = placeCore(mod, moduleRot, q0, r0, lv);
     if (n) modUsed(mod);
     const mir = moduleMir && mod.v === 2;
     if (n) (cells.inst || (cells.inst = [])).push(Object.assign({ mid: mod.id, m: instData(mod, mir), q: q0, r: r0, rot: moduleRot }, lv ? { lv } : {}, mir ? { mir: true } : {}));
-    if (n && lv && mod.v === 2) { buildModNet(); changed(); toast('"' + mod.name + '" geplaatst op laag ' + lv + ' (' + lv * MV2.LV_H + ' m)', 2200); return true; }
+    if (n && lv && mod.v === 2) { buildModNet(); if (isDeckMod(mod)) buildPathNet(); changed(); toast('"' + mod.name + '" geplaatst op laag ' + lv + ' (' + lv * MV2.LV_H + ' m)' + (mv2Area({ m: mod, rot: moduleRot, q: q0, r: r0 }).some(([q, r]) => vecCover.has(q + ',' + r)) ? ' · boven de weg, op poten' : ''), 2200); return true; }
     if (n && mod.v === 2 && Number.isInteger(q0) && Number.isInteger(r0)) { const G0 = gH(q0, r0); terrSet(mv2Area({ m: mod, rot: moduleRot, q: q0, r: r0 }).map(([q, r]) => [q, r, G0])); }   // de module staat vlak: het terrein eronder op één hoogte
     buildTriNet(); buildPathNet(); buildEdgeNet(); buildModNet(); changed();
     toast(n ? '"' + mod.name + '" geplaatst' + (skip ? ' · ' + skip + ' stukken overgeslagen (water of bebouwing)' : '') : 'Hier past de module niet', 2200);

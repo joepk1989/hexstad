@@ -531,7 +531,7 @@
       vecGhost.rotation.y = -Math.atan2(dz, dx); vecGhost.scale.set(len + hw, 1, hw * 2); vecGhost.visible = true; showVecCells(VEC_T[tool], from, to); return;
     }
     vecGhost.visible = false;
-    if (tool === 'module') { previewActive = false; ghost.visible = false; ghostEdges.visible = false; if (res.place) { const a = anchorOf(res); showModuleGhost(a[0], a[1], hudLayer() !== null ? hudLayer() : res.inst && !res.side ? res.lv : 0); } return; }
+    if (tool === 'module') { previewActive = false; ghost.visible = false; ghostEdges.visible = false; if (res.place) { const a = anchorOf(res); let lv = hudLayer() !== null ? hudLayer() : res.inst && !res.side ? res.lv : 0; if (!lv && modules[moduleSel] && Number.isInteger(a[0]) && Number.isInteger(a[1])) lv = overRoadLv(modules[moduleSel], moduleRot, a[0], a[1]) || 0; showModuleGhost(a[0], a[1], lv); } return; }
     if (EDGE_TOOLS.has(tool)) {
       previewActive = false; ghost.visible = false; ghostEdges.visible = false;
       const ne = res.point ? nearestEdge(res.point.x, res.point.z) : null;

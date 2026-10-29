@@ -29,6 +29,7 @@
       for (const { mat, g } of built.pieces) box(g, mat, built.G, {});
       // het hek op de rand van vloeren en daken (08c, buildRails) doet als losse stukken mee: het valt pas als de vloer eronder valt
       for (const g0 of railParts(I)) box(g0.clone(), mv2Mats().metal, 0, { flat: false, weak: true, rail: true });
+      for (const g0 of legParts(I)) box(g0, mv2Mats().slab, 0, { flat: false, leg: true });   // poten onder een module boven de weg (08l): dragers
       // deurbladen (09b) doen ook mee: ze staan in de opening zoals ze nu staan (open of dicht), dragen niets en vallen of breken los als de rest
       for (const d of doors.list) if (d.owner === I) {
         const th = Math.atan2(-d.tz, d.tx) + d.sgn * d.open * 1.5, g = new THREE.BoxGeometry(d.w, d.h, 0.05).translate(d.w / 2, d.h / 2, 0).rotateY(th).translate(d.hx, d.y, d.hz);
@@ -49,11 +50,11 @@
       if (!e) return null;
       const pre = preCache.get(e) || prepare(I, e); if (!pre) return null; preCache.delete(e);   // de stukken worden nu echt gebruikt (en bij weggooien opgeruimd)
       const grp = new THREE.Group(); root.add(grp);
-      S = { I, e, G: pre.G, grp, P: [], pend: 0, clock: 0 };
+      S = { I, e, G: pre.G, gy: legGround(I), grp, P: [], pend: 0, clock: 0 };
       pre.items.forEach((it, i) => { const mesh = new THREE.Mesh(it.g, it.mat); mesh.position.copy(it.c); mesh.castShadow = true; mesh.receiveShadow = !it.rail; mesh.matrixAutoUpdate = true; grp.add(mesh);
-        S.P.push({ mesh, c: it.c.clone(), hx: it.hx, hy: it.hy, hz: it.hz, st: 'stand', nb: pre.nb[i], dist: 0, flat: it.flat, big: it.big, weak: it.weak, rail: !!it.rail, door: !!it.door }); });
+        S.P.push({ mesh, c: it.c.clone(), hx: it.hx, hy: it.hy, hz: it.hz, st: 'stand', nb: pre.nb[i], dist: 0, flat: it.flat, big: it.big, weak: it.weak, rail: !!it.rail, door: !!it.door, leg: !!it.leg }); });
       S.doorBak = doors.list.filter(d => d.owner === I).map(d => Object.assign({}, d)); doors.clear(I);   // de deurbladen zijn nu losse stukken
-      e.collapsed = true; modBatchRefresh(); railsHide(I, true); mods.set(I, S); S.baked = false;
+      e.collapsed = true; modBatchRefresh(); railsHide(I, true); if (legData.has(I)) legsHide(I, true); mods.set(I, S); S.baked = false;
       if (e.col) { S.colBak = { w: e.col.walls, s: e.col.surfaces }; e.col.walls = []; e.col.surfaces = []; S.col = e.col; }   // geen onzichtbare muren meer: de botsing van het hele gebouw valt weg
       return S;
     }
@@ -72,7 +73,7 @@
       unbake(S); root.remove(S.grp); for (const p of S.P) { if (p.mesh.parent === S.grp) p.mesh.geometry.dispose(); if (p.wg) { p.wg.dispose(); p.wg = null; } }
       for (let i = debris.length - 1; i >= 0; i--) if (debris[i].S === S) { root.remove(debris[i].p.mesh); debris[i].p.mesh.geometry.dispose(); debris.splice(i, 1); }
       if (S.col && S.colBak) { S.col.walls = S.colBak.w; S.col.surfaces = S.colBak.s; }
-      if (S.e) S.e.collapsed = false; modBatchRefresh(); railsHide(I, false);
+      if (S.e) S.e.collapsed = false; modBatchRefresh(); railsHide(I, false); if (legData.has(I)) legsHide(I, false);
       if (S.doorBak && modGroups.get(I) === S.e) for (const d of S.doorBak) doors.add(I, d);   // hetzelfde gebouw staat weer heel: de deuren terug (bij herbouwen maakt buildModNet nieuwe)
     }
     // Wat blijft staan wordt weer per materiaal samengevoegd (anders kost een kapot gebouw honderden tekenopdrachten); de losse
@@ -121,7 +122,7 @@
       const P = S.P, n = P.length, dist = new Array(n).fill(99), hk = [], hv = [], done = new Uint8Array(n);
       const push = (d, i) => { let k = hk.length; hk.push(d); hv.push(i); while (k > 0) { const pa = (k - 1) >> 1; if (hk[pa] <= d) break; hk[k] = hk[pa]; hv[k] = hv[pa]; k = pa; } hk[k] = d; hv[k] = i; };
       const pop = () => { const d0 = hk[0], i0 = hv[0], d = hk.pop(), i = hv.pop(); if (hk.length) { let k = 0; const N = hk.length; for (;;) { let c = 2 * k + 1; if (c >= N) break; if (c + 1 < N && hk[c + 1] < hk[c]) c++; if (hk[c] >= d) break; hk[k] = hk[c]; hv[k] = hv[c]; k = c; } hk[k] = d; hv[k] = i; } return [d0, i0]; };
-      for (let i = 0; i < n; i++) { const p = P[i]; p.pre = -1; if (p.st !== 'stand') continue; if (p.c.y - p.hy <= S.G + 0.4) { dist[i] = 0; push(0, i); } }
+      for (let i = 0; i < n; i++) { const p = P[i]; p.pre = -1; if (p.st !== 'stand') continue; if (p.c.y - p.hy <= (S.gy ?? S.G) + 0.4) { dist[i] = 0; push(0, i); } }
       while (hk.length) {
         const [d0, i] = pop(); if (done[i] || d0 > dist[i]) continue; done[i] = 1; const a = P[i];
         for (const j of a.nb) {

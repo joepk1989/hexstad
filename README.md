@@ -315,6 +315,14 @@ Beide uiteinden lopen vanzelf 2600 m door in hun laatste richting: ver voorbij d
 Treinen: één per spoor, rechts rijden. De eerste staat bij het laden vlak voor de stad, daarna komt er om de 15–40 s één uit de mist. Een treinstation (module met *treinstation* in de naam) binnen 40 m van de lijn is een halte: afremmen, 12 s stilstaan, hoorn, verder. Een trein die de stad voorbij is en weer ver in de mist zit, begint opnieuw aan het begin.
 Opslag: `cells.rails = [{ p: [[x, z], …] }]`, in de stadsdata als `__r` (alleen het getekende stuk; de doorloop wordt berekend). De meshes worden alleen opnieuw gebouwd als de punten of het hoogteprofiel veranderen. Het startstadje heeft een lijn ten noorden van de stad met een station en een korte straat ernaartoe. Test: `test/visueel/spoor.js`, `spoor_muis.js`.
 
+## Gelaagde stad: wegen op wegdekken, modules boven de weg (08l-wegdek.js)
+- **Wegdek**: modules `Wegdek · laag/hoog/extra hoog` (1 vak, 3/6/9 m) en `Wegdek · 7 vakken laag/hoog` (tab Wegen, categorie Vervoer): een betonnen dak op zeshoekige pijlers (`hpillar`, `O.h` lagen hoog). Ook `Parkeergarage · …` telt als wegdek (`isDeckMod`, of `m.deck`).
+- **Een weg over een wegdek** haalt het niet weg (`vecClearUnder` slaat het over) maar ligt op het dak. `pathProf` tilt de middenlijn op naar dak + 6 cm (`deckLift`) met opritten van hoogstens 12 % (minstens 18 m), glad (smooth01). Onder de oprit geen dijk maar een betonnen wand (`P.dk`, `skirtInto`), onder het dek blijft het maaiveld liggen (`roadAdjust`). Een wegdek mag ook óp een bestaande weg: de weg gaat vanzelf omhoog. Waar de weg op of af het dek gaat komt geen hek (`buildRails`, wordt na `buildPathNet` opnieuw gezet via `railForce_`).
+- **Een module boven de weg**: klik je met een module op een weg, dan komt hij op de laagste laag met 4,5 m vrije hoogte boven het wegdek (meestal laag 2 = 6 m; `overRoadLv`, ook in het voorbeeld). Hij krijgt zeshoekige poten (r 0,45 m) op de hoekpunten en het midden van elk vak waar geen module onder staat, niet op de rijbaan (`onCarriage`: binnen rijbaan + 0,9 m) en met de voet op het maaiveld of een lager wegdek (`deckLegs`, één InstancedMesh, botsing als zes muurtjes per poot). Met de laagkiezer kan een module nu ook op een leeg vak zweven (laag ≥ 1).
+- **Instorten**: poten zijn dragende stukken; staat een module helemaal op poten, dan is alleen de voet van een poot grond (`legGround`): sla de poten weg en hij valt.
+- Nog niet: een deur van een module boven de weg zit op 6 m (geen trap naar beneden); mensen komen er dus niet binnen.
+- Tests: `test/visueel/wegdek.js`, `wegdek_slepen.js`, `poten_instorten.js`.
+
 ## Opslag
 
 Steden en modules staan in `localStorage` van de browser. Modules kunnen als JSON-bestand worden geëxporteerd en geïmporteerd (Raatbouwer → Delen). De 152 standaardmodules worden één keer toegevoegd en zijn met "Standaard terugzetten" te herstellen.
