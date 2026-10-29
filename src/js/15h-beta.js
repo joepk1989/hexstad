@@ -6,7 +6,7 @@
     const VERSIE = '0.1.0-beta';
     // Het formulier voor de testers. Leeg: dan gaat Feedback naar een nieuw bericht op GitHub (daar is een account voor nodig).
     const FEEDBACK_URL = '';
-    const FALLBACK_URL = 'https://github.com/joepk1989/raatstad/issues/new';
+    const FALLBACK_URL = 'https://github.com/joepk1989/raatstad-web/issues/new';
     let lastErr = '', lastShow = -1e9;
     const device = () => {
       const ua = navigator.userAgent, b = /Edg\//.test(ua) ? 'Edge' : /Firefox\//.test(ua) ? 'Firefox' : /CriOS|Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : 'onbekende browser';
