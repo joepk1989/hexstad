@@ -361,6 +361,11 @@
       for (const m of libStandard()) if (!have.has(base(m.name))) { m.lib = 11; modules.push(m); libNews++; }
       saveMods(); localStorage.setItem('hexstad-lib11', '1'); libRefreshed = true;
     }
+    // lib12: het kleine winkelcentrum hoort bij de Winkelcentrum-familie (ook in het filter Winkelcentrum)
+    if (!localStorage.getItem('hexstad-lib12')) {
+      for (const m of modules) if (m.v === 2 && /^Winkelcentrum · klein( · |$)/.test(m.name || '') && m.cat === 'Winkels') m.cat = 'Winkelcentrum';
+      saveMods(); localStorage.setItem('hexstad-lib12', '1');
+    }
   } catch (e) { /* geen opslag */ }
   // voor de tests (bibliotheekcontrole): de rekenhulpen van modules v2
   window.__mv2thumb = (m, rot, px) => mv2Thumb(m, rot, px);

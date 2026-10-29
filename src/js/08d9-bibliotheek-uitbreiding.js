@@ -108,7 +108,7 @@
     // ---------- Klein winkelcentrum (7 vakken, 2 lagen): een hoge hal in het midden met fontein en een glazen dak, zes units
     // eromheen met een glazen pui naar de hal, twee doorgangen naar de straat tegenover elkaar, boven een galerij met balustrade
     // en een trap in de rand van de hal. Eerst de basis (vloeren, muren, trap), dan per unit de inrichting. ----------
-    { const b = libBuilder('Winkelcentrum · klein', 'Winkels', 1), CORE = 6.75;
+    { const b = libBuilder('Winkelcentrum · klein', 'Winkelcentrum', 1), CORE = 6.75;
       const cells = areaOf(1).filter(([q, r]) => q || r).map(([q, r]) => { const c = mv2CellXZ(q, r); return { q, r, c, a: Math.atan2(c[1], c[0]) }; }).sort((A, B) => A.a - B.a);
       const ROLE0 = ['ingang', 'mode', 'horeca', 'ingang', 'boeken', 'super'], ROLE1 = ['kantoor', 'mode', 'restaurant', 'kapper', 'kantoor', 'sport'];
       const FLOOR0 = { ingang: 'paver', mode: 'polished', horeca: 'stonetile', boeken: 'parquet', super: 'tile' }, FLOOR1 = { kantoor: 'carpet', mode: 'polished', restaurant: 'wood', kapper: 'tile', sport: 'wood' };
