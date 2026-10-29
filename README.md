@@ -1,6 +1,6 @@
 # Raatstad
 
-(Voorheen "Hexstad". Alles heet nu Raatstad; opslagsleutels zijn `raatstad-…`, oude `hexstad-…`-sleutels worden bij het starten één keer overgenomen. Alleen de reponaam en het adres heten nog `hexstad`.) Online: https://joepk1989.github.io/hexstad/ (GitHub Pages, bouwt vanzelf bij elke push via `.github/workflows/pages.yml`).
+(Voorheen "Hexstad". Alles heet nu Raatstad; opslagsleutels zijn `raatstad-…`, oude `hexstad-…`-sleutels worden bij het starten één keer overgenomen. De repo heet `joepk1989/raatstad`.) Online: https://joepk1989.github.io/raatstad/ (GitHub Pages, bouwt vanzelf bij elke push via `.github/workflows/pages.yml`).
 
 3D-stadsbouwer in de browser op een zeshoekraster, op ware grootte (vak 15,6 m breed, zijde 9 m). Gebouwd met three.js r128, zonder build-tools behalve één klein script.
 

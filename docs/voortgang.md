@@ -1,6 +1,6 @@
 # Raatstad — voortgang (stand 29 oktober 2026)
 
-Webversie: `joepk1989/hexstad` (GitHub Pages). Alles op zeshoeken en driehoeken; vak R = 9 m, verdieping 3 m.
+Webversie: `joepk1989/raatstad` (GitHub Pages). Alles op zeshoeken en driehoeken; vak R = 9 m, verdieping 3 m.
 Technische details per onderdeel: `claude/unity-overdracht-webversie.md` (§ 0–30) en de README.
 
 ## Klaar (laatste weken)
