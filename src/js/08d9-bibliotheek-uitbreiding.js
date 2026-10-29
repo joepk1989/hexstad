@@ -6,6 +6,96 @@
   // (glazen trappenhuis, roltrap). Eerst de basis (vloeren, muren, verdiepingen, trappen), de inrichting komt in libExtraDetails.
   // Zijden van ring()/cellRing(): zijde s heeft zijn normaal op 60° + 60°·s (zijde 5 kijkt naar +x); de buur over zijde s is NB_S[s].
   const NB_S = [[0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1], [1, 0]];
+  // ---------- Winkelcentrum van 7 vakken: de bouwer (mallBuild) en de generator (mallGenerate) ----------
+  // Een hal in het midden (hoog, met galerijen rond de vide), zes units eromheen met een glazen pui naar de hal, doorgangen naar de
+  // straat. Lagen: 1–3; de trap van de begane grond naar de eerste galerij ligt in de rand van de hal, hogerop gaat het met een
+  // wenteltrap in een van de units (twee trappen in de rand zouden de galerij in twee stukken knippen). Openingen in de puien
+  // komen alleen waar geen trap voor staat. Zonder seed: het standaard "Winkelcentrum · klein".
+  const MALL_NM = ['De Raat', 'Het Hof', 'De Korf', 'Zeshoek', 'De Honingraat', 'Het Plein', 'De Passage', 'Het Atrium', 'De Wabe', 'De Cel', 'Het Bijenhuis', 'De Kroon', 'Hof van Zes', 'De Lichthal'];
+  const MALL_R0 = ['mode', 'horeca', 'boeken', 'super', 'bakker', 'apotheek', 'bloemen', 'schoenen'], MALL_R1 = ['kantoor', 'restaurant', 'kapper', 'sport', 'mode', 'atelier'];
+  function mallRng(seed) { let a = (seed >>> 0) || 1; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  function mallBuild(o = {}) {
+    const ts = 2.25, CORE = 6.75, F = o.floors || 2, vAt = (x, z) => { const fi = x / (ts * SQ3 / 2), fj = z / ts - fi / 2; return [Math.round(fi), Math.round(fj)]; };
+    const inHex6 = (x, z, rad) => { for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; if (x * Math.cos(a) + z * Math.sin(a) > rad * SQ3 / 2 + 1e-6) return false; } return true; };
+    const sideTo = (cx, cz) => (Math.round(Math.atan2(-cz, -cx) / (Math.PI / 3)) + 5 + 12) % 6;
+    const b = libBuilder(o.name || 'Winkelcentrum · klein', 'Winkelcentrum', 1), wall = o.wall || 'brick', front = o.front || 'curtain', hallF = o.hallFloor || 'polished';
+    const cells = []; for (let q = -1; q <= 1; q++) for (let r = -1; r <= 1; r++) { if ((!q && !r) || mv2HexDist(q, r) > 1) continue; const c = mv2CellXZ(q, r); cells.push({ q, r, c, a: Math.atan2(c[1], c[0]) }); }
+    cells.sort((A, B) => A.a - B.a);
+    const rot = o.rot || 0, R0 = o.roles0 || ['ingang', 'mode', 'horeca', 'ingang', 'boeken', 'super'], RU = o.rolesUp || [['kantoor', 'mode', 'restaurant', 'kapper', 'kantoor', 'sport']];
+    const role = (li, i) => { const k = (i + rot) % 6; return li === 0 ? R0[k] : (RU[li - 1] || RU[0])[k]; };
+    // trappen: hal-rand (begane grond → 1), daarboven een wenteltrap midden in één unit
+    const SA = { a: vAt(-5.846, 3.375), d: 4, n: 3, w: 1.95, k: 'stair', off: -0.975 };
+    const wellI = F >= 3 ? (o.wellAt ?? cells.reduce((bi, C, i) => (C.c[0] > cells[bi].c[0] ? i : bi), 0))   /* de unit tegenover de trap in de hal */ : -1;
+    // vrije stukken in de pui (4 ribben per zijde): niet waar een trap begint of uitkomt
+    const segMid = (C, s, i) => { const a0 = (30 + 60 * s) * Math.PI / 180, a1 = (90 + 60 * s) * Math.PI / 180, p0 = [C.c[0] + 9 * Math.cos(a0), C.c[1] + 9 * Math.sin(a0)], p1 = [C.c[0] + 9 * Math.cos(a1), C.c[1] + 9 * Math.sin(a1)], f = (i + 0.5) / 4; return [p0[0] + (p1[0] - p0[0]) * f, p0[1] + (p1[1] - p0[1]) * f]; };
+    const local = (S, x, z) => { const D = MV2.DIR6[S.d], a = mv2P(S.a[0], S.a[1], ts), dx = D[0] * ts * SQ3 / 2, dz = D[0] * ts / 2 + D[1] * ts, l = Math.hypot(dx, dz), ux = dx / l, uz = dz / l; return [(x - a[0]) * ux + (z - a[1]) * uz, (x - a[0]) * -uz + (z - a[1]) * ux - (S.off || 0)]; };
+    const blocked = (li, x, z) => { if (F >= 2) { const [al, lat] = local(SA, x, z), len = SA.n * ts; if (Math.abs(lat) < SA.w / 2 + 0.7) { if (li === 0 && al > -0.5 && al < len + 0.4) return true; if (li === 1 && al > 0.3 * len - 0.4 && al < len + 0.4) return true; } } return false; };
+    const openFront = (li, C, st, want, pref) => { const free = [0, 1, 2, 3].filter(i => !blocked(li, ...segMid(C, st, i))); let pick = pref.filter(i => free.includes(i)); if (pick.length < want) pick = [...pick, ...[3, 0, 2, 1].filter(i => free.includes(i) && !pick.includes(i))].slice(0, want); return pick.map(i => ['open', i]); };
+    // hal: begane grond vol, daarboven per laag een galerij (band van 1,95 m) met balustrade
+    b.cell(0, 0, 0, hallF);
+    for (let li = 1; li < F; li++) { b.where(li, (x, z) => inHex6(x, z, 9) && !inHex6(x, z, CORE), hallF); b.ring(li, 0, 0, CORE, 'fence'); }
+    if (F >= 2) b.m.lv[0].s.push(SA);
+    cells.forEach((C, i) => {
+      const st = sideTo(C.c[0], C.c[1]), shared = [(st + 1) % 6, (st + 5) % 6], outer = [(st + 2) % 6, (st + 3) % 6, (st + 4) % 6];
+      for (let li = 0; li < F; li++) {
+        const rl = role(li, i), well = li >= 1 && i === wellI;
+        b.cell(li, C.q, C.r, li === 0 ? ({ ingang: 'paver', horeca: 'stonetile', boeken: 'parquet', super: 'tile', bakker: 'stonetile', bloemen: 'tile' })[rl] || 'polished' : ({ kantoor: 'carpet', restaurant: 'wood', kapper: 'tile', sport: 'wood', atelier: 'concrete' })[rl] || 'polished');
+        if (li === 0 && rl === 'ingang') continue;   // doorgang: open naar de hal en de straat, de zijmuren komen van de buren
+        b.cellRing(li, C.q, C.r, 'panel', { sides: shared });
+        b.cellRing(li, C.q, C.r, front, { sides: [st], open: { [st]: openFront(li, C, st, li === 0 ? 2 : 1, li === 0 ? [1, 2] : [1]) } });
+        b.cellRing(li, C.q, C.r, wall, { sides: outer, open: li === 0 ? { [(st + 3) % 6]: 'door' } : {}, win: 2 });
+        if (well && li < F - 1) b.stairUp(li, C.c[0], C.c[1], (st + 3) % 6, 1, 1.5, 'spiral');   // trappenhuis in deze unit, naar de laag erboven
+      }
+      b.cell(F, C.q, C.r, 'roof');
+    });
+    if (o.glassRoof !== false) b.cell(F, 0, 0, 'glass');
+    mallFurnish(b, o, cells, role, F, wellI);
+    return b;
+  }
+  function mallFurnish(b, o, cells, role, F, wellI) {
+    const hall = o.hall || 'fontein';
+    if (hall === 'fontein') b.obj(0, 'fountain', 0, 0).circle(0, 'bench', 0, 0, 3.9, 3, Math.PI / 6).circle(0, 'planter', 0, 0, 4.4, 3, Math.PI / 2);
+    if (hall === 'bomen') b.obj(0, 'tree', 0, 0).circle(0, 'bench', 0, 0, 2.6, 3, Math.PI / 6).circle(0, 'planter', 0, 0, 4.4, 3, Math.PI / 2);
+    if (hall === 'kiosk') b.obj(0, 'counter', 0, -1.2, 0).circle(0, 'table', 0, 0.6, 3.4, 4, 0.4).circle(0, 'planter', 0, 0, 4.6, 3, Math.PI / 2);
+    b.obj(0, 'lamp', 4.6, 0).obj(0, 'lamp', -2.3, 4);
+    cells.forEach(({ c }, i) => {
+      const u = [-c[0] / Math.hypot(c[0], c[1]), -c[1] / Math.hypot(c[0], c[1])], v = [-u[1], u[0]], P = (du, dv) => [c[0] + u[0] * du + v[0] * dv, c[1] + u[1] * du + v[1] * dv];
+      const along = Math.atan2(v[1], v[0]), across = Math.atan2(u[1], u[0]), put = (li, t, du, dv, rot) => { const [x, z] = P(du, dv); b.obj(li, t, x, z, rot); };
+      for (let li = 0; li < F; li++) {
+        if (li >= 1 && i === wellI) continue;   // trappenhuis: leeg
+        const r = role(li, i);
+        if (r === 'ingang') { put(li, 'bench', 0, 3.6, across); put(li, 'bench', 0, -3.6, across); put(li, 'planter', -5.5, 3.2); put(li, 'bin', -5.5, -3.2); put(li, 'sign', 6.4, 0, along); }
+        if (r === 'mode') { put(li, 'shelf', -4.6, -2.6, along); put(li, 'shelf', -4.6, 2.6, along); if (!li) put(li, 'shelf', -1.2, 0, across); put(li, 'counter', 3, 4.3, across); put(li, 'planter', 4.6, -4.4); }
+        if (r === 'schoenen') { put(li, 'shelf', -5.2, 0, along); put(li, 'bench', -1.6, -2.2, across); put(li, 'bench', -1.6, 2.2, across); put(li, 'counter', 3, 4.3, across); }
+        if (r === 'horeca') { put(li, 'counter', -5, 0, along); b.circle(li, 'table', ...P(0.8, 0), 3.2, 5, 0.3); put(li, 'planter', 5.6, 4.4); put(li, 'planter', 5.6, -4.4); }
+        if (r === 'boeken') { for (const dv of [-4.5, -1.5, 1.5, 4.5]) put(li, 'shelf', -2.2, dv, across); put(li, 'counter', 3.6, -3.8, across); put(li, 'table', 3.4, 3.4); }
+        if (r === 'super') { for (const du of [-4.6, -2, 0.6]) for (const dv of [-2.7, 2.7]) put(li, 'shelf', du, dv, along); put(li, 'counter', 4.4, -3.6, across); put(li, 'counter', 4.4, 3.6, across); }
+        if (r === 'bakker') { put(li, 'counter', -3.2, 0, along); put(li, 'shelf', -5.6, 0, along); put(li, 'table', 2.4, -3); put(li, 'table', 2.4, 3); }
+        if (r === 'apotheek') { put(li, 'shelf', -5.6, 0, along); put(li, 'shelf', -2.4, -3.6, across); put(li, 'shelf', -2.4, 3.6, across); put(li, 'counter', 1.2, 0, along); }
+        if (r === 'bloemen') { put(li, 'counter', -4.6, 0, along); for (const [du, dv] of [[-1, -3.4], [-1, 3.4], [2.4, -1.6], [2.4, 1.6], [0.6, 0]]) put(li, 'planter', du, dv); }
+        if (r === 'kantoor') { for (const dv of [-3, 0, 3]) put(li, 'desk', -2.4, dv, along); put(li, 'shelf', -5.6, 0, along); put(li, 'sofa', 2.8, 3.8, across); put(li, 'planter', 4.4, -4.2); }
+        if (r === 'restaurant') { put(li, 'kitchen', -5.4, 0, along); b.circle(li, 'table', ...P(0.6, 0), 3.2, 5, 0.2); put(li, 'planter', 5, 4.4); }
+        if (r === 'kapper') { for (const dv of [-3.2, 0, 3.2]) put(li, 'sofa', -4.6, dv, along); put(li, 'counter', 3.2, -4, across); put(li, 'planter', 4.6, 4.2); }
+        if (r === 'sport') { put(li, 'shelf', -5.6, 0, along); for (const dv of [-3.4, 0, 3.4]) put(li, 'bench', -1.4, dv, across); put(li, 'bin', 4.4, 4.2); }
+        if (r === 'atelier') { put(li, 'table', -2.6, -2.6); put(li, 'table', -2.6, 2.6); put(li, 'shelf', -5.6, 0, along); put(li, 'desk', 2.6, 0, along); }
+      }
+      if (o.roofStyle === 'groen') { put(F, 'tree', -2.4, 0); put(F, 'bush', 1.6, -3); put(F, 'bush', 1.6, 3); }
+      else for (const dv of [-3, 3]) put(F, 'solar', -2.2, dv, Math.atan2(v[1], v[0]));   // zonnepanelen op het platte dak
+    });
+    if (o.roofStyle === 'groen') for (const C of cells) b.cell(F, C.q, C.r, 'grass');
+  }
+  window.__mallGen = s => mallGenerate(s);   // voor de tests
+  // een nieuwe variant, klaar om neer te zetten (eigen module: bibliotheek-updates laten hem staan)
+  function mallGenerate(seed) {
+    seed = (seed >>> 0) || ((Math.random() * 4294967296) >>> 0); const R = mallRng(seed), pick = a => a[Math.floor(R() * a.length)];
+    const F = R() < 0.25 ? 1 : R() < 0.7 ? 2 : 3, nE = R() < 0.2 ? 1 : R() < 0.85 ? 2 : 3, eAt = Math.floor(R() * 6), ent = nE === 1 ? [eAt] : nE === 2 ? [eAt, (eAt + 3) % 6] : [eAt, (eAt + 2) % 6, (eAt + 4) % 6];
+    const shops = MALL_R0.slice().sort(() => R() - 0.5), roles0 = [0, 1, 2, 3, 4, 5].map(k => (ent.includes(k) ? 'ingang' : shops.pop()));
+    const rolesUp = [0, 1].map(() => [0, 1, 2, 3, 4, 5].map(() => pick(MALL_R1)));
+    const name = 'Winkelcentrum · ' + pick(MALL_NM), o = { name, floors: F, rot: 0, roles0, rolesUp, wall: pick(['brick', 'darkbrick', 'plaster', 'stone', 'panel', 'wood', 'concrete', 'corten']), front: pick(['curtain', 'curtain', 'glass']),
+      hallFloor: pick(['polished', 'stonetile', 'tile', 'parquet']), hall: pick(['fontein', 'bomen', 'kiosk']), roofStyle: R() < 0.4 ? 'groen' : 'zon', glassRoof: R() < 0.8 };
+    const b = mallBuild(o); pruneNearStairs(b); const m = b.done();
+    m.name = name + modSuffix(modMeta(m)); m.gen = { kind: 'winkelcentrum', seed }; return m;
+  }
   function libExtra(add) {
     const ts = 2.25, vAt = (x, z) => { const fi = x / (ts * SQ3 / 2), fj = z / ts - fi / 2; return [Math.round(fi), Math.round(fj)]; };
     const inHex6 = (x, z, rad, cx = 0, cz = 0) => { for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; if ((x - cx) * Math.cos(a) + (z - cz) * Math.sin(a) > rad * SQ3 / 2 + 1e-6) return false; } return true; };
@@ -105,37 +195,7 @@
     { const b = libBuilder('Trappenhuis · glas', 'Verbindingen'); b.cell(0, 0, 0, 'paver');
       for (let f = 0; f < 4; f++) { b.hex(f, 0, 0, 4.5, f ? 'concrete' : 'tile'); b.ring(f, 0, 0, 4.5, 'glass', { open: f ? {} : { 0: 'door' } }); b.stairUp(f, 0, 0, 0, 1, 1.5, 'spiral'); }
       b.hex(4, 0, 0, 4.5, 'concrete').ring(4, 0, 0, 4.5, 'fence'); libExtraDetails(b, 'trappenhuis'); add(b); }
-    // ---------- Klein winkelcentrum (7 vakken, 2 lagen): een hoge hal in het midden met fontein en een glazen dak, zes units
-    // eromheen met een glazen pui naar de hal, twee doorgangen naar de straat tegenover elkaar, boven een galerij met balustrade
-    // en een trap in de rand van de hal. Eerst de basis (vloeren, muren, trap), dan per unit de inrichting. ----------
-    { const b = libBuilder('Winkelcentrum · klein', 'Winkelcentrum', 1), CORE = 6.75;
-      const cells = areaOf(1).filter(([q, r]) => q || r).map(([q, r]) => { const c = mv2CellXZ(q, r); return { q, r, c, a: Math.atan2(c[1], c[0]) }; }).sort((A, B) => A.a - B.a);
-      const ROLE0 = ['ingang', 'mode', 'horeca', 'ingang', 'boeken', 'super'], ROLE1 = ['kantoor', 'mode', 'restaurant', 'kapper', 'kantoor', 'sport'];
-      const FLOOR0 = { ingang: 'paver', mode: 'polished', horeca: 'stonetile', boeken: 'parquet', super: 'tile' }, FLOOR1 = { kantoor: 'carpet', mode: 'polished', restaurant: 'wood', kapper: 'tile', sport: 'wood' };
-      // hal: begane grond helemaal, boven alleen de galerij (de band van 1,95 m langs de rand) met een balustrade; de trap ligt in die band
-      b.cell(0, 0, 0, 'polished'); b.where(1, (x, z) => mv2HexDist(...cellOf(x, z)) === 0 && !inHex6(x, z, CORE), 'polished'); b.ring(1, 0, 0, CORE, 'fence');
-      bandStair(b, 0, 'A');
-      const behind = cells.reduce((bi, C, i) => (C.c[0] < cells[bi].c[0] ? i : bi), 0);   // de unit achter de trap (die ligt in de band aan de −x-kant)
-      cells.forEach(({ q, r, c }, i) => {
-        const st = sideTo(c[0], c[1]), shared = [(st + 1) % 6, (st + 5) % 6], outer = [(st + 2) % 6, (st + 3) % 6, (st + 4) % 6], r0 = ROLE0[i], r1 = ROLE1[i];
-        // begane grond
-        b.cell(0, q, r, FLOOR0[r0]);
-        if (r0 === 'ingang') { /* open naar de hal en naar de straat; de zijmuren komen van de buren */ }
-        else {
-          b.cellRing(0, q, r, 'panel', { sides: shared });
-          b.cellRing(0, q, r, 'curtain', { sides: [st], open: { [st]: i === behind ? [['open', 0], ['open', 3]] : [['open', 1], ['open', 2]] } });   // brede open pui naar de hal (achter de trap: aan beide uiteinden, naast de trap)
-          b.cellRing(0, q, r, 'brick', { sides: outer, open: { [(st + 3) % 6]: 'door' }, win: 2 });   // achterdeur voor de bevoorrading
-        }
-        // verdieping: een unit met een glazen pui en een open ingang naar de galerij
-        b.cell(1, q, r, FLOOR1[r1]);
-        b.cellRing(1, q, r, 'panel', { sides: shared });
-        b.cellRing(1, q, r, 'curtain', { sides: [st], open: { [st]: i === behind ? [['open', 3]] : [['open', 1]] } });   // open pui naar de galerij (boven de trap: aan het eind waar de trap uitkomt)
-        b.cellRing(1, q, r, 'brick', { sides: outer, win: 2 });
-        // plat dak met zonnepanelen
-        b.cell(2, q, r, 'roof');
-      });
-      b.cell(2, 0, 0, 'glass');   // glazen dak boven de hal
-      libExtraDetails(b, 'winkelcentrum_klein', cells, ROLE0, ROLE1); add(b); }
+    add(mallBuild());   // klein winkelcentrum (7 vakken, 2 lagen); varianten via mallGenerate (knop bij de modules)
     { const b = libBuilder('Roltrap · glas', 'Verbindingen'); b.cell(0, 0, 0, 'polished').cell(1, 0, 0, 'polished'); bandStair(b, 0, 'A', 'esc'); b.cellRing(1, 0, 0, 'fence'); libExtraDetails(b, 'roltrap'); add(b); }
   }
   // ---------- Tweede ronde: inrichting en bijzonderheden ----------
@@ -206,28 +266,6 @@
   // ---- nieuwe modules: inrichting ----
   function libExtraDetails(b, key, ...args) {
     const D = {
-      winkelcentrum_klein: () => {
-        const [cells, ROLE0, ROLE1] = args;
-        // hal: fontein in het midden, bankjes eromheen, bomen in bakken, lantaarns
-        b.obj(0, 'fountain', 0, 0).circle(0, 'bench', 0, 0, 3.9, 3, Math.PI / 6).circle(0, 'planter', 0, 0, 4.4, 3, Math.PI / 2).obj(0, 'lamp', 4.6, 0).obj(0, 'lamp', -2.3, 4);
-        // op de galerij (1,95 m breed) geen meubels: dan kun je er niet meer rondlopen
-        cells.forEach(({ c }, i) => {
-          const u = [-c[0] / Math.hypot(c[0], c[1]), -c[1] / Math.hypot(c[0], c[1])], v = [-u[1], u[0]], P = (du, dv) => [c[0] + u[0] * du + v[0] * dv, c[1] + u[1] * du + v[1] * dv];
-          const along = Math.atan2(v[1], v[0]), across = Math.atan2(u[1], u[0]), put = (li, t, du, dv, rot) => { const [x, z] = P(du, dv); b.obj(li, t, x, z, rot); };
-          const r0 = ROLE0[i], r1 = ROLE1[i];
-          if (r0 === 'ingang') { put(0, 'bench', 0, 3.6, across); put(0, 'bench', 0, -3.6, across); put(0, 'planter', -5.5, 3.2); put(0, 'bin', -5.5, -3.2); put(0, 'sign', 6.4, 0, along); }
-          if (r0 === 'mode') { put(0, 'shelf', -4.6, -2.6, along); put(0, 'shelf', -4.6, 2.6, along); put(0, 'shelf', -1.2, 0, across); put(0, 'counter', 3, 4.3, across); put(0, 'sign', 6.6, -3.6, along); put(0, 'planter', 4.6, -4.4); }
-          if (r0 === 'horeca') { put(0, 'counter', -5, 0, along); b.circle(0, 'table', ...P(0.8, 0), 3.2, 5, 0.3); put(0, 'planter', 5.6, 4.4); put(0, 'planter', 5.6, -4.4); put(0, 'sign', 6.6, 0, along); }
-          if (r0 === 'boeken') { for (const dv of [-4.5, -1.5, 1.5, 4.5]) put(0, 'shelf', -2.2, dv, across); put(0, 'counter', 3.6, -3.8, across); put(0, 'table', 3.4, 3.4); put(0, 'sign', 6.6, 0, along); }
-          if (r0 === 'super') { for (const du of [-4.6, -2, 0.6]) for (const dv of [-2.7, 2.7]) put(0, 'shelf', du, dv, along); put(0, 'counter', 4.4, -3.6, across); put(0, 'counter', 4.4, 3.6, across); put(0, 'sign', 6.6, 0, along); }
-          if (r1 === 'kantoor') { for (const dv of [-3, 0, 3]) put(1, 'desk', -2.4, dv, along); put(1, 'shelf', -5.6, 0, along); put(1, 'sofa', 2.8, 3.8, across); put(1, 'planter', 4.4, -4.2); }
-          if (r1 === 'mode') { put(1, 'shelf', -4.6, -2.6, along); put(1, 'shelf', -4.6, 2.6, along); put(1, 'counter', 3, 4.3, across); put(1, 'sofa', 2.6, -3.6, across); }
-          if (r1 === 'restaurant') { put(1, 'kitchen', -5.4, 0, along); b.circle(1, 'table', ...P(0.6, 0), 3.2, 5, 0.2); put(1, 'planter', 5, 4.4); }
-          if (r1 === 'kapper') { for (const dv of [-3.2, 0, 3.2]) put(1, 'sofa', -4.6, dv, along); put(1, 'counter', 3.2, -4, across); put(1, 'planter', 4.6, 4.2); }
-          if (r1 === 'sport') { put(1, 'shelf', -5.6, 0, along); for (const dv of [-3.4, 0, 3.4]) put(1, 'bench', -1.4, dv, across); put(1, 'bin', 4.4, 4.2); }
-          for (const dv of [-3, 3]) put(2, 'solar', -2.2, dv, along);   // zonnepanelen op het platte dak
-        });
-      },
       tankstation: () => { b.obj(0, 'pump', 3.8, 1.5).obj(0, 'pump', 3.8, -1.5).obj(0, 'car', 2.2, 0, Math.PI / 2).obj(0, 'sign', 1.0, 6.5, Math.PI / 6); b.obj(0, 'counter', -3.0, -1.3, Math.PI / 2).obj(0, 'shelf', -6.0, 0.2, Math.PI / 2).obj(0, 'charger', 6.6, 0); },
       laadplein: () => { b.obj(0, 'car', -2.6, 2.0, Math.PI / 2).obj(0, 'car', 2.6, -2.0, Math.PI / 2).obj(0, 'charger', -2.6, 4.7).obj(0, 'charger', 2.6, -4.7); for (const x of [-3.6, 0, 3.6]) for (const z of [-3.2, -1.05, 1.05, 3.2]) b.obj(1, 'solar', x, z); },
       trafo: () => { b.obj(0, 'bush', -4.6, 3.8).obj(0, 'bush', 4.6, -3.8).obj(0, 'lamp', -4.4, -4.0); },

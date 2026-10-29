@@ -7,6 +7,18 @@
   const palTabs = document.createElement('div'); palTabs.className = 'pal-tabs'; paletteEl.appendChild(palTabs);
   const palRow = document.createElement('div'); palRow.className = 'pal-row'; paletteEl.appendChild(palRow);
   const toolScroll = document.createElement('div'); toolScroll.className = 'tool-scroll'; palRow.appendChild(toolScroll);
+  // pijlen links en rechts (met de muis; op een touchscreen veeg je) en het scrollwiel schuift opzij
+  function scrollArrows(sc, host) {
+    host.classList.add('sa-host'); const mk = (dir, txt) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'sarrow ' + dir; b.textContent = txt; b.setAttribute('aria-label', dir === 'l' ? 'Naar links' : 'Naar rechts'); b.addEventListener('click', () => sc.scrollBy({ left: (dir === 'l' ? -1 : 1) * Math.max(120, sc.clientWidth * 0.8), behavior: 'smooth' })); host.appendChild(b); return b; };
+    const L = mk('l', '‹'), Rr = mk('r', '›');
+    const upd = () => { const over = sc.scrollWidth > sc.clientWidth + 2, hr = host.getBoundingClientRect(), r = sc.getBoundingClientRect();
+      L.style.left = (r.left - hr.left) + 'px'; Rr.style.right = (hr.right - r.right) + 'px';
+      L.hidden = !over || sc.scrollLeft < 4; Rr.hidden = !over || sc.scrollLeft > sc.scrollWidth - sc.clientWidth - 4; };
+    sc.addEventListener('scroll', upd, { passive: true }); window.addEventListener('resize', upd); new MutationObserver(() => requestAnimationFrame(upd)).observe(sc, { childList: true });
+    sc.addEventListener('wheel', e => { if (sc.scrollWidth <= sc.clientWidth + 2 || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return; sc.scrollLeft += e.deltaY; e.preventDefault(); }, { passive: false });
+    return upd;
+  }
+  const toolArrows = scrollArrows(toolScroll, palRow);
   CATS.forEach((c, ci) => { const t = document.createElement('button'); t.type = 'button'; t.className = 'pal-tab'; t.textContent = c.name; t.addEventListener('click', () => { setCat(ci); if (c.name === 'Modules') { renderModCards(); if (!modules.length) openSchets(); } }); /* alleen bladeren: kiezen doe je met een kaartje, dat komt in de snelbalk */ palTabs.appendChild(t); });
   const catOf = t => CATS.findIndex(c => c.tools.includes(t));
   function setCat(ci) {
@@ -27,6 +39,11 @@
     if (CATS[catIdx].name !== 'Modules') return;
     renderModBar();
     const add = document.createElement('button'); add.type = 'button'; add.className = 'tool modcard add'; add.innerHTML = '<span class="plus">+</span><span class="nm">Nieuw</span>'; add.addEventListener('click', () => openSchets()); toolScroll.appendChild(add);
+    if (['Alles', 'Winkelcentrum', 'Winkels'].includes(modCat) && !modQuery || /winkel/i.test(modQuery || '')) { const g = document.createElement('button'); g.type = 'button'; g.className = 'tool modcard add gen'; g.title = 'Nieuw winkelcentrum: elke klik een nieuwe variant (1–3 lagen, andere winkels, materialen en dak). Daarna klik je in de stad om hem neer te zetten.';
+      g.innerHTML = '<span class="plus">🎲</span><span class="nm">Winkelcentrum</span><span class="nv">nieuw</span>';
+      g.addEventListener('click', () => { const m = mallGenerate(); let n = 2; const base = m.name; while (modules.some(x => x.name === m.name)) m.name = base.replace(/^(Winkelcentrum · [^·]+?)( · )/, '$1 ' + (n++) + '$2'); m.id = uid(); m._sig = Date.now(); modules.push(m); saveMods();
+        moduleSel = modules.length - 1; moduleGhostKey = ''; selectTool('module'); renderModCards(); toast('"' + m.name + '" gemaakt · klik in de stad om hem neer te zetten (de dobbelsteen maakt een volgende variant)', 3500); });
+      toolScroll.appendChild(g); }
     const queue = [], list = modVisible();
     let lastCat = null;
     for (const i of list) {
@@ -93,7 +110,7 @@
       modBar.querySelectorAll('[data-sz]').forEach(b => b.addEventListener('click', () => { const v = +b.dataset.sz; modSize = modSize === v ? 0 : v; renderModCards(); }));
       modBar.querySelector('[data-st]').addEventListener('click', () => { modStack = !modStack; renderModCards(); });
     }
-    const chips = modBar.querySelector('#modChips'); chips.innerHTML = '';
+    const chips = modBar.querySelector('#modChips'); chips.innerHTML = ''; if (!chips.parentElement.classList.contains('mchips-wrap')) { const w = document.createElement('div'); w.className = 'mchips-wrap'; chips.parentElement.insertBefore(w, chips); w.appendChild(chips); renderModBar.arrows = scrollArrows(chips, w); }
     const cats = ['Alles', ...(modRecent.some(id => modules.some(m => m.id === id)) ? ['Recent'] : []), ...MV2.cats.filter(c => modules.some(m => modCatOf(m) === c)), ...(modules.some(m => m.v !== 2) ? ['Oude schets'] : [])];
     if (!cats.includes(modCat)) modCat = 'Alles';
     for (const c of cats) {
@@ -103,6 +120,7 @@
     }
     modBar.querySelectorAll('[data-sz]').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.sz === modSize)));
     modBar.querySelector('[data-st]').setAttribute('aria-pressed', String(modStack));
+    if (renderModBar.arrows) requestAnimationFrame(renderModBar.arrows); requestAnimationFrame(toolArrows);
   }
   // vorige / volgende module in de zichtbare lijst (sneltoetsen , en .)
   function modStep(d) {

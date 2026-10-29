@@ -5,15 +5,15 @@
 //  - trappen: komen ze uit op een vloer van de verdieping erboven
 // Schrijft uit/bieb_audit.json en een overzichtsplaat per categorie (uit/bieb_<cat>.png).
 const { open, OUT } = require('./helper'); const fs = require('fs');
-const ONLY = process.env.ALLEEN || '';   // deel van een naam: alleen die modules
+const ONLY = process.env.ALLEEN || '', GEN = +(process.env.GEN || 0), GEN0 = +(process.env.GEN0 || 1);   // GEN=40: 40 gegenereerde winkelcentra (seed GEN0…)   // deel van een naam: alleen die modules
 (async () => {
   const { b, p } = await open({ width: 900, height: 700 });
   await p.evaluate(() => window.__SC().doAct('empty')); await p.waitForTimeout(600);
-  const names = await p.evaluate(only => window.__mv2.libStandard().filter(m => !only || m.name.includes(only)).map(m => m.name), ONLY);
+  const names = GEN ? Array.from({ length: GEN }, (_, i) => 'gen:' + (GEN0 + i)) : await p.evaluate(only => window.__mv2.libStandard().filter(m => !only || m.name.includes(only)).map(m => m.name), ONLY);
   const all = [];
   for (const nm of names) {
     const r = await p.evaluate(nm => {
-      const S = window.__SC(), X = window.__mv2, D = window.__modDbg(), m = X.libStandard().find(m => m.name === nm);
+      const S = window.__SC(), X = window.__mv2, D = window.__modDbg(), m = nm.startsWith('gen:') ? window.__mallGen(+nm.slice(4)) : X.libStandard().find(m => m.name === nm);
       const c = S.getCells(); c.inst = [{ mid: m.id, m: S.instData(m, false), q: 0, r: 0, rot: 0 }]; S.rebuildAll();
       const ts = X.mv2Ts(m), LH = X.MV2.LV_H, k = m.k || 0, ext = 9 * (1 + 2 * k) + 3, M = X.modMeta(m), issues = [];
       const cen = id => { const [i, j, t] = id.split(',').map(Number), v = X.mv2TriVerts(i, j, t, ts); return [(v[0][0] + v[1][0] + v[2][0]) / 3, (v[0][1] + v[1][1] + v[2][1]) / 3]; };
@@ -60,7 +60,7 @@ const ONLY = process.env.ALLEEN || '';   // deel van een naam: alleen die module
         if (ex && !reach(ex[0], ex[1], (li + 1) * LH + 0.02)) issues.push(`laag ${li}: ${St.k === 'u' ? 'bordestrap' : St.k === 'ramp' ? 'helling' : 'trap'} komt boven niet bereikbaar uit (${ex[0].toFixed(1)}, ${ex[1].toFixed(1)})`); }));
       return { naam: m.name, cat: m.cat, lagen: m.lv.length, fl: M.fl, lv, issues, punten: pts.length };
     }, nm);
-    all.push(r); console.log((r.issues.length ? '✗ ' : '✓ ') + r.naam + (r.issues.length ? '\n     ' + r.issues.slice(0, 6).join('\n     ') + (r.issues.length > 6 ? '\n     … +' + (r.issues.length - 6) : '') : ''));
+    all.push(r); console.log((r.issues.length ? '✗ ' : '✓ ') + (nm.startsWith('gen:') ? nm + ' ' : '') + r.naam + (r.issues.length ? '\n     ' + r.issues.slice(0, 6).join('\n     ') + (r.issues.length > 6 ? '\n     … +' + (r.issues.length - 6) : '') : ''));
   }
   fs.writeFileSync(OUT + '/bieb_audit.json', JSON.stringify(all, null, 1));
   console.log('\nmodules', all.length, '· met opmerkingen', all.filter(r => r.issues.length).length);

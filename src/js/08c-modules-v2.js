@@ -23,7 +23,7 @@
     openings: { '': 'Dicht', door: 'Deur', window: 'Raam', gate: 'Poort', open: 'Open' },
     objects: { tree: 'Boom', bush: 'Struik', bench: 'Bankje', lamp: 'Lantaarn', pillar: 'Zuil', table: 'Tafel', planter: 'Plantenbak', fountain: 'Fontein', bin: 'Prullenbak', bike: 'Fietsenrek', shelf: 'Winkelstelling', counter: 'Toonbank', sign: 'Lichtreclame',
       bed: 'Bed', sofa: 'Bank (binnen)', desk: 'Bureau', kitchen: 'Keukenblok', screen: 'Filmdoek', car: 'Auto', pump: 'Tankpomp', charger: 'Laadpaal', solar: 'Zonnepanelen', turbine: 'Windmolen', chimney: 'Schoorsteen', container: 'Container', goal: 'Doel', grave: 'Grafsteen', boat: 'Boot', shelter: 'Abri', slide: 'Glijbaan', swing: 'Schommel', sheep: 'Schaap' },
-    cats: ['Wonen', 'Werken', 'Winkels', 'Winkelcentrum', 'Openbaar', 'Voorzieningen', 'Groen', 'Pleinen', 'Verbindingen', 'Bouwdelen', 'Overig'],
+    cats: ['Wonen', 'Werken', 'Winkels', 'Horeca', 'Winkelcentrum', 'Openbaar', 'Sport', 'Vervoer', 'Voorzieningen', 'Groen', 'Pleinen', 'Verbindingen', 'Bouwdelen', 'Overig'],
   };
   const mv2Ts = m => R / ([1, 2, 4, 8].includes(m.n) ? m.n : 4);
   const mv2P = (i, j, ts) => [i * ts * SQ3 / 2, i * ts / 2 + j * ts];
