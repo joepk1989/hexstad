@@ -419,6 +419,7 @@
           const side = (i0, i1, y0a, y1a) => pos.push(P[i0][0], y0, P[i0][1], P[i1][0], y0, P[i1][1], P[i1][0], y1a, P[i1][1], P[i0][0], y0, P[i0][1], P[i1][0], y1a, P[i1][1], P[i0][0], y0a, P[i0][1]);
           side(0, 3, yb, yt); side(2, 1, yt, yb); side(3, 2, yt, yt);
           { const ny = (pos[4] - pos[1]) * 0 + ((pos[5] - pos[2]) * (pos[6] - pos[0]) - (pos[3] - pos[0]) * (pos[8] - pos[2])); if (ny < 0) for (let t = 0; t < pos.length; t += 9) for (let c = 0; c < 3; c++) { const q = pos[t + 3 + c]; pos[t + 3 + c] = pos[t + 6 + c]; pos[t + 6 + c] = q; } }   // bovenvlak naar boven (anders zag je de helling van onderen: donker)
+          for (let t = 18, n0 = pos.length; t < n0; t += 9) pos.push(pos[t], pos[t + 1], pos[t + 2], pos[t + 6], pos[t + 7], pos[t + 8], pos[t + 3], pos[t + 4], pos[t + 5]);   // zijkanten van de wig van beide kanten zichtbaar (anders was één zijkant doorzichtig)
           g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(new Array(pos.length / 3 * 2).fill(0), 2)); g.computeVertexNormals(); put(Mt.rampTop, g);
           pushWalk(at(0, -w / 2), at(len, w / 2), at(0, w / 2), yb, yt, yb); pushWalk(at(0, -w / 2), at(len, -w / 2), at(len, w / 2), yb, yt, yt);
           landing(len, yt); endFill(yt, Mt.rampTop); landing(-1, y0 + 0.02);
