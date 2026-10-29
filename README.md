@@ -341,16 +341,21 @@ Steden en modules staan in `localStorage` van de browser. Modules kunnen als JSO
 8. ✅ Raatbouwer met gereedschap en iconen, 3D-weergave, bibliotheek
 9. ✅ Honderd standaardmodules in families (wonen, werken, winkels, openbaar, groen, pleinen, trappen, bouwdelen)
 10. ✅ Hoog terrein, wegen over heuvels en viaducten, sneltoetsen met hulpvenster
+11. ✅ Winkelcentrum (7 vakken) en een generator voor varianten (dobbelsteen); bibliotheek ingedeeld (Horeca, Sport, Vervoer), tabbladen tonen hun modules
+12. ✅ Instorten en cameramodus: dragende wanden, kanonskogel en sloopkogel (door meerdere muren), deuren, treden en dichte vloerplaten breken los
+13. ✅ Spoor: tekenbare dubbelsporen tot voorbij de horizon, treinen die stoppen bij treinstations
+14. ✅ Terreinstap: ophogen en afgraven per 3 m (of 1,5 m / vrij)
+15. ✅ Gelaagde stad: wegdekken met opritten, dakwegen over platte daken (ook het winkelcentrum), modules boven de weg op poten met een trappenhuis-poot, een dek als grond
 
 Nog te doen:
 
-- Echte brug op het nieuwe wegennet (dek, hoogte)
-- Afgeronde stoephoeken op kruisingen (nu recht afgesneden, bij een laan een lange witte punt)
-- Parkeerstroken met geparkeerde auto's, keerlus aan het eind van een laan, zebrapaden
-- Voetpad als getekende lijn
-- Plaatsvervangers in het menu: Rotonde, Spoor, Parkeren, Winkel, School, Fabriek, Bomen, Hagen, Vijver, Fontein, Klif, Strand, Brug, Poort, Toren
+- Gelaagde stad: groene daken (park en groen direct op een dak, dakweg tussen groen door); laagweergave voor wegen, dekken en poten; sfeer onder de dekken (licht, geparkeerde auto's); generator voor gelaagde steden; deur van een module op een dek vanzelf naar het dek draaien
+- Echt brugdek met pijlers voor een weg die je tijdens het slepen ophoogt (nu een dichte wand)
+- Parkeerstroken met geparkeerde auto's, keerlus aan het eind van een laan
+- Plaatsvervangers in het menu: Klif, Strand, Poort
 - Auto's die een parkeergarage in rijden
 - Raatbouwer: muren met eigen hoogte, schuine daken over een vrije vorm, hellende vloeren, teksten en bordjes
+- Mensen met een doel (werk, winkel, thuis); dak op modules; rivieren; tunnels voor auto's
 
 ## Testen
 
