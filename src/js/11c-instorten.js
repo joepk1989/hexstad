@@ -15,45 +15,54 @@
     const groundAt = (x, z) => { let y = 0; try { y = terrainHeightAt(x, z) || 0; } catch (e) { } const r = roadTop(x, z, 0.5); return r != null ? Math.max(y, r) : y; };
 
     // gebouw omzetten naar losse stukken (een keer)
+    // Een gebouw in losse stukken voorbereiden (het zware deel: alle stukken bouwen en uitzoeken welke elkaar raken). Gebeurt bij de
+    // eerste klap, of eerder: in de cameramodus wordt het gebouw waar je op richt alvast voorbereid als er even tijd is.
+    const preCache = new WeakMap();
+    function prepare(I, e) {
+      const built = modPiecesOf(I); if (!built || !built.pieces || !built.pieces.length) return null;
+      const items = [], box = (g, mat, dy, extra) => { g.computeBoundingBox(); const bb = g.boundingBox, c = bb.getCenter(new THREE.Vector3()); c.y += dy; g.translate(-c.x, -(c.y - dy), -c.z);
+        const sx = bb.max.x - bb.min.x, sy = bb.max.y - bb.min.y, sz = bb.max.z - bb.min.z;
+        // niet dragend: glas en dunne delen (kozijnstijlen, ruiten, leuningen) en het plafond (een vlak zonder dikte) staan zelf wel, maar houden niets omhoog
+        const weak = !!(mat && (mat.transparent || (mat.opacity ?? 1) < 0.95)) || sx * sy * sz < 0.06 || Math.min(sx, sz) < 0.07 && sy > 0.3 || sy < 0.03;
+        items.push(Object.assign({ g, mat, c, hx: sx / 2, hy: sy / 2, hz: sz / 2, flat: sy < 0.45 && sx * sz > 1.5, big: sx * sy * sz, weak }, extra)); };
+      for (const { mat, g } of built.pieces) box(g, mat, built.G, {});
+      // het hek op de rand van vloeren en daken (08c, buildRails) doet als losse stukken mee: het valt pas als de vloer eronder valt
+      for (const g0 of railParts(I)) box(g0.clone(), mv2Mats().metal, 0, { flat: false, weak: true, rail: true });
+      // aanraking: dozen die elkaar (bijna) raken; langs x gesorteerd, zodat alleen stukken die in x overlappen vergeleken worden
+      const n = items.length, nb = items.map(() => []), ord = items.map((p, i) => i).sort((i, j) => (items[i].c.x - items[i].hx) - (items[j].c.x - items[j].hx));
+      for (let x = 0; x < n; x++) { const i = ord[x], a = items[i], xmax = a.c.x + a.hx + TOL;
+        for (let y = x + 1; y < n; y++) { const j = ord[y], b = items[j]; if (b.c.x - b.hx > xmax) break;
+          if (Math.abs(a.c.y - b.c.y) > a.hy + b.hy + TOL || Math.abs(a.c.z - b.c.z) > a.hz + b.hz + TOL || Math.abs(a.c.x - b.c.x) > a.hx + b.hx + TOL) continue;
+          nb[i].push(j); nb[j].push(i); } }
+      const pre = { G: built.G, items, nb }; preCache.set(e, pre); return pre;
+    }
     function ensure(I) {
       let S = mods.get(I); const e = modGroups.get(I);
       if (S && S.e === e) return S;
       if (S) drop(I);
       if (!e) return null;
-      const built = modPiecesOf(I); if (!built || !built.pieces || !built.pieces.length) return null;
+      const pre = preCache.get(e) || prepare(I, e); if (!pre) return null; preCache.delete(e);   // de stukken worden nu echt gebruikt (en bij weggooien opgeruimd)
       const grp = new THREE.Group(); root.add(grp);
-      S = { I, e, G: built.G, grp, P: [], pend: 0, clock: 0 };
-      for (const { mat, g } of built.pieces) {
-        g.computeBoundingBox(); const bb = g.boundingBox, c = bb.getCenter(new THREE.Vector3()); c.y += built.G;
-        g.translate(-c.x, -(c.y - built.G), -c.z);
-        const mesh = new THREE.Mesh(g, mat); mesh.position.copy(c); mesh.castShadow = true; mesh.receiveShadow = true; mesh.matrixAutoUpdate = true;
-        const sx = bb.max.x - bb.min.x, sy = bb.max.y - bb.min.y, sz = bb.max.z - bb.min.z;
-        // niet dragend: glas en dunne delen (kozijnstijlen, ruiten, leuningen) staan zelf wel, maar houden niets omhoog
-        const weak = !!(mat && (mat.transparent || (mat.opacity ?? 1) < 0.95)) || sx * sy * sz < 0.06 || Math.min(sx, sz) < 0.07 && sy > 0.3 || sy < 0.03;   // ook het plafond (een vlak zonder dikte) draagt de vloer niet
-        S.P.push({ mesh, c: c.clone(), hx: sx / 2, hy: sy / 2, hz: sz / 2, st: 'stand', nb: [], dist: 0, flat: sy < 0.45 && sx * sz > 1.5, big: sx * sy * sz, weak });
-        grp.add(mesh);
-      }
-      // het hek op de rand van vloeren en daken (08c, buildRails) doet als losse stukken mee: het valt pas als de vloer eronder valt
-      for (const g0 of railParts(I)) {
-        const g = g0.clone(); g.computeBoundingBox(); const bb = g.boundingBox, c = bb.getCenter(new THREE.Vector3()); g.translate(-c.x, -c.y, -c.z);
-        const mesh = new THREE.Mesh(g, mv2Mats().metal); mesh.position.copy(c); mesh.castShadow = true; mesh.matrixAutoUpdate = true;
-        const sx = bb.max.x - bb.min.x, sy = bb.max.y - bb.min.y, sz = bb.max.z - bb.min.z;
-        S.P.push({ mesh, c: c.clone(), hx: sx / 2, hy: sy / 2, hz: sz / 2, st: 'stand', nb: [], dist: 0, flat: false, big: sx * sy * sz, weak: true, rail: true }); grp.add(mesh);
-      }
-      // aanraking: dozen die elkaar (bijna) raken
-      const P = S.P, n = P.length;
-      for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
-        const a = P[i], b = P[j];
-        if (Math.abs(a.c.x - b.c.x) > a.hx + b.hx + TOL || Math.abs(a.c.y - b.c.y) > a.hy + b.hy + TOL || Math.abs(a.c.z - b.c.z) > a.hz + b.hz + TOL) continue;
-        a.nb.push(j); b.nb.push(i);
-      }
+      S = { I, e, G: pre.G, grp, P: [], pend: 0, clock: 0 };
+      pre.items.forEach((it, i) => { const mesh = new THREE.Mesh(it.g, it.mat); mesh.position.copy(it.c); mesh.castShadow = true; mesh.receiveShadow = !it.rail; mesh.matrixAutoUpdate = true; grp.add(mesh);
+        S.P.push({ mesh, c: it.c.clone(), hx: it.hx, hy: it.hy, hz: it.hz, st: 'stand', nb: pre.nb[i], dist: 0, flat: it.flat, big: it.big, weak: it.weak, rail: !!it.rail }); });
       e.collapsed = true; modBatchRefresh(); railsHide(I, true); mods.set(I, S); S.baked = false;
       if (e.col) { S.colBak = { w: e.col.walls, s: e.col.surfaces }; e.col.walls = []; e.col.surfaces = []; S.col = e.col; }   // geen onzichtbare muren meer: de botsing van het hele gebouw valt weg
       return S;
     }
+    // cameramodus: het gebouw in het vizier alvast voorbereiden (als de browser even niets te doen heeft)
+    let aimT = 0, aimBusy = false;
+    function aimPrep(dt) {
+      if (typeof flyCam === 'undefined' || !flyCam.on || aimBusy) return; aimT += dt; if (aimT < 0.3) return; aimT = 0;
+      const d = new THREE.Vector3(); camera.getWorldDirection(d); const o = camera.position; let I = null;
+      for (let t = 4; t < 90 && !I; t += 2) { const x = o.x + d.x * t, y = o.y + d.y * t, z = o.z + d.z * t; if (y < -1) break; const [q, r] = worldToCell(x, z), top = modTop.get(q + ',' + r); if (top && top.inst && y < gH(top.inst.q, top.inst.r) + instTopLv(top.inst) * 3 + 2.5) I = top.inst; }
+      if (!I || mods.has(I)) return; const e = modGroups.get(I); if (!e || preCache.has(e) || !modMeta(I.m).bouw) return;
+      aimBusy = true; const go = () => { aimBusy = false; if (modGroups.get(I) === e && !mods.has(I) && !preCache.has(e)) prepare(I, e); };
+      if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 600 }); else setTimeout(go, 50);
+    }
     function drop(I) {
       const S = mods.get(I); if (!S) return; mods.delete(I);
-      unbake(S); root.remove(S.grp); for (const p of S.P) if (p.mesh.parent === S.grp) p.mesh.geometry.dispose();
+      unbake(S); root.remove(S.grp); for (const p of S.P) { if (p.mesh.parent === S.grp) p.mesh.geometry.dispose(); if (p.wg) { p.wg.dispose(); p.wg = null; } }
       for (let i = debris.length - 1; i >= 0; i--) if (debris[i].S === S) { root.remove(debris[i].p.mesh); debris[i].p.mesh.geometry.dispose(); debris.splice(i, 1); }
       if (S.col && S.colBak) { S.col.walls = S.colBak.w; S.col.surfaces = S.colBak.s; }
       if (S.e) S.e.collapsed = false; modBatchRefresh(); railsHide(I, false);
@@ -69,9 +78,10 @@
       const bags = new Map();
       for (const S of list) for (const p of S.P) {
         if (p.st !== 'stand') continue; const m = p.mesh, k = matKey(m.material, true, true); let L = bags.get(k); if (!L) bags.set(k, L = { mat: m.material, list: [] });
-        m.updateMatrix(); const g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone(); g.applyMatrix4(m.matrix); L.list.push(g);
+        if (!p.wg) { m.updateMatrix(); p.wg = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone(); p.wg.applyMatrix4(m.matrix); }   // staande stukken bewegen niet: één keer omrekenen
+        L.list.push(p.wg);
       }
-      const out = []; for (const L of bags.values()) { const mesh = new THREE.Mesh(mergeGeos(L.list), L.mat); mesh.castShadow = true; mesh.receiveShadow = true; mesh.matrixAutoUpdate = false; out.push(mesh); for (const g of L.list) g.dispose(); }
+      const out = []; for (const L of bags.values()) { const mesh = new THREE.Mesh(mergeGeos(L.list), L.mat); mesh.castShadow = true; mesh.receiveShadow = true; mesh.matrixAutoUpdate = false; out.push(mesh); }
       return out;
     }
     function dissolveGlobal() {   // de gezamenlijke set weg, de sets per gebouw weer zichtbaar (zelfde beeld)
@@ -99,15 +109,18 @@
     }
     // steun: kleinste 'prijs' van de grond tot elk stuk (0 omhoog; opzij 1 per 1,5 m; naar beneden hangend 2 plus de afstand; via een niet-dragend stuk 4; meer dan 3 valt)
     function support(S) {
-      const P = S.P, n = P.length, dist = new Array(n).fill(99), open = [];
-      for (let i = 0; i < n; i++) { const p = P[i]; p.pre = -1; if (p.st !== 'stand') continue; if (p.c.y - p.hy <= S.G + 0.4) { dist[i] = 0; open.push(i); } }
-      while (open.length) {
-        open.sort((a, b) => dist[b] - dist[a]); const i = open.pop(), a = P[i];
+      // Dijkstra met een binaire hoop (vroeger werd de hele wachtrij bij elke stap opnieuw gesorteerd: tot 0,3 s per keer)
+      const P = S.P, n = P.length, dist = new Array(n).fill(99), hk = [], hv = [], done = new Uint8Array(n);
+      const push = (d, i) => { let k = hk.length; hk.push(d); hv.push(i); while (k > 0) { const pa = (k - 1) >> 1; if (hk[pa] <= d) break; hk[k] = hk[pa]; hv[k] = hv[pa]; k = pa; } hk[k] = d; hv[k] = i; };
+      const pop = () => { const d0 = hk[0], i0 = hv[0], d = hk.pop(), i = hv.pop(); if (hk.length) { let k = 0; const N = hk.length; for (;;) { let c = 2 * k + 1; if (c >= N) break; if (c + 1 < N && hk[c + 1] < hk[c]) c++; if (hk[c] >= d) break; hk[k] = hk[c]; hv[k] = hv[c]; k = c; } hk[k] = d; hv[k] = i; } return [d0, i0]; };
+      for (let i = 0; i < n; i++) { const p = P[i]; p.pre = -1; if (p.st !== 'stand') continue; if (p.c.y - p.hy <= S.G + 0.4) { dist[i] = 0; push(0, i); } }
+      while (hk.length) {
+        const [d0, i] = pop(); if (done[i] || d0 > dist[i]) continue; done[i] = 1; const a = P[i];
         for (const j of a.nb) {
           const b = P[j]; if (b.st !== 'stand') continue;
           const lift = Math.min(a.hy, b.hy) + 0.05, above = b.c.y - b.hy >= a.c.y + a.hy - 0.3 && b.c.y - a.c.y > lift, below = b.c.y + b.hy <= a.c.y - a.hy + 0.3 && a.c.y - b.c.y > lift,   // twee vloertegels naast elkaar liggen niet óp elkaar (ze zijn dunner dan de speling)
           hd = Math.hypot(b.c.x - a.c.x, b.c.z - a.c.z), over = Math.hypot(Math.max(0, Math.abs(b.c.x - a.c.x) - a.hx), Math.max(0, Math.abs(b.c.z - a.c.z) - a.hz)), cost = a.weak && !b.weak ? 4 : above ? (over < 0.25 ? 0 : Math.max(0.5, over / 1.5)) : below ? 2 + hd / 1.5 : Math.max(0.5, hd / 1.5);   // óp iets staan is gratis als je midden erboven staat; op de rand leunen telt als uitkragen   // wat alleen op glas of een dun stijltje rust, valt; opzij telt per meter (ruim 4,5 m uitkragen houdt niets)
-          if (dist[i] + cost < dist[j]) { dist[j] = dist[i] + cost; b.pre = i; open.push(j); }
+          if (dist[i] + cost < dist[j]) { dist[j] = dist[i] + cost; b.pre = i; push(dist[j], j); }
         }
       }
       for (let i = 0; i < n; i++) P[i].dist = dist[i];
@@ -206,6 +219,7 @@
       return best;
     }
     function update(dt) {
+      aimPrep(dt);
       for (const [I, S] of [...mods]) if (!cells.inst || !cells.inst.includes(I) || modGroups.get(I) !== S.e) drop(I);   // weggehaald, vervangen of nieuwe stad: de brokstukken verdwijnen mee
       if (!mods.size && !dust.length) return;
       tNow += dt; dt = Math.min(dt, 0.05); gIdle += dt;
