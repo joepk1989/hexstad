@@ -21,11 +21,13 @@
   const toolArrows = scrollArrows(toolScroll, palRow);
   CATS.forEach((c, ci) => { const t = document.createElement('button'); t.type = 'button'; t.className = 'pal-tab'; t.textContent = c.name; t.addEventListener('click', () => { setCat(ci); if (c.name === 'Modules') { renderModCards(); if (!modules.length) openSchets(); } }); /* alleen bladeren: kiezen doe je met een kaartje, dat komt in de snelbalk */ palTabs.appendChild(t); });
   const catOf = t => CATS.findIndex(c => c.tools.includes(t));
+  const TOOL_GROUP = { woning: 'Blokken', dak: 'Bovenop' };   // Gebouwen: eerst de blokken, dan wat je erop zet
   function setCat(ci) {
     catIdx = ci;
     catBtn.innerHTML = `<span class="cat-name">${CATS[ci].name}</span><span class="cat-dots">${CATS.map((_, j) => j === ci ? '●' : '○').join('')}</span>`;
     for (const k in toolBtns) if (k !== 'gum') toolBtns[k].hidden = catOf(k) !== ci;
     toolBtns.module.hidden = true;
+    toolScroll.querySelectorAll('.tool-sep').forEach(d => { d.hidden = +d.dataset.tab !== ci; });
     palTabs.querySelectorAll('.pal-tab').forEach((t, j) => { t.setAttribute('aria-pressed', String(j === ci)); if (j === ci) t.scrollIntoView({ block: 'nearest', inline: 'nearest' }); });
     renderModCards();
   }
@@ -39,7 +41,7 @@
     'Terrein': m => m.cat === 'Bouwdelen' && !isWaterMod(m),
   };
   function renderModCards() {
-    toolScroll.querySelectorAll('.modcard, .modcard-sep, .todo').forEach(n => n.remove());
+    toolScroll.querySelectorAll('.modcard, .modcard-sep:not(.tool-sep), .todo').forEach(n => n.remove());
     for (const nm of (CATS[catIdx].todo || [])) {
       const b = document.createElement('button'); b.type = 'button'; b.className = 'tool todo'; b.title = nm + ': nog te bepalen'; b.disabled = true;
       b.innerHTML = '<span class="sw sw-todo">?</span>' + nm; toolScroll.appendChild(b);
@@ -155,6 +157,7 @@
     b.title = t === 'gum' ? 'Gum: haalt de bovenste laag weg' : VEC_TOOLS.has(t) ? TYPES[t].name + ': klik een knooppunt en dan het volgende vak (of sleep); rechtermuisknop stopt, gum haalt de hele weg weg' : TYPES[t].name;
     b.innerHTML = `<span class="sw sw-${t}">${TERR_SVG[t] ? TERR_SVG[t] : t === 'gum' ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>' : ''}</span>${t === 'gum' ? 'Gum' : (TOOL_LABEL[t] || TYPES[t].name)}`;
     b.addEventListener('click', () => selectTool(t));
+    { const lab = TOOL_GROUP[t]; if (lab) { const d = document.createElement('div'); d.className = 'modcard-sep tool-sep'; d.dataset.tab = catOf(t); d.textContent = lab; toolScroll.appendChild(d); } }   /* groepjes binnen een tabblad */
     (t === 'gum' ? palRow : toolScroll).appendChild(b); toolBtns[t] = b;
   });
   // Draaiknop: verschijnt bij blokken met een richting (tribune, trap, helling, …)
