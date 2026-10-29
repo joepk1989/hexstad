@@ -113,6 +113,7 @@
     if (LOD.on) { LOD.fx = mode === 'walk' ? player.x : orbit.target.x; LOD.fz = mode === 'walk' ? player.z : orbit.target.z; }
     for (const k of cells.keys()) { const [q, r] = k.split(',').map(Number); buildColumn(q, r); }
     lodProxy(); buildEdgeNet(); buildPathNet(); buildTriNet(); buildModNet(); peopleDirty = true; carsDirty = true;
+    try { spoor.build(); } catch (e) { console.warn('spoor', e); }
     terrHold = false; terrFlush();
   }
 

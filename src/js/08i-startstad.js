@@ -10,6 +10,8 @@
     c.paths.push({ t: 'rot', l: 0, r: 0, p: [[0, 0]] });
     { const p = []; for (let i = 0; i <= 36; i++) { const a = i / 36 * Math.PI * 2; p.push(P(Math.cos(a) * RING, Math.sin(a) * RING)); } c.paths.push({ t: 'weg', l: 0, r: 0, p }); }
     for (let k = 0; k < 3; k++) { const a = k * Math.PI * 2 / 3 + Math.PI / 6; c.paths.push({ t: 'weg', l: 0, r: 0, p: [[0, 0], P(Math.cos(a) * ARM, Math.sin(a) * ARM)] }); }
+    c.paths.push({ t: 'weg', l: 0, r: 0, p: [P(0, RING), P(0, 100)] });   // korte straat naar het station
+    { const a = cellToWorld(-22, 11), b = cellToWorld(11, 11); c.rails = [{ p: [P(a.x, a.z), P(b.x, b.z)] }]; }   // spoorlijn ten noorden van de stad; loopt door tot voorbij de horizon (11e)
     const roads = c.paths.filter(p => p.t !== 'rot').map(p => ({ def: PATH_DEF[p.t], pts: smoothPts(p.p) }));
     const roadDist = (x, z) => { let d = 1e9; for (const r of roads) d = Math.min(d, distPoly(x, z, r.pts) - r.def.hw - r.def.walk); return Math.min(d, Math.hypot(x, z) - 22); };
     // ---------- modules uit de bibliotheek: rijhuizen en winkels langs de straat, pleinen en parken ertussen ----------
@@ -27,6 +29,7 @@
     const spot = (name, x, z) => { const [q, r] = worldToCell(x, z); if (has(q, r)) return; mod(name, q, r); };
     { const [wq, wr] = worldToCell(Math.cos(2.45) * 40, Math.sin(2.45) * 40);   // een echte vijver: drie vakken water in het park
       for (const [a, b] of [[0, 0], [1, 0], [0, 1]]) if (!has(wq + a, wr + b)) { set(wq + a, wr + b, ['water']); used.add(key(wq + a, wr + b)); } }
+    { mod('Vervoer · treinstation', -5, 9); for (const [a, b] of [[1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]]) used.add(key(-5 + a, 9 + b)); }   // station naast het spoor
     spot('Plein · fontein', Math.cos(0.5) * 36, Math.sin(0.5) * 36);
     spot('Plein · terras', Math.cos(4.6) * 38, Math.sin(4.6) * 38);
     spot('Tuin · rozentuin', Math.cos(5.6) * 52, Math.sin(5.6) * 52);

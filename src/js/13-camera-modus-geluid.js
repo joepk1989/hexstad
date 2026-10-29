@@ -363,7 +363,7 @@
     const HEX_NOTES = [261.6, 293.7, 329.6, 392, 440, 523.3, 587.3, 659.3];   // zestonige toonladder (zonder halve tonen): klinkt altijd vriendelijk
     function fx(name, x, y, z, k = 1) {
       const t0 = ctx.currentTime, now = performance.now();
-      const gap = { place: 60, remove: 80, click: 40, deny: 250, squeal: 120, crunch: 90, boom: 400, door: 150, cricket: 0, jump: 150, gen: 600, whoosh: 200, undo: 120, rotate: 60, splash: 200, roar: 3000, coin: 300, beep: 600 }[name] ?? 80;
+      const gap = { place: 60, remove: 80, click: 40, deny: 250, squeal: 120, crunch: 90, boom: 400, door: 150, cricket: 0, jump: 150, gen: 600, whoosh: 200, undo: 120, rotate: 60, splash: 200, roar: 3000, coin: 300, beep: 600, toot: 2500 }[name] ?? 80;
       if (now - (fxLast[name] || 0) < gap) return; fxLast[name] = now;
       const r = 0.94 + Math.random() * 0.12;
       if (name === 'place') {   // houten 'tok' met een helder tikje erbovenop
@@ -400,6 +400,8 @@
         const d = fxOut(x, y, z, 14, 0.9);
         fxNoise(d, true, 'lowpass', 900, 70, 0.7, t0, 0.006, 0.9, 0.9); fxNoise(d, false, 'bandpass', 600, 180, 0.8, t0, 0.01, 0.4, 0.5); fxTone(d, 'sine', 90, 34, t0, 0.005, 0.7, 0.7);
         for (let i = 0; i < 5; i++) fxNoise(d, false, 'bandpass', 1800 + Math.random() * 2500, 0, 4, t0 + 0.12 + i * 0.06, 0.003, 0.09, 0.1);
+      } else if (name === 'toot') {   // treinhoorn: twee tonen tegelijk, kort en dan lang
+        const d = fxOut(x, y, z, 30, 1); for (const [f0, t1, dd] of [[311, 0, 0.35], [370, 0, 0.35], [311, 0.5, 0.9], [370, 0.5, 0.9]]) fxTone(d, 'sawtooth', f0, 0, t0 + t1, 0.03, 0.05, dd);
       } else if (name === 'beep') { const d = fxOut(x, y, z, 4, 1.4); fxTone(d, 'square', 1040, 0, t0, 0.005, 0.04, 0.16);
       } else if (name === 'cricket') {   // krekel: drie snelle tjirpjes
         const d = fxOut(x, y, z, 4, 1.4), f = 4300 + Math.random() * 600; for (let i = 0; i < 3; i++) fxTone(d, 'sine', f, 0, t0 + i * 0.055, 0.004, 0.025 * k, 0.03);

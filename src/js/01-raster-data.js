@@ -42,14 +42,15 @@
     vbrd: { name: 'Brede weg', h: 0 },  // idem, vier rijstroken
     vlaan: { name: 'Laan', h: 0 },      // idem, met middenberm en bomen
     vsnel: { name: 'Snelweg', h: 0 }, vklink: { name: 'Klinkerstraat', h: 0 }, vfiets: { name: 'Fietspad', h: 0 },   // idem
-    vrot: { name: 'Rotonde', h: 0 },    // klik op een vak: rotonde; wegen die erin uitkomen sluiten erop aan
+    vrot: { name: 'Rotonde', h: 0 },
+    spoor: { name: 'Spoor', h: 0 },     // alleen als gereedschap: een spoorlijn (zie 11e), bewaard in cells.rails    // klik op een vak: rotonde; wegen die erin uitkomen sluiten erop aan
     tophoog: { name: 'Ophogen', h: 0 }, tafgraaf: { name: 'Afgraven', h: 0 }, tvlak: { name: 'Egaliseren', h: 0 },   // terrein boetseren (zie 14b)
     tglad: { name: 'Gladstrijken', h: 0 }, thelling: { name: 'Helling trekken', h: 0 },
     module: { name: 'Module', h: 0 },   // alleen als gereedschap: een bewaarde schets plaatsen   // alleen als gereedschap: bewaard als breed pad (pad32)
   };
   // Het palet is in groepen verdeeld; het scrollwiel loopt ze allemaal door
   const CATS = [
-    { name: 'Wegen', tools: ['vweg', 'vbrd', 'vlaan', 'vsnel', 'vklink', 'vfiets', 'vrot'], todo: ['Spoor'] },   // getekende wegen; de oude vakwegen zijn uit het palet (bestaande steden tonen ze nog)
+    { name: 'Wegen', tools: ['vweg', 'vbrd', 'vlaan', 'vsnel', 'vklink', 'vfiets', 'vrot', 'spoor'], todo: [] },   // getekende wegen; de oude vakwegen zijn uit het palet (bestaande steden tonen ze nog)
     { name: 'Paden', tools: ['pad', 'fietspad', 'looppad', 'randpad', 'trap', 'trappad'], todo: [] },
     { name: 'Gebouwen', tools: ['woning', 'kantoor', 'dak'], todo: [] },
     { name: 'Groen en water', tools: ['park', 'meer', 'water'], todo: [] },
@@ -166,7 +167,7 @@
   // of lege bouwgrond is een losse kladstad: daar mag je in rommelen zonder dat je eigen stad verandert.
   const STORE = 'hexstad-v2', MINE = 'hexstad-mijnstad', SLOT = 'hexstad-plek';
   let slot = 'mijn', slotName = 'Mijn stad';
-  const serialize = m => { const o = Object.fromEntries(m); if (m.edges && m.edges.size) o.__e = [...m.edges]; if (m.paths && m.paths.length) o.__p = m.paths; if (m.tris && m.tris.length) o.__t = m.tris; if (m.inst && m.inst.length) o.__i = m.inst; if (m.druk > 1) o.__d = m.druk; if (m.sec) { const g = {}; for (const k in m.sec) if (m.sec[k] > 0 && m.sec[k] < 63 && m.has(k)) g[k] = m.sec[k]; if (Object.keys(g).length) o.__s = g; } if (m.terr) { const g = {}; for (const k in m.terr) if (m.terr[k] > 0.004) g[k] = Math.round(m.terr[k] * 100) / 100; if (Object.keys(g).length) o.__g = g; } return JSON.stringify(o); };
+  const serialize = m => { const o = Object.fromEntries(m); if (m.edges && m.edges.size) o.__e = [...m.edges]; if (m.paths && m.paths.length) o.__p = m.paths; if (m.tris && m.tris.length) o.__t = m.tris; if (m.inst && m.inst.length) o.__i = m.inst; if (m.rails && m.rails.length) o.__r = m.rails.filter(r => r.p && r.p.length > 1); if (m.druk > 1) o.__d = m.druk; if (m.sec) { const g = {}; for (const k in m.sec) if (m.sec[k] > 0 && m.sec[k] < 63 && m.has(k)) g[k] = m.sec[k]; if (Object.keys(g).length) o.__s = g; } if (m.terr) { const g = {}; for (const k in m.terr) if (m.terr[k] > 0.004) g[k] = Math.round(m.terr[k] * 100) / 100; if (Object.keys(g).length) o.__g = g; } return JSON.stringify(o); };
   function save() {
     const snap = serialize(cells);
     if (typeof hudSnap === 'function') hudSnap(snap);   // ongedaan maken (15d)
@@ -186,12 +187,13 @@
       const m = new Map();
       if (Array.isArray(obj.__e)) m.edges = new Map(obj.__e.filter(e => Array.isArray(e) && typeof e[0] === 'string' && (e[1] === 'weg' || e[1] === 'brd' || e[1] === 'pad')));
       if (Array.isArray(obj.__p)) m.paths = obj.__p.filter(p => p && ['weg', 'brd', 'laan', 'pad', 'snel', 'klink', 'fiets', 'rot'].includes(p.t) && Array.isArray(p.p) && p.p.length > (p.t === 'rot' ? 0 : 1) && p.p.every(a => Array.isArray(a) && isFinite(a[0]) && isFinite(a[1])));
+      if (Array.isArray(obj.__r)) m.rails = obj.__r.filter(r => r && Array.isArray(r.p) && r.p.length > 1 && r.p.every(a => Array.isArray(a) && isFinite(a[0]) && isFinite(a[1]))).map(r => ({ p: r.p.map(a => [+a[0], +a[1]]) }));
       if (Array.isArray(obj.__i)) m.inst = obj.__i.filter(x => x && x.m && Array.isArray(x.m.edges) && isFinite(x.q) && isFinite(x.r) && isFinite(x.rot));
       if (obj.__g && typeof obj.__g === 'object') { m.terr = {}; for (const k in obj.__g) { const v = +obj.__g[k]; if (/^-?\d+,-?\d+$/.test(k) && isFinite(v) && v > 0) m.terr[k] = Math.min(TERR_TOP, v); } }
       if (obj.__s && typeof obj.__s === 'object') { m.sec = {}; for (const k in obj.__s) { const v = +obj.__s[k]; if (/^-?\d+,-?\d+$/.test(k) && v >= 1 && v < 63) m.sec[k] = v | 0; } }
       if (isFinite(+obj.__d) && +obj.__d > 1) m.druk = Math.min(4, +obj.__d);
       if (Array.isArray(obj.__t)) m.tris = obj.__t.filter(t => t && TRI_STY[t.k] && Array.isArray(t.v) && t.v.length === 6 && t.v.every(isFinite));
-      for (const k in obj) if (k !== '__e' && k !== '__p' && k !== '__t' && k !== '__i' && Array.isArray(obj[k]) && obj[k].every(t => typeof t === 'string' && TY(t))) m.set(k, obj[k]);
+      for (const k in obj) if (k !== '__e' && k !== '__p' && k !== '__t' && k !== '__i' && k !== '__r' && Array.isArray(obj[k]) && obj[k].every(t => typeof t === 'string' && TY(t))) m.set(k, obj[k]);
       return m;
     } catch (e) { return null; }
   }

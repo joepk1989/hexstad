@@ -237,6 +237,7 @@
       rebuildMany(list); terrainChanged(list); changed(); toast((tool === 'heuvel' ? 'Verhoogd: ' : 'Verlaagd: ') + list.length + ' vakken', 900); return;
     }
     if (tool === 'vrot') return placeRot(q, r);
+    if (tool === 'spoor') return spoor.click(q, r);   // spoorlijn: vak na vak (11e)
     if (VEC_TOOLS.has(tool)) return vecChainClick([q, r]);   // klikmodus: knooppunt, stuk weg, knooppunt … (14)
     if (tool === 'module') { const a = anchorOf(lastPickRes) || [q, r]; return placeModule(a[0], a[1], lastPickRes && lastPickRes.inst && !lastPickRes.side ? lastPickRes.lv : 0); }
     if (EDGE_TOOLS.has(tool)) return placeEdgeAt(lastPickRes);
@@ -362,10 +363,12 @@
   function eraseAt(cx, cy) {
     if (flyCam.on) return;   // cameramodus: niets bouwen of slopen
     if (vecChain.on) { vecChainEnd(); return; }   // rechts klikken stopt de weg-klikmodus
+    if (spoor.chain.on) { spoor.end(); updateGhost(cx, cy); return; }
     const res = pick(cx, cy, true);   // ook met een ander gereedschap in de hand moet een module te raken zijn
     if (res && eraseModuleAt(res)) { updateGhost(cx, cy); return; }
     if (res && eraseEdgeAt(res)) { updateGhost(cx, cy); return; }
-    if (res && (erasePathAt(res) || eraseTriAt(res))) { updateGhost(cx, cy); return; }   // getekende weg: de hele lijn in één keer
+    if (res && (erasePathAt(res) || eraseTriAt(res))) { updateGhost(cx, cy); return; }
+    if (res && spoor.eraseAt(res.point)) { updateGhost(cx, cy); return; }   // getekende weg: de hele lijn in één keer
     if (res && res.erase) removeTop(res.erase[0], res.erase[1]);
     updateGhost(cx, cy);
   }
@@ -384,7 +387,7 @@
       toast('Tik nog eens op dit vak om te plaatsen · Draai om te draaien', 2600);
       return;
     }
-    if (tool === 'gum') { if (!eraseEdgeAt(res) && !erasePathAt(res) && !eraseTriAt(res) && res.erase) removeTop(res.erase[0], res.erase[1]); }
+    if (tool === 'gum') { if (!eraseEdgeAt(res) && !erasePathAt(res) && !eraseTriAt(res) && !spoor.eraseAt(res.point) && res.erase) removeTop(res.erase[0], res.erase[1]); }
     else place(res.place[0], res.place[1]);
     updateGhost(cx, cy);
   }
@@ -511,6 +514,8 @@
       if (mode === 'build') kiesHover(cx, cy); else kiesHide(); return;
     }
     const res = pick(cx, cy); lastPickRes = res; aimLabel(res);
+    if (tool !== 'spoor') spoor.ghostHide();
+    else { previewActive = false; ghost.visible = false; ghostEdges.visible = false; edgeGhost.visible = false; moduleGhost.visible = false; vecGhost.visible = false; spoor.hover(res && res.place && !(mode === 'walk' && hand !== 'bouwen') ? res.place : null); return; }
     edgeGhost.visible = false; moduleGhost.visible = false;
     if (terrHover(res, cx, cy)) { previewActive = false; ghost.visible = false; ghostEdges.visible = false; return; }
     if (!res || (mode === 'walk' && hand !== 'bouwen')) { ghost.visible = false; ghostEdges.visible = false; return; }

@@ -42,7 +42,7 @@
     if (busy(e)) return;
     if (flyCam.on && e.code !== 'KeyP') return;   // cameramodus: alleen pauze (P) en weer (O, zie 13b) werken
     if (e.key === '?' || (e.code === 'Slash' && e.shiftKey)) { toggleKeys(); e.preventDefault(); return; }
-    if (e.code === 'Escape') { if (vecChain.on) { vecChainEnd(); return; } if (!keysPanel.hidden) toggleKeys(false); const sh = document.getElementById('sheet'); if (sh && !sh.hidden) sh.hidden = true; return; }
+    if (e.code === 'Escape') { if (vecChain.on) { vecChainEnd(); return; } if (spoor.chain.on) { spoor.end(); return; } if (!keysPanel.hidden) toggleKeys(false); const sh = document.getElementById('sheet'); if (sh && !sh.hidden) sh.hidden = true; return; }
     if (e.code === 'Tab' && !e.ctrlKey && !e.altKey) { e.preventDefault(); toggleCatalog(); return; }
     if (e.code === 'KeyL') { document.getElementById('modeBtn').click(); if (!keysPanel.hidden) renderKeys(); return; }
     if (mode === 'walk') return;   // de rest is voor bouwen

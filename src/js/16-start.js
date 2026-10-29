@@ -58,7 +58,7 @@
     DN.update(dt); clouds.update(dt, camera.position); sculptUpdate(dt);
     nearbyClear();   // botsingsbuurten opnieuw per beeld
     people.update(dt);
-    cars.update(dt); hulk.update(dt); doors.update(dt); collapse.update(dt); kogels.update(dt);
+    cars.update(dt); hulk.update(dt); doors.update(dt); collapse.update(dt); kogels.update(dt); spoor.tick(dt);
     if (mode === 'walk') {
       updateWalk(dt);
       if (roadDrag.on) { const res = pick(window.innerWidth / 2, window.innerHeight / 2); if (res) roadPaintTo(res.place); }

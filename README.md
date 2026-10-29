@@ -307,6 +307,12 @@ De **Raatbouwer** (vroeger module maker of schets; in het menu **Raatbouwer**, o
 
 **Verwijderen** gaat met twee klikken (× in de bibliotheek, of rechtermuisknop op een kaartje in het palet), omdat een bevestigingsvenster (`confirm`) in een ingesloten pagina niet werkt. De oude schets is niet meer te openen; oude schets-modules kun je nog plaatsen en verwijderen.
 
+## Spoor (11e-spoor.js)
+Gereedschap **Spoor** in de tab Wegen: klik vak na vak. Elk stuk loopt in een van de twaalf raatrichtingen (zes langs de zijden, zes over de hoekpunten); bochten tot 90° worden afgerond (boog tot 90 m straal). Rechtermuisknop, Esc of nog eens op het laatste punt stopt; op een uiteinde klikken tekent verder; gum op het spoor haalt de hele lijn weg.
+Beide uiteinden lopen vanzelf 2600 m door in hun laatste richting: ver voorbij de stadsgrens en de mist (die is bij 1150 m dicht), dus het spoor verdwijnt in de horizon. Dubbelspoor met ballast, dwarsliggers (InstancedMesh) en rails, hoogte volgt het maaiveld (glad, nooit onder water).
+Treinen: één per spoor, rechts rijden. De eerste staat bij het laden vlak voor de stad, daarna komt er om de 15–40 s één uit de mist. Een treinstation (module met *treinstation* in de naam) binnen 40 m van de lijn is een halte: afremmen, 12 s stilstaan, hoorn, verder. Een trein die de stad voorbij is en weer ver in de mist zit, begint opnieuw aan het begin.
+Opslag: `cells.rails = [{ p: [[x, z], …] }]`, in de stadsdata als `__r` (alleen het getekende stuk; de doorloop wordt berekend). De meshes worden alleen opnieuw gebouwd als de punten of het hoogteprofiel veranderen. Het startstadje heeft een lijn ten noorden van de stad met een station en een korte straat ernaartoe. Test: `test/visueel/spoor.js`, `spoor_muis.js`.
+
 ## Opslag
 
 Steden en modules staan in `localStorage` van de browser. Modules kunnen als JSON-bestand worden geëxporteerd en geïmporteerd (Raatbouwer → Delen). De 152 standaardmodules worden één keer toegevoegd en zijn met "Standaard terugzetten" te herstellen.

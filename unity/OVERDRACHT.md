@@ -1,4 +1,4 @@
-# Overdracht webversie → Unity (stand 27 oktober 2026)
+# Overdracht webversie → Unity (stand 29 oktober 2026)
 
 Dit document beschrijft alles wat er in de webversie van Raatstad (`src/js/`) is bijgekomen sinds de laatste Unity-versie
 (planeet-wegensysteem, zie `unity/README.md`), met de maten, regels en formules die je nodig hebt om het in Unity na te bouwen.
@@ -385,6 +385,25 @@ Gemeten in het bestand: vak R = 9 m, verdieping 3 m, vloer 0,3 m dik; steek 6,75
   een kans die afneemt met de afstand. Wat daarna geen steun meer heeft valt nog steeds via `settle()`. Drie schoten op een stadswoning: 18 stukken
   los (was: 170, het maximum, en het halve gebouw).
 
+## 29. Spoor en treinen (29 okt; `11e-spoor.js`)
+- **Tekenen**: gereedschap Spoor (tab Wegen). Klik vak na vak; elk stuk loopt van vakmidden naar vakmidden in een van de **twaalf raatrichtingen**: de zes buren
+  (0°, 60° …, stap 15,59 m) en de zes over de hoekpunten (30°, 90° …, stap 27 m), dus richtingen `[1,0] [0,1] [−1,1] [−1,0] [0,−1] [1,−1]` en `[1,1] [−1,2] [−2,1] [−1,−1] [1,−2] [2,−1]`
+  in axiale (q, r). Het punt is de veelvoud k ≥ 1 van de richting die het dichtst bij de muis ligt. Bochten hooguit 90°; rechtdoor schuift het eindpunt op. Rechtermuisknop/Esc of
+  nog eens op het laatste punt stopt; op een bestaand uiteinde (< 6 m) klikken tekent verder; gum op het spoor haalt de hele lijn weg.
+- **Doorloop tot voorbij de horizon**: beide uiteinden worden 2600 m verlengd in hun laatste richting. De stadsgrens is `max(220, straal stad + 160)` m en de mist is dicht
+  op 1150 m van de camera, dus je ziet het spoor nooit ophouden. Alleen het getekende stuk wordt bewaard (`cells.rails = [{p: [[x, z], …]}]`, in de stadsdata `__r`).
+- **Bochten**: cirkelboog die beide rechte stukken raakt, straal 90 m, kleiner als een stuk korter is (raaklengte hooguit 0,48 × het kortste stuk).
+  Daarna verdicht tot een punt per 2 m; hoogte = maaiveld (nooit < 0), eerst maximum over ±3 punten, dan drie keer gladgestreken (1-2-1).
+- **Opbouw** (dubbelspoor, spoorhartafstand 4,1 m): ballast als trapezium (onder ±4,3 m op −0,25, boven ±3,4 m op 0,34), dwarsliggers 2,5 × 0,14 × 0,24 m om de 0,65 m
+  (InstancedMesh), rails 0,1 × 0,16 m op ±0,72 m van het spoorhart. Alles één mesh per materiaal; opnieuw bouwen alleen als punten of hoogteprofiel veranderen (~60 ms per lijn).
+- **Treinen**: per lijn twee, **rechts rijden** (spoor rechts van de rijrichting). Vier rijtuigen van 16,6 m (wit, rode band, donkere ruitband, draaistellen op ±5,2 m);
+  de kop is een driehoekig prisma. Positie per rijtuig uit twee draaistelpunten op de lijn (gieren en hellen). Max 24 m/s, optrekken 0,9 m/s², remmen 2,25 m/s².
+  Halte: een module met *treinstation* in de naam binnen 40 m van het spoorhart; remmen volgens `v = √(2·0,9·afstand)`, midden van de trein bij het station, 12 s stil, hoorn (`fx('toot')`:
+  twee zaagtanden 311 en 370 Hz, kort en lang). Is de trein de stad voorbij en > 1300 m buiten de stadsgrens, dan wacht hij 15–40 s en komt aan het begin (> 1250 m buiten de grens) weer uit de mist.
+  De eerste trein staat bij het laden 120 m buiten de grens, zodat je hem meteen ziet aankomen.
+- **Startstadje**: een rechte lijn op r = 11 (z = 148,5 m) van vak (−22, 11) tot (11, 11), het treinstation (7 vakken) op (−5, 9) en een korte straat van de ring naar het station.
+- Unity: spline per lijn (bijv. Splines-pakket) met dezelfde verlenging; dwarsliggers via GPU instancing; treinen als wagons die twee punten op de spline volgen.
+
 ## 21. Open punten
 - Unity: noord- en zuidpool op de bol (vraag staat open); `unity/README.md` is niet bijgewerkt sinds het planeet-wegensysteem.
 - Web: eerste klap op een gebouw geeft een korte hapering (omzetten naar stukken); mensen ontwijken brokstukken niet en het loopnetwerk kent de gaten niet; instortingen worden niet bewaard; jagers maken soms nog sprongetjes van 3–7 m.
@@ -393,6 +412,6 @@ Gemeten in het bestand: vak R = 9 m, verdieping 3 m, vloer 0,3 m dik; steek 6,75
 
 ## Bestanden in de webversie
 `08j-generator.js` generator · `08c-modules-v2.js` modules, wenteltrap, offSpot · `08e-modules-bibliotheek.js` modulebibliotheek, `stairwell` ·
-`11-0-lowpoly-voertuigen.js` carrosserieën · `11-autos.js` rijgedrag, chaos, schade, rejoin, bloed · `11c-instorten.js` instorten · `08k-oud-omzetten.js` oude blokken ·
+`11-0-lowpoly-voertuigen.js` carrosserieën · `11-autos.js` rijgedrag, chaos, schade, rejoin, bloed · `11c-instorten.js` instorten · `11e-spoor.js` spoor en treinen · `08k-oud-omzetten.js` oude blokken ·
 `10-mensen.js` / `10b-stadspraat.js` paniek · `12-bouwacties-schoonheid.js` score · `13-camera-modus-geluid.js` geluid · `15f-geluid-haken.js` haken ·
 `test/visueel/{generator,voertuigen,roekeloos,achteruit,geluid,instorten,zien,brand2,rejoin,slip,berg,cam,camklik,chaos2}.js` tests.

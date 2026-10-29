@@ -9,12 +9,14 @@
     for (const k of cells.keys()) { const [q, r] = k.split(',').map(Number); if (!isFinite(q)) continue; const c = cellToWorld(q, r); add(c.x, c.z); }
     for (const p of cells.paths || []) for (const pt of p.p || []) add(pt[0], pt[1]);
     for (const I of cells.inst || []) if (isFinite(I.q)) { const c = cellToWorld(I.q, I.r); add(c.x, c.z); }
+    for (const r of cells.rails || []) for (const pt of r.p || []) add(pt[0], pt[1]);   // het getekende stuk spoor (niet de doorloop)
     if (!n) { CITY.cx = 0; CITY.cz = 0; CITY.rad = 0; }
     else {
       CITY.cx = (x0 + x1) / 2; CITY.cz = (z0 + z1) / 2; CITY.rad = 0;
       const chk = (x, z) => { const d = Math.hypot(x - CITY.cx, z - CITY.cz); if (d > CITY.rad) CITY.rad = d; };
       for (const k of cells.keys()) { const [q, r] = k.split(',').map(Number); if (!isFinite(q)) continue; const c = cellToWorld(q, r); chk(c.x, c.z); }
       for (const p of cells.paths || []) for (const pt of p.p || []) chk(pt[0], pt[1]);
+      for (const r of cells.rails || []) for (const pt of r.p || []) chk(pt[0], pt[1]);
       CITY.rad += R;
     }
     CITY.lim = Math.max(220, CITY.rad + 160);
