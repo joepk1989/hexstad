@@ -11,7 +11,7 @@
       const now = performance.now(); if (now - lastShot < (heavy ? 600 : 220)) return; lastShot = now;
       if (list.length >= MAX) { const o = list.shift(); scene.remove(o.mesh); }
       const d = new THREE.Vector3(); camera.getWorldDirection(d);
-      const rad = heavy ? 1.2 : 0.45, sp = heavy ? 30 : 48;
+      const rad = heavy ? 1.2 : 0.45, sp = heavy ? 36 : 48;
       const mesh = new THREE.Mesh(geo, heavy ? mats.zwaar : mats.licht); mesh.scale.setScalar(rad); mesh.castShadow = true;
       const p = camera.position.clone().addScaledVector(d, 1.8 + rad);
       mesh.position.copy(p); scene.add(mesh);
@@ -27,8 +27,11 @@
       const n = Math.max(1, Math.ceil(sp * dt / (o.rad * 0.8)));
       for (let i = 1; i <= n; i++) {
         const f = i / n, x = o.x + (nx - o.x) * f, y = o.y + (ny - o.y) * f, z = o.z + (nz - o.z) * f;
-        if (sp > 3 && collapse.shoot(x, y, z, o.vx, o.vy, o.vz, o.rad)) {   // raak: terugstuiteren met veel minder vaart
-          o.hits++; o.x = x - o.vx * dt / n; o.y = y; o.z = z - o.vz * dt / n;
+        if (sp > 3 && !(o.lh && Math.hypot(x - o.lh[0], y - o.lh[1], z - o.lh[2]) < o.rad * 1.5) && collapse.shoot(x, y, z, o.vx, o.vy, o.vz, o.rad, o.heavy)) {
+          o.hits++;
+          // de sloopkogel ramt door: elke muur kost vaart, pas als hij te traag is stuitert hij terug
+          if (o.heavy && sp > 6) { o.lh = [x, y, z]; const k = 0.93; o.vx *= k; o.vz *= k; o.vy *= k; continue; }
+          o.x = x - o.vx * dt / n; o.y = y; o.z = z - o.vz * dt / n;   // raak: terugstuiteren met veel minder vaart
           o.vx *= -0.22; o.vz *= -0.22; o.vy *= 0.3; return;
         }
         const hit = sp > 2 && cars.ballHit(x, y, z, o.vx, o.vy, o.vz, o.rad);

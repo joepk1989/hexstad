@@ -191,7 +191,7 @@
 
     // Een kogel (cameramodus): raakt hij een stuk van een gebouw, op welke hoogte ook, dan breekt alles binnen R rond de inslag los.
     // Geeft true terug als er iets geraakt is (dan stuitert de kogel terug).
-    function shoot(x, y, z, vx, vy, vz, rad) {
+    function shoot(x, y, z, vx, vy, vz, rad, heavy) {
       if (!ST.on) return false;
       const [q, r] = worldToCell(x, z), kk = q + ',' + r; let top = modTop.get(kk);
       if (!top || !top.inst) {   // oud blok: eerst omzetten
@@ -206,13 +206,13 @@
       if (!S.P.some(p => p.st === 'stand' && Math.abs(x - p.c.x) <= p.hx + reach && Math.abs(y - p.c.y) <= p.hy + reach && Math.abs(z - p.c.z) <= p.hz + reach)) return false;
       // een kogel breekt alleen rond de inslag los (zoals een echte muur: een deuk, geen hele gevel); wat daarboven geen
       // steun meer heeft, trekt settle() er vanzelf achteraan, dus het gebouw stort toch geloofwaardig verder in
-      const sp = Math.hypot(vx, vy, vz), R = Math.min(3.2, 0.55 + sp * 0.028 + rad * 1.1), hl = Math.hypot(vx, vz) || 1;
+      const sp = Math.hypot(vx, vy, vz), R = heavy ? Math.min(4.2, 1 + sp * 0.04 + rad * 1.3) : Math.min(3.2, 0.55 + sp * 0.028 + rad * 1.1), hl = Math.hypot(vx, vz) || 1;   // sloopkogel: groter gat
       let n = 0;
       for (const p of S.P) {
         if (p.st !== 'stand') continue;
         const d = Math.hypot(p.c.x - x, (p.c.y - y) * 1.15, p.c.z - z); if (d > R) continue;
         const k = Math.pow(Math.max(0, 1 - d / (R + 0.3)), 1.6);
-        if (Math.random() > 0.35 + 0.65 * k) continue;   // niet elk stuk binnen bereik breekt los: een paar scherven, geen hele muur in één klap
+        if (Math.random() > (heavy ? 0.6 + 0.4 * k : 0.35 + 0.65 * k)) continue;   // niet elk stuk binnen bereik breekt los: een paar scherven, geen hele muur in één klap
         release(S, p, vx / hl * sp * 0.2 * k + (Math.random() - 0.5) * 2, vz / hl * sp * 0.2 * k + (Math.random() - 0.5) * 2, Math.random() * 0.06); n++;
       }
       if (n) { puff(x, y, z, 12 + Math.min(18, n)); S.clock = 0.25; unbake(S); try { sound.fx('crunch', x, y, z, 1); sound.impact(1, x, y, z, false); } catch (e) { } }
