@@ -10,9 +10,10 @@ async function open(viewport, opts = {}) {
   const ctx = await b.newContext({ viewport, ...opts });
   const p = await ctx.newPage();
   p.on('pageerror', e => console.log('FOUT', e.message));
+  await p.route(/^https?:/, r => r.abort());   // niets van buiten laden (zonder netwerk blijft de pagina anders hangen)
   await p.route('**/three.min.js', r => r.fulfill({ contentType: 'application/javascript', body: fs.readFileSync(require.resolve('three/build/three.min.js', { paths: [path.join(ROOT, 'test')] })) }));
   await p.route(/fonts\.(googleapis|gstatic)/, r => r.abort());
-  await p.goto('file://' + path.join(ROOT, 'site/index.html')); await p.waitForTimeout(2500);
+  await p.goto('file://' + path.join(ROOT, 'site/index.html'), { timeout: 180000 }); await p.waitForTimeout(2500);
   await p.evaluate(() => document.querySelector('#welcomeGo')?.click()); await p.waitForTimeout(300);
   await p.evaluate(() => window.__SC().doAct('start'));   // het startstadje: rotonde met drie wegen
   await p.evaluate(() => { const S = window.__SC(); S.collapse.setOn(true); S.cars.setGore(true); });   // tests: instorten en bloed aan (in het spel standaard uit)

@@ -20,6 +20,30 @@
       try { sound.fx('whoosh'); sound.impact(heavy ? 0.9 : 0.5, p.x, p.y, p.z, false); } catch (e) { }
     }
     const groundY = (x, z) => { const [q, r] = worldToCell(x, z); let g = Math.max(terrGround(x, z), 0, colTopW(q, r)); const rt = roadTop(x, z, 0.5); if (rt != null) g = Math.max(g, rt); return g; };
+    // Vaste gebouwen (Instorten uit, of iets dat niet instort): de kogel stuitert op dezelfde muren en vloeren die ook de lopers tegenhouden.
+    // Alleen blokken, randen en modules; geen wegen (stoepranden en leuningen laten we met rust).
+    function solidHit(x, y, z, rad) {
+      const [q, r] = worldToCell(x, z), cols = [];
+      const add = (k) => { const c = colMap.get(k); if (c) cols.push(c); const e = edgeColMap.get(k); if (e) cols.push(e); const m = modCols.get(k); if (m) for (const c2 of m) if (!cols.includes(c2)) cols.push(c2); };
+      add(key(q, r)); for (const [dq, dr] of NEIGH) add(key(q + dq, r + dr));
+      for (const c of cols) {
+        for (const w of c.walls) {
+          if (w.y0 > y + rad || w.y1 < y - rad) continue;
+          const dx = w.bx - w.ax, dz = w.bz - w.az, l2 = dx * dx + dz * dz;
+          const s = l2 ? Math.max(0, Math.min(1, ((x - w.ax) * dx + (z - w.az) * dz) / l2)) : 0;
+          const px = w.ax + s * dx, pz = w.az + s * dz, d = Math.hypot(x - px, z - pz), lim = rad + w.half;
+          if (d >= lim) continue;
+          let nx = x - px, nz = z - pz;
+          if (d < 1e-4) { const l = Math.sqrt(l2) || 1; nx = -dz / l; nz = dx / l; } else { nx /= d; nz /= d; }
+          return { wall: true, nx, nz, px, pz, lim };
+        }
+        for (const sf of c.surfaces) {   // vloeren en daken: plaat van ~0,3 m onder de bovenkant
+          const t = surfTop(sf, x, z); if (t === null) continue;
+          if (y - rad < t && y + rad > t - 0.3) return { wall: false, top: t };
+        }
+      }
+      return null;
+    }
     function step(o, dt) {
       o.t += dt;
       o.vy -= 9.81 * dt;
@@ -34,6 +58,17 @@
           if (o.heavy && sp > 6) { o.lh = [x, y, z]; const k = 0.93; o.vx *= k; o.vz *= k; o.vy *= k; continue; }
           o.x = x - o.vx * dt / n; o.y = y; o.z = z - o.vz * dt / n;   // raak: terugstuiteren met veel minder vaart
           o.vx *= -0.22; o.vz *= -0.22; o.vy *= 0.3; return;
+        }
+        const sh = solidHit(x, y, z, o.rad);
+        if (sh && sh.wall) {   // muur: terug langs de normaal, met verlies; een tik als hij hard aankomt
+          const vn = o.vx * sh.nx + o.vz * sh.nz;
+          if (vn < 0) { o.vx -= 1.3 * vn * sh.nx; o.vz -= 1.3 * vn * sh.nz; o.vx *= 0.8; o.vz *= 0.8; o.vy *= 0.8; if (-vn > 4) { try { sound.impact(Math.min(1, -vn / 30) * (o.heavy ? 1 : 0.6), x, y, z, false); } catch (e) { } } }
+          o.x = sh.px + sh.nx * (sh.lim + 0.01); o.z = sh.pz + sh.nz * (sh.lim + 0.01); o.y = y; return;
+        }
+        if (sh) {   // vloer of dak
+          if (o.vy <= 0) { o.y = sh.top + o.rad; if (o.vy < -2.5) { try { sound.impact(Math.min(1, -o.vy / 14) * (o.heavy ? 1 : 0.6), x, o.y, z, false); } catch (e) { } } o.vy = o.vy < -1 ? -o.vy * 0.42 : 0; const fr = Math.pow(o.vy ? 0.82 : 0.35, dt * (o.vy ? 1 : 4)); o.vx *= fr; o.vz *= fr; }
+          else { o.y = sh.top - 0.3 - o.rad - 0.01; o.vy *= -0.3; }   // van onderen tegen een plafond
+          if (o.vy <= 0) { o.x = nx; o.z = nz; } else { o.x = x; o.z = z; } o.mesh.position.set(o.x, o.y, o.z); return;
         }
         const hit = sp > 2 && cars.ballHit(x, y, z, o.vx, o.vy, o.vz, o.rad);
         if (hit) { o.x = x; o.y = y; o.z = z; const k = o.heavy ? 0.75 : 0.45; o.vx *= k; o.vz *= k; o.vy = Math.abs(o.vy) * 0.3 + 1; return; }
