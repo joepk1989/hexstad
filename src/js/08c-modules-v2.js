@@ -216,6 +216,21 @@
       for (const v of tris) { const W = v.map(tfp); const o = up ? [0, 2, 1] : [0, 1, 2]; for (const i of o) { pos.push(W[i][0], y, W[i][1]); uv.push(W[i][0] / 2, W[i][1] / 2); } }
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.computeVertexNormals(); return g;
     };
+    // een stuk vloer als dichte plaat: bovenvlak, onderkant en zijkanten langs de rand van het stuk (alleen voor instorten)
+    const tileSlab = (tris, yb, yt) => {
+      const pos = [], uv = [], cnt = new Map(), vk = p => Math.round(p[0] * 64) * 1048576 + Math.round(p[1] * 64), ek = (p, q) => { const a = vk(p), b = vk(q); return a < b ? a + ':' + b : b + ':' + a; };
+      for (const v of tris) for (let e = 0; e < 3; e++) { const k = ek(v[e], v[(e + 1) % 3]); cnt.set(k, (cnt.get(k) || 0) + 1); }
+      const P = (W, y) => { pos.push(W[0], y, W[1]); uv.push(W[0] / 2, W[1] / 2); };
+      for (const v of tris) {
+        const W = v.map(tfp), up = (W[1][0] - W[0][0]) * (W[2][1] - W[0][1]) - (W[1][1] - W[0][1]) * (W[2][0] - W[0][0]) < 0;   // draairichting in xz: normaal omhoog
+        const o = up ? [0, 1, 2] : [0, 2, 1]; for (const i of o) P(W[i], yt); for (const i of [o[0], o[2], o[1]]) P(W[i], yb);
+        const cx = (W[0][0] + W[1][0] + W[2][0]) / 3, cz = (W[0][1] + W[1][1] + W[2][1]) / 3;
+        for (let e = 0; e < 3; e++) { if (cnt.get(ek(v[e], v[(e + 1) % 3])) !== 1) continue;   // rand van het stuk: zijkant naar buiten
+          let A = W[e], B = W[(e + 1) % 3]; if (-(B[1] - A[1]) * ((A[0] + B[0]) / 2 - cx) + (B[0] - A[0]) * ((A[1] + B[1]) / 2 - cz) < 0) [A, B] = [B, A];
+          P(A, yb); P(B, yb); P(B, yt); P(A, yb); P(B, yt); P(A, yt); }
+      }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.computeVertexNormals(); return g;
+    };
     for (let li = 0; li < nLv; li++) {
       const L = m.lv[li], y0 = li * LH, walkPos = [], lifted = li > 0 || stacked;   // lifted: vloerplaat met plafond eronder   // loopvlak: driehoeken (wereld, absolute hoogte) voor de botsing
       const pushWalk = (a, b, c, ya, yb, yc) => { const A = tfp(a), B = tfp(b), C = tfp(c); walkPos.push(A[0] - origin[0], ya, A[1] - origin[1], B[0] - origin[0], yb, B[1] - origin[1], C[0] - origin[0], yc, C[1] - origin[1]); };
@@ -236,7 +251,7 @@
       }
       for (const mat in byMat) {
         const top = lifted ? y0 + 0.02 : (mat === 'water' ? -0.25 : 0.05);
-        if (pieceList) { for (const T of tilesOf(byMat[mat])) { put(Mt.fl[mat] || Mt.fl.concrete, triGeo(T, top)); if (lifted && mat !== 'glass') put(Mt.ceiling, triGeo(T, y0 - MV2.FLOOR_T, false)); } continue; }
+        if (pieceList) { for (const T of tilesOf(byMat[mat])) { put(Mt.fl[mat] || Mt.fl.concrete, tileSlab(T, lifted && mat !== 'glass' ? y0 - MV2.FLOOR_T + 0.01 : Math.min(0, top - 0.05), top)); if (lifted && mat !== 'glass') put(Mt.ceiling, triGeo(T, y0 - MV2.FLOOR_T, false)); } continue; }   // instorten: elke vloertegel een dichte plaat (anders kijk je bij een gat van opzij door de vloer heen)
         put(Mt.fl[mat] || Mt.fl.concrete, triGeo(byMat[mat], top));
         if (lifted && mat !== 'glass') put(Mt.ceiling, triGeo(byMat[mat], y0 - MV2.FLOOR_T, false));
       }
@@ -316,6 +331,7 @@
           const rad = (t, Aa) => { let d = (((t - a0 - Math.PI / 6) % (Math.PI / 3)) + Math.PI / 3) % (Math.PI / 3); if (d > Math.PI / 6) d -= Math.PI / 3; return Aa / Math.cos(d); };   // zeshoek: Aa is de apothema; hoekpunten op de rasterlijnen (a0 + 60°·n), zijmiddens daartussen, net als de zes driehoeken om het rasterpunt
           const Pt = (t, Aa) => { const r = rad(t, Aa); return [a[0] + Math.cos(t) * r, a[1] + Math.sin(t) * r]; };
           const posTop = [], posSide = [];
+          const mk = (arr, mat) => { if (!arr.length) return; const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(new Array(arr.length / 3 * 2).fill(0), 2)); g.computeVertexNormals(); put(mat, g); };
           const prism = (P4, yb, yt) => {
             const Wd = P4.map(tfp), cx = (Wd[0][0] + Wd[1][0] + Wd[2][0] + Wd[3][0]) / 4, cz = (Wd[0][1] + Wd[1][1] + Wd[2][1] + Wd[3][1]) / 4, cy = (yb + yt) / 2, v = (p, y) => [p[0], y, p[1]];
             const tri = (arr, A, B, C) => { const nx = (B[1] - A[1]) * (C[2] - A[2]) - (B[2] - A[2]) * (C[1] - A[1]), ny = (B[2] - A[2]) * (C[0] - A[0]) - (B[0] - A[0]) * (C[2] - A[2]), nz = (B[0] - A[0]) * (C[1] - A[1]) - (B[1] - A[1]) * (C[0] - A[0]);
@@ -327,12 +343,11 @@
           const bar = (A, ya, B, yb) => { const pa = tfp(A), pb = tfp(B), va = new THREE.Vector3(pa[0], ya, pa[1]), vb = new THREE.Vector3(pb[0], yb, pb[1]), L2 = va.distanceTo(vb); if (L2 < 0.01) return; const g = new THREE.BoxGeometry(0.05, 0.05, L2); g.applyMatrix4(new THREE.Matrix4().lookAt(va, vb, new THREE.Vector3(0, 1, 0)).setPosition(va.clone().add(vb).multiplyScalar(0.5))); put(Mt.metal, g); };
           for (let st = 0; st < NS; st++) {
             const t0 = th(st), t1 = th(st + 1), i0 = Pt(t0, Ac), o0 = Pt(t0, Ap), o1 = Pt(t1, Ap), i1 = Pt(t1, Ac), top = y0 + (st + 1) * hs;
-            prism([i0, o0, o1, i1], top - TH, top);
+            prism([i0, o0, o1, i1], top - TH, top); if (pieceList) { mk(posTop, Mt.wl.wood); mk(posSide, Mt.step); posTop.length = 0; posSide.length = 0; }   // instorten: elke tree een eigen stuk
             pushWalk(i0, o0, o1, top, top, top); pushWalk(i0, o1, i1, top, top, top);
             if (st >= 1 && st <= NS - 2) addWall(o0, o1, top - 0.5, top + 0.95, 0.05);   // buitenrand; de eerste en laatste tree blijven open (in- en uitstap)
             addWall(i0, i1, y0, y0 + rise + 1.0, 0.05);
           }
-          const mk = (arr, mat) => { if (!arr.length) return; const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(new Array(arr.length / 3 * 2).fill(0), 2)); g.computeVertexNormals(); put(mat, g); };
           mk(posTop, Mt.wl.wood); mk(posSide, Mt.step);
           { const pc = tfp(a), rc = Ac / 0.866, g = new THREE.CylinderGeometry(rc, rc, rise + 1.05, 6); g.translate(pc[0], y0 + (rise + 1.05) / 2, pc[1]); put(Mt.metal, g); }   // zeshoekige kern
           for (let kk = 1; kk <= NS - 1; kk++) {   // leuning op palen langs de buitenkant, van tree 1 tot en met 10

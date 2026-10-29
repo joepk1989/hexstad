@@ -17,7 +17,8 @@
     // gebouw omzetten naar losse stukken (een keer)
     // Een gebouw in losse stukken voorbereiden (het zware deel: alle stukken bouwen en uitzoeken welke elkaar raken). Gebeurt bij de
     // eerste klap, of eerder: in de cameramodus wordt het gebouw waar je op richt alvast voorbereid als er even tijd is.
-    const preCache = new WeakMap();
+    const preCache = new WeakMap(), doorMats = new Map();
+    const doorMat = col => { col = col || '#5a3a22'; let m = doorMats.get(col); if (!m) doorMats.set(col, m = new THREE.MeshStandardMaterial({ color: col, roughness: 0.75 })); return m; };
     function prepare(I, e) {
       const built = modPiecesOf(I); if (!built || !built.pieces || !built.pieces.length) return null;
       const items = [], box = (g, mat, dy, extra) => { g.computeBoundingBox(); const bb = g.boundingBox, c = bb.getCenter(new THREE.Vector3()); c.y += dy; g.translate(-c.x, -(c.y - dy), -c.z);
@@ -28,6 +29,11 @@
       for (const { mat, g } of built.pieces) box(g, mat, built.G, {});
       // het hek op de rand van vloeren en daken (08c, buildRails) doet als losse stukken mee: het valt pas als de vloer eronder valt
       for (const g0 of railParts(I)) box(g0.clone(), mv2Mats().metal, 0, { flat: false, weak: true, rail: true });
+      // deurbladen (09b) doen ook mee: ze staan in de opening zoals ze nu staan (open of dicht), dragen niets en vallen of breken los als de rest
+      for (const d of doors.list) if (d.owner === I) {
+        const th = Math.atan2(-d.tz, d.tx) + d.sgn * d.open * 1.5, g = new THREE.BoxGeometry(d.w, d.h, 0.05).translate(d.w / 2, d.h / 2, 0).rotateY(th).translate(d.hx, d.y, d.hz);
+        box(g, doorMat(d.col), 0, { flat: false, weak: true, door: true });
+      }
       // aanraking: dozen die elkaar (bijna) raken; langs x gesorteerd, zodat alleen stukken die in x overlappen vergeleken worden
       const n = items.length, nb = items.map(() => []), ord = items.map((p, i) => i).sort((i, j) => (items[i].c.x - items[i].hx) - (items[j].c.x - items[j].hx));
       for (let x = 0; x < n; x++) { const i = ord[x], a = items[i], xmax = a.c.x + a.hx + TOL;
@@ -45,7 +51,8 @@
       const grp = new THREE.Group(); root.add(grp);
       S = { I, e, G: pre.G, grp, P: [], pend: 0, clock: 0 };
       pre.items.forEach((it, i) => { const mesh = new THREE.Mesh(it.g, it.mat); mesh.position.copy(it.c); mesh.castShadow = true; mesh.receiveShadow = !it.rail; mesh.matrixAutoUpdate = true; grp.add(mesh);
-        S.P.push({ mesh, c: it.c.clone(), hx: it.hx, hy: it.hy, hz: it.hz, st: 'stand', nb: pre.nb[i], dist: 0, flat: it.flat, big: it.big, weak: it.weak, rail: !!it.rail }); });
+        S.P.push({ mesh, c: it.c.clone(), hx: it.hx, hy: it.hy, hz: it.hz, st: 'stand', nb: pre.nb[i], dist: 0, flat: it.flat, big: it.big, weak: it.weak, rail: !!it.rail, door: !!it.door }); });
+      S.doorBak = doors.list.filter(d => d.owner === I).map(d => Object.assign({}, d)); doors.clear(I);   // de deurbladen zijn nu losse stukken
       e.collapsed = true; modBatchRefresh(); railsHide(I, true); mods.set(I, S); S.baked = false;
       if (e.col) { S.colBak = { w: e.col.walls, s: e.col.surfaces }; e.col.walls = []; e.col.surfaces = []; S.col = e.col; }   // geen onzichtbare muren meer: de botsing van het hele gebouw valt weg
       return S;
@@ -66,6 +73,7 @@
       for (let i = debris.length - 1; i >= 0; i--) if (debris[i].S === S) { root.remove(debris[i].p.mesh); debris[i].p.mesh.geometry.dispose(); debris.splice(i, 1); }
       if (S.col && S.colBak) { S.col.walls = S.colBak.w; S.col.surfaces = S.colBak.s; }
       if (S.e) S.e.collapsed = false; modBatchRefresh(); railsHide(I, false);
+      if (S.doorBak && modGroups.get(I) === S.e) for (const d of S.doorBak) doors.add(I, d);   // hetzelfde gebouw staat weer heel: de deuren terug (bij herbouwen maakt buildModNet nieuwe)
     }
     // Wat blijft staan wordt weer per materiaal samengevoegd (anders kost een kapot gebouw honderden tekenopdrachten); de losse
     // stukken blijven onzichtbaar staan voor de volgende klap. Per gebouw en in hetzelfde beeld: eerst het samengevoegde stuk

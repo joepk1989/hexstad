@@ -362,7 +362,7 @@ Raakt een auto (die slipt na een botsing) hard een modulegebouw, dan breken de s
 Het gebouw wordt op dat moment in losse stukken opgebouwd (`mv2Build` met `pieces: true`); wat nergens meer op steunt valt ook
 (steun = kortste weg naar de grond: omhoog gratis, opzij 1, naar beneden 2, meer dan 3 houdt niets). Hoekposten en muren zijn zo
 de dragers. Puin valt met zwaartekracht en zakt na ~10 s weg; wat blijft staan wordt samengevoegd getekend. Instelling: Instorten
-(aan/uit; uit zet alles terug). Test: `test/visueel/instorten*.js`. Ontwerp voor Unity: zelfde steungraaf, echte physics voor het vallen.
+(aan/uit; uit zet alles terug). In losse stukken is elke vloertegel een dichte plaat (boven, onder en zijkanten langs de rand van de tegel; van opzij niet meer doorzichtig), elke tree van een wenteltrap een eigen stuk, en de deurbladen (09b) worden losse stukken die niets dragen. Test: `test/visueel/instorten*.js`, `slopen_deur_trap.js`. Ontwerp voor Unity: zelfde steungraaf, echte physics voor het vallen.
 
 ## Autoschade en oude blokken
 - **Schade** (`11-autos.js`, blok "Schade"): elke auto heeft `hp` (100). Een botsing (`hurt`) kost `impact × 1,9`, tegen een gebouw `snelheid × 1,2`, een landing na de Hulk 30. Onder 65 gaat hij roken, onder 35 zwaarder, op 0 brandt hij (`ignite`: hij rolt uit en staat stil) en na 4,5–7,5 s ontploft hij (`explode`): vuur en rook, een dreun (`sound.fx('boom')`), wie dichtbij loopt wordt geraakt, buurauto's krijgen 35 schade (kettingreactie) en de auto begint ergens anders opnieuw met 100. Na een gewone botsing zoekt de auto zelf de weg terug (`rejoin`: dichtstbijzijnde rijstrook, vloeiende bocht, geen teleportatie). Er zijn geen takelwagens meer (`towDispatch` doet niets).
