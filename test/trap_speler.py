@@ -1,7 +1,7 @@
 # De speler loopt elke huistrap op (bordestrap in woningen/kantoren): komt hij boven?
 import asyncio, os, json, sys
 from playwright.async_api import async_playwright
-HERE=os.path.dirname(os.path.abspath(__file__)); DIST=os.path.join(HERE,"..","dist","hexstad.html"); THREE=os.path.join(HERE,"node_modules","three","build","three.min.js"); EMB=os.path.join(HERE,"out","emb.html"); open(EMB,"w",encoding="utf-8").write(open(DIST,encoding="utf-8").read().replace("https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js","file://"+THREE).replace("<title>","<meta charset=\"utf-8\"><title>",1)); os.chdir(os.path.join(HERE,'out'))
+HERE=os.path.dirname(os.path.abspath(__file__)); DIST=os.path.join(HERE,"..","dist","raatstad.html"); THREE=os.path.join(HERE,"node_modules","three","build","three.min.js"); EMB=os.path.join(HERE,"out","emb.html"); open(EMB,"w",encoding="utf-8").write(open(DIST,encoding="utf-8").read().replace("https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js","file://"+THREE).replace("<title>","<meta charset=\"utf-8\"><title>",1)); os.chdir(os.path.join(HERE,'out'))
 CITIES=sys.argv[1:] or ['sample','stad']
 JS="""()=>{const S=window.__SC(); const P=S.player, K=S.keys; const out=[]; const seen=new Set();
   for(const [k,col] of S.colMap){ const su=col.surfaces.filter(s=>s.kind==='slopeU'); for(let i=0;i+1<su.length;i+=2){ const a=su[i], b=su[i+1]; if(a.y1<=a.y0) continue;
@@ -25,7 +25,7 @@ async def main():
     async with async_playwright() as p:
         b=await p.chromium.launch(args=['--use-gl=swiftshader','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader'])
         pg=await b.new_page(viewport={"width":800,"height":500}); errs=[]; pg.on('pageerror',lambda e:errs.append(str(e)[:300]))
-        await pg.add_init_script("try{localStorage.setItem('hexstad-set',JSON.stringify({terr:'laag',shadow:'uit',tv:1,res:'normaal'})); localStorage.setItem('hexstad-mensen','0'); localStorage.setItem('hexstad-keys-seen','1')}catch(e){}")
+        await pg.add_init_script("try{localStorage.setItem('raatstad-set',JSON.stringify({terr:'laag',shadow:'uit',tv:1,res:'normaal'})); localStorage.setItem('raatstad-mensen','0'); localStorage.setItem('raatstad-keys-seen','1')}catch(e){}")
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
         bad=0
         for city in CITIES:

@@ -1,11 +1,11 @@
-<title>Hexstad Interfacelab</title>
+<title>Raatstad Interfacelab</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
 <style>
 /* Layout: links de werkbank (modus, voorbeelden, onderdelen, opslaan), rechts het scherm van het spel op schaal,
-   met de onderdelen in negen zones (hoeken, randen, midden). Zelfde donkere bouwkeet-stijl als Hexstad zelf. */
+   met de onderdelen in negen zones (hoeken, randen, midden). Zelfde donkere bouwkeet-stijl als Raatstad zelf. */
 :root {
   --bg: #0f1418;
   --bench: #161c23;
@@ -204,7 +204,7 @@ textarea { width: 100%; resize: vertical; min-height: 64px; line-height: 1.4; }
 
 <div class="app">
   <aside class="bench" aria-label="Werkbank">
-    <div class="brand"><span class="hex" aria-hidden="true"></span><div><h1>Interfacelab</h1><small>Hexstad · schik de bediening voor bouwen en lopen</small></div></div>
+    <div class="brand"><span class="hex" aria-hidden="true"></span><div><h1>Interfacelab</h1><small>Raatstad · schik de bediening voor bouwen en lopen</small></div></div>
     <p class="lede">Kies een voorbeeld, wissel tussen bouwen en lopen, sleep onderdelen naar een andere plek en zet ze aan of uit. Sla je ontwerp op; daarna bouw ik het precies zo in het spel.</p>
 
     <div class="tabs" role="tablist" data-tip="Tabbladen|Ontwerp: schikken. Onderzoek: wat andere bouwgames doen. Opslaan: je ontwerp bewaren zodat Claude het kan bouwen.">
@@ -229,12 +229,12 @@ textarea { width: 100%; resize: vertical; min-height: 64px; line-height: 1.4; }
 
     <section data-pane="onderzoek" hidden>
       <div class="research">
-        <article><h3>Eén vaste snelbalk</h3><p>In Satisfactory open je met Q het bouwmenu en zet je een blok met 1–9 op de snelbalk; daarna bouw je zonder het menu. Minecraft houdt dezelfde balk onderaan, wat je ook doet. Voor Hexstad: één balk die bij bouwen én lopen op dezelfde plek staat. <a href="https://satisfactory.wiki.gg/fr/wiki/HUD" target="_blank" rel="noopener">Satisfactory wiki</a></p></article>
-        <article><h3>Een catalogus die je doorzoekt</h3><p>Bij Cities: Skylines II klaagden spelers dat ze blokken niet konden vinden; de populairste mod voegt één paneel toe met zoeken op naam, soort en label, en favorieten bovenaan. Hexstad heeft al zoeken en filters bij modules: dat hoort in elke categorie. <a href="https://www.pcgamesn.com/cities-skylines-2/ui-menu-mod" target="_blank" rel="noopener">PCGamesN</a></p></article>
+        <article><h3>Eén vaste snelbalk</h3><p>In Satisfactory open je met Q het bouwmenu en zet je een blok met 1–9 op de snelbalk; daarna bouw je zonder het menu. Minecraft houdt dezelfde balk onderaan, wat je ook doet. Voor Raatstad: één balk die bij bouwen én lopen op dezelfde plek staat. <a href="https://satisfactory.wiki.gg/fr/wiki/HUD" target="_blank" rel="noopener">Satisfactory wiki</a></p></article>
+        <article><h3>Een catalogus die je doorzoekt</h3><p>Bij Cities: Skylines II klaagden spelers dat ze blokken niet konden vinden; de populairste mod voegt één paneel toe met zoeken op naam, soort en label, en favorieten bovenaan. Raatstad heeft al zoeken en filters bij modules: dat hoort in elke categorie. <a href="https://www.pcgamesn.com/cities-skylines-2/ui-menu-mod" target="_blank" rel="noopener">PCGamesN</a></p></article>
         <article><h3>Een wiel voor snel kiezen</h3><p>Planet Coaster vervangt op de console sneltoetsen door wielen die per modus anders zijn. Een wiel werkt met muis, touch en controller, maar alleen tot zo'n 6–10 keuzes, en het beste met loslaten om te kiezen. Goed voor categorieën of de handen, niet voor de hele catalogus. <a href="https://www.thesixthaxis.com/?p=361512" target="_blank" rel="noopener">TheSixthAxis</a> · <a href="https://300mind.studio/blog/radial-menus-in-game-design/" target="_blank" rel="noopener">300Mind</a></p></article>
         <article><h3>Zo min mogelijk in beeld</h3><p>Tiny Glade en Townscaper laten bijna alleen de stad zien: je bouwt door te slepen en te klikken, en gereedschap verschijnt pas als je het nodig hebt. Een permanente balk met alles erop leidt af. <a href="https://indiegames.substack.com/p/doodle-designer-tiny-glade" target="_blank" rel="noopener">Indie Games</a> · <a href="https://en.wikipedia.org/wiki/Townscaper" target="_blank" rel="noopener">Wikipedia</a></p></article>
         <article><h3>Verdiepingen zoals in De Sims</h3><p>In De Sims kies je de verdieping waarop je bouwt, en wat erboven ligt verdwijnt of wordt doorzichtig, zodat je naar binnen kijkt. Voor de gelaagde stad werkt dat ook: kies laag 1 en je ziet de winkels onder de galerijen. Zet het winkelcentrum op de achtergrond en probeer de vormen van de laagkiezer: erboven doorzichtig, erboven verbergen of alleen kiezen.</p></article>
-        <article><h3>Wat dat voor Hexstad betekent</h3><p>Nu staat het bouwmenu bij bouwen onderaan en bij lopen bovenaan, met de knoppen voor de handen er nog bij. Het lab meet daarom twee dingen: hoeveel onderdelen in beide modi op dezelfde plek blijven, en hoeveel van het beeld de bediening bedekt. Hexstad heeft ook iets wat andere spellen niet hebben: lagen. Een laagkiezer aan de rand maakt bouwen op de tweede verdieping makkelijker.</p></article>
+        <article><h3>Wat dat voor Raatstad betekent</h3><p>Nu staat het bouwmenu bij bouwen onderaan en bij lopen bovenaan, met de knoppen voor de handen er nog bij. Het lab meet daarom twee dingen: hoeveel onderdelen in beide modi op dezelfde plek blijven, en hoeveel van het beeld de bediening bedekt. Raatstad heeft ook iets wat andere spellen niet hebben: lagen. Een laagkiezer aan de rand maakt bouwen op de tweede verdieping makkelijker.</p></article>
       </div>
     </section>
 
@@ -321,7 +321,7 @@ textarea { width: 100%; resize: vertical; min-height: 64px; line-height: 1.4; }
     switch (id) {
       case 'stad': return variant === 'compact'
         ? `<div class="pill" style="padding:5px 12px 5px 6px;gap:8px"><span class="city" style="padding:0"><span class="hx" style="width:20px;height:20px"></span></span><b style="font-family:var(--font-display);font-size:17px;text-transform:uppercase;letter-spacing:.03em">${st.bg === 'wc' ? 'Winkelcentrum' : 'Voorbeeldstad'}</b><span style="color:var(--signal);font-weight:700">64</span></div>`
-        : `<div class="pnl city"><span class="hx"></span><div><b>Hexstad</b><small>${st.bg === 'wc' ? 'Winkelcentrum · 129 modules · 4 lagen' : 'Voorbeeldstad · 88 blokken · 21 m'}</small></div><div class="score"><b>64</b><small>gezellig</small></div></div>`;
+        : `<div class="pnl city"><span class="hx"></span><div><b>Raatstad</b><small>${st.bg === 'wc' ? 'Winkelcentrum · 129 modules · 4 lagen' : 'Voorbeeldstad · 88 blokken · 21 m'}</small></div><div class="score"><b>64</b><small>gezellig</small></div></div>`;
       case 'teller': return variant === 'klein'
         ? `<div class="pill" style="padding:4px 10px;font-size:12px;font-weight:700;gap:8px">Ongelukjes <span style="color:var(--signal)">0</span></div>`
         : `<div class="teller"><span class="gbtn" style="height:34px;font-size:13px">Roekeloos rijgedrag</span><span class="gbtn" style="height:30px;font-size:12px">Ongelukjes <span style="color:var(--signal)">0</span> · Door iets heen <span style="color:var(--signal)">0</span></span></div>`;
@@ -382,7 +382,7 @@ textarea { width: 100%; resize: vertical; min-height: 64px; line-height: 1.4; }
   // per onderdeel: { v: vorm, b: [zone, aan], l: [zone, aan] }; de volgorde in een zone volgt de volgorde hieronder
   const P = (v, b, l) => ({ v, b, l });
   const PRESETS = {
-    nu: { naam: 'Hexstad nu (v99)', uitleg: 'Zoals het nu is: bij bouwen het menu onderaan, bij lopen bovenaan', c: {
+    nu: { naam: 'Raatstad nu (v99)', uitleg: 'Zoals het nu is: bij bouwen het menu onderaan, bij lopen bovenaan', c: {
       stad: P('kaart', ['tl', 1], ['tl', 1]), teller: P('knoppen', ['tl', 1], ['tl', 1]), tijdweer: P('knop', ['tr', 1], ['tr', 1]), systeem: P('knoppen', ['tr', 1], ['tr', 1]), modus: P('knop', ['tr', 1], ['tr', 1]),
       catalogus: P('rij', ['bc', 1], ['tc', 1]), categorie: P('tabs', ['bc', 1], ['tc', 1]), weergave: P('balk', ['bc', 1], ['bc', 0]), handen: P('pill', ['tc', 0], ['tc', 1]),
       hotbar: P('hex', ['bc', 0], ['bc', 0]), opties: P('chips', ['bc', 0], ['bc', 0]), lagen: P('doorzichtig', ['mr', 0], ['mr', 0]), vizier: P('kruis', ['c', 0], ['c', 1]), wiel: P('open', ['c', 0], ['c', 0]),
@@ -403,7 +403,7 @@ textarea { width: 100%; resize: vertical; min-height: 64px; line-height: 1.4; }
       stad: P('compact', ['tl', 1], ['tl', 1]), teller: P('klein', ['tl', 0], ['tl', 0]), tijdweer: P('knop', ['tr', 1], ['tr', 1]), systeem: P('menu', ['tr', 1], ['tr', 1]), modus: P('schakel', ['tc', 1], ['tc', 1]),
       wiel: P('open', ['c', 1], ['c', 1]), hotbar: P('vierkant', ['bc', 1], ['bc', 1]), catalogus: P('rij', ['bc', 0], ['bc', 0]), categorie: P('tabs', ['bc', 0], ['bc', 0]), opties: P('rond', ['br', 1], ['br', 1]), handen: P('iconen', ['bl', 0], ['bl', 1]),
       weergave: P('klein', ['bl', 0], ['bl', 0]), lagen: P('doorzichtig', ['mr', 1], ['mr', 1]), vizier: P('kruis', ['c', 0], ['c', 1]), minikaart: P('vierkant', ['br', 0], ['br', 0]), hint: P('regel', ['bl', 0], ['bl', 0]), touch: P('rond', ['bl', 0], ['bl', 0]) } },
-    voorstel: { naam: 'Voorstel voor Hexstad', uitleg: 'Alles voor je handen onderaan, op dezelfde plek bij bouwen en lopen; lagen aan de rechterkant', c: {
+    voorstel: { naam: 'Voorstel voor Raatstad', uitleg: 'Alles voor je handen onderaan, op dezelfde plek bij bouwen en lopen; lagen aan de rechterkant', c: {
       stad: P('compact', ['tl', 1], ['tl', 1]), teller: P('klein', ['tl', 1], ['tl', 1]), tijdweer: P('knop', ['tr', 1], ['tr', 1]), systeem: P('knoppen', ['tr', 1], ['tr', 1]), modus: P('schakel', ['br', 1], ['br', 1]),
       hotbar: P('hex', ['bc', 1], ['bc', 1]), catalogus: P('knop', ['bc', 1], ['bc', 1]), categorie: P('iconen', ['ml', 0], ['ml', 0]), opties: P('rond', ['bl', 1], ['bl', 1]), handen: P('iconen', ['bl', 0], ['bl', 1]),
       lagen: P('doorzichtig', ['mr', 1], ['mr', 1]), weergave: P('klein', ['tl', 0], ['tl', 0]), vizier: P('kruis', ['c', 0], ['c', 1]), wiel: P('open', ['c', 0], ['c', 0]), minikaart: P('vierkant', ['tr', 0], ['tr', 0]), hint: P('regel', ['tc', 0], ['tc', 0]), touch: P('rond', ['bl', 0], ['bl', 0]) } },

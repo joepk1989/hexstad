@@ -1,7 +1,7 @@
 # Winkelcentrum: voorbeeld laden (129 modules in vier lagen), stapelen via klik op een dak, lopen over de galerij
 import asyncio, os, json
 from playwright.async_api import async_playwright
-HERE=os.path.dirname(os.path.abspath(__file__)); DIST=os.path.join(HERE,'..','dist','hexstad.html'); THREE=os.path.join(HERE,'node_modules','three','build','three.min.js'); EMB=os.path.join(HERE,'out','emb.html'); os.chdir(os.path.join(HERE,'out'))
+HERE=os.path.dirname(os.path.abspath(__file__)); DIST=os.path.join(HERE,'..','dist','raatstad.html'); THREE=os.path.join(HERE,'node_modules','three','build','three.min.js'); EMB=os.path.join(HERE,'out','emb.html'); os.chdir(os.path.join(HERE,'out'))
 src=open(DIST,encoding='utf-8').read().replace('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js','file://'+THREE).replace('<head>','<head><meta charset="utf-8">',1)
 open(EMB,'w',encoding='utf-8').write(src)
 async def main():
@@ -9,7 +9,7 @@ async def main():
         b=await p.chromium.launch(args=['--use-gl=swiftshader','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader'])
         pg=await b.new_page(viewport={"width":1280,"height":760}); errs=[]
         pg.on('pageerror',lambda e:errs.append(str(e)))
-        await pg.add_init_script("try{localStorage.setItem('hexstad-set',JSON.stringify({terr:'laag',shadow:'uit',tv:1}))}catch(e){}")
+        await pg.add_init_script("try{localStorage.setItem('raatstad-set',JSON.stringify({terr:'laag',shadow:'uit',tv:1}))}catch(e){}")
         await pg.goto('file://'+EMB,timeout=120000); await pg.wait_for_timeout(2500)
         await pg.evaluate("()=>{const kp=document.getElementById('keysPanel'); if(kp) kp.hidden=true;}")
         wc=await pg.evaluate("()=>window.__mods.filter(m=>m.cat==='Winkelcentrum').map(m=>m.name)"); print('bibliotheek:', len(wc), wc)

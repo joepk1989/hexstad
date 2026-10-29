@@ -31,9 +31,9 @@
     ];
   }
   try {
-    if (!localStorage.getItem('hexstad-bouwdelen1')) {
+    if (!localStorage.getItem('raatstad-bouwdelen1')) {
       const have = new Set(modules.map(m => m.name));
       for (const m of bouwdeelModules()) if (!have.has(m.name)) modules.push(m);
-      saveMods(); localStorage.setItem('hexstad-bouwdelen1', '1');
+      saveMods(); localStorage.setItem('raatstad-bouwdelen1', '1');
     }
   } catch (e) { /* geen opslag */ }

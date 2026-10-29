@@ -123,7 +123,7 @@
     hammer.visible = h === 'hamer'; handBlock.visible = h === 'bouwen'; handG.visible = h !== 'kijken' && mode === 'walk';
     const pb = document.getElementById('placeBtn'); pb.hidden = h === 'kijken'; pb.textContent = h === 'hamer' ? 'Sloop' : 'Bouw';
     ghost.visible = false; { const al = document.getElementById('aimLbl'); if (al) al.hidden = true; const ch = document.querySelector('.crosshair'); if (ch) ch.classList.remove('erase'); }
-    try { localStorage.setItem('hexstad-hand', h); } catch (e) { /* geen opslag */ }
+    try { localStorage.setItem('raatstad-hand', h); } catch (e) { /* geen opslag */ }
   }
   function swingHand() { swing = 1; }
   function updateHand(dt, moving) {
@@ -187,7 +187,7 @@
     toastEl.classList.add('fade');
     camera.fov = walking ? 72 : 45; camera.near = walking ? 0.1 : 1.0; camera.updateProjectionMatrix();
     if (walking) {
-      spawnPlayer(); camera.rotation.order = 'YXZ'; let h0 = 'kijken'; try { h0 = localStorage.getItem('hexstad-hand') || 'kijken'; } catch (e) { /* geen opslag */ } setHand(['kijken', 'bouwen', 'hamer'].includes(h0) ? h0 : 'kijken');
+      spawnPlayer(); camera.rotation.order = 'YXZ'; let h0 = 'kijken'; try { h0 = localStorage.getItem('raatstad-hand') || 'kijken'; } catch (e) { /* geen opslag */ } setHand(['kijken', 'bouwen', 'hamer'].includes(h0) ? h0 : 'kijken');
       const hint = document.getElementById('walkHint');
       hint.hidden = false; clearTimeout(setMode.hintT); setMode.hintT = setTimeout(() => { hint.hidden = true; }, 7000);
     }
@@ -422,7 +422,7 @@
     function setOn(v) {
       on = v;
       btn.setAttribute('aria-pressed', String(on)); waves.setAttribute('opacity', on ? '1' : '0.35');
-      try { localStorage.setItem('hexstad-geluid', on ? '1' : '0'); } catch (e) {}
+      try { localStorage.setItem('raatstad-geluid', on ? '1' : '0'); } catch (e) {}
       if (on) {
         if (!ctx) init();
         ctx.resume();
@@ -433,7 +433,7 @@
     }
     btn.addEventListener('click', () => setOn(!on));
     // Stond het geluid de vorige keer aan? Dan gaat het aan bij de eerste tik (browsers eisen een tik)
-    let wanted = false; try { wanted = localStorage.getItem('hexstad-geluid') === '1'; } catch (e) {}
+    let wanted = false; try { wanted = localStorage.getItem('raatstad-geluid') === '1'; } catch (e) {}
     if (wanted) window.addEventListener('pointerdown', function first(e) { window.removeEventListener('pointerdown', first); if (!on && e.target !== btn) setOn(true); });
     document.addEventListener('visibilitychange', () => { if (ctx) document.hidden ? ctx.suspend() : (on && ctx.resume()); });
     return {

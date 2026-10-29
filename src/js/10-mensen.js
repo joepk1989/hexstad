@@ -350,7 +350,7 @@
     let lodTick = 0;   // voor het verspreid bijwerken van mensen ver weg
     const agents = [];
     let on = true;
-    try { on = localStorage.getItem('hexstad-mensen') !== '0'; } catch (e) {}
+    try { on = localStorage.getItem('raatstad-mensen') !== '0'; } catch (e) {}
     const btn = document.getElementById('peopleBtn');
     const label = () => { const st = btn.querySelector('.state'); if (st) st.textContent = on ? 'aan' : 'uit'; else btn.textContent = 'Mensen: ' + (on ? 'aan' : 'uit'); btn.classList.toggle('off', !on); };
     label();
@@ -1250,7 +1250,7 @@
       get on() { return on; },
       get count() { return agents.length; },
       get agents() { return agents; }, graph() { return graph; },   // voor tests
-      setOn(v) { on = v; label(); try { localStorage.setItem('hexstad-mensen', on ? '1' : '0'); } catch (e) {} peopleDirty = true; },
+      setOn(v) { on = v; label(); try { localStorage.setItem('raatstad-mensen', on ? '1' : '0'); } catch (e) {} peopleDirty = true; },
       // Staat er iemand in de weg? (de speler loopt niet door mensen heen, behalve als je rent: dan val je ze omver)
       blocks(x, z, y) {
         for (const a of agents) {

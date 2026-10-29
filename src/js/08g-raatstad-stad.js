@@ -9,7 +9,7 @@
   //   5 (300–360°)  werken en de oude bouwblokken: fabriek, hallen, parkeergarage, looppaden, tunnel, tribune
   // Buiten de ring: een snelweg langs de oostkant (de weg erheen gaat er met een viaduct over) en een fietsring.
   // Alles is vast (geen toeval), zodat de stad elke keer hetzelfde is en tests erop kunnen rekenen.
-  function hexstadCity() {
+  function raatstadCity() {
     const c = new Map(); c.inst = []; c.paths = []; c.terr = {};
     const set = (q, r, a) => c.set(key(q, r), a), has = (q, r) => c.has(key(q, r));
     const RING = 270, SPOKE = 335, INNER_R = 112;

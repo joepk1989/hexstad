@@ -16,7 +16,7 @@
     const ORDER = ['zon', 'bewolkt', 'regen', 'onweer', 'mist', 'sneeuw', 'wissel'];
     // wisselend weer: wat volgt er meestal op wat (gewichten)
     const NEXT = { zon: [['bewolkt', 5], ['zon', 2], ['mist', 0.6]], bewolkt: [['zon', 3], ['regen', 3], ['mist', 1], ['sneeuw', 0.7], ['bewolkt', 1]], regen: [['bewolkt', 4], ['onweer', 1.2], ['zon', 1]], onweer: [['regen', 3], ['bewolkt', 1]], mist: [['bewolkt', 2], ['zon', 2]], sneeuw: [['bewolkt', 3], ['sneeuw', 1]] };
-    const KEY = 'hexstad.weer';
+    const KEY = 'raatstad.weer';
     const st = { mode: 'zon' };
     try { const v = JSON.parse(localStorage.getItem(KEY)); if (v && ORDER.includes(v.mode)) st.mode = v.mode; } catch (e) { /* geen opslag: zon */ }
     let cur = st.mode === 'wissel' ? 'bewolkt' : st.mode, switchIn = 90;

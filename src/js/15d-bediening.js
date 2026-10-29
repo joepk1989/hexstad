@@ -1,4 +1,4 @@
-  // ---------- Bediening onderaan (v100, uit het interfacelab: "Voorstel voor Hexstad") ----------
+  // ---------- Bediening onderaan (v100, uit het interfacelab: "Voorstel voor Raatstad") ----------
   // Bij bouwen én lopen op dezelfde plek: links het gereedschap (en tijdens het lopen de handen), in het midden de
   // snelbalk met negen blokken onder 1–9 en daarboven "Alle blokken" (Tab), rechts de schakelaar bouwen/lopen, aan de
   // rechterrand de laagkiezer. Wat je in de catalogus kiest, komt in het gekozen vak van de snelbalk.
@@ -23,9 +23,9 @@
     const DEF = ['vweg', 'pad', 'woning', 'kantoor', 'dak', 'park', 'water', 'tophoog', 'module'];
     const valid = s => s && (s.t === 'module' || TOOLS.includes(s.t)) && s.t !== 'gum';
     let slots = null, idx = 0;
-    try { const v = JSON.parse(localStorage.getItem('hexstad-snelbalk') || 'null'); if (v && Array.isArray(v.s) && v.s.length === 9) { slots = v.s.map(s => valid(s) ? s : null); idx = Math.max(0, Math.min(8, v.i | 0)); } } catch (e) { /* geen opslag */ }
+    try { const v = JSON.parse(localStorage.getItem('raatstad-snelbalk') || 'null'); if (v && Array.isArray(v.s) && v.s.length === 9) { slots = v.s.map(s => valid(s) ? s : null); idx = Math.max(0, Math.min(8, v.i | 0)); } } catch (e) { /* geen opslag */ }
     if (!slots) slots = DEF.map(t => t === 'module' ? { t, mid: (modules[moduleSel || 0] || {}).id } : { t });
-    const saveSlots = () => { try { localStorage.setItem('hexstad-snelbalk', JSON.stringify({ s: slots, i: idx })); } catch (e) { /* geen opslag */ } };
+    const saveSlots = () => { try { localStorage.setItem('raatstad-snelbalk', JSON.stringify({ s: slots, i: idx })); } catch (e) { /* geen opslag */ } };
     const modOf = s => modules.find(m => m.id === s.mid) || null;
     const nameOf = s => !s ? 'Leeg vak' : s.t === 'module' ? ((modOf(s) || {}).name || 'Module') : (TOOL_LABEL[s.t] || (TYPES[s.t] && TYPES[s.t].name) || s.t);
     const curMid = () => (modules[moduleSel] || {}).id;

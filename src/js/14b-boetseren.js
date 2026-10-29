@@ -13,7 +13,7 @@
   const TERR_COL = { tophoog: '#f2b233', tafgraaf: '#5aa9e6', tvlak: '#ffffff', tglad: '#8fd16a', thelling: '#f08a5d' };
   // Terreinstap (instelling): ophogen, afgraven en egaliseren klikken vast op veelvouden van 3 m (een verdieping), 1,5 m, of vrij (0).
   // Gladstrijken en Helling trekken blijven vrij: daar gaat het juist om de tussenhoogtes.
-  let terrStep = (() => { try { const v = JSON.parse(localStorage.getItem('hexstad-set') || '{}').tstep; return v === 0 || v === 1.5 || v === 3 ? v : 3; } catch (e) { return 3; } })();
+  let terrStep = (() => { try { const v = JSON.parse(localStorage.getItem('raatstad-set') || '{}').tstep; return v === 0 || v === 1.5 || v === 3 ? v : 3; } catch (e) { return 3; } })();
   const tSnap = h => terrStep ? Math.round(h / terrStep) * terrStep : h;
   const tUp = h => terrStep ? Math.ceil((h + 0.02) / terrStep) * terrStep : h;     // de eerstvolgende stap erboven
   const tDown = h => terrStep ? Math.floor((h - 0.02) / terrStep) * terrStep : h;  // de eerstvolgende stap eronder

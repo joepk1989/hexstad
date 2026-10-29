@@ -1,7 +1,7 @@
 # Modulenamen en bladeren: oude bibliotheek (vorige versie) wordt hernoemd; zoeken, categorieën, maat, , en .
 import asyncio, os, json, sys
 from playwright.async_api import async_playwright
-HERE=os.path.dirname(os.path.abspath(__file__)); DIST=os.path.join(HERE,'..','dist','hexstad.html'); THREE=os.path.join(HERE,'node_modules','three','build','three.min.js'); os.chdir(os.path.join(HERE,'out'))
+HERE=os.path.dirname(os.path.abspath(__file__)); DIST=os.path.join(HERE,'..','dist','raatstad.html'); THREE=os.path.join(HERE,'node_modules','three','build','three.min.js'); os.chdir(os.path.join(HERE,'out'))
 def emb(src_path, out):
     s=open(src_path,encoding='utf-8').read().replace('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js','file://'+THREE).replace('<head>','<head><meta charset="utf-8">',1)
     open(out,'w',encoding='utf-8').write(s); return 'file://'+os.path.abspath(out)
@@ -13,7 +13,7 @@ async def main():
         pg.on('pageerror',lambda e:errs.append(str(e)))
         if OLD:
             await pg.goto(emb(OLD,'emb_old.html'),timeout=120000); await pg.wait_for_timeout(2500)
-            print('oud:', await pg.evaluate("()=>JSON.parse(localStorage.getItem('hexstad-modules')).slice(0,4).map(m=>m.name)"))
+            print('oud:', await pg.evaluate("()=>JSON.parse(localStorage.getItem('raatstad-modules')).slice(0,4).map(m=>m.name)"))
         await pg.goto(emb(DIST,'emb.html'),timeout=120000); await pg.wait_for_timeout(2500)
         r=await pg.evaluate("""()=>{const M=window.__mods, names=M.map(m=>m.name), dup=names.filter((n,i)=>names.indexOf(n)!==i);
           const cats={}; for(const m of M) cats[m.cat]=(cats[m.cat]||0)+1;

@@ -1,8 +1,8 @@
   // ---------- Instellingen ----------
   // Eén venster (Menu → Instellingen) met alles wat je kunt instellen: beeld en prestaties (terrein, schaduwen,
   // beeldscherpte, wolken) en de opties die ook in de balk staan (raster, tijd, mensen, auto's, geluid).
-  // Beeld en prestaties worden bewaard in localStorage 'hexstad-set'.
-  const SET_KEY = 'hexstad-set';
+  // Beeld en prestaties worden bewaard in localStorage 'raatstad-set'.
+  const SET_KEY = 'raatstad-set';
   const setState = (() => { const d = { terr: 'laag', shadow: 'zacht', res: 'auto', clouds: true, contour: true }; try { const o = Object.assign(d, JSON.parse(localStorage.getItem(SET_KEY) || '{}')); if (COARSE && !o.mob) { o.mob = 1; o.shadow = 'eenvoudig'; o.res = 'normaal'; o.crowd = 0.5; o.clouds = true; } if (!o.tv) { o.terr = 'laag'; o.tv = 1; } return o; } catch (e) { return d; } })();   // low poly is de standaard; tv = opgeslagen na die wissel
   const saveSet = () => { try { localStorage.setItem(SET_KEY, JSON.stringify(setState)); } catch (e) { /* geen opslag */ } };
   function applyShadow(v) {
@@ -101,7 +101,7 @@
 
   // ---------- Welkomscherm ----------
   // Bij het starten (tenzij uitgezet), en via Menu → Welkom en uitleg. De grote knop gaat verder met de stad die open staat.
-  const welcomeSheet = document.getElementById('welcomeSheet'), WELCOME_KEY = 'hexstad-welkom';
+  const welcomeSheet = document.getElementById('welcomeSheet'), WELCOME_KEY = 'raatstad-welkom';
   function openWelcome() {
     const n = [...cells.values()].reduce((s, v) => s + (Array.isArray(v) ? v.length : 0), 0);
     document.getElementById('welcomeInfo').textContent = slotName + (n ? ' · ' + n + ' blokken' : '');

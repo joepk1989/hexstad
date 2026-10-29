@@ -1,6 +1,6 @@
 # Raatstad
 
-(Voorheen "Hexstad"; de bestandsnamen, opslagsleutels en de reponaam heten nog zo.) Online: https://joepk1989.github.io/hexstad/ (GitHub Pages, bouwt vanzelf bij elke push via `.github/workflows/pages.yml`).
+(Voorheen "Hexstad". Alles heet nu Raatstad; opslagsleutels zijn `raatstad-…`, oude `hexstad-…`-sleutels worden bij het starten één keer overgenomen. Alleen de reponaam en het adres heten nog `hexstad`.) Online: https://joepk1989.github.io/hexstad/ (GitHub Pages, bouwt vanzelf bij elke push via `.github/workflows/pages.yml`).
 
 3D-stadsbouwer in de browser op een zeshoekraster, op ware grootte (vak 15,6 m breed, zijde 9 m). Gebouwd met three.js r128, zonder build-tools behalve één klein script.
 
@@ -9,7 +9,7 @@
 | Map | Wat |
 |---|---|
 | `src/` | de webversie: `index.html`, `style.css`, `js/NN-naam.js` (zie hieronder) |
-| `build.js` | bouwt `dist/hexstad.html` (één bestand) of met `--site` de volledige pagina voor GitHub Pages (`site/`) |
+| `build.js` | bouwt `dist/raatstad.html` (één bestand) of met `--site` de volledige pagina voor GitHub Pages (`site/`) |
 | `assets/` | geluiden |
 | `test/` | testscripts voor de logica (zie `test/README.md`); `test/visueel/` voor screenshots en de overlapcontrole op telefoon |
 | `docs/ontwikkeling/` | bewaarde screenshots en testbeelden van de ontwikkeling, met een overzicht in de README daar |
@@ -83,7 +83,7 @@ Bouwen:
 node build.js
 ```
 
-Dat maakt `dist/hexstad.html` (één bestand, zelfde als de gepubliceerde versie) en kopieert de geluiden ernaast. `dist/` staat niet in git.
+Dat maakt `dist/raatstad.html` (één bestand, zelfde als de gepubliceerde versie) en kopieert de geluiden ernaast. `dist/` staat niet in git.
 
 ## Terrein en wegen op hoogte
 
@@ -99,7 +99,7 @@ Dat maakt `dist/hexstad.html` (één bestand, zelfde als de gepubliceerde versie
 
 ## Instellingen
 
-Menu → Instellingen (`15c-instellingen.js`, bewaard in `localStorage` `hexstad-set`): **terrein** hoog (1 m rooster), normaal (2 m) of low poly (4 m, platte vlakken; het snelst), **schaduwen** zacht, eenvoudig of uit, **beeldscherpte** scherp, normaal of snel, **wolken**, en verder raster, hoogtelijnen, penseel, tijd, mensen, auto's en geluid.
+Menu → Instellingen (`15c-instellingen.js`, bewaard in `localStorage` `raatstad-set`): **terrein** hoog (1 m rooster), normaal (2 m) of low poly (4 m, platte vlakken; het snelst), **schaduwen** zacht, eenvoudig of uit, **beeldscherpte** scherp, normaal of snel, **wolken**, en verder raster, hoogtelijnen, penseel, tijd, mensen, auto's en geluid.
 
 ## Gelaagde stad: modules op elkaar
 
@@ -122,16 +122,16 @@ De modules in de familie Winkelcentrum hebben daarom twee achterdeuren tegenover
 
 ## De stad
 
-**Menu → Hexstad** laadt de ene voorbeeldstad met alles erin (`08g-hexstad-stad.js`, vast, geen toeval): een rotonde in het midden, zes wegen recht naar buiten (twee brede), een binnenring, de ringweg (laan met bomen, straal 270 m), een fietsring erbuiten en een snelweg langs de oostkant waar de weg met een viaduct overheen gaat. Binnen de binnenring het centrum met hoogbouw en pleinen; daaromheen zes buurten, één per taartpunt: het winkelcentrum (de SketchUp-schets, 120° gedraaid zodat hij langs de ring past) met parkeren en markt; de woonwijk met rijhuizen, villa's, een woonerf en een hofje; openbaar (school, bibliotheek, gemeentehuis, kerk, ziekenhuis, museum, station, stadsplein); park en water met een meer waar de weg als brug overheen gaat, voetpaden en een voetbrug; terrein met een dijk waar de weg overheen klimt en villa's en tuinen ernaast; werken met fabriek, hallen, parkeergarage en de oude bouwblokken (looppaden, tunnel, tribune, zuilen, hof). Modules uit de bibliotheek staan met de deur naar de dichtstbijzijnde straat (`toRoad`), een module van 7 vakken alleen waar al die vakken vrij zijn. De losse voorbeeldsteden (ringstad, dorpjes, blokkenstad …) zijn uit het menu; de code en `doAct('sample')` enzovoort bestaan nog voor de tests. De loopwereld voor de speler reikt tot 450 m van het midden.
+**Menu → Raatstad** laadt de ene voorbeeldstad met alles erin (`08g-raatstad-stad.js`, vast, geen toeval): een rotonde in het midden, zes wegen recht naar buiten (twee brede), een binnenring, de ringweg (laan met bomen, straal 270 m), een fietsring erbuiten en een snelweg langs de oostkant waar de weg met een viaduct overheen gaat. Binnen de binnenring het centrum met hoogbouw en pleinen; daaromheen zes buurten, één per taartpunt: het winkelcentrum (de SketchUp-schets, 120° gedraaid zodat hij langs de ring past) met parkeren en markt; de woonwijk met rijhuizen, villa's, een woonerf en een hofje; openbaar (school, bibliotheek, gemeentehuis, kerk, ziekenhuis, museum, station, stadsplein); park en water met een meer waar de weg als brug overheen gaat, voetpaden en een voetbrug; terrein met een dijk waar de weg overheen klimt en villa's en tuinen ernaast; werken met fabriek, hallen, parkeergarage en de oude bouwblokken (looppaden, tunnel, tribune, zuilen, hof). Modules uit de bibliotheek staan met de deur naar de dichtstbijzijnde straat (`toRoad`), een module van 7 vakken alleen waar al die vakken vrij zijn. De losse voorbeeldsteden (ringstad, dorpjes, blokkenstad …) zijn uit het menu; de code en `doAct('sample')` enzovoort bestaan nog voor de tests. De loopwereld voor de speler reikt tot 450 m van het midden.
 
 **Menu → Filestad** (`08h-filestad.js`) is een klein stadje waar het verkeer vastloopt: drie rechte wegen kruisen elkaar in het midden (één kruising met zes takken, dus drie lichtgroepen en twee derde van de tijd rood), een kleine ringweg eromheen stuurt alles steeds weer naar die kruising, dicht bebouwd met woningen en kantoren. Het verkeer is er twee keer zo druk als normaal: `cells.druk = 2` (bewaard als `__d`) vermenigvuldigt in `cars.rebuild` zowel het gewenste aantal auto's als het plafond per meter weg. Na een halve minuut staat er een file, en dan komt de Hulk.
 
 ## Bediening (v100)
 
-Ontworpen in het interfacelab (`lab/interface/`, voorbeeld "Voorstel voor Hexstad"): bij bouwen en lopen staat alles op dezelfde plek (`15d-bediening.js`, HTML in `index.html`, stijlen onderaan `style.css`).
+Ontworpen in het interfacelab (`lab/interface/`, voorbeeld "Voorstel voor Raatstad"): bij bouwen en lopen staat alles op dezelfde plek (`15d-bediening.js`, HTML in `index.html`, stijlen onderaan `style.css`).
 
 - **Linksboven**: naam, aantal blokken en schoonheid; daaronder de ongelukjes-teller. **Rechtsboven**: één knop met de tijd en het weer (het paneel erachter heeft ook de tijdsnelheid, het weer en raster/mensen/auto's), geluid en menu. Roekeloos rijgedrag staat in Instellingen.
-- **Snelbalk 1–9** onderaan in het midden: negen zeshoekige vakken, ook tijdens het lopen. Cijfertoetsen, klik of het scrollwiel kiezen een vak; tijdens het lopen neem je het blok dan meteen in je hand. Wat je kiest in **Alle blokken** (Tab, of de knop erboven) komt in het gekozen vak; een blok dat al in de balk staat wordt daar gekozen. De balk wordt bewaard (`hexstad-snelbalk`). Standaard: weg, pad, woning, kantoor, dak, park, water, ophogen, module.
+- **Snelbalk 1–9** onderaan in het midden: negen zeshoekige vakken, ook tijdens het lopen. Cijfertoetsen, klik of het scrollwiel kiezen een vak; tijdens het lopen neem je het blok dan meteen in je hand. Wat je kiest in **Alle blokken** (Tab, of de knop erboven) komt in het gekozen vak; een blok dat al in de balk staat wordt daar gekozen. De balk wordt bewaard (`raatstad-snelbalk`). Standaard: weg, pad, woning, kantoor, dak, park, water, ophogen, module.
 - **Alle blokken** is de oude catalogus met tabbladen, maar nu een paneel dat boven de snelbalk openklapt en na een keuze dichtgaat (ook Escape of een klik in de stad). De zoekbalk en filters bij modules staan erin; `/` opent hem meteen bij het zoekveld.
 - **Gereedschap linksonder**: draaien (R), spiegelen (F), gum (Delete) en ongedaan maken (Ctrl+Z). Tijdens het lopen staan de handen erboven (kijken, bouwen, hamer; Q).
 - **Ongedaan maken**: na elke wijziging wordt de stad (de tekst die toch al bewaard wordt) in een rij van 15 momentopnamen gezet; wijzigingen binnen 0,7 s tellen als één stap (slepen, boetseren). `parseCity` in `01` leest zo'n tekst terug.
@@ -140,7 +140,7 @@ Ontworpen in het interfacelab (`lab/interface/`, voorbeeld "Voorstel voor Hexsta
 
 
 
-Achter de tijdknop rechtsboven staat **Weer** met zeven knoppen: zon, bewolkt, regen, onweer, mist, sneeuw en wisselend. Met **O** ga je naar het volgende weer (Shift+O naar het vorige), ook tijdens het lopen; je keuze staat ook in Instellingen en wordt bewaard (`hexstad.weer`). Bij wisselend volgt het ene weer vanzelf op het andere (zon → bewolkt → regen → onweer …), sneller als de tijd sneller loopt en niet als de tijd stilstaat (`13b-weer.js`).
+Achter de tijdknop rechtsboven staat **Weer** met zeven knoppen: zon, bewolkt, regen, onweer, mist, sneeuw en wisselend. Met **O** ga je naar het volgende weer (Shift+O naar het vorige), ook tijdens het lopen; je keuze staat ook in Instellingen en wordt bewaard (`raatstad.weer`). Bij wisselend volgt het ene weer vanzelf op het andere (zon → bewolkt → regen → onweer …), sneller als de tijd sneller loopt en niet als de tijd stilstaat (`13b-weer.js`).
 
 - **Lucht en licht**: bewolking maakt de lucht grijs en de zon zwakker (minder schaduw), 's nachts geen sterren of maan. Bij donker weer gaan de lampen binnen eerder aan. Mist zet de horizon dicht; in bouwmodus blijft je eigen stad zichtbaar. Alles verloopt in een paar seconden (`WXK` in `02`, gemengd in `DN.apply`).
 - **Regen en sneeuw** zijn deeltjes in een doos rond de camera (9000 strepen, 7000 vlokken), helemaal op de grafische kaart berekend. Bij onweer is de regen harder en schuin, en flitst de lucht met daarna de donder (verder weg is later en zachter).
@@ -194,7 +194,7 @@ Voetgangers lopen zelf niet meer door muren, inrichting of over de rand van een 
 
 De familie **Winkelcentrum** (categorie, `08e`) bouwt de tien bouwstenen uit `hex_mall.dae` na, elk met een functie; zijde +x is de voorkant of passagekant, de "kern" is de zeshoek van ¾ (straal 6,75 m) met een rand van 1,95 m eromheen:
 
-| SketchUp | Hexstad | Betekenis |
+| SketchUp | Raatstad | Betekenis |
 |---|---|---|
 | variable | `Winkelcentrum · winkel`, `· winkel · boeken`, `· horeca` | winkelblok: glazen pui met open front, dichte zijwanden, stellingen, toonbank, lichtreclame; plat dak met een groen dak (gras, boom, struiken) in de kern |
 | recht | `· magazijn` | dicht betonblok met poort achter, stellingen |
@@ -252,7 +252,7 @@ De hele bibliotheek is opnieuw opgebouwd en per module automatisch nagekeken (`t
 
 Nieuw: **Voorzieningen** (tankstation, laadplein met zonnedak, trafohuisje, zonnepark, windmolen, watertoren, waterzuivering, milieustraat), **Openbaar** (huisarts, apotheek, kinderopvang, school van 1 vak, zwembad, theater, bioscoop, bus- en tramhalte, sportveld), **Groen** (begraafplaats, kinderboerderij), **Pleinen** (haven), **Wonen** (woonboot, galerijflat, portiekflat, studentenhuis, boerderij, zorgcomplex), **Werken/Winkels** (garage, datacenter, laboratorium, bouwmarkt, tuincentrum, snackbar) en **Verbindingen** (glazen trappenhuis, roltrap). Nieuwe voorwerpen: bed, bank (binnen), bureau, keukenblok, filmdoek, auto, tankpomp, laadpaal, zonnepanelen, windmolen, schoorsteen, container, doel, grafsteen, boot, abri, glijbaan, schommel, schaap. Woningen, kantoren, winkels, hotel, ziekenhuis, school en kerk zijn ingericht; platte daken van grote gebouwen hebben zonnepanelen (een dak met alleen zonnepanelen blijft een dak).
 
-Bij het bijwerken (`hexstad-lib10`) worden standaardmodules die je nooit zelf hebt bewaard vervangen (zelfde id) en komen de nieuwe erbij; geplaatste exemplaren in elke stad krijgen de nieuwe versie (`buildModNet`). Het koppelen gaat op de precieze naam, dan op de naam uit de bouwcode, en alleen op de naam zonder lagen/maat als die uniek is (Rijhuis · baksteen bestaat in 2L én 3L).
+Bij het bijwerken (`raatstad-lib10`) worden standaardmodules die je nooit zelf hebt bewaard vervangen (zelfde id) en komen de nieuwe erbij; geplaatste exemplaren in elke stad krijgen de nieuwe versie (`buildModNet`). Het koppelen gaat op de precieze naam, dan op de naam uit de bouwcode, en alleen op de naam zonder lagen/maat als die uniek is (Rijhuis · baksteen bestaat in 2L én 3L).
 
 ## Low poly terrein
 

@@ -45,7 +45,7 @@
     // Wie wordt aangereden bloedt: spatten op het wegdek, een plas bij wie blijft liggen, vlekken op de auto en bloedige
     // bandensporen. Aan/uit in de instellingen.
     const GORE = { on: true, SC: 420, PC: 220 };
-    try { GORE.on = localStorage.getItem('hexstad-bloed') !== '0'; } catch (e) { }
+    try { GORE.on = localStorage.getItem('raatstad-bloed') !== '0'; } catch (e) { }
     const goreSplat = new THREE.InstancedMesh(new THREE.CircleGeometry(1, 6).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#ffffff', polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }), GORE.SC);
     const gorePart = new THREE.InstancedMesh(new THREE.TetrahedronGeometry(0.13), new THREE.MeshBasicMaterial({ color: '#c4101e' }), GORE.PC);
     { const w = new THREE.Color('#ffffff'); for (let i = 0; i < GORE.SC; i++) goreSplat.setColorAt(i, w); }   // eerst de kleurbuffer (hij krijgt de grootte van count), dan pas count 0
@@ -72,7 +72,7 @@
       });
     }
     let on = true;
-    try { on = localStorage.getItem('hexstad-autos') !== '0'; } catch (e) {}
+    try { on = localStorage.getItem('raatstad-autos') !== '0'; } catch (e) {}
     const btn = document.getElementById('carsBtn');
     const label = () => { const st = btn.querySelector('.state'); if (st) st.textContent = on ? 'aan' : 'uit'; else btn.textContent = "Auto's: " + (on ? 'aan' : 'uit'); btn.classList.toggle('off', !on); };
     label();
@@ -626,7 +626,7 @@
       get on() { return on; },
       get reckless() { return reckless; },
       get gore() { return GORE.on; },
-      setGore(v) { GORE.on = !!v; try { localStorage.setItem('hexstad-bloed', v ? '1' : '0'); } catch (e) { } if (!v) { goreS.length = 0; goreP.length = 0; for (const c of list) { c.blood = 0; c.bloodTrail = 0; } } },
+      setGore(v) { GORE.on = !!v; try { localStorage.setItem('raatstad-bloed', v ? '1' : '0'); } catch (e) { } if (!v) { goreS.length = 0; goreP.length = 0; for (const c of list) { c.blood = 0; c.bloodTrail = 0; } } },
       tows, rejoinStats: RJ,
       towTest: () => ({ n: tows.length, phases: tows.map(t => t.phase), towed: list.filter(c => c.towed).length }),
       goreTest: () => ({ splats: goreS.filter(Boolean).length, parts: goreP.length, bloody: list.filter(c => c.blood).length }),
@@ -666,7 +666,7 @@
         }
         return null;
       },
-      setOn(v) { on = v; label(); try { localStorage.setItem('hexstad-autos', on ? '1' : '0'); } catch (e) {} carsDirty = true; },
+      setOn(v) { on = v; label(); try { localStorage.setItem('raatstad-autos', on ? '1' : '0'); } catch (e) {} carsDirty = true; },
       blocks(x, z, y) { for (const c of list) { const dy = y - baseOf_(c); if (dy > 1.5 || dy < -1.5) continue; if (inside(c, x, z, 0.3, 0.3)) return true; } return false; },
       // Komt er een auto aan die binnen een paar seconden langs dit punt rijdt?
       approaching(x, z) {

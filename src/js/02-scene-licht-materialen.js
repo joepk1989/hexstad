@@ -194,7 +194,7 @@ gl_Position = projectionMatrix * mvPosition;`;
   const litMats = [];   // binnenruimtes: 's nachts branden de lampen (eigen licht omhoog)
   let nightK = 0;       // 0 = dag, 1 = nacht (ook voor het geluid: 's nachts geen vogels)
   const DN = (() => {
-    const KEY = 'hexstad.tod';
+    const KEY = 'raatstad.tod';
     const st = { tod: 14, auto: true, speed: 1 };
     try { const v = JSON.parse(localStorage.getItem(KEY)); if (v && isFinite(v.tod)) { st.tod = ((v.tod % 24) + 24) % 24; st.auto = v.auto !== false; if ([1, 4, 12].includes(v.speed)) st.speed = v.speed; } } catch (e) { /* geen opslag: dan de standaard */ }
     const SPEED = 24 / 300;   // een etmaal duurt vijf minuten

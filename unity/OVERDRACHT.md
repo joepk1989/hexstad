@@ -334,7 +334,7 @@ Gemeten in het bestand: vak R = 9 m, verdieping 3 m, vloer 0,3 m dik; steek 6,75
 - **Inrichting** (`libOldDetails`, `libExtraDetails`): hulpjes `atWall` (tegen de muur van een zeshoek met de normaal op een hoek, voorkant naar binnen:
   rot = hoek + 90°), `bedAt` (hoofdeinde tegen de muur), `home` (keuken, tafel, bank, bedden, bureau op hoeken die vrij zijn van deur en trap),
   `officeFloor`, `shopFloor`, `solarRoof`. `pruneNearStairs` haalt elk voorwerp weg dat bij een trap staat (instap, baan, uitstap, gat erboven).
-- **Bijwerken** (`hexstad-lib10`): vervangen alleen als de speler de module nooit bewaarde (`_sig`); koppelen op precieze naam, dan `was`, dan de naam zonder
+- **Bijwerken** (`raatstad-lib10`): vervangen alleen als de speler de module nooit bewaarde (`_sig`); koppelen op precieze naam, dan `was`, dan de naam zonder
   achtervoegsel als die uniek is. Exemplaren in een stad volgen via `m.lib` in `buildModNet`. Let op de laadvolgorde: `08d9` staat vóór `08e`, omdat 08e bij het
   laden al installeert (de `const`-hulpjes moeten dan bestaan).
 - Unity: dezelfde controle is handig als editor-test (NavMesh-bereikbaarheid per verdieping en overlap van props met wanden).

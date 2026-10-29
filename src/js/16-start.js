@@ -21,10 +21,10 @@
   const cleaned = sanitize(cells);
   // eenmalig: huizen in bestaande steden krijgen een dak (daarna mag je een dak gewoon weghalen)
   try {
-    if (!localStorage.getItem('hexstad-daken-v1')) {
+    if (!localStorage.getItem('raatstad-daken-v1')) {
       roofHouses(cells);
       const mine = load(MINE); if (mine) { roofHouses(mine); localStorage.setItem(MINE, serialize(mine)); }
-      localStorage.setItem('hexstad-daken-v1', '1');
+      localStorage.setItem('raatstad-daken-v1', '1');
     }
   } catch (e) {}
   save();

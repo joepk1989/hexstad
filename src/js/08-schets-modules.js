@@ -1,5 +1,5 @@
   // ---------- Schets en modules: teken vrij op het zeshoekraster; de lijnen klikken vast op randen en doorgangen ----------
-  const MODS_KEY = 'hexstad-modules';
+  const MODS_KEY = 'raatstad-modules';
   let modules = [];
   try { modules = (JSON.parse(localStorage.getItem(MODS_KEY) || '[]') || []).filter(m => m && Array.isArray(m.edges)); } catch (e) { modules = []; }
   const uid = () => Math.random().toString(36).slice(2, 10);
@@ -8,7 +8,7 @@
   // Geen startmodules meer: de lijst begint leeg en vult zich met je eigen schetsen.
   // Eenmalig (reset 1) worden eerder meegeleverde modules en alles wat ermee in de stad staat weggehaald.
   let modsReset = false;
-  try { if (!localStorage.getItem('hexstad-mods-reset1')) { modules = []; localStorage.setItem(MODS_KEY, '[]'); localStorage.setItem('hexstad-mods-reset1', '1'); modsReset = true; } } catch (e) { /* geen opslag */ }
+  try { if (!localStorage.getItem('raatstad-mods-reset1')) { modules = []; localStorage.setItem(MODS_KEY, '[]'); localStorage.setItem('raatstad-mods-reset1', '1'); modsReset = true; } } catch (e) { /* geen opslag */ }
   const saveMods = () => { ensureIds(); try { localStorage.setItem(MODS_KEY, JSON.stringify(modules)); } catch (e) { /* geen opslag */ } };
   let moduleSel = null, moduleRot = 0, moduleMir = false;   // moduleMir: gespiegeld plaatsen (toets F)
   function rotKey(id, n) {   // draai een rand of doorgang n x 60° (tegen de klok in) rond vak 0,0
@@ -651,7 +651,7 @@
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
   $('bSaveOne').onclick = () => { if (!S.tris.size && !S.paths.length) { say('Teken eerst iets'); return; } const m = cur(); download(m.name.replace(/[^\w\-]+/g, '_') + '.json', JSON.stringify(m)); };
-  $('bSaveAll').onclick = () => { if (!modules.length) { say('Bewaar eerst een module'); return; } download('hexstad-modules.json', JSON.stringify(modules)); };
+  $('bSaveAll').onclick = () => { if (!modules.length) { say('Bewaar eerst een module'); return; } download('raatstad-modules.json', JSON.stringify(modules)); };
   $('bFile').onchange = e => { const f = e.target.files && e.target.files[0]; if (!f) return; f.text().then(t => { $('code').value = t; $('bImport').click(); e.target.value = ''; }); };
   $('bCopyAll').onclick = () => { if (!modules.length) { say('Bewaar eerst een module'); return; } copy(JSON.stringify(modules)); };
   $('bImport').onclick = () => {

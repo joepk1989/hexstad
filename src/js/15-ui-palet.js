@@ -90,8 +90,8 @@
   // elk zoekwoord moet het begin van een woord zijn ("rij hout", "glas 7", "plein 7v").
   const modBar = document.createElement('div'); modBar.className = 'modbar'; modBar.hidden = true; paletteEl.insertBefore(modBar, palRow);
   let modQuery = '', modSize = 0, modStack = false;   // modSize: 0 alle, 1 één vak, 7 zeven vakken
-  let modRecent = []; try { modRecent = JSON.parse(localStorage.getItem('hexstad-modrecent') || '[]'); } catch (e) { /* geen opslag */ }
-  function modUsed(m) { if (!m || !m.id) return; modRecent = [m.id, ...modRecent.filter(x => x !== m.id)].slice(0, 16); try { localStorage.setItem('hexstad-modrecent', JSON.stringify(modRecent)); } catch (e) { /* geen opslag */ } }
+  let modRecent = []; try { modRecent = JSON.parse(localStorage.getItem('raatstad-modrecent') || '[]'); } catch (e) { /* geen opslag */ }
+  function modUsed(m) { if (!m || !m.id) return; modRecent = [m.id, ...modRecent.filter(x => x !== m.id)].slice(0, 16); try { localStorage.setItem('raatstad-modrecent', JSON.stringify(modRecent)); } catch (e) { /* geen opslag */ } }
   const coll = new Intl.Collator('nl', { numeric: true, sensitivity: 'base' });
   const catOrd = c => { const i = MV2.cats.indexOf(c); return i < 0 ? 99 : i; };
   const modCatOf = m => m.v === 2 ? (m.cat || 'Overig') : 'Oude schets';
@@ -109,7 +109,7 @@
     if (modCat === 'Recent') return idx.sort((a, b) => modRecent.indexOf(modules[a].id) - modRecent.indexOf(modules[b].id));
     return idx.sort((a, b) => { const A = modules[a], B = modules[b]; return catOrd(modCatOf(A)) - catOrd(modCatOf(B)) || coll.compare(A.name || '', B.name || ''); });
   }
-  function setModCat(c) { modCat = c; try { localStorage.setItem('hexstad-modcat', c); } catch (e) { /* geen opslag */ } renderModCards(); toolScroll.scrollLeft = 0; }
+  function setModCat(c) { modCat = c; try { localStorage.setItem('raatstad-modcat', c); } catch (e) { /* geen opslag */ } renderModCards(); toolScroll.scrollLeft = 0; }
   function renderModBar() {
     if (!modBar.firstChild) {
       modBar.innerHTML = '<label class="msearch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg><input type="search" id="modSearch" placeholder="Zoek module  ( / )" autocomplete="off" spellcheck="false" aria-label="Zoek module"></label><div class="mchips" id="modChips"></div><div class="mfilt"><button type="button" data-sz="1" title="Alleen modules van 1 vak">1 vak</button><button type="button" data-sz="7" title="Alleen modules van 7 vakken">7 vakken</button><button type="button" data-st="1" title="Alleen modules met een plat dak (stapelbaar)">Plat dak</button></div>';
@@ -142,7 +142,7 @@
     const at = l.indexOf(moduleSel), n = at < 0 ? (d > 0 ? 0 : l.length - 1) : (at + d + l.length) % l.length;
     moduleSel = l[n]; moduleGhostKey = ''; selectTool('module'); renderModCards(); toast(modules[moduleSel].name, 900);
   }
-  let modCat = 'Alles'; try { modCat = localStorage.getItem('hexstad-modcat') || 'Alles'; } catch (e) { /* geen opslag */ }
+  let modCat = 'Alles'; try { modCat = localStorage.getItem('raatstad-modcat') || 'Alles'; } catch (e) { /* geen opslag */ }
   const tsvg = d => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>';
   const TERR_SVG = {
     tophoog: tsvg('<path d="M2 20c4-1 5-9 10-9s6 8 10 9" fill="#6fa356" stroke="#3d6b2c"/><path d="M12 9V2M9 5l3-3 3 3" stroke="#fff"/>'),
@@ -262,8 +262,8 @@
     const sp = DN.st.auto ? DN.st.speed : 0;
     optSpeed.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.sp === sp)));
   }
-  optGrid.addEventListener('click', () => { gridOn = !gridOn; gridLines.visible = gridOn && mode !== 'walk'; try { localStorage.setItem('hexstad-raster', gridOn ? '1' : '0'); } catch (e) {} refreshOpt(); });
-  try { if (localStorage.getItem('hexstad-raster') === '0') { gridOn = false; gridLines.visible = false; } } catch (e) {}
+  optGrid.addEventListener('click', () => { gridOn = !gridOn; gridLines.visible = gridOn && mode !== 'walk'; try { localStorage.setItem('raatstad-raster', gridOn ? '1' : '0'); } catch (e) {} refreshOpt(); });
+  try { if (localStorage.getItem('raatstad-raster') === '0') { gridOn = false; gridLines.visible = false; } } catch (e) {}
   optPeople.addEventListener('click', () => { people.setOn(!people.on); toast(people.on ? 'Er lopen weer mensen door de stad' : 'Geen mensen meer op straat', 1400); refreshOpt(); });
   optCars.addEventListener('click', () => { cars.setOn(!cars.on); toast(cars.on ? 'Er rijden weer auto\'s' : 'Geen auto\'s meer op straat', 1400); refreshOpt(); });
   optSpeed.addEventListener('click', e => {
@@ -336,7 +336,7 @@
       slotName = act.startsWith('gen:') ? ({ dorp: 'Willekeurig dorp', kruis: 'Honingraatstad', ring: 'Zeshoekige ringstad', rotonde: 'Dorp met rotonde (zes armen)' }[act.split(':')[1]] || 'Gegenereerde stad') : { start: 'Startstadje', stad: 'Grote stad', file: 'Filestad', sample: 'Voorbeeldstad', ring: 'Ringstad', random: 'Willekeurige stad', blocks: 'Blokkenstad', layers: 'Gelaagde stad', empty: 'Lege bouwgrond', dorp1: 'Dorpsstraat', dorp2: 'Dorp met kruising', dorp3: 'Dorp met rotonde', mall: 'Winkelcentrum', dorp4: 'Dorp met brede weg' }[act];
     }
     if (act.startsWith('dorp')) { cells = roofHouses(dorp(+act[4])); rebuildAll(); changed(); orbit.target.set(0, 0, 0); orbit.dist = 120; orbit.phi = 0.85; applyOrbit(); toast('Dorpje geladen · je eigen stad staat veilig onder Mijn stad'); }
-    if (act === 'stad') { cells = hexstadCity(); rebuildAll(); changed(); orbit.target.set(0, 0, 0); orbit.dist = 520; orbit.phi = 0.9; orbit.theta = 0.5; applyOrbit(); toast('Hexstad geladen: rotonde in het midden, zes buurten binnen de ringweg · je eigen stad staat veilig onder Mijn stad', 3500); }
+    if (act === 'stad') { cells = raatstadCity(); rebuildAll(); changed(); orbit.target.set(0, 0, 0); orbit.dist = 520; orbit.phi = 0.9; orbit.theta = 0.5; applyOrbit(); toast('Raatstad geladen: rotonde in het midden, zes buurten binnen de ringweg · je eigen stad staat veilig onder Mijn stad', 3500); }
     if (act === 'file') { cells = fileCity(); rebuildAll(); changed(); orbit.target.set(0, 0, 0); orbit.dist = 230; orbit.phi = 0.95; orbit.theta = 0.4; applyOrbit(); toast('Filestad geladen: één drukke kruising met zes takken · wacht een minuutje op de file … en op de Hulk', 4000); }
     if (act === 'mall') { cells = mallCity(); rebuildAll(); changed(); orbit.target.set(0, 6, 0); orbit.dist = 220; orbit.phi = 0.95; orbit.theta = 0.6; applyOrbit(); toast('Winkelcentrum geladen: hex-modules in vier lagen · klik op een dak om erop te bouwen', 3500); }
     if (act === 'copycity') {

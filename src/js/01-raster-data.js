@@ -1,3 +1,12 @@
+  // ---------- Opslag: de oude naam (hexstad-…) wordt raatstad-… ----------
+  // Eén keer bij het starten: alles wat nog onder de oude sleutels staat (steden, modules, instellingen) wordt gekopieerd
+  // naar de nieuwe sleutels, zodat niemand zijn stad kwijtraakt. De oude sleutels blijven als reserve staan.
+  try {
+    if (!localStorage.getItem('raatstad-naam1')) {
+      for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (!/^hexstad[-.]/.test(k)) continue; const nk = 'raatstad' + k.slice(7); if (localStorage.getItem(nk) === null) localStorage.setItem(nk, localStorage.getItem(k)); }
+      localStorage.setItem('raatstad-naam1', '1');
+    }
+  } catch (e) { /* geen opslag */ }
   // ---------- Raster ----------
   const R = 9;                   // midden tot hoekpunt, meter (vak is 15,6 m breed, zijde 9 m = straatbreedte)
   const SQ3 = Math.sqrt(3);
@@ -165,7 +174,7 @@
   // Twee bewaarplekken: "mijn stad" (wat jij zelf bouwt, raakt nooit kwijt) en de stad die nu open staat.
   // Zolang "mijn stad" open staat, wordt elke wijziging daarin bewaard. Een gegenereerde stad, de voorbeeldstad
   // of lege bouwgrond is een losse kladstad: daar mag je in rommelen zonder dat je eigen stad verandert.
-  const STORE = 'hexstad-v2', MINE = 'hexstad-mijnstad', SLOT = 'hexstad-plek';
+  const STORE = 'raatstad-v2', MINE = 'raatstad-mijnstad', SLOT = 'raatstad-plek';
   let slot = 'mijn', slotName = 'Mijn stad';
   const serialize = m => { const o = Object.fromEntries(m); if (m.edges && m.edges.size) o.__e = [...m.edges]; if (m.paths && m.paths.length) o.__p = m.paths; if (m.tris && m.tris.length) o.__t = m.tris; if (m.inst && m.inst.length) o.__i = m.inst; if (m.rails && m.rails.length) o.__r = m.rails.filter(r => r.p && r.p.length > 1); if (m.druk > 1) o.__d = m.druk; if (m.sec) { const g = {}; for (const k in m.sec) if (m.sec[k] > 0 && m.sec[k] < 63 && m.has(k)) g[k] = m.sec[k]; if (Object.keys(g).length) o.__s = g; } if (m.terr) { const g = {}; for (const k in m.terr) if (m.terr[k] > 0.004) g[k] = Math.round(m.terr[k] * 100) / 100; if (Object.keys(g).length) o.__g = g; } return JSON.stringify(o); };
   function save() {

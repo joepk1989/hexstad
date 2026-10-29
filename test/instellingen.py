@@ -1,7 +1,7 @@
 # Instellingen: venster openen, terrein op low poly / hoog, schaduwen uit; terrein met heuvels en een weg
 import asyncio, os, time
 from playwright.async_api import async_playwright
-HERE=os.path.dirname(os.path.abspath(__file__)); DIST=os.path.join(HERE,'..','dist','hexstad.html'); THREE=os.path.join(HERE,'node_modules','three','build','three.min.js'); EMB=os.path.join(HERE,'out','emb.html'); os.chdir(os.path.join(HERE,'out'))
+HERE=os.path.dirname(os.path.abspath(__file__)); DIST=os.path.join(HERE,'..','dist','raatstad.html'); THREE=os.path.join(HERE,'node_modules','three','build','three.min.js'); EMB=os.path.join(HERE,'out','emb.html'); os.chdir(os.path.join(HERE,'out'))
 src=open(DIST,encoding='utf-8').read().replace('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js','file://'+THREE).replace('<head>','<head><meta charset="utf-8">',1)
 open(EMB,'w',encoding='utf-8').write(src)
 cells={}
@@ -26,6 +26,6 @@ async def main():
             await pg.click('#setClose'); await pg.wait_for_timeout(1200); await pg.screenshot(path=f'set_{q}.png'); print(q, 'wissel', round(dt,2),'s')
             await pg.click('#menuBtn'); await pg.wait_for_timeout(200); await pg.click('#setBtn'); await pg.wait_for_timeout(300)
         await pg.click('#setRows .seg[aria-label=Schaduwen] >> text="Uit"'); await pg.wait_for_timeout(300)
-        print('opgeslagen:', await pg.evaluate("()=>localStorage.getItem('hexstad-set')"))
+        print('opgeslagen:', await pg.evaluate("()=>localStorage.getItem('raatstad-set')"))
         print('fouten:',errs[:5]); await b.close()
 asyncio.run(main())

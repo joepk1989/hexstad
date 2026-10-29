@@ -27,12 +27,12 @@
   function toggleKeys(on) {
     const show = on === undefined ? keysPanel.hidden : on;
     keysPanel.hidden = !show; keysBtn.setAttribute('aria-expanded', String(show)); if (show) renderKeys();
-    try { localStorage.setItem('hexstad-keys-seen', '1'); } catch (e) { /* geen opslag */ }
+    try { localStorage.setItem('raatstad-keys-seen', '1'); } catch (e) { /* geen opslag */ }
   }
   keysBtn.addEventListener('click', () => toggleKeys());
   document.getElementById('keysClose').addEventListener('click', () => toggleKeys(false));
   // eerste keer: even laten zien (alleen met een toetsenbord)
-  try { if (!localStorage.getItem('hexstad-keys-seen') && !document.body.classList.contains('coarse')) setTimeout(() => { toggleKeys(true); setTimeout(() => { if (!keysPanel.matches(':hover')) toggleKeys(false); }, 9000); }, 1500); } catch (e) { /* geen opslag */ }
+  try { if (!localStorage.getItem('raatstad-keys-seen') && !document.body.classList.contains('coarse')) setTimeout(() => { toggleKeys(true); setTimeout(() => { if (!keysPanel.matches(':hover')) toggleKeys(false); }, 9000); }, 1500); } catch (e) { /* geen opslag */ }
 
   // terreinpenseel: 0 = één vak, 1 = met de ring eromheen (7), 2 = twee ringen (19)
   function setBrush(b) { terrBrush = Math.max(0, Math.min(3, b)); toast('Terreinpenseel: ' + [1, 7, 19, 37][terrBrush] + (terrBrush ? ' vakken' : ' vak'), 1000); if (lastHover) updateGhost(); }

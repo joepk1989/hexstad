@@ -15,7 +15,7 @@
     terrQ = TQ[q] ? q : 'normaal'; TST = TQ[terrQ].st; TBL = Math.ceil(2.7 * TSIG / TST); TN = TSZ / TST + 3;   // punten per rij: −1 … n+1
     const k = []; let sum = 0; for (let i = -TBL; i <= TBL; i++) { const w = Math.exp(-((i * TST) ** 2) / (2 * TSIG * TSIG)); k.push(w); sum += w; } TK1 = k.map(w => w / sum);
   }
-  terrSetup((() => { try { const o = JSON.parse(localStorage.getItem('hexstad-set') || '{}'); return o.tv ? o.terr : 'laag'; } catch (e) { return null; } })() || 'laag');   // standaard low poly (tv: keuze na die wissel)
+  terrSetup((() => { try { const o = JSON.parse(localStorage.getItem('raatstad-set') || '{}'); return o.tv ? o.terr : 'laag'; } catch (e) { return null; } })() || 'laag');   // standaard low poly (tv: keuze na die wissel)
   const terrGroup = new THREE.Group(); scene.add(terrGroup);
   const tChunks = new Map();   // 'i,j' → { base, fin, mesh, dirty }
   let tRoadSegs = [];          // wegstukken die het maaiveld beïnvloeden: [ax, az, bx, bz, ha, hb, flat, reach, edge]

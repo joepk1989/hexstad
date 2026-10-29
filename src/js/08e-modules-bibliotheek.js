@@ -323,26 +323,26 @@
   // standaardmodules vernieuwd en de geplaatste exemplaren bijgewerkt. Eigen modules blijven staan.
   let libRefreshed = false;
   try {
-    if (!localStorage.getItem('hexstad-lib3')) { libInstall(!!localStorage.getItem('hexstad-lib2')); localStorage.setItem('hexstad-lib2', '1'); localStorage.setItem('hexstad-lib3', '1'); libRefreshed = true; }
+    if (!localStorage.getItem('raatstad-lib3')) { libInstall(!!localStorage.getItem('raatstad-lib2')); localStorage.setItem('raatstad-lib2', '1'); localStorage.setItem('raatstad-lib3', '1'); libRefreshed = true; }
   } catch (e) { /* geen opslag */ }
   // Eenmalig: de standaardmodules krijgen hun nieuwe, logische naam (eigen aanpassingen blijven); Trappen heet nu Verbindingen
   try {
-    if (!localStorage.getItem('hexstad-names1')) {
+    if (!localStorage.getItem('raatstad-names1')) {
       const map = new Map(libStandard().map(m => [m.was, m])); let n = 0;
       for (const m of modules) { const st = m.v === 2 && map.get(m.name); if (st) { m.name = st.name; m.cat = st.cat; m._sig = Date.now(); n++; } else if (m.cat === 'Trappen') m.cat = 'Verbindingen'; }
-      if (n) saveMods(); localStorage.setItem('hexstad-names1', '1');
+      if (n) saveMods(); localStorage.setItem('raatstad-names1', '1');
     }
   } catch (e) { /* geen opslag */ }
   // Nieuwe uitgave (lib4: Winkelcentrum): ontbrekende standaardmodules erbij, eigen en bestaande blijven zoals ze zijn
-  try { if (!localStorage.getItem('hexstad-lib4')) { libInstall(false); localStorage.setItem('hexstad-lib4', '1'); } } catch (e) { /* geen opslag */ }
+  try { if (!localStorage.getItem('raatstad-lib4')) { libInstall(false); localStorage.setItem('raatstad-lib4', '1'); } } catch (e) { /* geen opslag */ }
   // lib5: de Winkelcentrum-familie volgens de schets (galerij met trap zonder winkel eronder, gespiegeld, brede trap):
   // die standaardmodules worden vervangen (zelfde id, zodat geplaatste exemplaren meegaan), de rest blijft staan
   try {
-    if (!localStorage.getItem('hexstad-lib9')) {
+    if (!localStorage.getItem('raatstad-lib9')) {
       const base = n => (n || '').replace(/( · \d+[Lv])+$/, '');
       for (const old of ['Winkelcentrum · galerij · trap · gespiegeld', 'Winkelcentrum · trap · breed']) { const i = modules.findIndex(x => base(x.name) === old); if (i >= 0) modules.splice(i, 1); }   // vervangen door spiegelen
       for (const m of libStandard()) { if (m.cat !== 'Winkelcentrum') continue; const i = modules.findIndex(x => base(x.name) === base(m.name)); if (i >= 0) { m.id = modules[i].id; modules[i] = m; } else modules.push(m); }
-      saveMods(); localStorage.setItem('hexstad-lib9', '1');
+      saveMods(); localStorage.setItem('raatstad-lib9', '1');
     }
   } catch (e) { /* geen opslag */ }
   // lib10: de hele bibliotheek opnieuw gebouwd en gecontroleerd (bereikbaarheid, trappen, inrichting) plus 35 nieuwe basisgebouwen.
@@ -350,7 +350,7 @@
   // gaan mee, zie buildModNet), nieuwe komen erbij; wat je zelf hebt aangepast of gemaakt blijft staan.
   let libNews = 0;
   try {
-    if (!localStorage.getItem('hexstad-lib10')) {
+    if (!localStorage.getItem('raatstad-lib10')) {
       const base = n => (n || '').replace(/( · \d+[Lv])+$/, '');
       const std = libStandard(), baseCount = new Map(); for (const m of std) baseCount.set(base(m.name), (baseCount.get(base(m.name)) || 0) + 1);
       const used = new Set();
@@ -361,29 +361,29 @@
         if (baseCount.get(base(m.name)) === 1) { i = modules.findIndex((x, j) => !used.has(j) && x.v === 2 && base(x.name) === base(m.name)); if (ok(i)) return i; }
         return -1; };
       for (const m of std) { m.lib = 10; const i = match(m); if (i >= 0) { used.add(i); if (modules[i]._sig) continue; m.id = modules[i].id; modules[i] = m; } else { modules.push(m); used.add(modules.length - 1); libNews++; } }
-      saveMods(); localStorage.setItem('hexstad-lib10', '1'); libRefreshed = true;
+      saveMods(); localStorage.setItem('raatstad-lib10', '1'); libRefreshed = true;
     }
     // lib11: nieuwe standaardmodules erbij (klein winkelcentrum); wat er al is blijft zoals het is
-    if (!localStorage.getItem('hexstad-lib11')) {
+    if (!localStorage.getItem('raatstad-lib11')) {
       const base = n => (n || '').replace(/( · \d+[Lv])+$/, ''), have = new Set(modules.map(m => base(m.name)));
       for (const m of libStandard()) if (!have.has(base(m.name))) { m.lib = 11; modules.push(m); libNews++; }
-      saveMods(); localStorage.setItem('hexstad-lib11', '1'); libRefreshed = true;
+      saveMods(); localStorage.setItem('raatstad-lib11', '1'); libRefreshed = true;
     }
     // lib14: wegdekken erbij
-    if (!localStorage.getItem('hexstad-lib14')) {
+    if (!localStorage.getItem('raatstad-lib14')) {
       const base = n => (n || '').replace(/( · \d+[Lv])+$/, ''), have = new Set(modules.map(m => base(m.name)));
       for (const m of libStandard()) if (!have.has(base(m.name))) { m.lib = 14; modules.push(m); libNews++; }
-      saveMods(); localStorage.setItem('hexstad-lib14', '1'); libRefreshed = true;
+      saveMods(); localStorage.setItem('raatstad-lib14', '1'); libRefreshed = true;
     }
     // lib13: nieuwe indeling (Horeca, Sport, Vervoer); ook voor aangepaste modules met dezelfde naam
-    if (!localStorage.getItem('hexstad-lib13')) {
+    if (!localStorage.getItem('raatstad-lib13')) {
       for (const m of modules) { const c = m.v === 2 && CAT_FIX[catBase(m.name)]; if (c) m.cat = c; }
-      saveMods(); localStorage.setItem('hexstad-lib13', '1');
+      saveMods(); localStorage.setItem('raatstad-lib13', '1');
     }
     // lib12: het kleine winkelcentrum hoort bij de Winkelcentrum-familie (ook in het filter Winkelcentrum)
-    if (!localStorage.getItem('hexstad-lib12')) {
+    if (!localStorage.getItem('raatstad-lib12')) {
       for (const m of modules) if (m.v === 2 && /^Winkelcentrum · klein( · |$)/.test(m.name || '') && m.cat === 'Winkels') m.cat = 'Winkelcentrum';
-      saveMods(); localStorage.setItem('hexstad-lib12', '1');
+      saveMods(); localStorage.setItem('raatstad-lib12', '1');
     }
   } catch (e) { /* geen opslag */ }
   // voor de tests (bibliotheekcontrole): de rekenhulpen van modules v2

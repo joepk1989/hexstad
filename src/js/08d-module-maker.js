@@ -1009,7 +1009,7 @@
       const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
     }
     $('bExport').onclick = () => { const m = E.m; download((m.name || 'module').replace(/[^\w\-]+/g, '_') + '.json', JSON.stringify(m)); };
-    $('bExportAll').onclick = () => download('hexstad-modules.json', JSON.stringify(modules));
+    $('bExportAll').onclick = () => download('raatstad-modules.json', JSON.stringify(modules));
     $('bFile').onchange = e => { const f = e.target.files && e.target.files[0]; if (!f) return; f.text().then(t => { try { const o = JSON.parse(t), list = Array.isArray(o) ? o : [o]; let n = 0; for (const m of list) { if (!m || typeof m !== 'object') continue; if (m.v === 2) mv2Fix(m); else if (!Array.isArray(m.edges)) continue; m.id = uid(); modules.push(m); n++; } saveMods(); renderStrip(); renderLib(); say(n + ' module(s) geladen'); } catch (err) { say('Geen geldig bestand'); } e.target.value = ''; }); };
         $('bStd').onclick = () => { if (!sure('std', 'Standaardmodules terugzetten? Aangepaste standaardmodules worden overschreven; je eigen modules blijven staan')) return; const n = libInstall(true); for (const m of modules) if (m.v === 2) syncModule(m); renderStrip(); renderLib(); say(n + ' standaardmodules teruggezet'); };
     // Vloeiend wisselen tussen stad en ontwerper: de camera vliegt eerst naar de plek (de stad blijft draaien), de ontwerper
