@@ -29,26 +29,37 @@
     palTabs.querySelectorAll('.pal-tab').forEach((t, j) => { t.setAttribute('aria-pressed', String(j === ci)); if (j === ci) t.scrollIntoView({ block: 'nearest', inline: 'nearest' }); });
     renderModCards();
   }
+  // De andere tabbladen tonen ook de modules die erbij horen (achter de gewone gereedschappen), per categorie
+  const isWaterMod = m => /^(Haven|Kade|Water|Woonboot)\b/.test(m.name || '');
+  const TAB_MODS = {
+    'Wegen': m => m.cat === 'Vervoer' && !isWaterMod(m),
+    'Paden': m => m.cat === 'Verbindingen' || m.cat === 'Pleinen',
+    'Gebouwen': m => ['Wonen', 'Werken', 'Winkels', 'Horeca', 'Winkelcentrum', 'Openbaar', 'Sport', 'Voorzieningen'].includes(m.cat) && !isWaterMod(m),
+    'Groen en water': m => m.cat === 'Groen' || isWaterMod(m),
+    'Terrein': m => m.cat === 'Bouwdelen' && !isWaterMod(m),
+  };
   function renderModCards() {
     toolScroll.querySelectorAll('.modcard, .modcard-sep, .todo').forEach(n => n.remove());
     for (const nm of (CATS[catIdx].todo || [])) {
       const b = document.createElement('button'); b.type = 'button'; b.className = 'tool todo'; b.title = nm + ': nog te bepalen'; b.disabled = true;
       b.innerHTML = '<span class="sw sw-todo">?</span>' + nm; toolScroll.appendChild(b);
     }
-    modBar.hidden = CATS[catIdx].name !== 'Modules';
-    if (CATS[catIdx].name !== 'Modules') return;
-    renderModBar();
-    const add = document.createElement('button'); add.type = 'button'; add.className = 'tool modcard add'; add.innerHTML = '<span class="plus">+</span><span class="nm">Nieuw</span>'; add.addEventListener('click', () => openSchets()); toolScroll.appendChild(add);
-    if (['Alles', 'Winkelcentrum', 'Winkels'].includes(modCat) && !modQuery || /winkel/i.test(modQuery || '')) { const g = document.createElement('button'); g.type = 'button'; g.className = 'tool modcard add gen'; g.title = 'Nieuw winkelcentrum: elke klik een nieuwe variant (1–3 lagen, andere winkels, materialen en dak). Daarna klik je in de stad om hem neer te zetten.';
+    const isMod = CATS[catIdx].name === 'Modules', tabF = TAB_MODS[CATS[catIdx].name];
+    modBar.hidden = !isMod;
+    if (!isMod && !tabF) return;
+    if (!isMod) { const sep = document.createElement('div'); sep.className = 'modcard-sep'; sep.textContent = 'Modules'; toolScroll.appendChild(sep); }
+    if (isMod) renderModBar();
+    if (isMod) { const add = document.createElement('button'); add.type = 'button'; add.className = 'tool modcard add'; add.innerHTML = '<span class="plus">+</span><span class="nm">Nieuw</span>'; add.addEventListener('click', () => openSchets()); toolScroll.appendChild(add); }
+    if (isMod ? (['Alles', 'Winkelcentrum', 'Winkels'].includes(modCat) && !modQuery || /winkel/i.test(modQuery || '')) : CATS[catIdx].name === 'Gebouwen') { const g = document.createElement('button'); g.type = 'button'; g.className = 'tool modcard add gen'; g.title = 'Nieuw winkelcentrum: elke klik een nieuwe variant (1–3 lagen, andere winkels, materialen en dak). Daarna klik je in de stad om hem neer te zetten.';
       g.innerHTML = '<span class="plus">🎲</span><span class="nm">Winkelcentrum</span><span class="nv">nieuw</span>';
       g.addEventListener('click', () => { const m = mallGenerate(); let n = 2; const base = m.name; while (modules.some(x => x.name === m.name)) m.name = base.replace(/^(Winkelcentrum · [^·]+?)( · )/, '$1 ' + (n++) + '$2'); m.id = uid(); m._sig = Date.now(); modules.push(m); saveMods();
         moduleSel = modules.length - 1; moduleGhostKey = ''; selectTool('module'); renderModCards(); toast('"' + m.name + '" gemaakt · klik in de stad om hem neer te zetten (de dobbelsteen maakt een volgende variant)', 3500); });
       toolScroll.appendChild(g); }
-    const queue = [], list = modVisible();
+    const queue = [], list = isMod ? modVisible() : modules.map((m, i) => i).filter(i => modules[i].v === 2 && tabF(modules[i])).sort((a, b) => { const A = modules[a], B = modules[b]; return catOrd(modCatOf(A)) - catOrd(modCatOf(B)) || coll.compare(A.name || '', B.name || ''); });
     let lastCat = null;
     for (const i of list) {
       const m = modules[i], M = modMeta(m), cat = m.v === 2 ? (m.cat || 'Overig') : 'Oude schets';
-      if (modCat === 'Alles' && !modQuery && cat !== lastCat) { const d = document.createElement('div'); d.className = 'modcard-sep'; d.textContent = cat; toolScroll.appendChild(d); lastCat = cat; }
+      if ((!isMod || modCat === 'Alles' && !modQuery) && cat !== lastCat) { const d = document.createElement('div'); d.className = 'modcard-sep'; d.textContent = cat; toolScroll.appendChild(d); lastCat = cat; }
       const b = document.createElement('button'); b.type = 'button'; b.className = 'tool modcard'; b.dataset.mi = i;
       b.title = m.name + '\n' + cat + ' · ' + (M.n === 7 ? '7 vakken' : '1 vak') + (M.bouw ? ' · ' + M.fl + (M.fl === 1 ? ' laag' : ' lagen') + ' (' + M.h + ' m)' : '') + ' · ' + ({ kap: 'schuin dak', plat: 'plat dak (stapelbaar)', open: 'open' })[M.top] + (M.deur ? ' · ' + M.deur + (M.deur === 1 ? ' deur' : ' deuren') : '') + (m.v === 2 ? '\nKlik: kiezen · dubbelklik: bewerken · rechtermuisknop: verwijderen' : '');
       b.setAttribute('aria-pressed', String(tool === 'module' && i === moduleSel));
@@ -187,7 +198,7 @@
     tool = t;
     if (TERR_TOOLS.has(t) && !terrHintShown) { terrHintShown = true; setTimeout(() => toast((coarse ? 'Vasthouden en slepen' : 'Ingedrukt houden en slepen') + ' om te boetseren · Shift: andersom · [ ] penseel', 3200), 50); }
     { let cw = true; try { cw = setState.contour; } catch (e) { /* instellingen nog niet geladen */ } terrU.uContour.value = TERR_TOOLS.has(t) && cw ? 1 : 0; } if (!TERR_TOOLS.has(t)) { brushRing.hide(); terrLbl.hidden = true; }
-    if (t !== 'gum' && t !== 'kies' && catOf(t) !== catIdx) setCat(catOf(t));
+    if (t !== 'gum' && t !== 'kies' && catOf(t) !== catIdx && !(t === 'module' && TAB_MODS[CATS[catIdx].name])) setCat(catOf(t));   /* een module uit een ander tabblad: daar blijven */
     for (const k in toolBtns) toolBtns[k].setAttribute('aria-pressed', String(k === t));
     placeBtn.textContent = t === 'gum' ? 'Weg' : 'Bouw';
     rotBtn.hidden = !DIRECTIONAL.has(t) && t !== 'module'; mirBtn.hidden = t !== 'module'; mirBtn.setAttribute('aria-pressed', String(moduleMir));
