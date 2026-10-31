@@ -336,6 +336,16 @@ Opslag: `cells.rails = [{ p: [[x, z], …] }]`, in de stadsdata als `__r` (allee
 - Gevonden: een nieuwe speler kreeg een startstadje zonder huizen (bij de eerste start ververste de bibliotheek alle modules en zette ze opnieuw neer, wat op zichzelf botste). Nu worden bij een vernieuwde module alleen de gegevens vervangen.
 - Test: `test/visueel/beta.js` (tests zetten Instorten en Bloed zelf aan, `helper.js`).
 
+## Mensen met doelen en een dagritme (10-mensen.js, "Doelen en dagritme")
+- Elk gebouw met een deur is een plek: wonen (Wonen, oude woningen), werken (Werken, Openbaar, Voorzieningen, Vervoer, oude kantoren), school (School · …), winkelen (Winkels, Winkelcentrum), eten (Horeca); parken, pleinen en sport zijn plekken om even te blijven. Alleen gebouwen met een deur in het grootste samenhangende stuk loopnetwerk tellen.
+- Iedereen krijgt een huis (liefst in de buurt), 72 % van de volwassenen een werkplek dichtbij huis, kinderen een school. Per uur van de dag een keuze (`decide`): 's nachts naar huis (tot 6:30–8:30), 's ochtends naar werk of school (tot 16:30–18:00, school tot 14:30–15:30), tussen de middag een deel naar een café, overdag winkelen, park of thuis, 17–19 uur naar huis of nog boodschappen, 's avonds horeca of park.
+- Route: Dijkstra over het loopnetwerk naar een deur van het gebouw (een voordeur van een ander huis kost 40 m extra); aangekomen gaat iemand naar binnen tot het afgesproken speluur, of blijft 8–30 s in het park. Wie niets te doen heeft, slentert 10–35 s zoals vroeger. Bij Totale chaos geldt dit niet.
+- Een etmaal duurt nu **20 minuten** op 1× (4× = 5 minuten, zoals eerst): anders duurde een wandeling van 130 m naar je werk al acht speluren.
+- Gemeten in het startdorp (70 mensen, tweede dag): 's nachts 1 buiten, ochtendspits 33, overdag ~20, avondspits ~60; mediane route 87 m, alle 733 vertrekken kwamen aan. Test: `test/visueel/doelen.js`.
+
+## Startdorp (08i-startstad.js)
+Wat een dorp nodig heeft, op het zeshoekraster: een zeshoekige ringweg op 4 vakken, drie straten van de rotonde naar de hoeken, drie uitvalswegen. Wonen (rijhuizen in de kern, bungalows en villa's aan de rand), werken (bedrijfshal, werkplaats, garage), school en kinderopvang, supermarkt en bakker, huisarts en apotheek, dorpsplein met fontein, kerk, café en restaurant, speeltuin, park met vijver, bos, sportveld met snackbar, bushalte, parkeerplaats, trafohuisje, en het treinstation aan het spoor. Test: `test/visueel/startdorp.js`.
+
 ## Opslag
 
 Steden en modules staan in `localStorage` van de browser. Modules kunnen als JSON-bestand worden geëxporteerd en geïmporteerd (Raatbouwer → Delen). De 152 standaardmodules worden één keer toegevoegd en zijn met "Standaard terugzetten" te herstellen.

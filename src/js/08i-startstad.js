@@ -1,63 +1,99 @@
-  // ---------- Startstadje: een rotonde in het midden, een kleine ringweg eromheen ----------
-  // Dit is de stad die je ziet als je Raatstad voor het eerst opent: drie wegen vanuit een rotonde naar een ring van
-  // 70 m, huizen en kantoren langs de straten, een parkje en een vijver. Vast (geen toeval), klein genoeg voor een
-  // telefoon. Via Menu → Startstadje haal je hem terug.
+  // ---------- Startdorp: alles wat een dorp nodig heeft om te functioneren ----------
+  // Dit is de stad die je ziet als je Raatstad voor het eerst opent (Menu → Startstadje haalt hem terug). Vast, geen
+  // toeval, klein genoeg voor een telefoon. Alles op het zeshoekraster: een zeshoekige ringweg op 4 vakken (62 m), drie
+  // straten van de rotonde in het midden naar de hoeken van de ring, en drie uitvalswegen. Wat een dorp nodig heeft:
+  //  wonen      rijhuizen, bungalows en villa's langs alle straten (iedereen woont ergens, zie 10-mensen: doelen)
+  //  werken     een bedrijventerrein (bedrijfshal, werkplaats, garage) en de voorzieningen in de kern
+  //  leren      een basisschool met kinderopvang
+  //  kopen      supermarkt, bakker, en een snackbar bij het sportveld
+  //  zorg       huisarts en apotheek
+  //  ontmoeten  dorpsplein met fontein, kerk, café met terras, restaurant
+  //  bewegen    speeltuin, park met vijver, sportveld, bos
+  //  vervoer    bushalte, treinstation aan het spoor (loopt door tot voorbij de horizon), parkeerplaats
+  //  techniek   trafohuisje
   function startCity() {
     const c = new Map(); c.inst = []; c.paths = []; c.terr = {};
     const set = (q, r, a) => c.set(key(q, r), a), has = (q, r) => c.has(key(q, r));
-    const RING = 70, ARM = 95;
     const P = (x, z) => [Math.round(x * 10) / 10, Math.round(z * 10) / 10];
+    const W = (q, r) => { const w = cellToWorld(q, r); return P(w.x, w.z); };
+    // ---------- wegen ----------
+    const RING = [[4, 0], [0, 4], [-4, 4], [-4, 0], [0, -4], [4, -4]];
     c.paths.push({ t: 'rot', l: 0, r: 0, p: [[0, 0]] });
-    { const p = []; for (let i = 0; i <= 36; i++) { const a = i / 36 * Math.PI * 2; p.push(P(Math.cos(a) * RING, Math.sin(a) * RING)); } c.paths.push({ t: 'weg', l: 0, r: 0, p }); }
-    for (let k = 0; k < 3; k++) { const a = k * Math.PI * 2 / 3 + Math.PI / 6; c.paths.push({ t: 'weg', l: 0, r: 0, p: [[0, 0], P(Math.cos(a) * ARM, Math.sin(a) * ARM)] }); }
-    c.paths.push({ t: 'weg', l: 0, r: 0, p: [P(0, RING), P(0, 100)] });   // korte straat naar het station
-    { const a = cellToWorld(-22, 11), b = cellToWorld(11, 11); c.rails = [{ p: [P(a.x, a.z), P(b.x, b.z)] }]; }   // spoorlijn ten noorden van de stad; loopt door tot voorbij de horizon (11e)
+    c.paths.push({ t: 'weg', l: 0, r: 0, p: [...RING, RING[0]].map(([q, r]) => W(q, r)) });   // ringweg (gesloten zeshoek)
+    for (const [q, r] of [RING[0], RING[2], RING[4]]) c.paths.push({ t: 'weg', l: 0, r: 0, p: [[0, 0], W(q, r)] });   // drie straten naar het midden
+    c.paths.push({ t: 'weg', l: 0, r: 0, p: [W(0, 4), W(0, 7)] });     // noord: naar het station
+    c.paths.push({ t: 'weg', l: 0, r: 0, p: [W(-4, 0), W(-8, 0)] });   // west: uitvalsweg langs de supermarkt
+    c.paths.push({ t: 'weg', l: 0, r: 0, p: [W(4, -4), W(7, -7)] });   // zuidoost: naar het bedrijventerrein
+    { const a = cellToWorld(-22, 11), b = cellToWorld(14, 11); c.rails = [{ p: [P(a.x, a.z), P(b.x, b.z)] }]; }   // spoor ten noorden van het dorp (11e)
     const roads = c.paths.filter(p => p.t !== 'rot').map(p => ({ def: PATH_DEF[p.t], pts: smoothPts(p.p) }));
     const roadDist = (x, z) => { let d = 1e9; for (const r of roads) d = Math.min(d, distPoly(x, z, r.pts) - r.def.hw - r.def.walk); return Math.min(d, Math.hypot(x, z) - 22); };
-    // ---------- modules uit de bibliotheek: rijhuizen en winkels langs de straat, pleinen en parken ertussen ----------
+    // ---------- modules uit de bibliotheek ----------
     const base = n => (n || '').replace(/( · \d+[Lv])+$/, ''), std = new Map(libStandard().map(m => [base(m.name), m])), byName = new Map(modules.map(m => [base(m.name), m]));
     const lib = name => byName.get(name) || std.get(name) || null;
-    const toRoad = (q, r) => { const w = cellToWorld(q, r); let best = null, bd = 1e9; for (const rd of roads) { const pts = rd.pts; for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], ex = b[0] - a[0], ez = b[1] - a[1], l2 = ex * ex + ez * ez || 1e-9, t = Math.max(0, Math.min(1, ((w.x - a[0]) * ex + (w.z - a[1]) * ez) / l2)), px = a[0] + ex * t, pz = a[1] + ez * t, dd = Math.hypot(px - w.x, pz - w.z); if (dd < bd) { bd = dd; best = [px - w.x, pz - w.z]; } } } if (!best) best = [-w.x, -w.z]; const ang = Math.atan2(best[1], best[0]); return ((Math.round(-ang / (Math.PI / 3)) % 6) + 6) % 6; };
-    const used = new Set();   // vakken met een module (die staan los, zonder blok)
-    const mod = (name, q, r, fallback) => {   // deur naar de straat; bestaat de module niet, dan het oude blok
-      const m = lib(name); if (!m) { if (fallback) set(q, r, fallback.slice()); return; }
-      c.inst.push({ mid: m.id, m: instData(m, false), q, r, rot: (toRoad(q, r) + 1) % 6 }); used.add(key(q, r)); };
+    const toRoad = (q, r) => { const w = cellToWorld(q, r); let best = null, bd = 1e9; for (const rd of roads) { const pts = rd.pts; for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], ex = b[0] - a[0], ez = b[1] - a[1], l2 = ex * ex + ez * ez || 1e-9, t = Math.max(0, Math.min(1, ((w.x - a[0]) * ex + (w.z - a[1]) * ez) / l2)), px = a[0] + ex * t, pz = a[1] + ez * t, d = Math.hypot(px - w.x, pz - w.z); if (d < bd) { bd = d; best = [px - w.x, pz - w.z]; } } } if (!best) return 0; const ang = Math.atan2(best[1], best[0]); let k = Math.round(-ang / (Math.PI / 3)); return ((k % 6) + 6) % 6; };
+    const used = new Set(), free = (q, r) => !has(q, r) && !used.has(key(q, r));
+    const area = (q, r, k) => { const out = [[q, r]]; if (k) for (const [a, b] of NEIGH) out.push([q + a, r + b]); return out; };
+    const mod = (name, q, r) => {   // deur naar de straat
+      const m = lib(name); if (!m) return false; const k = m.k || 0, A = area(q, r, k);
+      if (!A.every(([a, b]) => free(a, b))) return false;
+      c.inst.push({ mid: m.id, m: instData(m, false), q, r, rot: (toRoad(q, r) + 1) % 6 }); for (const [a, b] of A) used.add(key(a, b)); return true;
+    };
+    // vaste plek: het vrije vak (of de vrije 7 vakken) het dichtst bij (x, z), met de rand vrij van de weg en vlak aan een straat
+    const spot = (name, x, z, far = 26) => {
+      const m = lib(name); if (!m) return false; const k = m.k || 0; let best = null, bd = 1e9;
+      for (let q = -12; q <= 12; q++) for (let r = -12; r <= 12; r++) {
+        const w = cellToWorld(q, r), d = Math.hypot(w.x - x, w.z - z); if (d > far + 20 || d >= bd) continue;
+        const A = area(q, r, k); if (!A.every(([a, b]) => free(a, b) && roadDist(cellToWorld(a, b).x, cellToWorld(a, b).z) >= 8.5)) continue;
+        const near = Math.min(...A.map(([a, b]) => roadDist(cellToWorld(a, b).x, cellToWorld(a, b).z))); if (near > 15) continue;   // aan de straat (de deur moet een stoep hebben)
+        bd = d; best = [q, r];
+      }
+      return best ? mod(name, best[0], best[1]) : false;
+    };
+    const at = (deg, rad) => [Math.cos(deg * Math.PI / 180) * rad, Math.sin(deg * Math.PI / 180) * rad];
+    // eerst de grote dingen (7 vakken), dan de vaste voorzieningen
+    spot('Vervoer · treinstation', ...cellXZ(0, 9), 10);
+    spot('Sportveld · voetbal', ...at(25, 100), 30);
+    spot('Winkel · supermarkt', ...at(160, 92), 30);
+    spot('Bedrijfshal · beton', ...at(285, 100), 30);
+    spot('Kerk · toren', ...at(55, 30));
+    spot('Plein · fontein', ...at(30, 24));
+    spot('Horeca · café met terras', ...at(80, 26));
+    spot('Winkel · bakkerij', ...at(15, 42));
+    spot('Huisarts · wit', ...at(100, 42));
+    spot('Apotheek · wit', ...at(70, 48));
+    spot('Horeca · restaurant', ...at(110, 25));
+    spot('Park · speeltuin', ...at(180, 30));
+    spot('School · hout', ...at(300, 30));
+    spot('Kinderopvang · hout', ...at(325, 44));
+    spot('Werkplaats · beton', ...at(305, 85));
+    spot('Garage · autobedrijf', ...at(320, 80));
+    spot('Trafohuisje · baksteen', ...at(260, 78));
+    spot('Snackbar · frituur', ...at(45, 82));
+    spot('Vervoer · bushalte', ...at(75, 80));
+    spot('Parkeerplaats · haag', ...at(140, 75));
+    spot('Park · vijver', ...at(205, 88));
+    spot('Bos · bomen', ...at(220, 100));
+    spot('Park · bankjes', ...at(240, 40));
+    // ---------- wonen: huizen aan elke straat, een tweede rij groen ----------
     const RIJ = ['Rijhuis · baksteen', 'Rijhuis · wit', 'Rijhuis · natuursteen', 'Rijhuis · hout', 'Stadswoning · wit', 'Rijhuis · baksteen'];
-    const WINKEL = ['Winkel · bakkerij', 'Horeca · café met terras', 'Winkel · etalage', 'Winkel · bovenwoning', 'Winkel · boetiek', 'Horeca · restaurant'];
+    const RAND = ['Bungalow · baksteen', 'Villa · wit · tuin', 'Bungalow · hout · tuin', 'Villa · baksteen · tuin'];
     const PARK = ['Park · plantsoen', 'Park · bankjes', 'Tuin · rozentuin', 'Grasveld · leeg', 'Park · plantsoen', 'Tuin · boomgaard'];
-    // vaste plekken: vijver in het park, fontein en terras bij de rotonde, een kerk als blikvanger, speeltuin
-    const spot = (name, x, z) => { const [q, r] = worldToCell(x, z); if (has(q, r)) return; mod(name, q, r); };
-    { const [wq, wr] = worldToCell(Math.cos(2.45) * 40, Math.sin(2.45) * 40);   // een echte vijver: drie vakken water in het park
-      for (const [a, b] of [[0, 0], [1, 0], [0, 1]]) if (!has(wq + a, wr + b)) { set(wq + a, wr + b, ['water']); used.add(key(wq + a, wr + b)); } }
-    { mod('Vervoer · treinstation', -5, 9); for (const [a, b] of [[1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]]) used.add(key(-5 + a, 9 + b)); }   // station naast het spoor
-    spot('Plein · fontein', Math.cos(0.5) * 36, Math.sin(0.5) * 36);
-    spot('Plein · terras', Math.cos(4.6) * 38, Math.sin(4.6) * 38);
-    spot('Tuin · rozentuin', Math.cos(5.6) * 52, Math.sin(5.6) * 52);
-    spot('Park · speeltuin', Math.cos(1.3) * 96, Math.sin(1.3) * 96);
-    spot('Bibliotheek · glas', Math.cos(3.7) * 98, Math.sin(3.7) * 98);
     for (let q = -9; q <= 9; q++) for (let r = -9; r <= 9; r++) {
-      const w = cellToWorld(q, r), rad = Math.hypot(w.x, w.z); if (rad > 108 || has(q, r) || used.has(key(q, r))) continue;
-      const d = roadDist(w.x, w.z); if (d < 8.5) continue;   // het vak is zelf ~9 m breed: het midden moet zo ver van de weg liggen dat de rand de stoep niet raakt
-      const h = ((q * 7 + r * 13 + q * r * 3) & 15), ang = Math.atan2(w.z, w.x);
-      const street = d < 15;
-      if (rad < RING - 14) {   // binnen de ring: aan de rotondekant een parkje, verder rijhuizen, winkels bij de rotonde
-        if (ang > 1.9 && ang < 3.0 && rad < 48) { mod(PARK[h % PARK.length], q, r, ['park']); continue; }
-        if (street) { if (rad < 52 && h % 3 !== 2) mod(WINKEL[h % WINKEL.length], q, r, ['woning']); else if (h < 3) mod('Kantoor · baksteen', q, r, ['kantoor', 'kantoor']); else mod(RIJ[h % RIJ.length], q, r, ['woning']); }
-        else mod(PARK[h % PARK.length], q, r, ['park']);   // tweede rij: groen (huizen staan alleen aan de straat, zodat elke deur een stoep heeft)
-        continue;
-      }
-      if (rad > RING + 14 && rad < 108) {   // buiten de ring: alleen aan de straat, en wat groen
-        if (street) { if (h < 3) mod('Kantoor · glas', q, r, ['kantoor', 'kantoor', 'kantoor']); else if (h < 13) mod(RIJ[(h + q) % RIJ.length], q, r, ['woning', 'woning']); else mod(h === 15 ? 'Bos · bomen' : PARK[h % PARK.length], q, r, ['park']); }
-        else if (h < 8 && rad < 100) mod(h < 4 ? 'Park · plantsoen' : 'Bos · bomen', q, r, ['park']);
-      }
+      const w = cellToWorld(q, r), rad = Math.hypot(w.x, w.z); if (rad > 112 || !free(q, r)) continue;
+      const d = roadDist(w.x, w.z); if (d < 8.5) continue;   // het vak moet zo ver van de weg liggen dat de rand de stoep niet raakt
+      const h = ((q * 7 + r * 13 + q * r * 3) & 15), street = d < 15;
+      if (street) { if (rad < 70) mod(RIJ[h % RIJ.length], q, r); else if (h < 11) mod(h < 6 ? RIJ[(h + q) % RIJ.length] : RAND[h % RAND.length], q, r); else mod(h === 15 ? 'Bos · bomen' : PARK[h % PARK.length], q, r); }
+      else if (rad < 64) mod(PARK[h % PARK.length], q, r);
+      else if (h < 7 && rad < 100) mod(h < 3 ? 'Park · plantsoen' : 'Bos · bomen', q, r);
     }
     // Randvulling: vakken die half op de weg liggen worden een park in stukjes (alleen de taartpunten die vrij zijn)
     c.sec = {};
     for (let q = -9; q <= 9; q++) for (let r = -9; r <= 9; r++) {
-      const w = cellToWorld(q, r), rad = Math.hypot(w.x, w.z); if (rad > 108 || has(q, r) || used.has(key(q, r))) continue;
+      const w = cellToWorld(q, r), rad = Math.hypot(w.x, w.z); if (rad > 112 || !free(q, r)) continue;
       const m = secMaskOf(c.paths, q, r); let n = 0; for (let s = 0; s < 6; s++) n += (m >> s) & 1;
       if (n < 2 || m === 63) continue;
       set(q, r, ['park']); c.sec[key(q, r)] = m;
     }
     return roofHouses(c);
   }
+  function cellXZ(q, r) { const w = cellToWorld(q, r); return [w.x, w.z]; }

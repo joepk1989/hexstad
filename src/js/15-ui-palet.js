@@ -353,7 +353,7 @@
       return;
     }
     if (act.startsWith('gen:')) { const [, lay, sd] = act.split(':'); cells = genTown(sd ? +sd : Math.floor(Math.random() * 1e6), lay); rebuildAll(); changed(); orbit.target.set(0, 0, 0); orbit.dist = 260; orbit.phi = 0.95; applyOrbit(); toast('Gegenereerd · je eigen stad staat veilig onder Mijn stad', 2600); }
-    if (act === 'start') { cells = startCity(); rebuildAll(); changed(); orbit.target.set(0, 0, 0); orbit.dist = 230; orbit.phi = 0.95; orbit.theta = 0.4; applyOrbit(); toast('Startstadje geladen: rotonde en ringweg'); }
+    if (act === 'start') { cells = startCity(); rebuildAll(); changed(); orbit.target.set(0, 0, 0); orbit.dist = 230; orbit.phi = 0.95; orbit.theta = 0.4; applyOrbit(); toast('Startdorp geladen: school, winkels, huisarts, café, sportveld, station en huizen'); }
     if (act === 'sample') { cells = roofHouses(sampleCity()); rebuildAll(); changed(); toast('Voorbeeldstad geladen · je eigen stad staat veilig onder Mijn stad'); }
     if (act === 'ring') { cells = ringStad(); rebuildAll(); changed(); orbit.target.set(0, 0, 0); orbit.dist = 1500; orbit.phi = 0.9; applyOrbit(); toast('Ringstad geladen · je eigen stad staat veilig onder Mijn stad'); }
     if (act === 'random' || act === 'blocks' || act === 'layers') {

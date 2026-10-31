@@ -197,7 +197,7 @@ gl_Position = projectionMatrix * mvPosition;`;
     const KEY = 'raatstad.tod';
     const st = { tod: 14, auto: true, speed: 1 };
     try { const v = JSON.parse(localStorage.getItem(KEY)); if (v && isFinite(v.tod)) { st.tod = ((v.tod % 24) + 24) % 24; st.auto = v.auto !== false; if ([1, 4, 12].includes(v.speed)) st.speed = v.speed; } } catch (e) { /* geen opslag: dan de standaard */ }
-    const SPEED = 24 / 300;   // een etmaal duurt vijf minuten
+    const SPEED = 24 / 1200;   // een etmaal duurt twintig minuten (op 1×; 4× is vijf minuten): lang genoeg om naar je werk en weer naar huis te lopen
     const moon = new THREE.DirectionalLight('#8fa6ff', 0); scene.add(moon);
     const mix = (a, b, t) => { const A = new THREE.Color(a), B = new THREE.Color(b); return A.lerp(B, t); };
     const sm = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -255,7 +255,7 @@ gl_Position = projectionMatrix * mvPosition;`;
     }
     function save(force) { const t = performance.now(); if (!force && t - lastSave < 3000) return; lastSave = t; try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* mag niet: jammer */ } }
     return {
-      st, apply, place, save,
+      st, apply, place, save, SPEED,
       update(dt) { if (st.auto) { st.tod = (st.tod + dt * SPEED * st.speed) % 24; save(false); } const k = Math.round(st.tod * 60); if (k !== lastK) { lastK = k; apply(); ui(); } },
       set(t, keepAuto) { st.tod = ((t % 24) + 24) % 24; if (keepAuto === false) st.auto = false; lastK = -1; save(true); },
     };

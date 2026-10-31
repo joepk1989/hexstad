@@ -698,11 +698,18 @@
     }
     function newAgent() {
       const a = mkAgent(), r = Math.random;
-      const n = doorList.length && r() < 0.4 ? pick(doorList) : pick(nodeList);
+      const mainL = G.mainList && G.mainList.length ? G.mainList : null, n = mainL ? pick(mainL) : doorList.length && r() < 0.4 ? pick(doorList) : pick(nodeList);   // met doelen: op straat beginnen (niet in een afgesloten hoek)
       place(a, n, n.kind.b === 'door');
+      if (G.N.length) {
+        assignRoles(a);
+        const g = decide(a);   // wie volgens de klok binnen hoort, begint binnen (thuis, op het werk)
+        if (!g.stroll && g.b && g.cat !== 'park' && r() < 0.6) { a.state = 'inside'; a.inB = g.b.id; a.untilH = g.until; a.timer = realFor(((g.until - hourNow()) + 24) % 24) * (0.2 + r() * 0.8); }
+        else plan(a);
+      }
       return a;
     }
     function chooseNext(a) {
+      if (a.path && a.path.length) { const nx = a.path.shift(), e = a.node.edges.get(nx.key); if (e) return e; a.path = null; a.goal = null; }   // op weg naar een doel (anders: de route klopt niet meer, verder slenteren)
       const n = a.node, es = [...n.edges.values()];
       let cands = es.filter(e => !a.prev || e.to !== a.prev);
       if (!cands.length) cands = es;
@@ -722,7 +729,8 @@
       for (let i = 0; i < cands.length; i++) { x -= w[i]; if (x <= 0) return cands[i]; }
       return cands[cands.length - 1];
     }
-    function go(a, e) {
+    function go(a, e) { go0(a, e); if (a.path && a.path.length) a.goingIn = false; }   // onderweg naar een doel: niet zomaar een deur in
+    function go0(a, e) {
       const from = a.node, to = e.to;
       a.prev = from; a.node = to; a.wps = []; a.edgeT = e.mod ? 0 : -1e9;   // alleen binnen modules: korte stukken
       a.spir = e.spir || null;
@@ -759,6 +767,110 @@
       a.wps.push(centerOf(to, f, a));
       if (to.kind.b === 'door') a.goingIn = true;
     }
+
+    // ---------- Doelen en dagritme ----------
+    // Iedereen woont ergens (een woning in de stad) en heeft een dag: 's ochtends naar werk of school, tussendoor naar
+    // een winkel, café of park, 's avonds naar huis; 's nachts is bijna iedereen binnen. Wie een doel heeft, loopt de
+    // kortste route (Dijkstra over het loopnetwerk) naar een deur van dat gebouw, gaat naar binnen en komt er pas uit als
+    // het tijd is (in speluren, DN.st.tod). Wie niets te doen heeft, slentert zoals vroeger. Bij Totale chaos geldt dit niet.
+    const G = { B: new Map(), byCat: { home: [], work: [], school: [], shop: [], food: [], park: [] }, idx: new Map(), N: [], adj: [] };
+    const CAT_OF = c => /^(Wonen)$/.test(c) ? 'home' : /^(Winkels|Winkelcentrum)$/.test(c) ? 'shop' : /^Horeca$/.test(c) ? 'food' : /^(Groen|Pleinen|Sport)$/.test(c) ? 'park' : /^(Werken|Openbaar|Voorzieningen|Vervoer)$/.test(c) ? 'work' : null;
+    function goalsIndex() {
+      G.B = new Map(); for (const k in G.byCat) G.byCat[k] = [];
+      const insts = (cells.inst || []).filter(I => I.m && I.m.v === 2 && Number.isInteger(I.q) && Number.isInteger(I.r));
+      const add = (id, cat, n, door) => { let b = G.B.get(id); if (!b) { b = { id, cat, doors: [], spots: [], x: n.x, z: n.z }; G.B.set(id, b); } (door ? b.doors : b.spots).push(n); };
+      for (const n of nodeList) {
+        if (n.dead) continue;
+        let ii = null, door = false;
+        if (n.kind.b === 'mdoor') { const m = /^md(\d+):/.exec(n.key); if (m) ii = +m[1]; else if (n.ii !== undefined) ii = n.ii; door = true; }
+        else if (n.kind.b === 'mod' && n.ii !== undefined && n.kind.open) ii = n.ii;   // buiten in een park of op een plein: daar kun je verblijven
+        if (ii !== null) { const I = insts[ii]; if (!I) continue; let cat = CAT_OF(I.m.cat || ''); if (/^School/.test(I.m.name || '')) cat = 'school'; if (!cat) continue; if (!door && cat !== 'park') continue; add('m' + ii, cat, n, door); continue; }
+        if (n.kind.b === 'door') { const st = stackOf(n.q, n.r).map(t => baseOf(t)); const cat = st.includes('kantoor') ? 'work' : st.includes('woning') ? 'home' : null; if (cat) add('c' + n.q + ',' + n.r, cat, n, true); }
+      }
+      for (const b of G.B.values()) { if (!b.doors.length && !b.spots.length) continue; const L = b.doors.length ? b.doors : b.spots; b.x = L.reduce((s, n) => s + n.x, 0) / L.length; b.z = L.reduce((s, n) => s + n.z, 0) / L.length; G.byCat[b.cat].push(b); }
+      // het netwerk als arrays (snel zoeken)
+      G.N = nodeList; G.idx = new Map(nodeList.map((n, i) => [n, i])); G.adj = nodeList.map(n => { const L = []; for (const e of n.edges.values()) { const j = G.idx.get(e.to); if (j === undefined || e.to.kind.b === 'door' && e.to !== n) { if (j !== undefined) L.push(j, Math.hypot(e.to.x - n.x, e.to.z - n.z) + 40); continue; } L.push(j, Math.hypot(e.to.x - n.x, e.to.z - n.z) + Math.abs(e.to.y - n.y) * 2 + (e.climb ? 2 : 0)); } return L; });   // door een voordeur van een ander huis: liever niet
+      // het grootste samenhangende deel van het netwerk (de straten): alleen gebouwen met een deur daarin tellen als doel
+      { const comp = new Int32Array(G.N.length).fill(-1); let best = -1, bestN = 0, ci = 0;
+        for (let i0 = 0; i0 < G.N.length; i0++) { if (comp[i0] >= 0) continue; let n = 0; const st = [i0]; comp[i0] = ci; while (st.length) { const i = st.pop(); n++; const L = G.adj[i]; for (let k = 0; k < L.length; k += 2) if (comp[L[k]] < 0) { comp[L[k]] = ci; st.push(L[k]); } } if (n > bestN) { bestN = n; best = ci; } ci++; }
+        G.main = new Set(); for (let i = 0; i < G.N.length; i++) if (comp[i] === best) G.main.add(G.N[i]);
+        G.mainList = [...G.main];
+        for (const k in G.byCat) G.byCat[k] = G.byCat[k].filter(b => { b.doors = b.doors.filter(n => G.main.has(n)); b.spots = b.spots.filter(n => G.main.has(n)); return b.doors.length || b.spots.length; });
+        for (const [id, b] of G.B) if (!b.doors.length && !b.spots.length) G.B.delete(id); }
+      for (const a of agents) { if (a.inB && !G.B.has(a.inB)) a.inB = null; a.path = null; a.goal = null; }   // de stad is veranderd: opnieuw plannen
+      for (const a of agents) assignRoles(a);
+    }
+    // kortste route van knoop s naar een van de doelknopen (Set van indexen), of null
+    function route(s, targets, maxCost = 2500) {
+      const N = G.N.length, dist = new Float64Array(N).fill(Infinity), prev = new Int32Array(N).fill(-1), hk = [], hv = [];
+      const push = (d, i) => { let k = hk.length; hk.push(d); hv.push(i); while (k > 0) { const p = (k - 1) >> 1; if (hk[p] <= d) break; hk[k] = hk[p]; hv[k] = hv[p]; k = p; } hk[k] = d; hv[k] = i; };
+      const pop = () => { const d0 = hk[0], i0 = hv[0], d = hk.pop(), i = hv.pop(); if (hk.length) { let k = 0; const n = hk.length; for (;;) { let c = 2 * k + 1; if (c >= n) break; if (c + 1 < n && hk[c + 1] < hk[c]) c++; if (hk[c] >= d) break; hk[k] = hk[c]; hv[k] = hv[c]; k = c; } hk[k] = d; hv[k] = i; } return [d0, i0]; };
+      dist[s] = 0; push(0, s);
+      while (hk.length) {
+        const [d, i] = pop(); if (d > dist[i]) continue; if (d > maxCost) return null;
+        if (targets.has(i) && i !== s) { const out = []; for (let k = i; k !== s && k >= 0; k = prev[k]) out.push(G.N[k]); return out.reverse(); }
+        const L = G.adj[i]; for (let k = 0; k < L.length; k += 2) { const j = L[k], nd = d + L[k + 1]; if (nd < dist[j]) { dist[j] = nd; prev[j] = i; push(nd, j); } }
+      }
+      return null;
+    }
+    const hourNow = () => (typeof DN !== 'undefined' ? DN.st.tod : 12);
+    const hourReached = u => ((hourNow() - u + 24) % 24) < 12;
+    const realFor = h => { const sp = typeof DN !== 'undefined' && DN.st.auto ? DN.SPEED * (DN.st.speed || 1) : 0; return sp ? Math.min(600, Math.max(3, h / sp)) : 15 + Math.random() * 30; };   // speluren → seconden (stilstaande klok: een halve minuut)
+    function nearestB(list, x, z, exclude) {   // een gebouw uit de lijst, dichtbij het liefst
+      if (!list.length) return null; let tot = 0; const w = list.map(b => { if (b === exclude) return 0; const d = Math.hypot(b.x - x, b.z - z), v = 1 / Math.pow(1 + d / 90, 2); tot += v; return v; });
+      let r = Math.random() * tot; for (let i = 0; i < list.length; i++) { r -= w[i]; if (r <= 0) return list[i]; } return list[list.length - 1];
+    }
+    function assignRoles(a) {
+      const H = G.byCat.home, x = a.x || 0, z = a.z || 0;
+      if (!a.home || !G.B.has(a.home)) a.home = H.length ? nearestB(H, x, z).id : null;
+      const home0 = (a.home && G.B.get(a.home)) || { x, z };   // werk en school liefst in de buurt van huis
+      const jobs = G.byCat.work, schools = G.byCat.school;
+      if (!a.job || !G.B.has(a.job)) a.job = a.kid ? (schools.length ? nearestB(schools, home0.x, home0.z).id : null) : !a.old && Math.random() < 0.72 && jobs.length ? nearestB(jobs, home0.x, home0.z).id : null;
+    }
+    // Wat ga je nu doen? Geeft { cat, b (gebouw), until (speluur) } of { stroll: seconden }
+    function decide(a) {
+      const h = hourNow(), r = Math.random(), C = G.byCat, here = a.inB ? G.B.get(a.inB) : null, x = a.x, z = a.z;
+      const at = (cat, b, from, to) => b ? { cat, b, until: (h + from + Math.random() * (to - from)) % 24 } : null;
+      const home = a.home && G.B.get(a.home), job = a.job && G.B.get(a.job);
+      const out = (shopW, foodW, parkW) => { const t = r * (shopW + foodW + parkW + 0.15); if (t < shopW) return at('shop', nearestB(C.shop, x, z, here), 0.3, 1); if (t < shopW + foodW) return at('food', nearestB(C.food, x, z, here), 0.7, 1.8); if (t < shopW + foodW + parkW) { const p = nearestB(C.park, x, z, here); return p ? { cat: 'park', b: p, stay: 8 + Math.random() * 22 } : null; } return null; };
+      const night = h >= 23 || h < 6, morning = h >= 6 && h < 9.5, lunch = h >= 12 && h < 13.5, day = h >= 9.5 && h < 17, evening = h >= 17 && h < 19, late = h >= 19 && h < 23;
+      const goHome = () => home ? at('home', home, 0, 0) && { cat: 'home', b: home, until: night || late ? 6.5 + Math.random() * 2 : (h + 1 + Math.random() * 2) % 24 } : null;
+      let g = null;
+      if (night) g = a.old || a.kid || r < 0.96 ? goHome() : null;
+      else if (morning) g = job && (a.kid || r < 0.85) ? at(a.kid ? 'school' : 'work', job, 0, 0) && { cat: 'work', b: job, until: a.kid ? 14.5 + Math.random() : 16.5 + Math.random() * 1.5 } : r < 0.5 ? out(0.5, 0.2, 0.5) : goHome();
+      else if (lunch) g = job && !a.kid && a.inB !== a.job && r < 0.5 ? { cat: 'work', b: job, until: 16.5 + Math.random() * 1.5 } : out(0.4, a.inB === a.job ? 1.2 : 0.6, 0.4);
+      else if (day) g = job && (a.kid ? h < 14.5 : h < 16.5) && r < 0.8 ? { cat: 'work', b: job, until: a.kid ? 14.5 + Math.random() : 16.5 + Math.random() * 1.5 } : out(0.8, 0.3, 0.6) || (r < 0.7 ? goHome() : null);
+      else if (evening) g = r < 0.55 ? goHome() : out(0.8, 0.4, 0.4);
+      else if (late) g = r < 0.45 ? goHome() : out(0.15, 1, 0.5);
+      if (g && g.b && g.b.id === a.inB && g.until !== undefined) return g;   // hier blijven
+      return g || { stroll: 10 + Math.random() * 25 };
+    }
+    // een doel kiezen en de route ernaartoe plannen (vanaf de knoop waar je bent)
+    function plan(a) {
+      a.path = null; a.goal = null; a.strollEnd = 0;
+      if (!G.N.length || !a.node) return;
+      for (let tries = 0; tries < 3; tries++) {
+        const g = decide(a); if (g.stroll) { a.strollEnd = a.t + g.stroll; return; }
+        const L = g.b.doors.length ? g.b.doors : g.b.spots, s = G.idx.get(a.node); if (s === undefined) return;
+        const T = new Set(); for (const n of L) { const j = G.idx.get(n); if (j !== undefined) T.add(j); }
+        if (T.has(s)) { a.goal = g; a.path = []; return; }
+        const p = route(s, T); if (p) { a.goal = g; a.path = p; return; }
+      }
+      if (!G.main.has(a.node) && a.home && G.B.has(a.home)) { a.state = 'inside'; a.inB = a.home; a.untilH = (hourNow() + 0.5 + Math.random()) % 24; a.timer = realFor(1); return; }   // vastgelopen in een afgesloten hoek: naar huis (uit beeld)
+      a.strollEnd = a.t + 15 + Math.random() * 20;   // niets bereikbaar: even slenteren
+    }
+    // aangekomen bij het doel: naar binnen (deur) of even blijven staan (park, plein)
+    function arrive(a) {
+      const g = a.goal; a.path = null; a.goal = null; if (!g) return false;
+      if (g.stay) { a.state = 'pause'; a.timer = g.stay; a.chatT = 0; return true; }
+      a.state = 'inside'; a.inB = g.b.id; a.untilH = g.until; a.timer = realFor(((g.until - hourNow()) + 24) % 24); a.goingIn = false; return true;
+    }
+    // naar buiten komen: bij een deur van het gebouw waar je was
+    function leave(a) {
+      const b = a.inB && G.B.get(a.inB); a.inB = null;
+      const n = b && (b.doors.length ? pick(b.doors) : pick(b.spots)); place(a, n || (G.mainList && G.mainList.length ? pick(G.mainList) : pick(nodeList)), true);
+      plan(a);
+    }
     function rebuild() {
       // Is er iets weggehaald of bijgebouwd? Wie nu boven het niets staat, valt.
       // Bij een hele nieuwe stad begint iedereen gewoon opnieuw.
@@ -785,6 +897,7 @@
         a.node = n; a.prev = a.prev && graph.get(a.prev.key) || null;
       }
       while (agents.length > target) agents.pop();
+      try { goalsIndex(); } catch (e) { console.warn('doelen', e); }
       while (agents.length < target && nodeList.length) agents.push(newAgent());
     }
     // Skelet: wortel → bekken → dij → scheen → voet; bekken → borst → schouder → bovenarm → onderarm → hand;
@@ -1249,7 +1362,7 @@
       pbCols() { return PB ? { shirt: PB.shirt, skin: PB.skin } : null; },
       get on() { return on; },
       get count() { return agents.length; },
-      get agents() { return agents; }, graph() { return graph; },   // voor tests
+      get agents() { return agents; }, graph() { return graph; }, goals: () => ({ G, B: [...G.B.values()].map(b => [b.id, b.cat, b.doors.length, b.spots.length]), n: G.N.length, plan, decide, route }),   // voor tests
       setOn(v) { on = v; label(); try { localStorage.setItem('raatstad-mensen', on ? '1' : '0'); } catch (e) {} peopleDirty = true; },
       // Staat er iemand in de weg? (de speler loopt niet door mensen heen, behalve als je rent: dan val je ze omver)
       blocks(x, z, y) {
@@ -1301,7 +1414,12 @@
           if (!isFinite(a.x) || !isFinite(a.z) || !isFinite(a.y)) { if (nodeList.length) place(a, pick(nodeList), false); continue; }   // vangnet: een ongeldige positie (zeldzaam) wordt een nieuwe plek
           a.t += dt; a.lookPhase += dt;
           if (a.fade < 1) a.fade = Math.min(1, a.fade + dt * 1.5);
-          if (a.state === 'inside') { a.timer -= dt; if (a.timer <= 0 && nodeList.length) { const n = doorList.length ? pick(doorList) : pick(nodeList); place(a, n, true); } continue; }
+          if (a.state === 'inside') {
+            a.timer -= dt;
+            if (a.inB && !chaos) { const auto = typeof DN !== 'undefined' && DN.st.auto; if (auto ? (a.untilH === undefined || hourReached(a.untilH) || a.timer <= -60) : a.timer <= 0) leave(a); continue; }   // binnen tot het tijd is (of, met een stilstaande klok, een poosje)
+            if (a.timer <= 0 && nodeList.length) { const n = doorList.length ? pick(doorList) : pick(nodeList); place(a, n, true); if (!chaos && G.N.length) plan(a); }
+            continue;
+          }
           if (a.state === 'getup' || a.state === 'rag') { ragTick(a, dt); continue; }
           if (chaos && (a.state === 'walk' || a.state === 'pause')) {
             if (a.state === 'pause') { a.timer = Math.min(a.timer, 0.3); a.chatT = 0; }   // geen tijd voor een praatje
@@ -1331,6 +1449,8 @@
             continue;
           }
           if (!a.wps.length) {
+            if (!chaos && a.goal && a.path && !a.path.length) { if (arrive(a)) continue; }   // aangekomen bij het doel
+            if (!chaos && !a.goal && G.N.length && !a.goingIn && a.t > (a.strollEnd || 0)) plan(a);   // klaar met slenteren: een nieuw doel
             if (a.goingIn) { a.state = 'inside'; a.timer = (4 + Math.random() * 10) * (1 + 2.5 * Math.min(1, WXK.rain + WXK.snow * 0.5)); a.goingIn = false; continue; }   // bij slecht weer blijven ze langer binnen
             const k = a.node.kind;
             if ((k.b === 'hof' || (k.b === 'looppad' && a.node.edges.size >= 3) || k.level === 'high' || (k.b === 'mod' && k.open)) && !chaos && Math.random() < 0.18) { a.state = 'pause'; a.timer = 2 + Math.random() * 5; }
