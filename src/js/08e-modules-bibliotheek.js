@@ -346,7 +346,7 @@
     }
   } catch (e) { /* geen opslag */ }
   // lib10: de hele bibliotheek opnieuw gebouwd en gecontroleerd (bereikbaarheid, trappen, inrichting) plus 35 nieuwe basisgebouwen.
-  // Standaardmodules die je nooit in de Raatbouwer hebt bewaard (geen _sig) worden vervangen (zelfde id, dus geplaatste exemplaren
+  // Standaardmodules die je nooit in de Raatmaker hebt bewaard (geen _sig) worden vervangen (zelfde id, dus geplaatste exemplaren
   // gaan mee, zie buildModNet), nieuwe komen erbij; wat je zelf hebt aangepast of gemaakt blijft staan.
   let libNews = 0;
   try {

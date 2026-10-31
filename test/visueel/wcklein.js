@@ -1,4 +1,4 @@
-// Klein winkelcentrum: controle in de Raatbouwer, beelden (bovenaanzicht per laag, 3D, rondlopen) en in de stad
+// Klein winkelcentrum: controle in de Raatmaker, beelden (bovenaanzicht per laag, 3D, rondlopen) en in de stad
 const { open, OUT } = require('./helper');
 (async () => { const { b, p } = await open({ width: 1280, height: 800 });
  p.on('pageerror', e => console.log('FOUT', e.message));

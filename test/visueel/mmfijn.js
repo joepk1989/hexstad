@@ -1,4 +1,4 @@
-// Raatbouwer: voorwerpen fijner selecteren (langwerpig = hele lengte telt mee) en vrij verplaatsen (niet aan het raster)
+// Raatmaker: voorwerpen fijner selecteren (langwerpig = hele lengte telt mee) en vrij verplaatsen (niet aan het raster)
 const { open, OUT } = require('./helper');
 (async () => { const { b, p } = await open({ width: 1280, height: 800 });
  p.on('pageerror', e => console.log('FOUT', e.message));

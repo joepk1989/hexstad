@@ -220,7 +220,7 @@ Gemeten: vier schoten op een stadswoning van 3 lagen: 468 → 157 staande stukke
   Tekenopdrachten −60 tot −77 %. Schaduwkaart om het andere beeld. Beeldscherpte "Automatisch" past de resolutie aan op de beeldtijd.
 - Mensen en auto's (27 okt): `nearby(x, z)` wordt per vak onthouden tot het volgende beeld (`nearbyClear` bij elk beeld en elke verbouwing); muren hebben een omhullende doos (`wallBB`, 0,3 m marge) en vloerveelhoeken een omhullende cirkel, zodat de meeste meteen afvallen; mensen verder dan 140 m van de camera worden om de drie beelden bijgewerkt (verspreid, met de opgespaarde tijd, maar nooit een stap groter dan 0,06 s, anders snijden ze hoeken door muren); wie valt of opstaat blijft elk beeld bijgewerkt. Auto's kijken via een raster van 8 m alleen naar voetgangers binnen hun rem- en kijkafstand, en naar andere auto's binnen `max(23, kijkafstand + 4)` m.
   Gemeten (Grote stad, 160 mensen, 40 auto's, rekentijd per beeld): mensen 13,8 → ~6 ms, auto's 4,7 → ~2 ms; Startstadje mensen 3,4 → 1,3, auto's 1,2 → 0,7 ms. Geen extra "door iets heen", botsingen of vastlopers (`test/visueel/{deel,muren,overlap}.js`).
-- Raatbouwer: de camera vliegt in 380 ms naar de helft van de afstand en de maker vervaagt in; op de telefoon één werkbalkrij en een uitklapbaar paneel.
+- Raatmaker: de camera vliegt in 380 ms naar de helft van de afstand en de maker vervaagt in; op de telefoon één werkbalkrij en een uitklapbaar paneel.
 
 ## 20. Lopen en rennen van mensen (`10-mensen.js`: `stepFeet`, `runFeet`, `animPose`, `avoidance`)
 Geen animatieclips: elke voet wordt echt neergezet (procedureel), de benen volgen met inverse kinematica. Dat werkt op elke helling, trap en
@@ -265,7 +265,7 @@ De controle "door iets heen" kijkt bij wandelaars om de 4 beelden en bij rennen 
 volledig procedureel zoals hier. Wie liever clips gebruikt: de gemeten passen per seconde en paslengtes hierboven zijn dan de doelwaarden voor het afspeeltempo,
 en de voeten moeten met IK op de vloer blijven (anders glijden ze over trappen en stoepranden).
 
-## 22. Trappen in de Raatbouwer (naar `trappen.dae`, 27 okt; `08c-modules-v2.js` trappen, `08d-module-maker.js` Trap/Bordestrap)
+## 22. Trappen in de Raatmaker (naar `trappen.dae`, 27 okt; `08c-modules-v2.js` trappen, `08d-module-maker.js` Trap/Bordestrap)
 Voorbeeld van Joep (SketchUp, `trappen.dae`): een trappenhuis met per verdieping één rechte steek langs de rand van het vak en een bordes op elke verdieping, heen en terug
 (steek 1 in de buitenste driehoekrij, steek 2 in de rij ernaast), en een verhoogd vak met een trap waarvan elke trede één driehoekje van het raster is (0,2 m per trede).
 Gemeten in het bestand: vak R = 9 m, verdieping 3 m, vloer 0,3 m dik; steek 6,75 m lang (3 zijden van het fijne raster, 2,25 m), 1,95 m breed (één driehoekrij:
@@ -279,12 +279,12 @@ Gemeten in het bestand: vak R = 9 m, verdieping 3 m, vloer 0,3 m dik; steek 6,75
 - **Trapgat vanzelf**: op de verdieping boven een trap (rechte steek, bordestrap, helling) verdwijnen de vloerdriehoeken waarvan het zwaartepunt boven de trap ligt
   (rechte steek: van 30 % van de lengte tot het eind; bordestrap: rij 1 vanaf 30 %, rij 2 helemaal, tot voorbij het bordes). Een trap van één rij breed haalt precies die rij weg.
 - Gemeten: rechte steek 0 → 3,02 m en bordestrap 3 → 6,02 m met de loopbotsing, grootste stap 0,19 m, nergens geblokkeerd; de vloer erboven sluit aan op de bovenste trede.
-- **Weer**: zolang de Raatbouwer open is, staat het weer op helder en de tijd op 13:00 (sneeuw bedekt anders de vloer); bij sluiten komt het oude weer en de oude tijd terug.
+- **Weer**: zolang de Raatmaker open is, staat het weer op helder en de tijd op 13:00 (sneeuw bedekt anders de vloer); bij sluiten komt het oude weer en de oude tijd terug.
 - **Interface**: werkbalk met korte namen onder de iconen, in groepen (kiezen · vloer · muren en openingen · trappen · dak en voorwerpen · gum); weergave (2D/3D, tot deze verdieping,
   zoom, passend) als zwevend paneel rechtsboven in het tekenvlak; keuzes zonder kleur als gewone keuzeknoppen.
   Gum: wat er onder de muis weggaat licht rood op vóór je klikt (`eraseTarget`, dezelfde volgorde als het weghalen: voorwerp → muur → trap/helling → dak → vloer), met een label "Weghalen: …"; in 3D de hele wand en het schuine trapvlak.
 
-- **Wenteltrap (J)** in de Raatbouwer: klik op een rasterpunt (het midden), sleep naar de kant waar je onderaan instapt (`d` = richting 0–5); keuze linksom/rechtsom omhoog (`side`).
+- **Wenteltrap (J)** in de Raatmaker: klik op een rasterpunt (het midden), sleep naar de kant waar je onderaan instapt (`d` = richting 0–5); keuze linksom/rechtsom omhoog (`side`).
   Item `{a, d, n:1, w:1.5, k:'spiral', side}`; dezelfde zeshoekige wenteltrap als §2 (12 treden van 25 cm om een zeshoekige kern). De zeshoek staat met zijn hoekpunten
   op de rasterlijnen (zijmiddens op `a0 + 30° + 60°·n`, apothema 1,9 m), dus hij valt precies over de zes driehoeken om het rasterpunt; het trapgat erboven is die zeshoek min het uitstapdriehoekje.
 - **Plaatsen per driehoekje** (`sectorDir`, `hoverStair`): al vóór het klikken staat de trap als voorbeeld onder de muis. Het driehoekje onder de muis bepaalt het rasterpunt (de dichtstbijzijnde hoek)
@@ -313,7 +313,7 @@ Gemeten in het bestand: vak R = 9 m, verdieping 3 m, vloer 0,3 m dik; steek 6,75
 - Een eigen gereedschap `kies` naast de gum: geen bouwvoorbeeld; wat je aanwijst (een module-exemplaar of het bovenste blok van een vak) licht op als draadmodel van zeshoekige
   prisma's (per vak van het exemplaar, van de laag waarop het staat tot de bovenkant, plus 2,5 m bij een schuin dak), met de naam bij de muis.
 - Klik: een optiekaart bij de muis. Module: **Draai links / rechts** (60°, `rot ± 1`), **Spiegelen** (`mir`), **Andere variant** (`swapInst`: de volgende module die op de buren aansluit),
-  **Bewerken** (opent de module in de Raatbouwer; bewaren past alle exemplaren aan), **Meer hiervan** (pipet: module, draaiing en spiegeling in je hand), **Verplaatsen** (oppakken: weghalen
+  **Bewerken** (opent de module in de Raatmaker; bewaren past alle exemplaren aan), **Meer hiervan** (pipet: module, draaiing en spiegeling in je hand), **Verplaatsen** (oppakken: weghalen
   en meteen in je hand), **Weghalen**. Blok: **Meer hiervan** en **Bovenste weg**. De kaart blijft open na draaien/spiegelen/variant, zodat je door kunt klikken.
 - Opnieuw neerzetten (`kiesReplace`): exemplaar uit de lijst, `modTopRefresh()` (de bovenste module per vak opnieuw bepalen, anders ziet de plaatsingscontrole het oude exemplaar nog),
   `placeCore` met de nieuwe draaiing; past het niet, dan blijft het oude staan. Dezelfde fout zat in `swapInst` (een variant die niet paste haalde het exemplaar weg); ook opgelost.
@@ -341,7 +341,7 @@ Gemeten in het bestand: vak R = 9 m, verdieping 3 m, vloer 0,3 m dik; steek 6,75
   laden al installeert (de `const`-hulpjes moeten dan bestaan).
 - Unity: dezelfde controle is handig als editor-test (NavMesh-bereikbaarheid per verdieping en overlap van props met wanden).
 
-## 25. Raatbouwer: kiezen, controleren, daken die de muren volgen (28 okt; `08d-module-maker.js`, `08c-modules-v2.js`)
+## 25. Raatmaker: kiezen, controleren, daken die de muren volgen (28 okt; `08d-module-maker.js`, `08c-modules-v2.js`)
 - **Kiezen**: een selectie is per verdieping een verzameling sleutels (`f` driehoeken, `w` muren, `s` trapindexen, `o` voorwerpindexen, `r` vakken).
   Bewerkingen werken op een "clip" (de gegevens zelf): eruit halen, omzetten, terugzetten. Verplaatsen = (di, dj) rasterstappen optellen; voorwerpen
   schuiven met `P(di, dj)`. Een verschuiving is een hele-vakken-verschuiving als (di − dj) en (di + 2dj) deelbaar zijn door 3n (n = R/ts); alleen dan
@@ -358,7 +358,7 @@ Gemeten in het bestand: vak R = 9 m, verdieping 3 m, vloer 0,3 m dik; steek 6,75
   kwamen knopen boven een gat en vielen mensen in het winkelcentrum; nu weggelaten (oppervlak > 0,02 m²). Op een wenteltrap houden we lopers
   alleen tussen kern en leuning als ze al op de trap staan (anders sprongen ze er soms heen), en de leuning van de tweede tree telt mee als muur.
 
-## 26. Raatbouwer: spiegelen, materiaal van een keuze, rondlopen (28 okt; `08d-module-maker.js`)
+## 26. Raatmaker: spiegelen, materiaal van een keuze, rondlopen (28 okt; `08d-module-maker.js`)
 - **Spiegelen** om rasterpunt (i0, j0): boven ↕ onder = (a, b) → (a, −a − b) op de verschillen (zelfde als `mv2Mirror`, z → −z);
   links ↔ rechts = die spiegeling plus 180° draaien. Trapsrichting d → 5 − d, `off` en `side` keren om; voorwerpen z → 2·z0 − z en rot → −rot;
   zadeldaknok a → [2, 1, 0][a]; daken alleen als het spiegelpunt een vakmidden is.
@@ -368,7 +368,7 @@ Gemeten in het bestand: vak R = 9 m, verdieping 3 m, vloer 0,3 m dik; steek 6,75
   functies als de stad (`surfTop`, `trisBlock`, `segDist`; stap 0,4 m, romp 1,2 m, straal 0,25 m). Bewegen in stapjes van ≤ 0,12 m zodat je niet
   door een dunne muur schiet; een vloer tot 0,4 m hoger is een trede. Camera op 1,62 m. In Unity: een CharacterController met stepOffset 0,4.
 
-## 27. Raatbouwer: voorwerpen tegen de muur, controle na elke wijziging (28 okt; `08d-module-maker.js`)
+## 27. Raatmaker: voorwerpen tegen de muur, controle na elke wijziging (28 okt; `08d-module-maker.js`)
 - Voorwerp-assen: lokale x = lengte (wereld (cos rot, sin rot)), rug = lokale −z (wereld (sin rot, −cos rot)); bed: hoofdeinde = lokale −x.
   `OBJ_BACK` geeft per soort de afstand midden–rug. Dichtstbijzijnde muur (geen deur/doorgang) binnen rug + 1 m: rot zo dat de rug naar de muur
   wijst, midden op voetpunt + normaal × (muurdikte/2 + rug + 2 cm). Verschuiven/draaien/spiegelen ronden voorwerpen niet meer af op 0,25 m (dan

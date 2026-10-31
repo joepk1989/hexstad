@@ -93,7 +93,7 @@
       'tool-tophoog': 'Ophogen: ingedrukt houden; per 3 m (Instellingen → Terreinstap). Rechts of Shift: andersom', 'tool-tafgraaf': 'Afgraven: ingedrukt houden; per 3 m. Rechts of Shift: andersom',
       'tool-tvlak': 'Egaliseren: links naar het gemiddelde, rechts naar de hoogte van het startvak', 'tool-tglad': 'Gladstrijken: scherpe overgangen worden zacht',
       'tool-thelling': 'Helling trekken: sleep van de hoge naar de lage kant', 'tool-kuil': 'Uitgraving: 3 m omlaag', 'tool-helling': 'Helling: een oprit van 3 m', 'tool-hofhelling': 'Opgang: een brede oprit van 3 m',
-      menuBtn: 'Menu: steden, opslaan, Raatbouwer, instellingen, feedback', optPeople: 'Mensen aan of uit', optCars: "Auto's aan of uit",
+      menuBtn: 'Menu: steden, opslaan, Raatmaker, instellingen, feedback', optPeople: 'Mensen aan of uit', optCars: "Auto's aan of uit",
       recklessBtn: 'Totale chaos: roekeloze auto’s en paniek (met geweld, standaard uit)', jumpBtn: 'Springen (spatie)', placeBtn: 'Bouwen op het puntje in het midden', undoBtn: 'Ongedaan maken (Ctrl+Z)', todAutoBtn: 'De tijd loopt vanzelf door, of staat stil',
     };
     function applyTips() {

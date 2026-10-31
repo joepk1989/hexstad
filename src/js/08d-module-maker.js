@@ -1,4 +1,4 @@
-  // ---------- Raatbouwer (vroeger module maker / schets): teken gebouwen en pleinen per verdieping, met gereedschap zoals in SketchUp ----------
+  // ---------- Raatmaker (vroeger module maker / schets): teken gebouwen en pleinen per verdieping, met gereedschap zoals in SketchUp ----------
   // Bovenaanzicht op het fijne driehoekraster. Vloer schilder je per driehoek, muren trek je langs de ribben van het
   // raster, een deur, raam of poort zet je in een muur, een trap of helling trek je van een rasterpunt in een van zes
   // richtingen. Voorwerpen zet je als laatste neer. Elke verdieping is 3 m; je wisselt met ▲ ▼. De 3D-weergave gebruikt

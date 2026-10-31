@@ -1,4 +1,4 @@
-// Raatbouwer: daken die de muren volgen (villa ¾) en een zadeldak met de nok naar de muis
+// Raatmaker: daken die de muren volgen (villa ¾) en een zadeldak met de nok naar de muis
 const { open, OUT } = require('./helper');
 (async () => { const { b, p } = await open({ width: 1280, height: 800 });
  p.on('pageerror', e => console.log('FOUT', e.message, (e.stack || '').split('\n').slice(0, 4).join(' | ')));

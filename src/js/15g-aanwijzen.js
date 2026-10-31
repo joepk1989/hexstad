@@ -1,5 +1,5 @@
   // ---------- Aanwijzen (V): wijs in de stad een module of blok aan; een klik opent opties om het meteen aan te passen ----------
-  // Draaien (per 60°), spiegelen, een passende variant kiezen, bewerken in de Raatbouwer, meer hiervan bouwen (pipet),
+  // Draaien (per 60°), spiegelen, een passende variant kiezen, bewerken in de Raatmaker, meer hiervan bouwen (pipet),
   // oppakken om te verplaatsen, weghalen. Bij aanwijzen licht het hele exemplaar op als een draadmodel van zeshoeken.
   const KIES = { menu: null, tip: null, T: null, hoverKey: '' };
   const kiesHL = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: '#f2b233', transparent: true, opacity: 0.95, depthTest: false }));
@@ -88,7 +88,7 @@
         sub.textContent = [I.lv ? 'laag ' + I.lv : 'op de grond', M.fl ? M.fl + (M.fl === 1 ? ' laag' : ' lagen') : null, M.k ? '7 vakken' : null, ((I.rot || 0) % 6) * 60 + '°', I.mir ? 'gespiegeld' : null].filter(Boolean).join(' · ');
         if (v2) { btn('l', 'Draai links', 'Een zesde slag linksom (60°)'); btn('r', 'Draai rechts', 'Een zesde slag rechtsom (60°)'); btn('m', I.mir ? 'Niet spiegelen' : 'Spiegelen', 'In spiegelbeeld'); }
         if (Number.isInteger(I.q) && Number.isInteger(I.r)) btn('v', 'Andere variant', 'De volgende module die op de buren aansluit');
-        if (mod && v2) btn('e', 'Bewerken', 'Openen in de Raatbouwer' + (n > 1 ? ' · past alle ' + n + ' exemplaren in de stad aan' : ''));
+        if (mod && v2) btn('e', 'Bewerken', 'Openen in de Raatmaker' + (n > 1 ? ' · past alle ' + n + ' exemplaren in de stad aan' : ''));
         if (mod) { btn('p', 'Meer hiervan', 'Deze module (met deze draaiing) in je hand nemen om er meer van te bouwen'); btn('o', 'Verplaatsen', 'Oppakken en ergens anders neerzetten'); }
         btn('x', 'Weghalen', 'Het hele exemplaar weghalen', !mod, true);
       } else {

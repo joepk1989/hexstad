@@ -1,4 +1,4 @@
-// Raatbouwer: Controleren op alle standaardmodules (moet schoon zijn) en op een kapotte module (moet rood geven)
+// Raatmaker: Controleren op alle standaardmodules (moet schoon zijn) en op een kapotte module (moet rood geven)
 const { open, OUT } = require('./helper');
 (async () => { const { b, p } = await open({ width: 1280, height: 800 });
  p.on('pageerror', e => console.log('FOUT', e.message));

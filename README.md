@@ -50,7 +50,7 @@ Wat er in de bestanden zit:
 | `08` schets-modules | schets-app, modules, randcodes, delen als bestand |
 | `08b` bouwdelen-modules | de zes oude bouwdelen als schetsmodules (alleen uiterlijk), eenmalig aan de lijst toegevoegd |
 | `08c` modules-v2 | **modules v2**: het model (verdiepingen, vloeren, muren met openingen, trappen, daken, voorwerpen), de bouwer naar 3D met botsing, plaatsing in de stad, randcodes, 3D-miniaturen |
-| `08d` module-maker | **de Raatbouwer**: bovenaanzicht en 3D, verdiepingen, gereedschap met iconen, bibliotheek, delen |
+| `08d` module-maker | **de Raatmaker**: bovenaanzicht en 3D, verdiepingen, gereedschap met iconen, bibliotheek, delen |
 | `08d9` bibliotheek-uitbreiding | 35 basisgebouwen (voorzieningen, sport, wonen, werken), inrichting voor alle standaardmodules, niets bij de trappen |
 | `08e` modules-bibliotheek | de 152 standaardmodules, gemaakt met een kleine bouw-API op het v2-model |
 | `09` detailniveau-botsing | detailniveau voor grote steden, botsing |
@@ -215,7 +215,7 @@ De schansflanken (`schans_zijde`) staan tussen de vakken en zijn weggelaten. **M
 - **derde verdieping**: een laag winkels als dak over die straat (in de schets dragen die op de buren; in het voorbeeld zweven ze daar dus).
 
 
-Nieuw in de Raatbouwer hiervoor:
+Nieuw in de Raatmaker hiervoor:
 - **Schans (S)**: klik in een vak bij de zijde waar je onderaan instapt; het hele vak wordt een oprit die aan de overkant 3 m hoger uitkomt (`hexramp` in `mv2Build`: vlakke middenstrook van 9 m en twee gewrongen zijdriehoeken, dichte wanden eromheen).
 - **Penseel** voor de vloer (knoppen onder de vloerkleuren, of N): zeshoek · één driehoek · heel vak · kern (¾) · rand (galerij). Geldt ook voor de gum op vloer.
 - **Kopie ↑** onder de verdiepingknoppen links kopieert deze verdieping naar de verdieping erboven.
@@ -224,7 +224,7 @@ Nieuw in de Raatbouwer hiervoor:
 
 ## Modules: namen en bladeren
 
-Elke module heet **soort · variant (· bijzonderheid) · lagen · maat**, bijvoorbeeld `Rijhuis · baksteen · 2L` of `Plein · markt · 7v`. Het aantal lagen (`2L`, alleen bij gebouwen) en de maat (`7v` voor 7 vakken; 1 vak heeft geen toevoeging) rekent de Raatbouwer bij het bewaren zelf uit en zet ze achteraan (`modMeta`, `modSuffix` in `08c`). De standaardbibliotheek gebruikt dezelfde regel (`LIB_NAMES` in `08e`). Oude namen worden eenmalig omgezet, en de categorie Trappen heet nu **Verbindingen** (trappen, hellingen, bruggen: wat lagen met elkaar verbindt).
+Elke module heet **soort · variant (· bijzonderheid) · lagen · maat**, bijvoorbeeld `Rijhuis · baksteen · 2L` of `Plein · markt · 7v`. Het aantal lagen (`2L`, alleen bij gebouwen) en de maat (`7v` voor 7 vakken; 1 vak heeft geen toevoeging) rekent de Raatmaker bij het bewaren zelf uit en zet ze achteraan (`modMeta`, `modSuffix` in `08c`). De standaardbibliotheek gebruikt dezelfde regel (`LIB_NAMES` in `08e`). Oude namen worden eenmalig omgezet, en de categorie Trappen heet nu **Verbindingen** (trappen, hellingen, bruggen: wat lagen met elkaar verbindt).
 
 `modMeta(m)` geeft per module de gegevens voor bladeren en stapelen:
 - `fl`: verdiepingen (een bovenste laag met alleen dakvloer telt niet mee);
@@ -264,9 +264,9 @@ Woningen en kantoren hebben een **bordestrap langs één muur** (`UT` in `03`), 
 
 ## Aanwijzen in de stad (V)
 
-Met de muispijl linksonder (of toets **V**) wijs je in de stad een module of blok aan: hij licht op als een draadmodel van zeshoeken, met de naam bij de muis. Een klik geeft een optiekaart: **draai links/rechts** (60°), **spiegelen**, **andere variant** (die op de buren aansluit), **bewerken** in de Raatbouwer (past alle exemplaren aan), **meer hiervan** (pipet), **verplaatsen** (oppakken en ergens anders neerzetten) en **weghalen**. Bij een gewoon blok: meer hiervan of de bovenste laag weg. Esc of een klik ernaast sluit de kaart (`15g-aanwijzen.js`).
+Met de muispijl linksonder (of toets **V**) wijs je in de stad een module of blok aan: hij licht op als een draadmodel van zeshoeken, met de naam bij de muis. Een klik geeft een optiekaart: **draai links/rechts** (60°), **spiegelen**, **andere variant** (die op de buren aansluit), **bewerken** in de Raatmaker (past alle exemplaren aan), **meer hiervan** (pipet), **verplaatsen** (oppakken en ergens anders neerzetten) en **weghalen**. Bij een gewoon blok: meer hiervan of de bovenste laag weg. Esc of een klik ernaast sluit de kaart (`15g-aanwijzen.js`).
 
-## Modules en de Raatbouwer
+## Modules en de Raatmaker
 
 Een module v2 is een gebied van 1, 7, 19 of 37 vakken met verdiepingen van 3 m, getekend op het fijne driehoekraster (zijde 4,5 of 2,25 m):
 
@@ -277,7 +277,7 @@ Een module v2 is een gebied van 1, 7, 19 of 37 vakken met verdiepingen van 3 m, 
 
 In de stad wordt een module echt gebouwd (`mv2Build`): één mesh per materiaal, plus loopvlakken per verdieping en muren voor de botsing, zodat je erdoorheen en de trap op kunt lopen. Vakken onder een module zijn bezet voor andere blokken en wegen. Randcodes (muur, deur, groen, stoep, water, weg, leeg) worden uit de begane grond afgeleid; een klik op een geplaatste module wisselt naar de variant die het best op de buren past.
 
-De **Raatbouwer** (vroeger module maker of schets; in het menu **Raatbouwer**, of Modules → Nieuw, of dubbelklik op een module) werkt als een bouwtekening: gereedschap bovenaan met sneltoetsen (V kiezen, H schuiven, F vloer, G vullen, W muur, M kamer, D deur, R raam, P poort, O open, C dicht, T trap, U bordestrap, J wenteltrap, L helling, S schans, K dak, B voorwerp, X gum), verdiepingen met ▲▼ of Page Up/Down, 3D-weergave met 3, ongedaan maken met Ctrl+Z. Bewaren zet de module in het palet; geplaatste exemplaren worden meteen bijgewerkt. Modules zijn als JSON-bestand te delen.
+De **Raatmaker** (vroeger module maker of schets; in het menu **Raatmaker**, of Modules → Nieuw, of dubbelklik op een module) werkt als een bouwtekening: gereedschap bovenaan met sneltoetsen (V kiezen, H schuiven, F vloer, G vullen, W muur, M kamer, D deur, R raam, P poort, O open, C dicht, T trap, U bordestrap, J wenteltrap, L helling, S schans, K dak, B voorwerp, X gum), verdiepingen met ▲▼ of Page Up/Down, 3D-weergave met 3, ongedaan maken met Ctrl+Z. Bewaren zet de module in het palet; geplaatste exemplaren worden meteen bijgewerkt. Modules zijn als JSON-bestand te delen.
 
 **Kiezen (V)**: klik op iets om het te kiezen (een vloer: de hele ruimte tot aan de muren), sleep een rechthoek om meer te kiezen, Ctrl+klik voegt toe of haalt eraf. Sleep wat gekozen is om het te verplaatsen (in stappen van een driehoekzijde, zodat alles op het raster blijft), Q/E draait 60° om het rasterpunt in het midden, M spiegelt links ↔ rechts en Shift+M boven ↕ onder (ook als knoppen), Delete haalt weg, Ctrl+C / X / V kopieert, knipt en plakt (het stuk hangt aan de muis tot je klikt; Ctrl+Shift+V plakt op dezelfde plek, ook op een andere verdieping), Ctrl+D dupliceert, Ctrl+A kiest alles, en met Keuze ↑/↓ verdieping gaat de keuze een verdieping op of neer. Daken en schansen horen bij een heel vak: die gaan alleen mee bij verplaatsen over hele vakken.
 
@@ -299,7 +299,7 @@ De **Raatbouwer** (vroeger module maker of schets; in het menu **Raatbouwer**, o
 
 **Voorwerpen (B)**: je ziet het voorwerp al staan voor je klikt (in 3D half doorzichtig), met zijn omtrek en een pijltje naar de voorkant. Draaien per 30°: Q en E, Shift+scroll of de knoppen ↺ ↻; houd ingedrukt en sleep om het te richten (Ctrl: vrij). Op een voorwerp: klik draait 30°, slepen richt het, rechtermuisknop haalt het weg.
 
-**3D is de standaardweergave** en je tekent er gewoon in: elke klik wordt een straal vanuit de camera, gesneden met het vlak van de verdieping waar je bent (`toW`/`toS` in `08d`), dus al het gereedschap werkt in 3D en bovenaanzicht hetzelfde. Het raster en de rand van het gebied liggen op de hoogte van die verdieping. Draaien: middelste muisknop, Alt+slepen, spatie+slepen of het handje; schuiven: Shift+slepen of het pijltje. Standaard zie je de module tot en met de verdieping waar je tekent. Op het noorden staat een **hoogtemeter**: een paal met een streep per verdieping (3 m), de huidige in oranje, met een N; in het bovenaanzicht een ladder boven het gebied. Zolang de Raatbouwer open is staat de stad stil (scheelt rekenwerk).
+**3D is de standaardweergave** en je tekent er gewoon in: elke klik wordt een straal vanuit de camera, gesneden met het vlak van de verdieping waar je bent (`toW`/`toS` in `08d`), dus al het gereedschap werkt in 3D en bovenaanzicht hetzelfde. Het raster en de rand van het gebied liggen op de hoogte van die verdieping. Draaien: middelste muisknop, Alt+slepen, spatie+slepen of het handje; schuiven: Shift+slepen of het pijltje. Standaard zie je de module tot en met de verdieping waar je tekent. Op het noorden staat een **hoogtemeter**: een paal met een streep per verdieping (3 m), de huidige in oranje, met een N; in het bovenaanzicht een ladder boven het gebied. Zolang de Raatmaker open is staat de stad stil (scheelt rekenwerk).
 
 **Hoeken**: waar twee muren onder een hoek samenkomen staat een ronde hoekpost van dezelfde dikte en hetzelfde materiaal, zodat de rechte muurblokken zonder kier of uitstekend hoekje aansluiten (ook bij hagen).
 
@@ -332,7 +332,7 @@ Opslag: `cells.rails = [{ p: [[x, z], …] }]`, in de stadsdata als `__r` (allee
 - **Stad opslaan als bestand / Stad openen** (menu), met de waarschuwing dat steden tussen beta-versies kunnen verdwijnen.
 - **Credits** (menu): ontwerp, AI-hulp bij de code, three.js en lettertypen, geluiden (bron en licentie nog in te vullen).
 - **Standaard**: Totale chaos, Bloed en Instorten uit (Instorten en Bloed worden bewaard); geluid aan bij de eerste tik, met één knop uit. Schiet je in de cameramodus met Instorten uit, dan zegt een melding waar je het aanzet.
-- Welkomstscherm in drie stappen (Bouwen, Lopen, Raatbouwer) en een korte uitleg bij elke knop (`TIPS`).
+- Welkomstscherm in drie stappen (Bouwen, Lopen, Raatmaker) en een korte uitleg bij elke knop (`TIPS`).
 - Gevonden: een nieuwe speler kreeg een startstadje zonder huizen (bij de eerste start ververste de bibliotheek alle modules en zette ze opnieuw neer, wat op zichzelf botste). Nu worden bij een vernieuwde module alleen de gegevens vervangen.
 - Test: `test/visueel/beta.js` (tests zetten Instorten en Bloed zelf aan, `helper.js`).
 
@@ -348,7 +348,7 @@ Wat een dorp nodig heeft, op het zeshoekraster: een zeshoekige ringweg op 4 vakk
 
 ## Opslag
 
-Steden en modules staan in `localStorage` van de browser. Modules kunnen als JSON-bestand worden geëxporteerd en geïmporteerd (Raatbouwer → Delen). De 152 standaardmodules worden één keer toegevoegd en zijn met "Standaard terugzetten" te herstellen.
+Steden en modules staan in `localStorage` van de browser. Modules kunnen als JSON-bestand worden geëxporteerd en geïmporteerd (Raatmaker → Delen). De 152 standaardmodules worden één keer toegevoegd en zijn met "Standaard terugzetten" te herstellen.
 
 ## Plan
 
@@ -359,7 +359,7 @@ Steden en modules staan in `localStorage` van de browser. Modules kunnen als JSO
 5. ✅ Oude vakweg-, laan- en randwegcode verwijderd (alleen de omzetting voor oude steden blijft)
 6. ✅ Ronde kop op doodlopende wegen
 7. ✅ Modules v2 met verdiepingen, openingen, trappen, daken en voorwerpen; begaanbaar in de stad
-8. ✅ Raatbouwer met gereedschap en iconen, 3D-weergave, bibliotheek
+8. ✅ Raatmaker met gereedschap en iconen, 3D-weergave, bibliotheek
 9. ✅ Honderd standaardmodules in families (wonen, werken, winkels, openbaar, groen, pleinen, trappen, bouwdelen)
 10. ✅ Hoog terrein, wegen over heuvels en viaducten, sneltoetsen met hulpvenster
 11. ✅ Winkelcentrum (7 vakken) en een generator voor varianten (dobbelsteen); bibliotheek ingedeeld (Horeca, Sport, Vervoer), tabbladen tonen hun modules
@@ -375,12 +375,12 @@ Nog te doen:
 - Parkeerstroken met geparkeerde auto's, keerlus aan het eind van een laan
 - Plaatsvervangers in het menu: Klif, Strand, Poort
 - Auto's die een parkeergarage in rijden
-- Raatbouwer: muren met eigen hoogte, schuine daken over een vrije vorm, hellende vloeren, teksten en bordjes
+- Raatmaker: muren met eigen hoogte, schuine daken over een vrije vorm, hellende vloeren, teksten en bordjes
 - Mensen met een doel (werk, winkel, thuis); dak op modules; rivieren; tunnels voor auto's
 
 ## Testen
 
-In `test/` staan de simulaties en controles (Playwright, headless Chromium): verkeer op losse wegvormen en in de voorbeeldstad, een stad met alle bouwonderdelen, de Raatbouwer, de standaardbibliotheek en lint. Zie `test/README.md`.
+In `test/` staan de simulaties en controles (Playwright, headless Chromium): verkeer op losse wegvormen en in de voorbeeldstad, een stad met alle bouwonderdelen, de Raatmaker, de standaardbibliotheek en lint. Zie `test/README.md`.
 
 ## Randvulling langs wegen (v116)
 Een vak dat deels op een weg of stoep ligt, kan nu een park in stukjes worden: alleen de taartpunten (zesde delen van het zeshoekige vak) die vrij van de weg zijn, worden gras met bomen. Het masker staat per vak in `cells.sec` (opgeslagen als `__s`). Het startstadje is hiermee gevuld; zelf bouwen: kies Park en tik een vak naast de weg.
@@ -414,5 +414,5 @@ De sloopkogel (rechtermuisknop in de cameramodus, 36 m/s) ramt door muren heen: 
 ## Lopen en rennen
 Mensen zetten hun voeten echt neer (`stepFeet`), met benen via inverse kinematica (`animPose`). Vanaf ~2,2 m/s rennen ze (`runFeet`): afzetten achter de heup, landen vlak ervoor, een zweefmoment, hiel omhoog, gebogen pompende armen, voorover leunen. Rennende mensen kijken verder vooruit en halen tragere lopers in. Metingen: `test/visueel/loopmeting.js` (voetwerk), `ontwijk.js` (bijna-botsingen), `loopbeeld.js` (beeldreeks van opzij). Alle maten en formules voor Unity staan in `unity/OVERDRACHT.md` §20.
 
-## Trappen in de Raatbouwer
+## Trappen in de Raatmaker
 Trap (T) en Bordestrap (U) volgen het voorbeeld `trappen.dae`: 16 treden per verdieping (18,75 cm op, 42 cm aantrede bij 3 rasterzijden), één driehoekrij breed (1,95 m), zwevende treden, een driehoekig bordes (rechte trap) of een bordes over twee rijen met een schuine kant van 60° (bordestrap). Het gat in de vloer erboven komt vanzelf (`stairHoles` in `08c`). Zolang de maker open is, is het weer helder en 13:00. Maten en formules: `unity/OVERDRACHT.md` §22.

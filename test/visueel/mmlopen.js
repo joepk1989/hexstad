@@ -1,4 +1,4 @@
-// Raatbouwer: rondlopen (4). Begint op een vrije plek, W loopt, muren houden je tegen, en via de trappen kom je op elke verdieping.
+// Raatmaker: rondlopen (4). Begint op een vrije plek, W loopt, muren houden je tegen, en via de trappen kom je op elke verdieping.
 const { open, OUT } = require('./helper');
 (async () => { const { b, p } = await open({ width: 1280, height: 800 });
  p.on('pageerror', e => console.log('FOUT', e.message));

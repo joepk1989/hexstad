@@ -1,4 +1,4 @@
-// Raatbouwer, gereedschap Kiezen: aanklikken (ruimte), Ctrl+klik, rechthoek, verplaatsen, draaien, kopiëren/plakken, weghalen
+// Raatmaker, gereedschap Kiezen: aanklikken (ruimte), Ctrl+klik, rechthoek, verplaatsen, draaien, kopiëren/plakken, weghalen
 const { open, OUT } = require('./helper');
 (async () => { const { b, p } = await open({ width: 1280, height: 800 });
  p.on('pageerror', e => console.log('FOUT', e.message));

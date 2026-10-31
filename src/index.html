@@ -270,7 +270,7 @@
       <button class="btn mbtn" type="button" data-act="pastecity"><svg><use href="#i-paste"/></svg><span class="lbl"><b>Stad plakken</b><small>Code uit het klembord</small></span></button>
       <button class="btn mbtn" type="button" data-act="savefile"><svg><use href="#i-save"/></svg><span class="lbl"><b>Stad opslaan als bestand</b><small>Op je apparaat bewaren</small></span></button>
       <button class="btn mbtn" type="button" data-act="openfile"><svg><use href="#i-paste"/></svg><span class="lbl"><b>Stad openen</b><small>Uit een bestand</small></span></button>
-      <button class="btn mbtn" type="button" data-act="sketch"><svg><use href="#i-raat"/></svg><span class="lbl"><b>Raatbouwer</b><small>Ontwerp je eigen modules</small></span></button>
+      <button class="btn mbtn" type="button" data-act="sketch"><svg><use href="#i-raat"/></svg><span class="lbl"><b>Raatmaker</b><small>Ontwerp je eigen modules</small></span></button>
       <button class="btn mbtn" type="button" data-act="oud"><svg><use href="#i-sketch"/></svg><span class="lbl"><b>Oude blokken omzetten</b><small>Woningen en kantoren worden modules</small></span></button>
       <button class="btn mbtn" type="button" data-act="home"><svg><use href="#i-home"/></svg><span class="lbl"><b>Naar het midden</b><small>Camera terug naar het centrum</small></span></button>
     </div>
@@ -299,7 +299,7 @@
     <ol class="welcome-list">
       <li><b>Bouwen</b> — kies onderin een tabblad (Wegen, Gebouwen, Groen …) en tik op een vak. Wegen trek je door te slepen; huizen, parken en trappen sluiten vanzelf op elkaar aan.</li>
       <li><b>Lopen</b> — knop rechtsonder: loop door je eigen straten, open deuren en neem de trap naar het dak. Met de hamer sloop je, met de bouwhand bouw je verder.</li>
-      <li><b>Raatbouwer</b> — in het menu: ontwerp je eigen gebouw, verdieping voor verdieping, en zet het daarna in je stad.</li>
+      <li><b>Raatmaker</b> — in het menu: ontwerp je eigen gebouw, verdieping voor verdieping, en zet het daarna in je stad.</li>
     </ol>
     <p class="welcome-beta">Beta 0.1.0 · bewaarde steden kunnen tussen versies verdwijnen (Menu → Stad opslaan als bestand) · feedback via Menu → Feedback</p>
     <div class="welcome-btns">
@@ -346,13 +346,13 @@
   </header>
   <div id="mm_stage">
     <canvas id="mm_cv3" aria-hidden="true"></canvas>
-    <canvas id="mm_cv" aria-label="Tekenvlak van de Raatbouwer"></canvas>
+    <canvas id="mm_cv" aria-label="Tekenvlak van de Raatmaker"></canvas>
     <div id="mm_levels"><button id="mm_lvUp" type="button" title="Verdieping omhoog (Page Up)">▲</button><div id="mm_lvName">Begane grond</div><button id="mm_lvDn" type="button" title="Verdieping omlaag (Page Down)">▼</button></div>
     <div id="mm_readout"></div>
     <div id="mm_msg" role="status"></div><div id="mm_toast" role="status" aria-live="polite" hidden></div>
   </div>
   <aside id="mm_side">
-    <div class="mm-brand"><svg aria-hidden="true"><use href="#i-raat"/></svg>Raatbouwer</div>
+    <div class="mm-brand"><svg aria-hidden="true"><use href="#i-raat"/></svg>Raatmaker</div>
     <button id="mm_sheet" type="button" class="mm-sheet" aria-expanded="false"><span class="mm-grip" aria-hidden="true"></span><b>Module, bibliotheek en delen</b><i aria-hidden="true">▴</i></button>
     <section id="mm_ctx"><h2 id="mm_ctxTitle">Materiaal</h2><div class="mm-swatches" id="mm_sw"></div><p class="hint" id="mm_ctxHint"></p></section>
     <section>

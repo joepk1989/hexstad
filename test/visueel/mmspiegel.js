@@ -1,4 +1,4 @@
-// Raatbouwer: keuze spiegelen (M / Shift+M) en materiaal van een keuze wisselen
+// Raatmaker: keuze spiegelen (M / Shift+M) en materiaal van een keuze wisselen
 const { open, OUT } = require('./helper');
 (async () => { const { b, p } = await open({ width: 1280, height: 800 });
  p.on('pageerror', e => console.log('FOUT', e.message));

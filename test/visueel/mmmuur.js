@@ -1,4 +1,4 @@
-// Raatbouwer: voorwerpen gaan met hun rug tegen de muur staan; het controle-bolletje kleurt na elke wijziging
+// Raatmaker: voorwerpen gaan met hun rug tegen de muur staan; het controle-bolletje kleurt na elke wijziging
 const { open, OUT } = require('./helper');
 (async () => { const { b, p } = await open({ width: 1280, height: 800 });
  p.on('pageerror', e => console.log('FOUT', e.message));
