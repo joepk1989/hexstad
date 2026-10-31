@@ -6,7 +6,7 @@
   // Het vallen is eenvoudige zwaartekracht met een paar stuiters; het puin zakt na een tijdje weg.
   const collapse = (() => {
     const ST = { on: (() => { try { return localStorage.getItem('raatstad-instorten') === '1'; } catch (e) { return false; } })() }, mods = new Map(), debris = [], dust = [];
-    const MAXD = 170, TOL = 0.16, MAXDUST = 120;
+    const MAXD = 420, TOL = 0.16, MAXDUST = 120;
     const dustMesh = new THREE.InstancedMesh(new THREE.TetrahedronGeometry(0.28), new THREE.MeshLambertMaterial({ color: '#cfc8bb', flatShading: true }), MAXDUST);
     dustMesh.frustumCulled = false; dustMesh.count = 0; dustMesh.userData.noOcc = true; dustMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(dustMesh);
     const root = new THREE.Group(); root.name = 'instorten'; scene.add(root);
@@ -140,8 +140,12 @@
     function launch(S, p) {
       p.st = 'fall'; S.pend = Math.max(0, S.pend - 1);
       if (debris.length >= MAXD) { p.st = 'gone'; p.mesh.visible = false; puff(p.c.x, p.c.y, p.c.z, 3); return; }
-      p.v = new THREE.Vector3(p.vx + (Math.random() - 0.5) * 1.5, 0.5 + Math.random() * 2, p.vz + (Math.random() - 0.5) * 1.5);
-      p.w = new THREE.Vector3((Math.random() - 0.5) * 5, (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 5);
+      p.v = new THREE.Vector3(p.vx + (Math.random() - 0.5) * 0.6, p.flat ? 0 : 0.2 + Math.random() * 0.6, p.vz + (Math.random() - 0.5) * 0.6);
+      // een staande plaat kantelt om (draait om zijn voet, weg van de klap); een vloertegel zakt recht naar beneden
+      const pl = Math.hypot(p.vx, p.vz), tall = p.hy > Math.min(p.hx, p.hz) * 2;
+      if (tall) { const dx = pl > 0.3 ? p.vx / pl : Math.random() - 0.5, dz = pl > 0.3 ? p.vz / pl : Math.random() - 0.5, dl = Math.hypot(dx, dz) || 1, k = 1.2 + Math.min(2.5, pl * 0.25); p.w = new THREE.Vector3(dz / dl * k, (Math.random() - 0.5) * 0.4, -dx / dl * k); p.v.x += dx / dl * p.hy * 0.5; p.v.z += dz / dl * p.hy * 0.5; }
+      else p.w = new THREE.Vector3((Math.random() - 0.5) * 1.2, (Math.random() - 0.5) * 0.8, (Math.random() - 0.5) * 1.2);
+      p.still = 0; p.m = undefined; p.mesh.matrixAutoUpdate = false; p.mesh.updateMatrix();
       p.rest = 0; p.age = 0; debris.push({ S, p });
       if (S.grp.userData.n === undefined) S.grp.userData.n = 0;
     }
@@ -155,6 +159,94 @@
       return n;
     }
 
+
+    // ---------- Puin als starre lichamen ----------
+    // Elk brokstuk is een doos met massa (het volume), een draai en een draaisnelheid. Per stap: zwaartekracht, dan botsen
+    // de acht hoekpunten met de grond, met stukken die nog staan (ook van andere gebouwen), met auto's/mensen (11) en met
+    // ander puin. Een botsing is een stoot in het raakpunt (met draaimoment), zo kantelt een muurplaat om en komt puin
+    // schuin tegen de gevel tot rust in plaats van plat door alles heen te zakken. Wie stilligt slaapt ('rust') en is
+    // een vaste hindernis; een harde klap maakt hem weer wakker. Een zwaar, snel stuk dat een staand stuk raakt, slaat
+    // dat los (domino, ook naar het buurgebouw).
+    const REST_T = 20, GRAV = 12, CELL = 3, CORN = [[-1, -1, -1], [1, -1, -1], [-1, 1, -1], [1, 1, -1], [-1, -1, 1], [1, -1, 1], [-1, 1, 1], [1, 1, 1]];
+    const V = new THREE.Vector3(), V2 = new THREE.Vector3(), RN = new THREE.Vector3(), RV = new THREE.Vector3(), JV = new THREE.Vector3(), M3 = new THREE.Matrix3();
+    const gk = (x, z) => Math.floor(x / CELL) * 73856093 ^ Math.floor(z / CELL) * 19349663;
+    function body(p) {   // massa en traagheid (één keer)
+      if (p.m === undefined) { p.m = Math.max(0.05, 8 * p.hx * p.hy * p.hz); p.I = p.m * (p.hx * p.hx + p.hy * p.hy + p.hz * p.hz) / 3; }
+    }
+    // omhullende doos (wereld-assen) van een gedraaid stuk
+    function aabb(p) {
+      const m = p.mesh; M3.setFromMatrix4(m.matrix); const e = M3.elements;
+      p.ex = Math.abs(e[0]) * p.hx + Math.abs(e[3]) * p.hy + Math.abs(e[6]) * p.hz; p.ey = Math.abs(e[1]) * p.hx + Math.abs(e[4]) * p.hy + Math.abs(e[7]) * p.hz; p.ez = Math.abs(e[2]) * p.hx + Math.abs(e[5]) * p.hy + Math.abs(e[8]) * p.hz;
+    }
+    // stoot in raakpunt r (t.o.v. het midden) langs normaal n op lichaam p (ander lichaam q mag null/statisch zijn)
+    function impulse(p, q, px, py, pz, nx, ny, nz, e, mu) {
+      const rx = px - p.mesh.position.x, ry = py - p.mesh.position.y, rz = pz - p.mesh.position.z;
+      let vx = p.v.x + (p.w.y * rz - p.w.z * ry), vy = p.v.y + (p.w.z * rx - p.w.x * rz), vz = p.v.z + (p.w.x * ry - p.w.y * rx);
+      let qx = 0, qy = 0, qz = 0, qrx = 0, qry = 0, qrz = 0, invMq = 0, invIq = 0;
+      if (q && q.st === 'fall') { qrx = px - q.mesh.position.x; qry = py - q.mesh.position.y; qrz = pz - q.mesh.position.z; qx = q.v.x + (q.w.y * qrz - q.w.z * qry); qy = q.v.y + (q.w.z * qrx - q.w.x * qrz); qz = q.v.z + (q.w.x * qry - q.w.y * qrx); invMq = 1 / q.m; invIq = 1 / q.I; }
+      vx -= qx; vy -= qy; vz -= qz;
+      const vn = vx * nx + vy * ny + vz * nz; if (vn >= 0) return 0;
+      const cx = ry * nz - rz * ny, cy = rz * nx - rx * nz, cz = rx * ny - ry * nx, kp = (cx * cx + cy * cy + cz * cz) / p.I;
+      const dx = qry * nz - qrz * ny, dy = qrz * nx - qrx * nz, dz = qrx * ny - qry * nx, kq = invIq ? (dx * dx + dy * dy + dz * dz) * invIq : 0;
+      const j = -(1 + e) * vn / (1 / p.m + invMq + kp + kq);
+      // wrijving: tegen de tangentiële snelheid in, hooguit mu·j
+      let tx = vx - vn * nx, ty = vy - vn * ny, tz = vz - vn * nz; const tl = Math.hypot(tx, ty, tz);
+      let jt = 0; if (tl > 1e-4) { tx /= tl; ty /= tl; tz /= tl; jt = Math.min(mu * j, tl / (1 / p.m + invMq + kp + kq)); }
+      const ix = j * nx - jt * tx, iy = j * ny - jt * ty, iz = j * nz - jt * tz;
+      p.v.x += ix / p.m; p.v.y += iy / p.m; p.v.z += iz / p.m;
+      p.w.x += (ry * iz - rz * iy) / p.I; p.w.y += (rz * ix - rx * iz) / p.I; p.w.z += (rx * iy - ry * ix) / p.I;
+      if (invMq) { q.v.x -= ix * invMq; q.v.y -= iy * invMq; q.v.z -= iz * invMq; q.w.x -= (qry * iz - qrz * iy) * invIq; q.w.y -= (qrz * ix - qrx * iz) * invIq; q.w.z -= (qrx * iy - qry * ix) * invIq; }
+      return j;
+    }
+    function wake(p) { if (p.st !== 'rust') return; p.st = 'fall'; p.rest = 0; p.still = 0; p.mesh.scale.setScalar(1); if (!p.v) { p.v = new THREE.Vector3(); p.w = new THREE.Vector3(); } }
+    // een hoekpunt in een doos (wereld-assen, midden c, halve maten h): kleinste uitweg → [nx, ny, nz, diepte] of null
+    function inBox(x, y, z, cx, cy, cz, hx, hy, hz, vy, dt) {
+      const dx = hx - Math.abs(x - cx), dy = hy - Math.abs(y - cy), dz = hz - Math.abs(z - cz); if (dx <= 0 || dy <= 0 || dz <= 0) return null;
+      if (vy < 0 && y > cy && dy < -vy * dt + 0.06) return [0, 1, 0, dy];   // van boven erin gevallen: naar boven eruit (ook bij een dunne vloer)
+      if (dy <= dx && dy <= dz) return [0, y > cy ? 1 : -1, 0, dy];
+      if (dx <= dz) return [x > cx ? 1 : -1, 0, 0, dx]; return [0, 0, z > cz ? 1 : -1, dz];
+    }
+    let hitBudget = 0;
+    function physics(dt0) {
+      if (!debris.length) return;
+      const steps = 2, dt = dt0 / steps; hitBudget = 6;
+      // raster van alles waar puin tegenaan kan: staand puin (rust) en staande stukken van alle kapotte gebouwen
+      const grid = new Map(), put = (p, S) => { aabb(p); const x0 = Math.floor((p.mesh.position.x - p.ex) / CELL), x1 = Math.floor((p.mesh.position.x + p.ex) / CELL), z0 = Math.floor((p.mesh.position.z - p.ez) / CELL), z1 = Math.floor((p.mesh.position.z + p.ez) / CELL); for (let gx = x0; gx <= x1; gx++) for (let gz = z0; gz <= z1; gz++) { const k = gx * 73856093 ^ gz * 19349663; let L = grid.get(k); if (!L) grid.set(k, L = []); L.push(p); } };
+      for (const S of mods.values()) if (!S.sgrid || S.sgridN !== S.P.length) { S.sgrid = new Map(); S.sgridN = S.P.length; for (const p of S.P) { if (p.weak && !p.flat) continue; const x0 = Math.floor((p.c.x - p.hx) / CELL), x1 = Math.floor((p.c.x + p.hx) / CELL), z0 = Math.floor((p.c.z - p.hz) / CELL), z1 = Math.floor((p.c.z + p.hz) / CELL); for (let gx = x0; gx <= x1; gx++) for (let gz = z0; gz <= z1; gz++) { const k = gx * 73856093 ^ gz * 19349663; let L = S.sgrid.get(k); if (!L) S.sgrid.set(k, L = []); L.push(p); } } }
+      for (const d of debris) { const p = d.p; body(p); if (p.st === 'rust') put(p, d.S); }
+      for (let s = 0; s < steps; s++) {
+        for (const d of debris) {
+          const p = d.p, m = p.mesh; if (p.st !== 'fall') continue;
+          p.v.y -= GRAV * dt; m.position.addScaledVector(p.v, dt);
+          AX.copy(p.w); const wl = AX.length(); if (wl > 1e-4) { Q4.setFromAxisAngle(AX.normalize(), wl * dt); m.quaternion.premultiply(Q4); }
+          p.w.multiplyScalar(1 - 0.4 * dt); m.updateMatrix(); aabb(p);
+          M3.setFromMatrix4(m.matrix); const e = M3.elements; let onGround = false, bump = 0;
+          for (const [sx, sy, sz] of CORN) {
+            const lx = sx * p.hx, ly = sy * p.hy, lz = sz * p.hz, x = m.position.x + e[0] * lx + e[3] * ly + e[6] * lz, y = m.position.y + e[1] * lx + e[4] * ly + e[7] * lz, z = m.position.z + e[2] * lx + e[5] * ly + e[8] * lz;
+            // grond en wegen
+            const g = groundAt(x, z); if (y < g) { m.position.y += g - y; const j = impulse(p, null, x, g, z, 0, 1, 0, 0.15, 0.6); if (j > bump) bump = j; onGround = true; }
+            // staande stukken (van elk kapot gebouw)
+            for (const S of mods.values()) { const L = S.sgrid.get(gk(x, z)); if (!L) continue; for (const q of L) { if (q.st !== 'stand' || q === p) continue; const r = inBox(x, y, z, q.c.x, q.c.y, q.c.z, q.hx, q.hy, q.hz, p.v.y, dt); if (!r) continue;
+              const rel = Math.hypot(p.v.x, p.v.y, p.v.z);
+              if (!q.weak && !q.flat && rel > 5 && (q.m === undefined ? (q.m = Math.max(0.05, 8 * q.hx * q.hy * q.hz)) : q.m) * 3 + 12 < p.m * rel && hitBudget > 0 && S.P.includes(q)) { hitBudget--; release(S, q, p.v.x * 0.3, p.v.z * 0.3, 0); S.clock = Math.max(S.clock, 0.25); unbake(S); p.v.multiplyScalar(0.5); continue; }   // domino: een zwaar, snel stuk slaat een staand stuk los
+              m.position.x += r[0] * r[3]; m.position.y += r[1] * r[3]; m.position.z += r[2] * r[3]; const j = impulse(p, null, x, y, z, r[0], r[1], r[2], 0.1, 0.5); if (j > bump) bump = j; if (r[1] > 0) onGround = true; } }
+            // ander puin (slapend of vallend)
+            { const L = grid.get(gk(x, z)); if (L) for (const q of L) { if (q === p || q.st === 'gone') continue; const r = inBox(x, y, z, q.mesh.position.x, q.mesh.position.y, q.mesh.position.z, q.ex, q.ey, q.ez, p.v.y, dt); if (!r) continue;
+              const share = q.st === 'fall' ? q.m / (p.m + q.m) : 1; m.position.x += r[0] * r[3] * share; m.position.y += r[1] * r[3] * share; m.position.z += r[2] * r[3] * share;
+              if (q.st === 'fall') { q.mesh.position.x -= r[0] * r[3] * (1 - share); q.mesh.position.y -= r[1] * r[3] * (1 - share); q.mesh.position.z -= r[2] * r[3] * (1 - share); }
+              const j = impulse(p, q.st === 'fall' ? q : null, x, y, z, r[0], r[1], r[2], 0.05, 0.55); if (j > bump) bump = j; if (r[1] > 0) onGround = true;
+              if (q.st === 'rust' && j > 2.5 * q.m) wake(q); } }
+          }
+          if (bump > 1.5 * p.m) { puff(m.position.x, m.position.y - p.hy, m.position.z, 2); try { if (p.big > 1.5 && Math.random() < 0.4) sound.impact(Math.min(1, bump / (8 * p.m)), m.position.x, 0.4, m.position.z, false); } catch (e) { } }
+          // auto's en mensen: een zwaar stuk met vaart raakt ze (11)
+          if (p.big > 0.6 && hitBudget > 0) { const sp = p.v.length(); if (sp > 3) { try { if (cars.ballHit(m.position.x, m.position.y, m.position.z, p.v.x, p.v.y, p.v.z, Math.max(p.hx, p.hz))) { hitBudget--; p.v.multiplyScalar(0.6); } } catch (e) { } } }
+          // slapen
+          const sp2 = p.v.lengthSq(), wl2 = p.w.lengthSq();
+          if (onGround && sp2 < 0.09 && wl2 < 0.25) { p.still = (p.still || 0) + dt; if (p.still > 0.4) { p.st = 'rust'; p.rest = 0; p.v.set(0, 0, 0); p.w.set(0, 0, 0); put(p, d.S); } } else p.still = 0;
+        }
+      }
+      for (const d of debris) if (d.p.st === 'fall') { d.p.mesh.updateMatrix(); aabb(d.p); put(d.p, d.S); }   // vallend puin ook in het raster, voor de volgende stap
+    }
     // een auto raakt het gebouw bij (x, z) met snelheid sp
     function probe(x, z, sp, vx, vz) {
       if (!ST.on) return false; CNT.call++;
@@ -241,26 +333,11 @@
         if (S.pend > 0 && S.clock <= 0) S.clock = 0.35;
         if (S.pend === 0 && S.clock <= 0 && !S.baked) bake(S);
       }
+      physics(dt);
       for (let i = debris.length - 1; i >= 0; i--) {
         const d = debris[i], p = d.p, m = p.mesh; p.age += dt;
-        if (p.st === 'fall') {
-          p.v.y -= 13 * dt; m.position.addScaledVector(p.v, dt);
-          AX.copy(p.w); const wl = AX.length(); if (wl > 1e-4) { Q4.setFromAxisAngle(AX.normalize(), wl * dt); m.quaternion.premultiply(Q4); }
-          // landen: op de grond of op een vloer die nog staat
-          let gy = groundAt(m.position.x, m.position.z);
-          for (const o of d.S.P) if (o.st === 'stand' && o.flat && Math.abs(m.position.x - o.c.x) < o.hx && Math.abs(m.position.z - o.c.z) < o.hz) { const ty = o.c.y + o.hy; if (ty > gy && m.position.y - p.hy * 0.8 > ty - 0.6 - Math.abs(p.v.y) * dt) gy = ty; }
-          const rest = Math.min(p.hy, Math.max(0.06, Math.min(p.hx, p.hz)));
-          if (m.position.y - rest < gy) {
-            m.position.y = gy + rest;
-            if (Math.abs(p.v.y) > 2) { puff(m.position.x, gy + 0.3, m.position.z, 2); try { if (p.big > 1.5 && Math.random() < 0.5) sound.impact(Math.min(1, Math.abs(p.v.y) / 10), m.position.x, 0.4, m.position.z, false); } catch (e) { } }
-            p.v.y *= -0.22; p.v.x *= 0.6; p.v.z *= 0.6; p.w.multiplyScalar(0.5);
-            if (p.v.length() < 0.7) { p.st = 'rust'; p.rest = 0; }
-          }
-        } else if (p.st === 'rust') {
-          p.rest += dt;
-          if (p.rest > 9) { const k = Math.max(0, 1 - (p.rest - 9) / 2); m.scale.setScalar(k); if (k <= 0) { p.st = 'gone'; } }
-        }
-        if (p.st === 'gone' || p.age > 40) { root.remove(m); m.geometry.dispose(); p.st = 'gone'; debris.splice(i, 1); }
+        if (p.st === 'rust') { p.rest += dt; if (p.rest > REST_T) { const k = Math.max(0, 1 - (p.rest - REST_T) / 2); m.scale.setScalar(k); m.updateMatrix(); if (k <= 0) p.st = 'gone'; } }
+        if (p.st === 'gone' || p.age > 60 || m.position.y < -60) { root.remove(m); m.geometry.dispose(); p.st = 'gone'; debris.splice(i, 1); }
       }
       // stof
       for (let i = dust.length - 1; i >= 0; i--) { const q = dust[i]; q.t += dt; q.x += q.vx * dt; q.y += q.vy * dt; q.z += q.vz * dt; q.vx *= 0.97; q.vz *= 0.97; q.vy *= 0.96; if (q.t >= q.life) dust.splice(i, 1); }

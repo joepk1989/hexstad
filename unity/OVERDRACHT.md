@@ -190,6 +190,8 @@ gevonden met een straal op de echte romp) en bloedige bandensporen; een plas als
   bij weghalen of een nieuwe stad verdwijnen de brokstukken mee.
 - Alleen gebouwen (`modMeta(m).bouw`), geen parken. Oude blokken (woning/kantoor) worden bij een harde klap eerst omgezet naar een module.
 
+- **Puin als starre lichamen (31 okt)**: doos met massa m = 8·hx·hy·hz (dichtheid 1), traagheid I = m(hx²+hy²+hz²)/3 (scalair). Per substap (dt/2): v += g·dt (g = 12), p += v·dt, q = exp(ω·dt)·q, ω·(1 − 0,4dt). Acht hoekpunten tegen: grond/weg (e 0,15, μ 0,6), staande stukken als AABB (e 0,1, μ 0,5), ander puin als wereld-AABB van de gedraaide doos (e 0,05, μ 0,55, positiecorrectie naar massa). Stoot j = −(1+e)·vn / (1/m₁ + 1/m₂ + |r₁×n|²/I₁ + |r₂×n|²/I₂), wrijving min(μj, vt/(…)) tegen de tangentiële snelheid in. Hoekpunt in een doos: kleinste uitweg, maar van boven ingevallen (vy < 0, diepte < |vy|·dt + 0,06) → omhoog. Slapen bij |v|² < 0,09 en |ω|² < 0,25 gedurende 0,4 s met grondcontact; wakker bij stoot > 2,5·m. Losgeslagen hoge plaat (hy > 2·min(hx,hz)): ω = 1,2 + min(2,5; 0,25·|v|) om de horizontale as haaks op de klap. Domino: m·|v| > 3·m_geraakt + 12 bij |v| > 5 (niet op zwak/plat), max 6 per beeld. Unity: PhysX-rigidbodies met box colliders doen dit vanzelf; de domino-drempel en het slapen zijn de instellingen om over te nemen.
+
 ## 16. Oude blokken naar modules (`08k-oud-omzetten.js`, `oudOmzetten`)
 Kolommen van woning/kantoor/blok/zuilen/hof/tribune/tunnel (een dak bovenop valt weg) worden bibliotheekmodules met dezelfde hoogte, deur naar de dichtstbijzijnde straat,
 per soort aaneengesloten lagen opgestapeld (`lv`). Woning: 1 Bungalow, 2 Rijhuis (vier varianten), 3 Rijhuis/Stadswoning, 4 Herenhuis, 5–6 Appartementen, 7 Woontoren;
