@@ -551,13 +551,20 @@
     }
     return false;
   }
+  // Ligt de weg hier als een dek op pijlers (geen dijk, geen wand tot de grond)? Op een vaste laag, als dakweg, over een
+  // andere weg, of 3 m en meer boven het maaiveld (1,5 m is een dijkje, dat hoort bij het terrein)
+  function isDeck(path, x, z, h) {
+    if (path.abs || path.dak) return h > terrainHeightAt(x, z) + 0.6;
+    if (roadSpan(path, x, z, h)) return true;
+    return h - terrainHeightAt(x, z) > 2.5;   // 1,5 m: dijkje; 3 m en hoger: dek
+  }
   function skirtInto(L, pts, sg, path) {   // wand langs een lijn van de weg (bovenkant stoep) tot het maaiveld, waar de weg erboven ligt
     if (pts.length < 2) return;
     pts = densify(pts, 1.5);
     const top = p => PW_H + hy(p[0], p[1]), bot = p => { const [q, r] = worldToCell(p[0], p[1]), b = baseOf(stackOf(q, r)[0] || ''); return b === 'water' || b === 'kuil' || deckAt(p[0], p[1], true, !!(path && path.dak)) !== null ? null : terrainHeightAt(p[0], p[1]) - 0.05; };
     for (let i = 0; i < pts.length - 1; i++) {
       const a = pts[i], b = pts[i + 1];
-      if (path && roadSpan(path, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2, hy((a[0] + b[0]) / 2, (a[1] + b[1]) / 2))) { wallSeg(L, a, b, -1.3, PW_H); continue; }   // brugdek: alleen de rand van het dek
+      if (path && isDeck(path, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2, hy((a[0] + b[0]) / 2, (a[1] + b[1]) / 2))) { wallSeg(L, a, b, -1.3, PW_H); continue; }   // brugdek: alleen de rand van het dek (pijlers eronder, zie pathBuild)
       const ba = bot(a), bb = bot(b); if (ba === null || bb === null) continue;
       const ta = top(a), tb = top(b); if (ta - ba < 0.35 && tb - bb < 0.35) continue;
       const base = L.pos.length / 3; L.pos.push(a[0], Math.min(ba, ta), a[1], a[0], ta, a[1], b[0], Math.min(bb, tb), b[1], b[0], tb, b[1]);
@@ -805,6 +812,18 @@
       // dijkje of viaduct: waar de weg hoger ligt dan het maaiveld, een wand van de stoeprand naar beneden
       if (!pathProf(e.src).flat) {
         for (const sg of [1, -1]) skirtInto(skirt, vecWalkPts(GR, e, 0, sg * hw), sg, e.src);
+        // dek op pijlers: onderkant van het dek en om de 12 m een zeshoekige pijler tot de grond (of het dak eronder)
+        { const dp = densify(e.pts, 1.5); let since = 99, run = [];
+          const under = [];
+          for (const q of dp) { const top = hy(q[0], q[1]) + Y; const dk = isDeck(e.src, q[0], q[1], top); if (dk) run.push(q); else { if (run.length > 1) under.push(run); run = []; } }
+          if (run.length > 1) under.push(run);
+          for (const seg of under) { const keep = HF; ribbonInto(skirt, seg, hw + 0.02, Y - 1.3); HF = keep;
+            since = 99;
+            for (const q of seg) { since += 1.5; if (since < 12) continue; const top = hy(q[0], q[1]) + Y - 1.3; if (typeof onCarriage === 'function' && (cells.paths || []).some(p2 => p2 !== e.src && p2.t !== 'rot' && p2.p && p2.p.length > 1 && distPoly(q[0], q[1], pathProf(p2).pts) < PATH_DEF[p2.t].hw + 1)) continue;   // niet midden op een lagere weg
+              let low = Math.max(0, terrainHeightAt(q[0], q[1])); const dkb = typeof deckAt === 'function' ? deckAt(q[0], q[1], false, true) : null; if (dkb !== null && dkb < top - 0.5) low = Math.max(low, dkb);
+              const hgt = top - low; if (hgt < 1.2) continue; since = 0;
+              const rr = Math.min(0.9, 0.45 + hw * 0.06), pier = new THREE.Mesh(new THREE.CylinderGeometry(rr, rr * 1.15, hgt, 6), VM.barrier); pier.position.set(q[0], low + hgt / 2, q[1]); pier.castShadow = true; pier.receiveShadow = true; pier.userData.own = true; pathGroup.add(pier); } }
+        }
         // pijler op de middenberm van een snelweg eronder
         const snels = P.filter(p => p.t === 'snel' && p !== e.src && p.p && p.p.length > 1), done = [];
         if (snels.length) for (const q of densify(e.pts, 1)) {

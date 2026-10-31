@@ -67,7 +67,7 @@
       const dx = s[2] - s[0], dz = s[3] - s[1], l2 = dx * dx + dz * dz || 1e-9, f = Math.max(0, Math.min(1, ((x - s[0]) * dx + (z - s[1]) * dz) / l2));
       const d = Math.hypot(s[0] + dx * f - x, s[1] + dz * f - z); if (d > s[7]) continue;
       const hr = s[4] + (s[5] - s[4]) * f - 0.15; if (s[6] && v < 0.02) continue;   // vlakke weg op vlakke grond: niets
-      if (hr - v > 4.5) continue;   // ver boven het veld: een viaduct op pijlers, geen dijk eronder
+      if (hr - v > 2.5) continue;   // 3 m en hoger boven het veld: een dek op pijlers, geen dijk eronder (zie isDeck in 07)
       const band = Math.min(18, Math.max(3, Math.abs(hr - v) * 1.2)), w = d <= s[8] ? 1 : d >= s[8] + band ? 0 : smooth01(1 - (d - s[8]) / band);
       if (w > wBest + 1e-6 || (w > 0 && w > wBest - 1e-6 && d < dBest)) { wBest = w; tBest = hr; dBest = d; }   // gelijk gewicht: het dichtstbijzijnde stuk weg
     }
@@ -169,7 +169,7 @@
       if (p.t === 'rot' && p.p && p.p.length) { const P = pathProf(p), c = p.p[0], edge = ROT.Ro + 2.9; tRoadSegs.push([c[0], c[1], c[0] + 0.01, c[1], P.h[0], P.h[0], P.flat, edge + 18.5, edge]); continue; }   // rotonde: rond vlak
       const def = PATH_DEF[p.t]; if (!def || !p.p || p.p.length < 2) continue;
       const P = pathProf(p), edge = def.hw + (p.t === 'pad' ? 0.6 : def.walk) + 0.6;
-      for (let i = 0; i < P.pts.length - 1; i++) { const a = P.pts[i], b = P.pts[i + 1]; if (p.abs && P.h[i] > 0.5 && P.h[i + 1] > 0.5) continue; if (P.dk && (P.dk[i] || P.dk[i + 1])) continue; if (!P.flat && roadSpan(p, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (P.h[i] + P.h[i + 1]) / 2, 8)) continue; tRoadSegs.push([a[0], a[1], b[0], b[1], P.h[i], P.h[i + 1], P.flat, edge + 18.5, edge]); }   // brug over een weg: geen dijk eronder
+      for (let i = 0; i < P.pts.length - 1; i++) { const a = P.pts[i], b = P.pts[i + 1]; if ((p.abs || p.dak) && P.h[i] > 0.5 && P.h[i + 1] > 0.5) continue; if (P.dk && (P.dk[i] || P.dk[i + 1])) continue; if (!P.flat && roadSpan(p, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (P.h[i] + P.h[i + 1]) / 2, 8)) continue; tRoadSegs.push([a[0], a[1], b[0], b[1], P.h[i], P.h[i + 1], P.flat, edge + 18.5, edge]); }   // brug over een weg: geen dijk eronder
     }
     const touch = segs => { for (const s of segs) { const r = s[7] + 2; for (let i = Math.floor((Math.min(s[0], s[2]) - r) / TSZ); i <= Math.floor((Math.max(s[0], s[2]) + r) / TSZ); i++) for (let j = Math.floor((Math.min(s[1], s[3]) - r) / TSZ); j <= Math.floor((Math.max(s[1], s[3]) + r) / TSZ); j++) { const c = tChunks.get(i + ',' + j); if (c) { c.fin = null; c.dirty = true; } else if (!s[6]) tChunks.set(i + ',' + j, { dirty: true }); } } };
     touch(old); touch(tRoadSegs);
